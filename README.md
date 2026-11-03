@@ -32,6 +32,8 @@ commit() ─► Snapshot ─► atomic swap     │                      ─► 
 | `fusion.hpp` | RRF | linear id-match over stack array (K ≤ 64) |
 | `prompt.hpp` | context assembly | fixed buffer, reserved question space, greedy token-budget packing |
 | `epoch.hpp` | snapshot reclamation | per-reader padded epoch slots, seq_cst publish/scan |
+| `text_clean.hpp` | page text cleanup | ligatures, dehyphenation, running header/footer removal, paragraph reflow |
+| `pdf.hpp` | PDF ingestion (optional, Poppler) | page-aware extraction, `ingest_pdf()` with source + page citations |
 | `io.hpp` | persistence | streaming checksum, bounds-checked reads, fsync + atomic rename |
 | `engine.hpp` | pipeline | per-thread `QueryContext` holds all scratch; atomic snapshot swap |
 
@@ -93,6 +95,51 @@ synthetic clusters. Real sentence embeddings need a larger nprobe for the same
 recall, so measure on your own data. `HashingEmbedder` is a lexical-ish
 stand-in. For semantic recall, plug a neural encoder into the `Embedder`
 concept.
+
+## PDFs
+
+```bash
+./build/rag_pdf index research.ragidx ~/papers/ handbook.pdf   # folders are searched recursively
+./build/rag_pdf ask research.ragidx "how does the kill switch work?" -k 3
+./build/rag_pdf ask research.ragidx "maker rebates" --prompt     # also print the LLM prompt
+```
+
+```text
+Top 3 passages for: how does the kill switch work?
+
+[1] handbook/02_risk.pdf, p. 2   (semantic #1, keyword #1)
+    The kill switch cancels all resting orders and blocks new ones within one hundred ...
+```
+
+In code:
+
+```cpp
+#include "rag/pdf.hpp"                          // link the rag_pdf_support CMake target
+auto r = rag::pdf::ingest_pdf(engine, "report.pdf", /*doc_id=*/7);
+// r.pages, r.chunks, r.empty_pages; prompts now cite "[n] (report.pdf, p. 12)"
+```
+
+* **Extraction:** Poppler (`libpoppler-cpp-dev`), in reading order, so
+  multi-column pages come out one column after another. CMake builds the PDF
+  pieces only when Poppler is found; nothing else in the library depends on it.
+* **Cleanup** (`rag/text_clean.hpp`, dependency-free):
+  * typographic ligatures (`ﬁ` → `fi`), so "ﬁnance" matches "finance";
+  * soft hyphens, zero-width characters, BOMs and Unicode spaces;
+  * words hyphenated across line ends;
+  * hard-wrapped lines rejoined into paragraphs;
+  * running headers, footers and page numbers: lines that recur at the top or
+    bottom of at least half the pages, and of both pages in a 2-page document.
+    Short lines may differ only in their digits ("Page 3 of 10"); long lines
+    must repeat exactly, so similar body sentences are kept.
+* **Citations:** every chunk records its source and the pages it spans. A
+  chunk crossing a page break cites `pp. 4-5`. Sources and pages are saved
+  in the index file (format v2).
+* **Scanned PDFs:** pages without a text layer are counted and reported. They
+  need OCR first; this tool doesn't do OCR.
+* **Encrypted PDFs:** rejected with a clear error unless they open without a
+  password.
+* **Speed:** a 400-page PDF indexes in 0.42 s, about the same as `pdftotext`
+  alone. Loading the index and answering a question takes 24 ms.
 
 ## Batched queries
 

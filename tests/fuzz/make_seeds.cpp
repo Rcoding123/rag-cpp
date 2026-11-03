@@ -22,7 +22,12 @@ int main(int argc, char** argv) {
   for (int m = 0; m < 4; ++m) {
     for (int ndocs : {0, 1, 4}) {
       Engine e(small_config(modes[m]));
-      for (int d = 0; d < ndocs; ++d) e.ingest(docs[d], static_cast<std::uint32_t>(d));
+      for (int d = 0; d < ndocs; ++d) {
+        // Odd documents carry a source and two pages, so seeds cover every record field.
+        const std::uint32_t pages[] = {0, static_cast<std::uint32_t>(std::string_view(docs[d]).size() / 2)};
+        if (d % 2) e.ingest(docs[d], static_cast<std::uint32_t>(d), IngestOptions{.source = "seed.pdf", .page_starts = pages});
+        else e.ingest(docs[d], static_cast<std::uint32_t>(d));
+      }
       e.commit();
       if (ndocs == 4) e.ingest("uncommitted tail chunk", 9);
       const auto tmp = out / "tmp.idx";

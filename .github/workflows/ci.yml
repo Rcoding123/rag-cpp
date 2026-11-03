@@ -38,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q libgtest-dev libbenchmark-dev
+          sudo apt-get install -y -q libgtest-dev libbenchmark-dev libpoppler-cpp-dev
 
       - name: Runner CPU
         run: |

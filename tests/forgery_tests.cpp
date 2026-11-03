@@ -27,7 +27,7 @@ using Engine = RagEngine<HashingEmbedder<kD>>;
 // the same way load() reads it (see RagEngine::save for the layout).
 struct Layout {
   std::size_t n = 0, text_bytes = 0;
-  std::size_t records = 0, text = 0, rows = 0;
+  std::size_t records = 0, text = 0, src_offsets = 0, src_names = 0, rows = 0;
   std::size_t triples_len = 0, triples = 0, ntriples = 0;
   std::size_t doclen_len = 0, builder_ndocs = 0;
   std::size_t index_record = 0;
@@ -38,8 +38,10 @@ struct Layout {
     n = peek<std::uint32_t>(b, 24);
     text_bytes = static_cast<std::size_t>(peek<std::uint64_t>(b, 32));
     records = 40;
-    text = records + 24 * n;
-    rows = text + text_bytes;
+    text = records + 40 * n;  // ChunkRecord: 40 bytes
+    src_offsets = text + text_bytes;
+    src_names = src_offsets + 8 + 8 * static_cast<std::size_t>(peek<std::uint64_t>(b, src_offsets));
+    rows = src_names + 8 + static_cast<std::size_t>(peek<std::uint64_t>(b, src_names));
     triples_len = rows + n * kD * sizeof(float);
     ntriples = static_cast<std::size_t>(peek<std::uint64_t>(b, triples_len));
     triples = triples_len + 8;
@@ -61,7 +63,13 @@ class Forgery : public ::testing::Test {
     cfg_.chunker = {16, 4};
     Engine e(cfg_);
     const auto corpus = synth::make_text_corpus(12, 3, 40);
-    for (std::uint32_t d = 0; d < corpus.docs.size(); ++d) e.ingest(corpus.docs[d], d);
+    // Half the documents carry a source name and page offsets, so every
+    // record field is populated somewhere in the file.
+    for (std::uint32_t d = 0; d < corpus.docs.size(); ++d) {
+      const std::uint32_t pages[] = {0, static_cast<std::uint32_t>(corpus.docs[d].size() / 2)};
+      if (d % 2) e.ingest(corpus.docs[d], d, IngestOptions{.source = d % 4 == 1 ? "a.pdf" : "b.pdf", .page_starts = pages});
+      else e.ingest(corpus.docs[d], d);
+    }
     e.commit();
     path_ = temp_index("forgery");
     e.save(path_);
@@ -125,6 +133,27 @@ TEST_F(Forgery, ChunkTextBoundsIncludingOverflow) {
   // text_bytes larger than the file: records still in range of the bogus size.
   EXPECT_ERROR(load_error([](auto& b, auto&) { poke<std::uint64_t>(b, 32, std::uint64_t{1} << 40); }),
                "truncated text section");
+}
+
+TEST_F(Forgery, ChunkSourceAndPages) {
+  // Record layout: text_offset u64 @0, len @8, doc_id @12, ordinal @16,
+  // page_first @20, page_last @24, source @28.
+  EXPECT_EQ(peek<std::uint64_t>(good_, Layout(good_).src_offsets), 3u);  // 2 sources + 1 terminator
+  EXPECT_ERROR(load_error([](auto& b, const Layout& L) { poke<std::uint32_t>(b, L.records + 28, 2); }),
+               "chunk source out of range");
+  EXPECT_ERROR(load_error([](auto& b, const Layout& L) {
+                 poke<std::uint32_t>(b, L.records + 20, 5);
+                 poke<std::uint32_t>(b, L.records + 24, 4);
+               }),
+               "bad chunk page range");  // first > last
+  EXPECT_ERROR(load_error([](auto& b, const Layout& L) { poke<std::uint32_t>(b, L.records + 20, 3); }),
+               "bad chunk page range");  // first set, last unset
+  EXPECT_ERROR(load_error([](auto& b, const Layout& L) { poke<std::uint64_t>(b, L.src_offsets + 8, 1); }),
+               "bad source table");  // doesn't start at 0
+  EXPECT_ERROR(load_error([](auto& b, const Layout& L) {
+                 poke<std::uint64_t>(b, L.src_offsets + 8 + 8 * 2, 1000);  // last offset past the names blob
+               }),
+               "bad source table");
 }
 
 TEST_F(Forgery, BuilderState) {

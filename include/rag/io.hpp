@@ -52,7 +52,7 @@ struct FormatError : std::runtime_error {
 };
 
 inline constexpr char kMagic[8] = {'R', 'A', 'G', 'C', 'P', 'P', 'I', 'X'};
-inline constexpr std::uint32_t kFormatVersion = 1;
+inline constexpr std::uint32_t kFormatVersion = 2;  // 2: chunk source + page range
 
 // Streaming 64-bit checksum, 8 bytes per step. Each step h = mix((h ^ w) * K)
 // is a bijection in h, so changing any single word always changes the

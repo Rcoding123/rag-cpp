@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "fuzz_common.hpp"
+#include "rag/text_clean.hpp"
 
 using namespace rag;
 using namespace rag::fuzz;
@@ -71,6 +72,32 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
       FUZZ_CHECK(p.size() <= cfg.prompt_capacity);
       if (!p.empty()) FUZZ_CHECK(p.find("### Answer") != std::string_view::npos);
       FUZZ_CHECK(r.prompt.chunks_used <= r.hits.size());
+    }
+  }
+
+  // Page cleanup (PDF text): split the input into pages at form feeds.
+  std::vector<std::string> pages(1);
+  for (char ch : all) {
+    if (ch == '\f') pages.emplace_back();
+    else pages.back() += ch;
+  }
+  const auto cleaned = text::clean_pages(pages);
+  FUZZ_CHECK(cleaned.size() == pages.size());
+  for (const auto& pg : cleaned) {
+    for (unsigned char c : pg) FUZZ_CHECK(c >= 0x20 || c == '\n');
+    FUZZ_CHECK(pg.find("\n\n\n") == std::string::npos && pg.find("  ") == std::string::npos);
+    FUZZ_CHECK(pg.size() <= 3 * (all.size() + 1));  // ligature expansion is at most 3 bytes -> 3 letters
+  }
+  const auto joined = text::join_pages(cleaned);
+  FUZZ_CHECK(joined.page_starts.size() == cleaned.size());
+  for (std::size_t i = 1; i < joined.page_starts.size(); ++i) FUZZ_CHECK(joined.page_starts[i] > joined.page_starts[i - 1]);
+  {
+    Engine pe(small_config());
+    pe.ingest(joined.text, 9, IngestOptions{.source = "fuzz.pdf", .page_starts = joined.page_starts});
+    for (std::uint32_t i = 0; i < pe.size(); ++i) {
+      const auto c = pe.chunk(i);
+      FUZZ_CHECK(c.page_first >= 1 && c.page_first <= c.page_last && c.page_last <= cleaned.size());
+      FUZZ_CHECK(c.source == "fuzz.pdf");
     }
   }
 

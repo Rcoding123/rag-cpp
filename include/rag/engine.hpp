@@ -29,11 +29,15 @@
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <limits>
 #include <memory>
 #include <span>
 #include <stdexcept>
+#include <string>
 #include <string_view>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "rag/arena.hpp"
@@ -79,6 +83,25 @@ struct EngineConfig {
   std::size_t prompt_capacity = 32 * 1024;
 };
 
+// Optional per-document metadata for ingest().
+struct IngestOptions {
+  // Where the text came from, e.g. a file name. Shown in citations; stored
+  // once per distinct value however many chunks share it.
+  std::string_view source{};
+  // Byte offsets into the text at which each page begins: page_starts[0] must
+  // be 0 (page 1), and offsets must increase. Each chunk records the 1-based
+  // pages it spans. Empty means the text has no page structure.
+  std::span<const std::uint32_t> page_starts{};
+};
+
+// What an index file holds, read from its header alone (see RagEngine::inspect).
+struct IndexInfo {
+  std::uint32_t format_version;
+  std::uint32_t dim;
+  std::uint32_t chunks;
+  std::uint64_t text_bytes;
+};
+
 // A generator consumes the assembled prompt (llama.cpp, vLLM over HTTP, ...).
 template <class G>
 concept Generator = requires(G& g, std::string_view prompt) { g.generate(prompt); };
@@ -104,6 +127,10 @@ class RagEngine {
     std::uint32_t len;
     std::uint32_t doc_id;
     std::uint32_t ordinal;
+    std::uint32_t page_first;  // 0 = no page information
+    std::uint32_t page_last;
+    std::uint32_t source_len;
+    const char* source;        // arena-owned, shared by every chunk of the same source
   };
 
   // All per-query scratch. Create one per query thread, reuse forever.
@@ -173,7 +200,22 @@ class RagEngine {
   // ---------------------------------------------------------------- ingest
   // Single writer. Returns the number of chunks added (fewer than the
   // document produced if capacity ran out).
-  std::uint32_t ingest(std::string_view text, std::uint32_t doc_id) {
+  std::uint32_t ingest(std::string_view text, std::uint32_t doc_id, const IngestOptions& opt = {}) {
+    // Validate before mutating anything, so a bad call leaves the engine untouched.
+    const auto pages = opt.page_starts;
+    if (!pages.empty()) {
+      if (pages[0] != 0) throw std::invalid_argument("IngestOptions::page_starts must start at 0");
+      for (std::size_t i = 1; i < pages.size(); ++i)
+        if (pages[i] <= pages[i - 1]) throw std::invalid_argument("IngestOptions::page_starts must increase");
+      if (pages.back() > text.size()) throw std::invalid_argument("IngestOptions::page_starts beyond the text");
+    }
+    const std::string_view source = intern_source(opt.source);
+    // 1-based page holding byte `b`.
+    auto page_of = [&](std::uint32_t b) -> std::uint32_t {
+      if (pages.empty()) return 0;
+      return static_cast<std::uint32_t>(std::upper_bound(pages.begin(), pages.end(), b) - pages.begin());
+    };
+
     const std::string_view doc = arena_.copy(text);
     tokens_.clear();
     for_each_token(doc, [&](const Token& t) { tokens_.push_back(t); });
@@ -197,7 +239,10 @@ class RagEngine {
       }
       embedder_.embed(ctext, chunk_toks_, std::span<float, D>(vec_));
       builder_.add(id, terms_);
-      meta_[id] = {ctext.data(), static_cast<std::uint32_t>(ctext.size()), doc_id, ordinal++};
+      meta_[id] = {ctext.data(),     static_cast<std::uint32_t>(ctext.size()),
+                   doc_id,           ordinal++,
+                   page_of(r.byte_begin), page_of(r.byte_end - 1),
+                   static_cast<std::uint32_t>(source.size()), source.data()};
       store_.append(vec_);  // release-publishes meta_[id] and the row together
       ++added;
     });
@@ -247,13 +292,37 @@ class RagEngine {
     hdr.reserved = 0;
     hdr.text_bytes = text_bytes;
     w.pod(hdr);
+    // Sources are interned, so chunks of one source share a pointer: number
+    // the distinct pointers and store each name once.
+    std::vector<std::uint64_t> src_offsets{0};
+    std::vector<char> src_names;
+    std::unordered_map<const char*, std::uint32_t> src_index;
+    auto source_id = [&](const ChunkMeta& m) -> std::uint32_t {
+      if (m.source_len == 0) return kNoSource;
+      auto [it, fresh] = src_index.try_emplace(m.source, static_cast<std::uint32_t>(src_index.size()));
+      if (fresh) {
+        src_names.insert(src_names.end(), m.source, m.source + m.source_len);
+        src_offsets.push_back(src_names.size());
+      }
+      return it->second;
+    };
     std::uint64_t off = 0;
     for (std::uint32_t i = 0; i < n; ++i) {
       const ChunkMeta& m = meta_[i];
-      w.pod(ChunkRecord{off, m.len, m.doc_id, m.ordinal, 0});
+      ChunkRecord rec{};
+      rec.text_offset = off;
+      rec.len = m.len;
+      rec.doc_id = m.doc_id;
+      rec.ordinal = m.ordinal;
+      rec.page_first = m.page_first;
+      rec.page_last = m.page_last;
+      rec.source = source_id(m);
+      w.pod(rec);
       off += m.len;
     }
     for (std::uint32_t i = 0; i < n; ++i) w.bytes(meta_[i].text, meta_[i].len);
+    w.vec(src_offsets);
+    w.vec(src_names);
     for (std::uint32_t i = 0; i < n; ++i) w.bytes(store_.row(i), D * sizeof(float));
     builder_.save(w);
 
@@ -277,6 +346,15 @@ class RagEngine {
     w.commit();
   }
 
+  // Read an index file's header without loading it (e.g. to size max_chunks).
+  [[nodiscard]] static IndexInfo inspect(const std::filesystem::path& path) {
+    std::ifstream f(path, std::ios::binary);
+    FileHeader h;
+    if (!f.read(reinterpret_cast<char*>(&h), sizeof h)) throw io::FormatError("not a rag-cpp index file");
+    if (std::memcmp(h.magic, io::kMagic, sizeof h.magic) != 0) throw io::FormatError("not a rag-cpp index file");
+    return {h.version, h.dim, h.n_chunks, h.text_bytes};
+  }
+
   // Throws io::FormatError for a damaged file, std::invalid_argument for a
   // file that doesn't fit this engine type or configuration.
   [[nodiscard]] static std::unique_ptr<RagEngine> load(const std::filesystem::path& path, EngineConfig cfg = {},
@@ -284,7 +362,9 @@ class RagEngine {
     io::Reader r(path);
     const auto h = r.pod<FileHeader>();
     if (std::memcmp(h.magic, io::kMagic, sizeof h.magic) != 0) throw io::FormatError("not a rag-cpp index file");
-    if (h.version != io::kFormatVersion) throw io::FormatError("unsupported index format version");
+    if (h.version != io::kFormatVersion)
+      throw io::FormatError("unsupported index format version " + std::to_string(h.version) + " (this build reads " +
+                            std::to_string(io::kFormatVersion) + "; re-index the documents)");
     if (h.dim != D) throw std::invalid_argument("index dimension does not match the engine's embedder");
     if (h.embedder_tag != embedder_tag<E>()) throw std::invalid_argument("index was built with a different embedder");
     if (h.n_chunks > cfg.max_chunks) throw std::invalid_argument("index has more chunks than cfg.max_chunks");
@@ -300,10 +380,28 @@ class RagEngine {
     if (h.text_bytes > r.remaining()) throw io::FormatError("truncated text section");
     auto* text = static_cast<char*>(e->arena_.allocate(static_cast<std::size_t>(h.text_bytes ? h.text_bytes : 1), 1));
     r.bytes(text, static_cast<std::size_t>(h.text_bytes));  // one block for all chunk text
+
+    const auto src_offsets = r.vec<std::uint64_t>();
+    const auto src_names = r.vec<char>();
+    if (src_offsets.empty() || src_offsets.front() != 0 || src_offsets.back() != src_names.size() ||
+        !std::is_sorted(src_offsets.begin(), src_offsets.end()))
+      throw io::FormatError("bad source table");
+    const auto n_sources = static_cast<std::uint32_t>(src_offsets.size() - 1);
+    std::vector<std::string_view> sources(n_sources);
+    for (std::uint32_t s = 0; s < n_sources; ++s)  // re-intern so later ingests share these names
+      sources[s] = e->intern_source({src_names.data() + src_offsets[s], static_cast<std::size_t>(src_offsets[s + 1] - src_offsets[s])});
+    for (const auto& rec : recs) {
+      if (rec.source != kNoSource && rec.source >= n_sources) throw io::FormatError("chunk source out of range");
+      if (rec.page_first > rec.page_last || (rec.page_first == 0) != (rec.page_last == 0))
+        throw io::FormatError("bad chunk page range");
+    }
     alignas(kCacheLine) std::array<float, D> row;
     for (std::uint32_t i = 0; i < h.n_chunks; ++i) {
       r.bytes(row.data(), D * sizeof(float));
-      e->meta_[i] = {text + recs[i].text_offset, recs[i].len, recs[i].doc_id, recs[i].ordinal};
+      const ChunkRecord& c = recs[i];
+      const std::string_view src = c.source == kNoSource ? std::string_view{} : sources[c.source];
+      e->meta_[i] = {text + c.text_offset, c.len, c.doc_id, c.ordinal, c.page_first, c.page_last,
+                     static_cast<std::uint32_t>(src.size()), src.data()};
       e->store_.append(row);
     }
     e->builder_.load(r);
@@ -397,7 +495,7 @@ class RagEngine {
 
   [[nodiscard]] ChunkView chunk(std::uint32_t id) const noexcept {
     const ChunkMeta& m = meta_[id];
-    return {{m.text, m.len}, m.doc_id, m.ordinal};
+    return {{m.text, m.len}, m.doc_id, m.ordinal, {m.source, m.source_len}, m.page_first, m.page_last};
   }
   [[nodiscard]] std::uint32_t size() const noexcept { return store_.size(); }
   [[nodiscard]] std::uint32_t committed() const noexcept { return committed_.load(std::memory_order_acquire); }
@@ -518,6 +616,16 @@ class RagEngine {
     return res;
   }
 
+  // Writer only: one arena copy per distinct source name.
+  std::string_view intern_source(std::string_view s) {
+    if (s.empty()) return {};
+    auto it = sources_.find(s);
+    if (it != sources_.end()) return *it;
+    const std::string_view copy = arena_.copy(s);
+    sources_.insert(copy);
+    return copy;
+  }
+
   static constexpr bool uses_ivf(DenseMode m) noexcept { return m == DenseMode::Ivf || m == DenseMode::IvfInt8; }
   static IvfParams effective_ivf(const EngineConfig& c) noexcept {
     IvfParams ip = c.ivf;
@@ -559,9 +667,11 @@ class RagEngine {
     std::uint32_t reserved;
     std::uint64_t text_bytes;
   };
+  static constexpr std::uint32_t kNoSource = 0xFFFFFFFFu;
   struct ChunkRecord {
     std::uint64_t text_offset;
-    std::uint32_t len, doc_id, ordinal, reserved;
+    std::uint32_t len, doc_id, ordinal, page_first, page_last, source;
+    std::uint64_t reserved;
   };
   struct IndexRecord {  // parameters the saved snapshot was built with
     float k1, b;
@@ -570,7 +680,7 @@ class RagEngine {
     std::uint64_t seed;
     std::uint32_t covered, reserved32;
   };
-  static_assert(sizeof(FileHeader) == 40 && sizeof(ChunkRecord) == 24 && sizeof(IndexRecord) == 40,
+  static_assert(sizeof(FileHeader) == 40 && sizeof(ChunkRecord) == 40 && sizeof(IndexRecord) == 40,
                 "file layout must not depend on padding");
 
   // Read by every query: its own line, never written by queries.
@@ -585,6 +695,7 @@ class RagEngine {
   Bm25Builder builder_;
   std::vector<Token> tokens_, chunk_toks_;
   std::vector<std::uint64_t> terms_;
+  std::unordered_set<std::string_view> sources_;  // views into arena_
   alignas(kCacheLine) std::array<float, D> vec_{};
 };
 
