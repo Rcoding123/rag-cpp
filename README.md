@@ -12,7 +12,7 @@ text ─► Arena (stable string_views)                 query ─► tokenize   
      ─► tokenize ─► sliding-window chunks                 ─► embed      (stack, L1)
      ─► Embedder ─► VectorStore.append ─┐                 ├─► dense:  Exact | Int8+rerank | IVF + delta scan
      ─► Bm25Builder.add                 │                 └─► BM25:   impact-scored postings, dense accumulator
-commit() ─► build Snapshot ─► atomic swap  │                      ─► RRF fusion (stack)
+commit() ─► Snapshot ─► atomic swap     │                      ─► RRF fusion (stack)
                                         │                      ─► prompt into preallocated buffer ─► Generator
         size.store(n+1, release) ───────┴──► size.load(acquire): new chunks searchable immediately (dense)
 ```
