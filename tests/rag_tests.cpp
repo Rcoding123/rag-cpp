@@ -6,11 +6,15 @@
 #include <atomic>
 #include <cmath>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <new>
 #include <random>
 #include <set>
 #include <string>
 #include <thread>
+#include <unistd.h>
 #include <vector>
 
 #include "rag.hpp"
@@ -899,4 +903,308 @@ TEST(Engine, ConcurrentCommitAndQuery) {
   EXPECT_GT(max_version.load(), 1u);  // readers observed commits that happened mid-flight
   EXPECT_EQ(e.reclaim(), 0u);          // no readers left: everything retired is freed
   (void)commits;
+}
+
+// =============================== Persistence ================================
+namespace {
+std::vector<std::filesystem::path>& created_files() {
+  static std::vector<std::filesystem::path> v;
+  return v;
+}
+// Deletes every index file this test process created, when the run ends.
+struct TempFileCleanup : ::testing::Environment {
+  void TearDown() override {
+    std::error_code ec;
+    for (const auto& p : created_files()) std::filesystem::remove(p, ec);
+  }
+};
+[[maybe_unused]] auto* const kCleanup = ::testing::AddGlobalTestEnvironment(new TempFileCleanup);
+
+// Unique per test *and* per process: ctest -j runs tests as parallel processes,
+// so a shared name would let two tests clobber each other's files.
+std::filesystem::path temp_index(const char* name) {
+  const auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
+  std::string id = std::string(info->test_suite_name()) + "." + info->name() + "." + name + "." +
+                   std::to_string(::getpid()) + ".ragidx";
+  for (char& c : id) if (c == '/') c = '_';
+  auto p = std::filesystem::path(::testing::TempDir()) / id;
+  created_files().push_back(p);
+  return p;
+}
+std::vector<char> read_file(const std::filesystem::path& p) {
+  std::ifstream f(p, std::ios::binary);
+  return {std::istreambuf_iterator<char>(f), {}};
+}
+void write_file(const std::filesystem::path& p, const std::vector<char>& b) {
+  std::ofstream f(p, std::ios::binary | std::ios::trunc);
+  f.write(b.data(), static_cast<std::streamsize>(b.size()));
+}
+}  // namespace
+
+// Same vectors as HashingEmbedder<kD>, but claims to be a different model.
+struct OtherEmbedder : HashingEmbedder<kD> {
+  static constexpr std::string_view kName = "some.other.model";
+};
+static_assert(embedder_tag<OtherEmbedder>() != embedder_tag<HashingEmbedder<kD>>());
+
+class PersistModes : public ::testing::TestWithParam<DenseMode> {};
+
+TEST_P(PersistModes, RoundTripReturnsIdenticalResults) {
+  EngineConfig cfg;
+  cfg.max_chunks = 16384;
+  cfg.chunker = {64, 16};
+  cfg.dense_mode = GetParam();
+  cfg.ivf.nlist = 32;
+  Engine a(cfg);
+  const auto corpus = synth::make_text_corpus(600, 20, 128);
+  for (std::uint32_t d = 0; d < corpus.docs.size(); ++d) a.ingest(corpus.docs[d], d);
+  a.commit();
+  const auto path = temp_index("roundtrip");
+  a.save(path);
+  EXPECT_FALSE(std::filesystem::exists(path.string() + ".tmp"));  // temp file renamed away
+  const auto b = Engine::load(path, cfg);
+  ASSERT_EQ(b->size(), a.size());
+  EXPECT_EQ(b->committed(), a.size());
+
+  auto ca = a.make_context();
+  auto cb = b->make_context();
+  std::mt19937 rng(3);
+  for (int i = 0; i < 50; ++i) {
+    const auto& w = corpus.topic_words[rng() % 20];
+    const std::string q = w[rng() % 40] + " " + w[rng() % 40] + " " + corpus.topic_words[rng() % 20][rng() % 40];
+    const auto ra = a.query(q, 8, ca);
+    const auto rb = b->query(q, 8, cb);
+    ASSERT_EQ(ra.hits.size(), rb.hits.size()) << q;
+    for (std::size_t k = 0; k < ra.hits.size(); ++k) {
+      EXPECT_EQ(ra.hits[k], rb.hits[k]) << q;  // same ids and bit-identical scores
+      EXPECT_EQ(a.chunk(ra.hits[k].id).text, b->chunk(rb.hits[k].id).text);
+      EXPECT_EQ(a.chunk(ra.hits[k].id).doc_id, b->chunk(rb.hits[k].id).doc_id);
+    }
+    EXPECT_EQ(ra.prompt.prompt, rb.prompt.prompt);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(Modes, PersistModes,
+                         ::testing::Values(DenseMode::Exact, DenseMode::Int8Rerank, DenseMode::Ivf,
+                                           DenseMode::IvfInt8));
+
+TEST(Persist, LoadedEngineKeepsIngesting) {
+  auto ep = make_engine(DenseMode::Exact);
+  const auto path = temp_index("resume");
+  ep->save(path);
+  auto e = Engine::load(path, ep->config());
+  e->ingest("Dark pools match block orders away from the lit book.", 77);
+  e->commit();
+  auto ctx = e->make_context();
+  const auto r = e->query("dark pools block orders", 3, ctx);
+  ASSERT_FALSE(r.hits.empty());
+  EXPECT_EQ(e->chunk(r.hits[0].id).doc_id, 77u);
+  EXPECT_EQ(e->size(), ep->size() + 1);
+}
+
+TEST(Persist, EmptyEngineRoundTrips) {
+  Engine e(EngineConfig{.max_chunks = 16});
+  const auto path = temp_index("empty");
+  e.save(path);
+  const auto l = Engine::load(path, EngineConfig{.max_chunks = 16});
+  EXPECT_EQ(l->size(), 0u);
+  auto ctx = l->make_context();
+  EXPECT_TRUE(l->query("anything", 4, ctx).hits.empty());
+}
+
+TEST(Persist, RejectsDamagedFiles) {
+  auto ep = make_engine(DenseMode::Exact);
+  const auto path = temp_index("damaged");
+  ep->save(path);
+  const auto good = read_file(path);
+  ASSERT_GT(good.size(), 100u);
+  const auto cfg = ep->config();
+
+  auto flipped = good;  // one flipped bit in the middle of the vectors
+  flipped[good.size() / 2] ^= 0x10;
+  write_file(path, flipped);
+  EXPECT_THROW((void)Engine::load(path, cfg), io::FormatError);
+
+  for (std::size_t cut : {std::size_t{0}, std::size_t{7}, std::size_t{40}, good.size() / 3, good.size() - 1}) {
+    write_file(path, std::vector<char>(good.begin(), good.begin() + static_cast<std::ptrdiff_t>(cut)));
+    EXPECT_THROW((void)Engine::load(path, cfg), io::FormatError) << "truncated at " << cut;
+  }
+
+  auto trailing = good;
+  trailing.push_back('x');
+  write_file(path, trailing);
+  EXPECT_THROW((void)Engine::load(path, cfg), io::FormatError);
+
+  auto magic = good;
+  magic[0] = 'X';
+  write_file(path, magic);
+  EXPECT_THROW((void)Engine::load(path, cfg), io::FormatError);
+
+  write_file(path, good);  // and the original still loads
+  EXPECT_NO_THROW((void)Engine::load(path, cfg));
+  EXPECT_THROW((void)Engine::load(temp_index("does-not-exist"), cfg), std::runtime_error);
+}
+
+TEST(Persist, RejectsIncompatibleEngines) {
+  auto ep = make_engine(DenseMode::Exact);
+  const auto path = temp_index("compat");
+  ep->save(path);
+  // Different dimension.
+  EXPECT_THROW((void)RagEngine<HashingEmbedder<768>>::load(path), std::invalid_argument);
+  // Same dimension, different embedder identity.
+  EXPECT_THROW((void)RagEngine<OtherEmbedder>::load(path), std::invalid_argument);
+  // Too little capacity for the saved chunks.
+  EXPECT_THROW((void)Engine::load(path, EngineConfig{.max_chunks = 2}), std::invalid_argument);
+}
+
+TEST(Persist, FailedSaveLeavesPreviousIndexIntact) {
+  auto ep = make_engine(DenseMode::Exact);
+  const auto path = temp_index("atomic");
+  ep->save(path);
+  const auto before = read_file(path);
+  {
+    io::Writer w(path);  // simulate a save that dies before commit()
+    w.pod(std::uint64_t{42});
+  }
+  EXPECT_EQ(read_file(path), before);
+  EXPECT_FALSE(std::filesystem::exists(path.string() + ".tmp"));
+}
+
+namespace {
+// Rewrite the trailing checksum so a deliberately edited file passes the
+// integrity check and exercises the structural validation behind it.
+void fix_checksum(std::vector<char>& b) {
+  io::Checksum c;
+  c.update(b.data(), b.size() - 8);
+  const std::uint64_t h = c.value();
+  std::memcpy(b.data() + b.size() - 8, &h, 8);
+}
+template <class T>
+void poke(std::vector<char>& b, std::size_t off, T v) { std::memcpy(b.data() + off, &v, sizeof v); }
+template <class F>
+std::string error_of(F&& f) {
+  try { f(); } catch (const std::exception& e) { return e.what(); }
+  return "no exception";
+}
+}  // namespace
+
+TEST(Persist, ReusesSavedIndexesOnlyWhenParametersMatch) {
+  EngineConfig cfg;
+  cfg.max_chunks = 4096;
+  cfg.dense_mode = DenseMode::IvfInt8;
+  cfg.ivf.nlist = 8;
+  Engine a(cfg);
+  for (std::uint32_t i = 0; i < kDocs.size(); ++i) a.ingest(kDocs[i], i);
+  const auto corpus = synth::make_text_corpus(200, 10, 64);
+  for (std::uint32_t d = 0; d < corpus.docs.size(); ++d) a.ingest(corpus.docs[d], 100 + d);
+  a.commit();
+  const auto path = temp_index("reuse");
+  a.save(path);
+
+  Engine::LoadReport rep;
+  auto same = Engine::load(path, cfg, {}, &rep);
+  EXPECT_TRUE(rep.reused_indexes);
+
+  auto k1 = cfg;
+  k1.bm25.k1 = 2.0f;
+  auto changed = Engine::load(path, k1, {}, &rep);
+  EXPECT_FALSE(rep.reused_indexes);  // BM25 weights depend on k1: must rebuild
+
+  auto exact = cfg;
+  exact.dense_mode = DenseMode::Exact;
+  (void)Engine::load(path, exact, {}, &rep);
+  EXPECT_TRUE(rep.reused_indexes);  // BM25 reusable; IVF simply not needed
+
+  auto fp32 = cfg;
+  fp32.dense_mode = DenseMode::Ivf;
+  (void)Engine::load(path, fp32, {}, &rep);
+  EXPECT_FALSE(rep.reused_indexes);  // saved lists are int8; fp32 IVF must be built
+
+  // Rebuilt and reused engines answer identically when parameters are equal.
+  auto ca = a.make_context(), cs = same->make_context();
+  for (const char* q : {"queue position fill priority", "ZX81Q", "t3w5 t3w9 f12"}) {
+    const auto ra = a.query(q, 5, ca), rs = same->query(q, 5, cs);
+    ASSERT_EQ(ra.hits.size(), rs.hits.size());
+    for (std::size_t i = 0; i < ra.hits.size(); ++i) EXPECT_EQ(ra.hits[i], rs.hits[i]) << q;
+  }
+  auto cc = changed->make_context();
+  EXPECT_EQ(changed->chunk(changed->query("ZX81Q", 1, cc).hits[0].id).doc_id, 5u);
+}
+
+TEST(Persist, UncommittedChunksAreIndexedOnLoad) {
+  auto ep = make_engine(DenseMode::Exact);
+  ep->ingest("Pegged orders float with the national best bid and offer.", 55);  // not committed
+  const auto path = temp_index("uncommitted");
+  ep->save(path);
+  Engine::LoadReport rep;
+  auto e = Engine::load(path, ep->config(), {}, &rep);
+  EXPECT_FALSE(rep.reused_indexes);  // saved snapshot didn't cover the last chunk
+  auto ctx = e->make_context();
+  const auto r = e->query("pegged orders national best bid", 3, ctx);
+  ASSERT_FALSE(r.lexical.empty());
+  EXPECT_EQ(e->chunk(r.lexical[0].id).doc_id, 55u);
+}
+
+TEST(Persist, StructuralValidationCatchesForgedIndexes) {
+  // BM25: plant an out-of-range doc id behind a valid checksum.
+  Bm25Builder b;
+  b.add(0, terms("alpha beta"));
+  b.add(1, terms("beta gamma"));
+  const auto idx = b.freeze();
+  const auto p = temp_index("forged-bm25");
+  { io::Writer w(p); idx.save(w); w.commit(); }
+  auto bytes = read_file(p);
+  const std::size_t table_bytes = 8 + 16 * 16;  // vec<Slot>: u64 length + 16 slots (min capacity)
+  const std::size_t first_doc = table_bytes + 8 /*num_terms*/ + 4 /*num_docs*/ + 8 /*doc vec length*/;
+  poke<std::uint32_t>(bytes, first_doc, 0xFFFFFFFFu);
+  fix_checksum(bytes);
+  write_file(p, bytes);
+  EXPECT_EQ(error_of([&] { io::Reader r(p); Bm25Index x; x.load(r); }), "Bm25Index::load: doc id out of range");
+
+  // IVF: plant an out-of-range row id behind a valid checksum.
+  VectorStore<64> s(32);
+  synth::fill_clustered(s, 32, 4, 0.3f);
+  IvfIndex<64> ivf;
+  ivf.build(s, 32, {.nlist = 4});
+  const auto q = temp_index("forged-ivf");
+  { io::Writer w(q); ivf.save(w); w.commit(); }
+  bytes = read_file(q);
+  const std::size_t ids_at = 4 + 4 + 1 + 4 * 64 * 4 /*centroids*/ + 8 + 4 * 5 /*offsets*/ + 8 /*ids length*/;
+  poke<std::uint32_t>(bytes, ids_at, 1000u);
+  fix_checksum(bytes);
+  write_file(q, bytes);
+  EXPECT_EQ(error_of([&] { io::Reader r(q); IvfIndex<64> y; y.load(r, 32); }), "IvfIndex::load: row id out of range");
+  // And the unmodified encodings load fine.
+  { io::Writer w(q); ivf.save(w); w.commit(); }
+  io::Reader r(q);
+  IvfIndex<64> z;
+  EXPECT_NO_THROW(z.load(r, 32));
+  EXPECT_NO_THROW(r.finish());
+  EXPECT_EQ(z.covered(), 32u);
+}
+
+TEST(Persist, ChecksumIsIndependentOfChunkingAndSeesEveryByte) {
+  std::vector<unsigned char> data(1003);
+  std::mt19937 rng(8);
+  for (auto& c : data) c = static_cast<unsigned char>(rng());
+  io::Checksum whole;
+  whole.update(data.data(), data.size());
+  for (std::size_t step : {1u, 3u, 7u, 8u, 13u, 64u}) {
+    io::Checksum parts;
+    for (std::size_t i = 0; i < data.size(); i += step) parts.update(data.data() + i, std::min(step, data.size() - i));
+    EXPECT_EQ(parts.value(), whole.value()) << "chunk size " << step;
+  }
+  for (std::size_t pos : {0u, 7u, 8u, 500u, 1000u, 1002u}) {  // any single flipped bit changes the sum
+    auto d = data;
+    d[pos] ^= 0x01;
+    io::Checksum c;
+    c.update(d.data(), d.size());
+    EXPECT_NE(c.value(), whole.value()) << "byte " << pos;
+  }
+  io::Checksum shorter, zero_padded;  // length is part of the sum
+  shorter.update(data.data(), 1000);
+  auto padded = std::vector<unsigned char>(data.begin(), data.begin() + 1000);
+  padded.push_back(0);
+  zero_padded.update(padded.data(), padded.size());
+  EXPECT_NE(shorter.value(), zero_padded.value());
 }

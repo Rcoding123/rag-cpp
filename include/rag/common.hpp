@@ -41,9 +41,21 @@ template <std::size_t D>
 concept ValidDim = (D > 0) && (D % 64 == 0);
 
 // ---------------------------------------------------------------------------
-// AlignedArray: one up-front allocation, cache-line (or huge-page) aligned,
-// zeroed (pre-faulted) at construction so the first query never page-faults.
+// AlignedArray: one up-front allocation, cache-line (or huge-page) aligned.
+//
+// Init::Prefault zeroes the whole array now, so every page is mapped before
+// the first query. Use it for memory that queries *write* at arbitrary
+// offsets (scratch accumulators, prompt buffers), where a first-touch page
+// fault would land on a query's latency.
+//
+// Init::Lazy leaves the memory uninitialised and unmapped until first write.
+// Use it for storage the writer always fills before publishing it (vectors,
+// chunk metadata, index arrays): readers then never touch an unwritten page,
+// pages are faulted in by the writer as it goes, and memory for unused
+// capacity is never committed at all.
 // ---------------------------------------------------------------------------
+enum class Init : std::uint8_t { Prefault, Lazy };
+
 struct FreeDeleter {
   void operator()(void* p) const noexcept { std::free(p); }
 };
@@ -52,7 +64,7 @@ template <class T>
 using AlignedArray = std::unique_ptr<T[], FreeDeleter>;
 
 template <class T>
-[[nodiscard]] AlignedArray<T> make_aligned_array(std::size_t n) {
+[[nodiscard]] AlignedArray<T> make_aligned_array(std::size_t n, Init init = Init::Prefault) {
   static_assert(std::is_trivially_copyable_v<T> && std::is_trivially_destructible_v<T>,
                 "AlignedArray holds raw POD storage only");
   const std::size_t bytes = n * sizeof(T);
@@ -63,10 +75,10 @@ template <class T>
   const std::size_t rounded = ((bytes ? bytes : 1) + align - 1) / align * align;
   void* p = std::aligned_alloc(align, rounded);
   if (!p) throw std::bad_alloc{};
-#if defined(__linux__) && defined(MADV_HUGEPAGE)
+#if defined(__linux__) && defined(MADV_HUGEPAGE) && !defined(RAG_NO_HUGEPAGES)
   if (align == kHugePage) ::madvise(p, rounded, MADV_HUGEPAGE);
 #endif
-  std::memset(p, 0, rounded);  // pre-fault every page now (cold path)
+  if (init == Init::Prefault) std::memset(p, 0, rounded);  // map every page now (cold path)
   return AlignedArray<T>(static_cast<T*>(p));
 }
 

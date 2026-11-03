@@ -52,7 +52,7 @@ class IvfIndex {
     if (n == 0) { covered_ = 0; nlist_ = 0; return; }
     nlist_ = p.nlist ? p.nlist : std::max<std::uint32_t>(4, static_cast<std::uint32_t>(std::sqrt(double(n))) & ~3u);
     nlist_ = std::min(nlist_, n);
-    centroids_ = make_aligned_array<float>(std::size_t{nlist_} * D);
+    centroids_ = make_aligned_array<float>(std::size_t{nlist_} * D, Init::Lazy);
     train(store, n, p);
 
     // Assign every row to its nearest centroid, then lay lists out as CSR.
@@ -63,9 +63,10 @@ class IvfIndex {
     std::partial_sum(offsets_.begin(), offsets_.end(), offsets_.begin());
     ids_.resize(n);
     const bool f32 = p.storage != IvfStorage::Int8, i8 = p.storage != IvfStorage::Fp32;
-    vecs_ = f32 ? make_aligned_array<float>(std::size_t{n} * D) : AlignedArray<float>{};
-    qvecs_ = i8 ? make_aligned_array<std::int8_t>(std::size_t{n} * D) : AlignedArray<std::int8_t>{};
-    qscales_ = i8 ? make_aligned_array<float>(n) : AlignedArray<float>{};
+    // Lazy: every element is written below, before the index is published.
+    vecs_ = f32 ? make_aligned_array<float>(std::size_t{n} * D, Init::Lazy) : AlignedArray<float>{};
+    qvecs_ = i8 ? make_aligned_array<std::int8_t>(std::size_t{n} * D, Init::Lazy) : AlignedArray<std::int8_t>{};
+    qscales_ = i8 ? make_aligned_array<float>(n, Init::Lazy) : AlignedArray<float>{};
     std::vector<std::uint32_t> cursor(offsets_.begin(), offsets_.end() - 1);
     for (std::uint32_t i = 0; i < n; ++i) {
       const std::uint32_t slot = cursor[assign[i]]++;
@@ -113,6 +114,59 @@ class IvfIndex {
         out.push(static_cast<float>(simd::dot_i8(qq, row, D)) * qscales_[i], ids_[i]);
       }
     }
+  }
+
+  // Persistence (see rag/io.hpp). load() validates the CSR structure and ids
+  // against `max_rows` (rows the caller's VectorStore holds) before use.
+  template <class W>
+  void save(W& w) const {
+    w.pod(nlist_);
+    w.pod(covered_);
+    w.pod(static_cast<std::uint8_t>((vecs_ ? 1 : 0) | (qvecs_ ? 2 : 0)));
+    if (nlist_ == 0) return;
+    w.bytes(centroids_.get(), std::size_t{nlist_} * D * sizeof(float));
+    w.vec(offsets_);
+    w.vec(ids_);
+    if (vecs_) w.bytes(vecs_.get(), std::size_t{covered_} * D * sizeof(float));
+    if (qvecs_) {
+      w.bytes(qvecs_.get(), std::size_t{covered_} * D);
+      w.bytes(qscales_.get(), std::size_t{covered_} * sizeof(float));
+    }
+  }
+  template <class R>
+  void load(R& r, std::uint32_t max_rows) {
+    const auto nlist = r.template pod<std::uint32_t>();
+    const auto covered = r.template pod<std::uint32_t>();
+    const auto flags = r.template pod<std::uint8_t>();
+    if (nlist == 0) {
+      if (covered != 0 || flags != 0) throw std::runtime_error("IvfIndex::load: inconsistent empty index");
+      *this = IvfIndex{};
+      return;
+    }
+    if (covered > max_rows || nlist > covered || flags == 0 || flags > 3) throw std::runtime_error("IvfIndex::load: bad header");
+    auto read_array = [&](auto& arr, std::size_t count, auto tag) {
+      using T = decltype(tag);
+      if (count * sizeof(T) > r.remaining()) throw std::runtime_error("IvfIndex::load: truncated");
+      arr = make_aligned_array<T>(count, Init::Lazy);  // filled by the read below
+      r.bytes(arr.get(), count * sizeof(T));
+    };
+    IvfIndex x;
+    x.nlist_ = nlist;
+    x.covered_ = covered;
+    read_array(x.centroids_, std::size_t{nlist} * D, float{});
+    x.offsets_ = r.template vec<std::uint32_t>();
+    x.ids_ = r.template vec<std::uint32_t>();
+    if (x.offsets_.size() != std::size_t{nlist} + 1 || x.offsets_.front() != 0 || x.offsets_.back() != covered ||
+        !std::is_sorted(x.offsets_.begin(), x.offsets_.end()) || x.ids_.size() != covered)
+      throw std::runtime_error("IvfIndex::load: bad list layout");
+    for (auto id : x.ids_)
+      if (id >= covered) throw std::runtime_error("IvfIndex::load: row id out of range");
+    if (flags & 1) read_array(x.vecs_, std::size_t{covered} * D, float{});
+    if (flags & 2) {
+      read_array(x.qvecs_, std::size_t{covered} * D, std::int8_t{});
+      read_array(x.qscales_, covered, float{});
+    }
+    *this = std::move(x);
   }
 
   [[nodiscard]] bool has_fp32() const noexcept { return static_cast<bool>(vecs_); }

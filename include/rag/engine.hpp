@@ -27,6 +27,7 @@
 #include <array>
 #include <concepts>
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <span>
 #include <stdexcept>
@@ -40,6 +41,7 @@
 #include "rag/embedder.hpp"
 #include "rag/epoch.hpp"
 #include "rag/fusion.hpp"
+#include "rag/io.hpp"
 #include "rag/ivf_index.hpp"
 #include "rag/prompt.hpp"
 #include "rag/tokenizer.hpp"
@@ -143,7 +145,7 @@ class RagEngine {
 
   explicit RagEngine(EngineConfig cfg = {}, E embedder = {})
       : cfg_(validated(cfg)), embedder_(std::move(embedder)), store_(cfg_.max_chunks),
-        meta_(make_aligned_array<ChunkMeta>(cfg_.max_chunks)), snap_(new Snapshot{}) {}
+        meta_(make_aligned_array<ChunkMeta>(cfg_.max_chunks, Init::Lazy)), snap_(new Snapshot{}) {}
 
   RagEngine(const RagEngine&) = delete;
   RagEngine& operator=(const RagEngine&) = delete;
@@ -202,11 +204,7 @@ class RagEngine {
     const Snapshot* prev = snap_.load(std::memory_order_relaxed);  // writer owns snap_ stores
     auto next = std::make_unique<Snapshot>();
     next->bm25 = builder_.freeze(cfg_.bm25);
-    if (cfg_.dense_mode == DenseMode::Ivf || cfg_.dense_mode == DenseMode::IvfInt8) {
-      IvfParams ip = cfg_.ivf;
-      ip.storage = cfg_.dense_mode == DenseMode::IvfInt8 ? IvfStorage::Int8 : IvfStorage::Fp32;
-      next->ivf.build(store_, n, ip);
-    }
+    if (uses_ivf(cfg_.dense_mode)) next->ivf.build(store_, n, effective_ivf(cfg_));
     next->covered = n;
     next->version = prev->version + 1;
 
@@ -214,6 +212,119 @@ class RagEngine {
     retired_.push_back({old, epochs_.advance()});
     committed_.store(n, std::memory_order_release);
     reclaim();
+  }
+
+  // ------------------------------------------------------------ persistence
+  // Writer side (same thread as ingest/commit). Queries may keep running.
+  // Saves chunk text + metadata, fp32 vectors, BM25 builder state, and the
+  // current committed snapshot (frozen BM25 + IVF) with the parameters it
+  // was built with. load() reuses that snapshot when the new EngineConfig
+  // asks for the same index parameters and it covers every chunk; otherwise
+  // it rebuilds from the raw data. Either way the result is identical.
+  struct LoadReport {
+    bool reused_indexes = false;  // false => BM25 / IVF were rebuilt on load
+  };
+
+  void save(const std::filesystem::path& path) const {
+    const std::uint32_t n = store_.size();
+    io::Writer w(path);
+    std::uint64_t text_bytes = 0;
+    for (std::uint32_t i = 0; i < n; ++i) text_bytes += meta_[i].len;
+    FileHeader hdr;  // magic comes from the default member initializer
+    hdr.version = io::kFormatVersion;
+    hdr.dim = static_cast<std::uint32_t>(D);
+    hdr.embedder_tag = embedder_tag<E>();
+    hdr.n_chunks = n;
+    hdr.reserved = 0;
+    hdr.text_bytes = text_bytes;
+    w.pod(hdr);
+    std::uint64_t off = 0;
+    for (std::uint32_t i = 0; i < n; ++i) {
+      const ChunkMeta& m = meta_[i];
+      w.pod(ChunkRecord{off, m.len, m.doc_id, m.ordinal, 0});
+      off += m.len;
+    }
+    for (std::uint32_t i = 0; i < n; ++i) w.bytes(meta_[i].text, meta_[i].len);
+    for (std::uint32_t i = 0; i < n; ++i) w.bytes(store_.row(i), D * sizeof(float));
+    builder_.save(w);
+
+    // The writer thread is the only one that replaces or frees snapshots,
+    // so it can read the current one without pinning.
+    const Snapshot& snap = *snap_.load(std::memory_order_acquire);
+    IndexRecord rec{};
+    rec.k1 = cfg_.bm25.k1;
+    rec.b = cfg_.bm25.b;
+    rec.has_ivf = snap.ivf.nlist() > 0;
+    const IvfParams ip = effective_ivf(cfg_);
+    rec.nlist = ip.nlist;
+    rec.train_iters = ip.train_iters;
+    rec.max_train = ip.max_train_points_per_list;
+    rec.storage = static_cast<std::uint8_t>(ip.storage);
+    rec.seed = ip.seed;
+    rec.covered = snap.covered;
+    w.pod(rec);
+    snap.bm25.save(w);
+    snap.ivf.save(w);
+    w.commit();
+  }
+
+  // Throws io::FormatError for a damaged file, std::invalid_argument for a
+  // file that doesn't fit this engine type or configuration.
+  [[nodiscard]] static std::unique_ptr<RagEngine> load(const std::filesystem::path& path, EngineConfig cfg = {},
+                                                       E embedder = {}, LoadReport* report = nullptr) {
+    io::Reader r(path);
+    const auto h = r.pod<FileHeader>();
+    if (std::memcmp(h.magic, io::kMagic, sizeof h.magic) != 0) throw io::FormatError("not a rag-cpp index file");
+    if (h.version != io::kFormatVersion) throw io::FormatError("unsupported index format version");
+    if (h.dim != D) throw std::invalid_argument("index dimension does not match the engine's embedder");
+    if (h.embedder_tag != embedder_tag<E>()) throw std::invalid_argument("index was built with a different embedder");
+    if (h.n_chunks > cfg.max_chunks) throw std::invalid_argument("index has more chunks than cfg.max_chunks");
+
+    auto e = std::make_unique<RagEngine>(cfg, std::move(embedder));
+    std::vector<ChunkRecord> recs(h.n_chunks);
+    for (auto& rec : recs) {
+      rec = r.pod<ChunkRecord>();
+      if (rec.text_offset + rec.len > h.text_bytes) throw io::FormatError("chunk text out of range");
+    }
+    if (h.text_bytes > r.remaining()) throw io::FormatError("truncated text section");
+    auto* text = static_cast<char*>(e->arena_.allocate(static_cast<std::size_t>(h.text_bytes ? h.text_bytes : 1), 1));
+    r.bytes(text, static_cast<std::size_t>(h.text_bytes));  // one block for all chunk text
+    alignas(kCacheLine) std::array<float, D> row;
+    for (std::uint32_t i = 0; i < h.n_chunks; ++i) {
+      r.bytes(row.data(), D * sizeof(float));
+      e->meta_[i] = {text + recs[i].text_offset, recs[i].len, recs[i].doc_id, recs[i].ordinal};
+      e->store_.append(row);
+    }
+    e->builder_.load(r);
+    if (e->builder_.num_docs() != h.n_chunks) throw io::FormatError("lexical index does not match chunk count");
+
+    const auto rec = r.pod<IndexRecord>();
+    if (rec.covered > h.n_chunks) throw io::FormatError("saved snapshot covers more chunks than the file holds");
+    auto snap = std::make_unique<Snapshot>();
+    snap->bm25.load(r);
+    snap->ivf.load(r, rec.covered);
+    if (snap->bm25.num_docs() != rec.covered || snap->ivf.covered() > rec.covered)
+      throw io::FormatError("saved snapshot is inconsistent");
+    r.finish();  // checksum verified before anything is published
+
+    const IvfParams ip = effective_ivf(e->cfg_);
+    const bool bm25_ok = rec.covered == h.n_chunks && rec.k1 == e->cfg_.bm25.k1 && rec.b == e->cfg_.bm25.b;
+    const bool ivf_ok = !uses_ivf(e->cfg_.dense_mode) ||
+                        (rec.has_ivf && snap->ivf.covered() == h.n_chunks && rec.nlist == ip.nlist &&
+                         rec.train_iters == ip.train_iters && rec.max_train == ip.max_train_points_per_list &&
+                         rec.seed == ip.seed && rec.storage == static_cast<std::uint8_t>(ip.storage));
+    const bool reuse = bm25_ok && ivf_ok;
+    if (reuse) {
+      if (!uses_ivf(e->cfg_.dense_mode)) snap->ivf = IvfIndex<D>{};  // not needed in this mode: free it
+      snap->covered = h.n_chunks;
+      snap->version = 1;
+      delete e->snap_.exchange(snap.release(), std::memory_order_seq_cst);  // no readers exist yet
+      e->committed_.store(h.n_chunks, std::memory_order_release);
+    } else {
+      e->commit();
+    }
+    if (report) report->reused_indexes = reuse;
+    return e;
   }
 
   // Writer: free retired snapshots no reader can still see. commit() calls
@@ -315,6 +426,13 @@ class RagEngine {
   [[nodiscard]] std::size_t arena_bytes() const noexcept { return arena_.bytes_used(); }
 
  private:
+  static constexpr bool uses_ivf(DenseMode m) noexcept { return m == DenseMode::Ivf || m == DenseMode::IvfInt8; }
+  static IvfParams effective_ivf(const EngineConfig& c) noexcept {
+    IvfParams ip = c.ivf;
+    ip.storage = c.dense_mode == DenseMode::IvfInt8 ? IvfStorage::Int8 : IvfStorage::Fp32;
+    return ip;
+  }
+
   static EngineConfig validated(EngineConfig c) {
     c.chunker.validate();
     if (c.max_chunks == 0) throw std::invalid_argument("max_chunks must be > 0");
@@ -338,6 +456,30 @@ class RagEngine {
     const Snapshot* snap;
     std::uint64_t epoch;
   };
+
+  // On-disk layout (see save()).
+  struct FileHeader {
+    char magic[8] = {'R', 'A', 'G', 'C', 'P', 'P', 'I', 'X'};
+    std::uint32_t version;
+    std::uint32_t dim;
+    std::uint64_t embedder_tag;
+    std::uint32_t n_chunks;
+    std::uint32_t reserved;
+    std::uint64_t text_bytes;
+  };
+  struct ChunkRecord {
+    std::uint64_t text_offset;
+    std::uint32_t len, doc_id, ordinal, reserved;
+  };
+  struct IndexRecord {  // parameters the saved snapshot was built with
+    float k1, b;
+    std::uint32_t nlist, train_iters, max_train;
+    std::uint8_t storage, has_ivf, reserved8[2];
+    std::uint64_t seed;
+    std::uint32_t covered, reserved32;
+  };
+  static_assert(sizeof(FileHeader) == 40 && sizeof(ChunkRecord) == 24 && sizeof(IndexRecord) == 40,
+                "file layout must not depend on padding");
 
   // Read by every query: its own line, never written by queries.
   alignas(kCacheLine) std::atomic<const Snapshot*> snap_;

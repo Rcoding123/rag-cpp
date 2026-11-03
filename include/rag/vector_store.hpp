@@ -34,9 +34,11 @@ class VectorStore {
 
   explicit VectorStore(std::size_t capacity)
       : capacity_(capacity),
-        f32_(make_aligned_array<float>(capacity * D)),
-        i8_(make_aligned_array<std::int8_t>(capacity * D)),
-        scale_(make_aligned_array<float>(capacity)) {}
+        // Lazy: rows are written by append() before size_ publishes them, so
+        // readers never fault, and unused capacity costs no physical memory.
+        f32_(make_aligned_array<float>(capacity * D, Init::Lazy)),
+        i8_(make_aligned_array<std::int8_t>(capacity * D, Init::Lazy)),
+        scale_(make_aligned_array<float>(capacity, Init::Lazy)) {}
 
   // Single writer only. Returns false when full. `v` should be L2-normalised.
   bool append(std::span<const float, D> v) noexcept {

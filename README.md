@@ -19,7 +19,7 @@ commit() ─► Snapshot ─► atomic swap     │                      ─► 
 
 | Header | Role | Key latency technique |
 |---|---|---|
-| `common.hpp` | aligned buffers | 64 B / 2 MiB alignment, `MADV_HUGEPAGE`, pre-faulted pages |
+| `common.hpp` | aligned buffers | 64 B / 2 MiB alignment, `MADV_HUGEPAGE`; query scratch pre-faulted, storage faulted by the writer |
 | `arena.hpp` | document text | bump-pointer, blocks never move → lock-free readers |
 | `tokenizer.hpp` | terms | constexpr 256-byte class/lowercase LUT, constexpr FNV-1a, compile-time stopword table |
 | `chunker.hpp` | chunking | zero-copy byte ranges, token-window with overlap |
@@ -32,6 +32,7 @@ commit() ─► Snapshot ─► atomic swap     │                      ─► 
 | `fusion.hpp` | RRF | linear id-match over stack array (K ≤ 64) |
 | `prompt.hpp` | context assembly | fixed buffer, reserved question space, greedy token-budget packing |
 | `epoch.hpp` | snapshot reclamation | per-reader padded epoch slots, seq_cst publish/scan |
+| `io.hpp` | persistence | streaming checksum, bounds-checked reads, fsync + atomic rename |
 | `engine.hpp` | pipeline | per-thread `QueryContext` holds all scratch; atomic snapshot swap |
 
 ## Build, test, benchmark
@@ -46,6 +47,12 @@ cmake --build build -j
 ```
 
 Sanitizer builds: `-DRAG_SANITIZE=ON` (ASan+UBSan), `-DRAG_TSAN=ON` (ThreadSanitizer).
+
+`-DRAG_HUGEPAGES=OFF` turns off transparent huge pages for the large arrays.
+On the test VM, huge pages made scans about 10–25% faster. Faulting in fresh
+huge pages took about 11 times longer, though, because the kernel compacts
+memory synchronously. That cost is paid only by the writer as it fills
+storage, never by queries.
 
 ## Verified (Xeon @ 2.8 GHz, 4 vCPU, AVX-512 VNNI, GCC 13.3 `-O3 -march=native`)
 
@@ -84,6 +91,49 @@ synthetic clusters. Real sentence embeddings need a larger nprobe for the same
 recall, so measure on your own data. `HashingEmbedder` is a lexical-ish
 stand-in. For semantic recall, plug a neural encoder into the `Embedder`
 concept.
+
+## Persistence
+
+```cpp
+engine.save("corpus.ragidx");                                    // writer thread; queries keep running
+auto engine2 = RagEngine<HashingEmbedder<384>>::load("corpus.ragidx", cfg);
+```
+
+* **What's in the file:**
+  * chunk text and metadata;
+  * fp32 vectors;
+  * BM25 builder state, so ingestion can continue after load;
+  * the committed snapshot (frozen BM25 plus IVF), with the parameters it
+    was built with.
+* **Index reuse:** `load()` reuses the saved snapshot when the new config
+  asks for the same BM25 and IVF parameters and the snapshot covers every
+  chunk. Otherwise it rebuilds, and the results are identical either way.
+  Pass a `LoadReport*` to see which path it took.
+* **Safety:**
+  * The trailing checksum catches corruption.
+  * Every offset and ID is checked against the structure it indexes, so a
+    file with a valid checksum but forged contents still can't cause an
+    out-of-bounds read.
+  * Array lengths are checked against the bytes left in the file before
+    anything is allocated.
+  * The file records the embedder's identity (`E::kName` and the dimension),
+    so loading vectors made by a different model fails instead of returning
+    wrong results.
+* **Crash-safety:** a save writes `<path>.tmp`, fsyncs it, renames it over
+  `<path>`, and fsyncs the directory. After a crash, `<path>` holds either the
+  old index or the new one, never a partial file.
+
+Measured on the 60k-chunk benchmark corpus (file about 276 MB with int8 IVF lists):
+
+| | exact | ivf-sq8 |
+|---|---|---|
+| build from text (tokenize, embed, index) | 2.9 s | 5.6 s |
+| save | 1.6 s | 1.9 s |
+| load (indexes reused) | 0.65 s | 0.97 s |
+
+With the built-in hashing embedder, building from text is cheap. With a
+neural encoder, embedding dominates the build, so loading instead can save
+minutes or hours.
 
 ## Thread-safety contract
 

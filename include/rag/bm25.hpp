@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <memory>
 #include <span>
+#include <stdexcept>
 #include <vector>
 
 #include "rag/common.hpp"
@@ -86,6 +87,44 @@ class Bm25Index {
   [[nodiscard]] std::uint32_t num_docs() const noexcept { return num_docs_; }
   [[nodiscard]] std::size_t num_terms() const noexcept { return num_terms_; }
   [[nodiscard]] std::size_t num_postings() const noexcept { return doc_.size(); }
+
+  // Persistence (see rag/io.hpp). load() checks every offset and doc id, so
+  // a damaged file can never produce an out-of-bounds read at query time.
+  template <class W>
+  void save(W& w) const {
+    w.vec(table_);
+    w.pod(static_cast<std::uint64_t>(num_terms_));
+    w.pod(num_docs_);
+    w.vec(doc_);
+    w.vec(weight_);
+  }
+  template <class R>
+  void load(R& r) {
+    auto table = r.template vec<Slot>();
+    const auto nterms = r.template pod<std::uint64_t>();
+    const auto ndocs = r.template pod<std::uint32_t>();
+    auto doc = r.template vec<std::uint32_t>();
+    auto weight = r.template vec<float>();
+    const bool pow2 = !table.empty() && (table.size() & (table.size() - 1)) == 0;
+    if (!(table.empty() || pow2) || doc.size() != weight.size() || nterms > table.size())
+      throw std::runtime_error("Bm25Index::load: inconsistent index");
+    std::size_t used = 0;
+    for (const Slot& s : table) {
+      if (s.key == 0) continue;
+      ++used;
+      if (std::uint64_t{s.offset} + s.len > doc.size()) throw std::runtime_error("Bm25Index::load: posting range out of bounds");
+    }
+    if (used != nterms || (!table.empty() && used == table.size()))  // a full table would make lookups loop forever
+      throw std::runtime_error("Bm25Index::load: bad term table");
+    for (auto d : doc)
+      if (d >= ndocs) throw std::runtime_error("Bm25Index::load: doc id out of range");
+    table_ = std::move(table);
+    mask_ = table_.empty() ? 0 : table_.size() - 1;
+    num_terms_ = static_cast<std::size_t>(nterms);
+    num_docs_ = ndocs;
+    doc_ = std::move(doc);
+    weight_ = std::move(weight);
+  }
 
   // Raw lookup (tests / debugging): document frequency of a term.
   [[nodiscard]] std::uint32_t doc_freq(std::uint64_t term) const noexcept {
@@ -184,6 +223,26 @@ class Bm25Builder {
   }
 
   [[nodiscard]] std::uint32_t num_docs() const noexcept { return num_docs_; }
+
+  // Persistence (see rag/io.hpp). load() validates every doc id it reads.
+  template <class W>
+  void save(W& w) const {
+    w.vec(triples_);
+    w.vec(doc_len_);
+    w.pod(num_docs_);
+  }
+  template <class R>
+  void load(R& r) {
+    auto t = r.template vec<Triple>();
+    auto dl = r.template vec<std::uint32_t>();
+    const auto nd = r.template pod<std::uint32_t>();
+    if (dl.size() != nd) throw std::runtime_error("Bm25Builder::load: doc length table does not match doc count");
+    for (const Triple& x : t)
+      if (x.doc >= nd || x.tf == 0) throw std::runtime_error("Bm25Builder::load: invalid posting");
+    triples_ = std::move(t);
+    doc_len_ = std::move(dl);
+    num_docs_ = nd;
+  }
 
  private:
   struct Triple {

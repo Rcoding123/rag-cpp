@@ -56,7 +56,7 @@ class Arena {
 
   void* allocate_slow(std::size_t bytes, std::size_t align) {
     const std::size_t size = std::max(block_bytes_, bytes + align);
-    blocks_.push_back(make_aligned_array<std::byte>(size));
+    blocks_.push_back(make_aligned_array<std::byte>(size, Init::Lazy));
     cur_ = blocks_.back().get();
     end_ = cur_ + size;
     return allocate(bytes, align);

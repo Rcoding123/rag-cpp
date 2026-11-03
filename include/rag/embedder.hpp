@@ -29,11 +29,24 @@ concept Embedder = requires(const E& e, std::string_view text, std::span<const T
   { e.embed(text, toks, out) } noexcept;
 };
 
+// Identity of an embedding model, stored in index files so that vectors made
+// by one model are never searched with queries embedded by another. An
+// embedder opts in with `static constexpr std::string_view kName`; bump the
+// name whenever its output changes.
+template <class E>
+constexpr std::uint64_t embedder_tag() noexcept {
+  std::uint64_t h = 14695981039346656037ull;
+  if constexpr (requires { E::kName; })
+    for (char c : std::string_view(E::kName)) h = (h ^ static_cast<unsigned char>(c)) * 1099511628211ull;
+  return detail::mix64(h ^ E::kDim);
+}
+
 template <std::size_t D>
   requires ValidDim<D>
 class HashingEmbedder {
  public:
   static constexpr std::size_t kDim = D;
+  static constexpr std::string_view kName = "rag.hashing-unigram-bigram.v1";
 
   void embed(std::string_view /*text*/, std::span<const Token> toks, std::span<float, D> out) const noexcept {
     for (auto& v : out) v = 0.f;
