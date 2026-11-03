@@ -74,7 +74,9 @@ jobs:
         if: contains(matrix.flags, 'RAG_TSAN')
         env:
           TSAN_OPTIONS: halt_on_error=1
-        run: ./build/rag_tests --gtest_filter='*Concurrent*' --gtest_repeat=25
+        run: |
+          ./build/rag_tests --gtest_filter='*Concurrent*' --gtest_repeat=25
+          ./build/rag_stress 10   # 10 s per dense mode: ingest/commit/save vs queries/batches/pins
 
       - name: Demo and benchmark smoke run
         if: matrix.name == 'gcc-native'

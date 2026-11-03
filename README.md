@@ -187,10 +187,37 @@ minutes or hours.
   reads. Each `QueryResult` reports the `snapshot_version` it was served from.
 * **Lifetime:** destroy every `QueryContext` before the engine.
 
+## Testing
+
+| Layer | What it checks |
+|---|---|
+| `tests/rag_tests.cpp` | Unit and integration tests per component. Includes SIMD kernels against scalar references (bit-exact for int8) and recall floors for every approximate mode. A global `operator new` counter proves the query paths make zero heap allocations. |
+| `tests/reference_tests.cpp` | Differential tests against a deliberately naive reference written from each stage's spec (`std::string`, `std::map`, `double`). Covers tokenizer, chunker, stopwords, embedder, BM25, exact dense ranking and RRF on randomized corpora and configs. |
+| `tests/forgery_tests.cpp` | Every structural check in the index loader, using files with a **valid** checksum and one forged field each. Each case requires its check's specific error message. |
+| `tests/fuzz/` | libFuzzer targets (`-DRAG_FUZZ=ON`, Clang). `fuzz_load` loads arbitrary payloads with a fixed-up checksum, then queries, ingests, commits and reloads them. `fuzz_text` checks tokenizer, chunker, engine and prompt invariants on arbitrary bytes. |
+| `tests/stress.cpp` | `rag_stress <seconds>`: one writer ingests, commits, saves and reloads while threads run single queries, batches and long pins. Committed documents must rank first for their unique token, batch and single results must agree on the same snapshot, pinned snapshots must never change, and everything retired must be reclaimed. |
+
+What this found:
+* **Integer overflow in `load()`:** the chunk-text bounds check could wrap
+  around and let a forged file point a chunk outside its buffer. Found by
+  coverage review and the forgery tests.
+* **Arena UB:** a fresh arena's first allocation computed `nullptr + n`.
+  Found by the fuzzer; GCC's UBSan misses this, so CI now also runs Clang's.
+* **Irrelevant dense hits:** chunks with zero or negative similarity (for
+  example, stopword-only chunks) filled the dense list and reached prompts.
+  Hence `dense_min_score`.
+
+Checking the checks:
+* **Mutation testing:** eight planted bugs (BM25 constants, the stopword
+  list, bigram weight, whitespace trimming, the RRF rank offset, a dropped
+  scan row, an inclusive score floor) were all caught.
+* **Reclamation mutant:** freeing snapshots immediately instead of through
+  epoch reclamation is caught by `rag_stress` under ASan within seconds.
+
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on every push and pull request, with
-`-Werror` on all six jobs:
+`.github/workflows/ci.yml` runs on every push and pull request. All test
+jobs build with `-Werror`:
 
 | Job | Covers |
 |---|---|
@@ -199,4 +226,6 @@ minutes or hours.
 | gcc-scalar | the `-march=x86-64` scalar fallback |
 | clang-native | Clang 18 |
 | gcc-asan-ubsan | AddressSanitizer + UndefinedBehaviorSanitizer |
-| gcc-tsan | ThreadSanitizer, with the concurrency tests repeated 25 times |
+| clang-asan-ubsan | the same with Clang, whose UBSan also checks arithmetic on null pointers |
+| gcc-tsan | ThreadSanitizer: concurrency tests repeated 25 times, then `rag_stress` for 10 s per mode |
+| fuzz-smoke | both fuzzers for 60 s each, seeded by `make_seeds`; crashing inputs uploaded as artifacts |

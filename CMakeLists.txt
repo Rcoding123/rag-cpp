@@ -42,6 +42,10 @@ if(benchmark_FOUND)
   add_executable(rag_bench bench/rag_bench.cpp)
   target_link_libraries(rag_bench PRIVATE rag benchmark::benchmark)
 endif()
+add_executable(rag_stress tests/stress.cpp)
+target_link_libraries(rag_stress PRIVATE rag Threads::Threads)
+add_test(NAME stress_all_modes COMMAND rag_stress 2)  # 2 s per dense mode; longer runs: rag_stress <seconds>
+
 add_executable(rag_latency bench/latency.cpp)
 target_link_libraries(rag_latency PRIVATE rag)
 
