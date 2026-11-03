@@ -12,7 +12,7 @@ text ─► Arena (stable string_views)                 query ─► tokenize   
      ─► tokenize ─► sliding-window chunks                 ─► embed      (stack, L1)
      ─► Embedder ─► VectorStore.append ─┐                 ├─► dense:  Exact | Int8+rerank | IVF + delta scan
      ─► Bm25Builder.add                 │                 └─► BM25:   impact-scored postings, dense accumulator
-commit() ─► freeze BM25 (+ build IVF)   │                      ─► RRF fusion (stack)
+commit() ─► build Snapshot ─► atomic swap  │                      ─► RRF fusion (stack)
                                         │                      ─► prompt into preallocated buffer ─► Generator
         size.store(n+1, release) ───────┴──► size.load(acquire): new chunks searchable immediately (dense)
 ```
@@ -31,14 +31,15 @@ commit() ─► freeze BM25 (+ build IVF)   │                      ─► RRF 
 | `bm25.hpp` | lexical | precomputed per-posting BM25 impact, open-addressing dictionary, touched-list reset |
 | `fusion.hpp` | RRF | linear id-match over stack array (K ≤ 64) |
 | `prompt.hpp` | context assembly | fixed buffer, reserved question space, greedy token-budget packing |
-| `engine.hpp` | pipeline | per-thread `QueryContext` holds all scratch |
+| `epoch.hpp` | snapshot reclamation | per-reader padded epoch slots, seq_cst publish/scan |
+| `engine.hpp` | pipeline | per-thread `QueryContext` holds all scratch; atomic snapshot swap |
 
 ## Build, test, benchmark
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release   # -DRAG_ARCH=x86-64-v3 for portable AVX2
 cmake --build build -j
-./build/rag_tests          # 56 GoogleTest cases
+./build/rag_tests          # GoogleTest suite
 ./build/rag_bench          # Google Benchmark
 ./build/rag_latency 20000  # p50/p99/p99.9 per dense mode
 ./build/rag_demo
@@ -48,7 +49,7 @@ Sanitizer builds: `-DRAG_SANITIZE=ON` (ASan+UBSan), `-DRAG_TSAN=ON` (ThreadSanit
 
 ## Verified (Xeon @ 2.8 GHz, 4 vCPU, AVX-512 VNNI, GCC 13.3 `-O3 -march=native`)
 
-* 56/56 tests pass on GCC 13 Release, GCC 13 ASan+UBSan, and Clang 18; the
+* All tests pass on GCC 13 Release, GCC 13 ASan+UBSan, and Clang 18; the
   two concurrency tests are clean under ThreadSanitizer.
 * Zero `operator new` calls across 200 queries in every dense mode (checked by
   a global allocation counter in the test binary).
@@ -81,11 +82,21 @@ concept.
 
 ## Thread-safety contract
 
-* `ingest()`: one writer thread.
-* `query()`: any number of threads, concurrently with `ingest()`, each with its own `QueryContext`.
-* `commit()`: must not overlap `query()`. It replaces the frozen BM25 and IVF
-  structures; a production build would publish immutable segments through an
-  atomic pointer with epoch reclamation.
+* **Writer side:** `ingest()` and `commit()` run on one thread at a time.
+* **Readers:** `query()` runs on any number of threads, concurrently with both
+  `ingest()` and `commit()`. Each thread owns a `QueryContext`, up to 128 live
+  at once.
+* **How `commit()` stays safe:**
+  1. It builds a new immutable `Snapshot` (BM25 plus IVF) while queries keep
+     running.
+  2. It publishes the snapshot with one atomic exchange.
+  3. It retires the old snapshot through epoch-based reclamation
+     (`epoch.hpp`). Each query pins a snapshot by writing to its own
+     cache-line slot, so pinning costs no read-modify-write and no shared-line
+     write.
+* **Consistent reads:** `engine.pin(ctx)` holds one snapshot across several
+  reads. Each `QueryResult` reports the `snapshot_version` it was served from.
+* **Lifetime:** destroy every `QueryContext` before the engine.
 
 ## Continuous integration
 

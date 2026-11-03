@@ -730,3 +730,116 @@ TEST(Engine, TopicRetrievalPrecisionOnSyntheticCorpus) {
   }
   EXPECT_GE(double(correct) / total, 0.95);  // precision@5 by topic
 }
+
+// ======================= Epoch-based reclamation ============================
+TEST(Epoch, NestedGuardsStayPinnedUntilOutermostExits) {
+  EpochDomain d;
+  auto r = d.register_reader();
+  {
+    EpochDomain::Guard outer(d, *r.slot());
+    const auto e1 = d.advance();
+    EXPECT_FALSE(d.quiescent_since(e1));
+    {
+      EpochDomain::Guard inner(d, *r.slot());
+    }
+    EXPECT_FALSE(d.quiescent_since(e1));  // inner exit must not unpin the outer section
+  }
+  EXPECT_TRUE(d.quiescent_since(d.advance()));
+}
+
+TEST(Epoch, ReaderEnteringAfterAdvanceDoesNotBlockOlderRetirement) {
+  EpochDomain d;
+  auto r = d.register_reader();
+  const auto e = d.advance();
+  EpochDomain::Guard g(d, *r.slot());  // entered at epoch >= e: cannot hold the retired object
+  EXPECT_TRUE(d.quiescent_since(e));
+  EXPECT_FALSE(d.quiescent_since(d.advance()));
+}
+
+TEST(Epoch, SlotsAreRecycledAndExhaustionThrows) {
+  EpochDomain d;
+  std::vector<EpochDomain::Reader> rs;
+  for (std::size_t i = 0; i < EpochDomain::kMaxReaders; ++i) rs.push_back(d.register_reader());
+  EXPECT_EQ(d.readers(), EpochDomain::kMaxReaders);
+  EXPECT_THROW((void)d.register_reader(), std::runtime_error);
+  rs.pop_back();
+  EXPECT_NO_THROW((void)d.register_reader());  // released slot is reusable
+}
+
+TEST(Engine, PinnedSnapshotSurvivesCommitAndIsReclaimedAfterRelease) {
+  auto ep = make_engine(DenseMode::Ivf);
+  auto& e = *ep;
+  auto ctx = e.make_context();
+  {
+    const auto pinned = e.pin(ctx);
+    const auto v = pinned->version;
+    const auto docs = pinned->bm25.num_docs();
+    e.ingest("Latency arbitrage exploits stale quotes across venues.", 42);
+    e.commit();
+    EXPECT_EQ(e.retired_snapshots(), 1u);  // still pinned: must not be freed
+    EXPECT_EQ(pinned->version, v);          // old snapshot still intact and readable
+    EXPECT_EQ(pinned->bm25.num_docs(), docs);
+    // Nested query on the same context sees the new snapshot.
+    EXPECT_EQ(e.query("stale quotes latency arbitrage", 3, ctx).snapshot_version, v + 1);
+    EXPECT_EQ(e.reclaim(), 1u);
+  }
+  EXPECT_EQ(e.reclaim(), 0u);  // pin released: freed
+}
+
+TEST(Engine, ContextsReleaseReaderSlots) {
+  auto ep = make_engine(DenseMode::Exact);
+  auto& e = *ep;
+  {
+    auto a = e.make_context();
+    auto b = e.make_context();
+    EXPECT_EQ(e.live_readers(), 2u);
+    auto c = std::move(a);  // moving keeps exactly one owner
+    EXPECT_EQ(e.live_readers(), 2u);
+  }
+  EXPECT_EQ(e.live_readers(), 0u);
+}
+
+TEST(Engine, ConcurrentCommitAndQuery) {
+  EngineConfig cfg;
+  cfg.max_chunks = 8192;
+  cfg.chunker = {32, 8};
+  cfg.dense_mode = DenseMode::Ivf;
+  cfg.ivf.nlist = 16;
+  Engine e(cfg);
+  const auto corpus = synth::make_text_corpus(800, 30, 64);
+  e.ingest(corpus.docs[0], 0);
+  e.commit();
+  std::atomic<bool> done{false}, bad{false};
+  std::atomic<std::uint64_t> queries{0}, max_version{0};
+  auto reader = [&](int seed) {
+    auto ctx = e.make_context();
+    std::mt19937 rng(static_cast<unsigned>(seed));
+    std::uint64_t last_version = 0;
+    while (!done.load(std::memory_order_acquire)) {
+      const auto& w = corpus.topic_words[rng() % 30];
+      const auto r = e.query(w[rng() % 40] + " " + w[rng() % 40], 8, ctx);
+      const std::uint32_t n = e.size();
+      if (r.snapshot_version < last_version) bad = true;  // versions never go backwards per reader
+      last_version = r.snapshot_version;
+      for (const Hit& h : r.lexical) if (h.id >= n) bad = true;
+      for (const Hit& h : r.hits) if (h.id >= n || e.chunk(h.id).text.empty()) bad = true;
+      std::uint64_t m = max_version.load();
+      while (last_version > m && !max_version.compare_exchange_weak(m, last_version)) {}
+      queries.fetch_add(1, std::memory_order_relaxed);
+    }
+  };
+  std::vector<std::thread> ts;
+  for (int t = 0; t < 3; ++t) ts.emplace_back(reader, t);
+  std::uint32_t commits = 1;
+  for (std::uint32_t d = 1; d < corpus.docs.size(); ++d) {
+    e.ingest(corpus.docs[d], d);
+    if (d % 50 == 0) { e.commit(); ++commits; }
+  }
+  done = true;
+  for (auto& t : ts) t.join();
+  EXPECT_FALSE(bad.load());
+  EXPECT_GT(queries.load(), 0u);
+  EXPECT_GT(max_version.load(), 1u);  // readers observed commits that happened mid-flight
+  EXPECT_EQ(e.reclaim(), 0u);          // no readers left: everything retired is freed
+  (void)commits;
+}

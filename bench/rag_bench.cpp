@@ -144,14 +144,16 @@ static void BM_Bm25(benchmark::State& st) {
   for (std::size_t i = 0; i < qs.size(); ++i)
     for_each_token(qs[i], [&](const Token& t) { if (!is_stopword(t.hash)) terms[i].push_back(t.hash); });
   Bm25Scratch sc(e.config().max_chunks);
+  auto ctx = e.make_context();
+  const auto snap = e.pin(ctx);
   std::size_t qi = 0;
   for (auto _ : st) {
     TopK<32> tk(32);
-    e.lexical_index().search(terms[qi++ & 255], sc, tk);
+    snap->bm25.search(terms[qi++ & 255], sc, tk);
     benchmark::DoNotOptimize(tk.threshold());
   }
   st.counters["chunks"] = e.size();
-  st.counters["postings"] = double(e.lexical_index().num_postings());
+  st.counters["postings"] = double(snap->bm25.num_postings());
 }
 BENCHMARK(BM_Bm25)->Name("Lexical/bm25_query")->Unit(benchmark::kMicrosecond);
 

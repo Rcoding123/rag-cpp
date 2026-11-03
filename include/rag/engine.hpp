@@ -7,20 +7,20 @@
 //        ─► tokenize + sliding-window chunk              ─► embed (stack, L1-resident)
 //        ─► Embedder ─► VectorStore.append ──┐          ├─► dense: Exact | Int8+rerank | IVF + delta scan
 //        ─► Bm25Builder.add                  │          └─► BM25: impact-scored postings
-//   commit() ─► freeze BM25, (re)build IVF   │               ─► RRF fusion (stack)
-//                                            │               ─► prompt into preallocated buffer
+//   commit() ─► build Snapshot{BM25, IVF}    │               ─► RRF fusion (stack)
+//            ─► atomic exchange + EBR retire │               ─► prompt into preallocated buffer
 //            release-store(size) ────────────┴─► acquire-load(size): new chunks are visible
 //                                                 to dense search immediately (NRT), and to
 //                                                 BM25/IVF after the next commit().
 //
 // Thread-safety contract
-//   * ingest(): exactly one writer thread.
-//   * query(): any number of threads concurrently with ingest(); each thread
-//     owns one QueryContext.
-//   * commit(): must not overlap query() (it swaps the frozen BM25/IVF
-//     structures). Production builds would publish immutable segments
-//     through an atomic pointer with epoch-based reclamation; this keeps the
-//     reference implementation honest and small.
+//   * Writer side, ingest() and commit(): one thread at a time (externally serialised).
+//   * query(): any number of threads, concurrently with ingest() AND commit().
+//     Each thread owns one QueryContext (at most EpochDomain::kMaxReaders live).
+//   * commit() builds a new immutable Snapshot off to the side, publishes it
+//     with one atomic exchange, and retires the old one through epoch-based
+//     reclamation. Queries never block, and never see a half-built index.
+//   * QueryContexts must be destroyed before the engine.
 #pragma once
 
 #include <algorithm>
@@ -38,6 +38,7 @@
 #include "rag/chunker.hpp"
 #include "rag/common.hpp"
 #include "rag/embedder.hpp"
+#include "rag/epoch.hpp"
 #include "rag/fusion.hpp"
 #include "rag/ivf_index.hpp"
 #include "rag/prompt.hpp"
@@ -75,6 +76,14 @@ concept Generator = requires(G& g, std::string_view prompt) { g.generate(prompt)
 template <Embedder E, std::size_t MaxK = 64>
 class RagEngine {
  public:
+  // Everything commit() publishes. Immutable once reachable from snap_.
+  struct Snapshot {
+    Bm25Index bm25;
+    IvfIndex<E::kDim> ivf;
+    std::uint32_t covered = 0;  // chunks [0, covered) are in bm25 / ivf
+    std::uint64_t version = 0;  // number of commits that produced it
+  };
+
   static constexpr std::size_t D = E::kDim;
   static constexpr std::size_t kMaxK = MaxK;
   static constexpr std::size_t kMaxQueryTokens = 256;
@@ -93,8 +102,10 @@ class RagEngine {
     QueryContext(QueryContext&&) noexcept = default;
    private:
     friend class RagEngine;
-    QueryContext(std::uint32_t max_chunks, std::size_t prompt_cap)
-        : bm25(max_chunks), prompt_buf(make_aligned_array<char>(prompt_cap)), prompt_cap(prompt_cap) {}
+    QueryContext(EpochDomain::Reader r, std::uint32_t max_chunks, std::size_t prompt_cap)
+        : reader(std::move(r)), bm25(max_chunks), prompt_buf(make_aligned_array<char>(prompt_cap)),
+          prompt_cap(prompt_cap) {}
+    EpochDomain::Reader reader;  // this thread's reclamation slot
     alignas(kCacheLine) std::array<float, D> qvec{};
     alignas(kCacheLine) std::array<std::int8_t, D> qvec_i8{};
     std::array<Token, kMaxQueryTokens> tokens{};
@@ -111,13 +122,41 @@ class RagEngine {
     std::span<const Hit> dense;    // dense retriever's list (cosine scores)
     std::span<const Hit> lexical;  // BM25 list
     PromptResult prompt;
+    std::uint64_t snapshot_version = 0;  // which commit the lexical/IVF results came from
+  };
+
+  // Pins the current snapshot for as long as it lives, e.g. to run several
+  // reads against one consistent index version. Nestable with query() on the
+  // same context. Keep it short-lived: it holds back reclamation.
+  class PinnedSnapshot {
+   public:
+    PinnedSnapshot(const RagEngine& e, QueryContext& ctx) noexcept
+        : guard_(e.epochs_, *ctx.reader.slot()), snap_(e.snap_.load(std::memory_order_seq_cst)) {}
+    const Snapshot& operator*() const noexcept { return *snap_; }
+    const Snapshot* operator->() const noexcept { return snap_; }
+
+   private:
+    EpochDomain::Guard guard_;  // must be constructed before snap_ is loaded
+    const Snapshot* snap_;
   };
 
   explicit RagEngine(EngineConfig cfg = {}, E embedder = {})
       : cfg_(validated(cfg)), embedder_(std::move(embedder)), store_(cfg_.max_chunks),
-        meta_(make_aligned_array<ChunkMeta>(cfg_.max_chunks)) {}
+        meta_(make_aligned_array<ChunkMeta>(cfg_.max_chunks)), snap_(new Snapshot{}) {}
 
-  [[nodiscard]] QueryContext make_context() const { return QueryContext(cfg_.max_chunks, cfg_.prompt_capacity); }
+  RagEngine(const RagEngine&) = delete;
+  RagEngine& operator=(const RagEngine&) = delete;
+
+  ~RagEngine() {
+    delete snap_.load(std::memory_order_relaxed);
+    for (auto& r : retired_) delete r.snap;
+  }
+
+  // Cold path: claims a reclamation slot and allocates per-thread scratch.
+  [[nodiscard]] QueryContext make_context() const {
+    return QueryContext(epochs_.register_reader(), cfg_.max_chunks, cfg_.prompt_capacity);
+  }
+  [[nodiscard]] PinnedSnapshot pin(QueryContext& ctx) const noexcept { return PinnedSnapshot(*this, ctx); }
 
   // ---------------------------------------------------------------- ingest
   // Single writer. Returns the number of chunks added (fewer than the
@@ -153,13 +192,35 @@ class RagEngine {
     return added;
   }
 
-  // Freeze lexical index (and IVF) over everything ingested so far.
-  // Must not run concurrently with query().
+  // Freeze lexical index (and IVF) over everything ingested so far and
+  // publish it atomically. Safe to run while queries are in flight: the
+  // expensive build happens before the swap, so the readers' only cost is
+  // that their next query sees the new snapshot.
   void commit() {
     const std::uint32_t n = store_.size();
-    bm25_ = builder_.freeze(cfg_.bm25);
-    if (cfg_.dense_mode == DenseMode::Ivf) ivf_.build(store_, n, cfg_.ivf);
-    committed_ = n;
+    const Snapshot* prev = snap_.load(std::memory_order_relaxed);  // writer owns snap_ stores
+    auto next = std::make_unique<Snapshot>();
+    next->bm25 = builder_.freeze(cfg_.bm25);
+    if (cfg_.dense_mode == DenseMode::Ivf) next->ivf.build(store_, n, cfg_.ivf);
+    next->covered = n;
+    next->version = prev->version + 1;
+
+    const Snapshot* old = snap_.exchange(next.release(), std::memory_order_seq_cst);
+    retired_.push_back({old, epochs_.advance()});
+    committed_.store(n, std::memory_order_release);
+    reclaim();
+  }
+
+  // Writer: free retired snapshots no reader can still see. commit() calls
+  // this itself; call it directly to release memory without committing.
+  // Returns the number of snapshots still waiting for readers to move on.
+  std::size_t reclaim() {
+    std::erase_if(retired_, [&](const Retired& r) {
+      if (!epochs_.quiescent_since(r.epoch)) return false;
+      delete r.snap;
+      return true;
+    });
+    return retired_.size();
   }
 
   // ----------------------------------------------------------------- query
@@ -173,6 +234,7 @@ class RagEngine {
 
     embedder_.embed(q, std::span<const Token>(ctx.tokens.data(), ntok), std::span<float, D>(ctx.qvec));
     const float* qv = ctx.qvec.data();
+    const PinnedSnapshot snap(*this, ctx);    // EBR pin: snapshot can't be freed under us
     const std::uint32_t live = store_.size();  // acquire: sees every published chunk
     const std::uint32_t depth = cfg_.hybrid ? cfg_.retrieve_depth : k;
 
@@ -189,8 +251,8 @@ class RagEngine {
           store_.search_two_stage(qv, ctx.qvec_i8.data(), 0, live, ctx.cand, dense);
           break;
         case DenseMode::Ivf: {
-          const std::uint32_t base = std::min(ivf_.covered(), live);
-          ivf_.search(qv, cfg_.nprobe, dense);
+          const std::uint32_t base = std::min(snap->ivf.covered(), live);
+          snap->ivf.search(qv, cfg_.nprobe, dense);
           store_.search_exact(qv, base, live, dense);  // uncommitted delta segment
           break;
         }
@@ -199,10 +261,11 @@ class RagEngine {
     const auto nd = copy_out(dense.sorted(), ctx.dense);
 
     QueryResult res;
+    res.snapshot_version = snap->version;
     res.dense = {ctx.dense.data(), nd};
     if (cfg_.hybrid) {
       TopK<MaxK> lex(depth);
-      bm25_.search(std::span<const std::uint64_t>(ctx.terms.data(), nterms), ctx.bm25, lex);
+      snap->bm25.search(std::span<const std::uint64_t>(ctx.terms.data(), nterms), ctx.bm25, lex);
       const auto nl = copy_out(lex.sorted(), ctx.lexical);
       res.lexical = {ctx.lexical.data(), nl};
       TopK<MaxK> fused(k);
@@ -230,10 +293,10 @@ class RagEngine {
     return {{m.text, m.len}, m.doc_id, m.ordinal};
   }
   [[nodiscard]] std::uint32_t size() const noexcept { return store_.size(); }
-  [[nodiscard]] std::uint32_t committed() const noexcept { return committed_; }
+  [[nodiscard]] std::uint32_t committed() const noexcept { return committed_.load(std::memory_order_acquire); }
   [[nodiscard]] const VectorStore<D>& store() const noexcept { return store_; }
-  [[nodiscard]] const Bm25Index& lexical_index() const noexcept { return bm25_; }
-  [[nodiscard]] const IvfIndex<D>& ivf() const noexcept { return ivf_; }
+  [[nodiscard]] std::size_t retired_snapshots() const noexcept { return retired_.size(); }  // writer thread
+  [[nodiscard]] std::size_t live_readers() const noexcept { return epochs_.readers(); }
   [[nodiscard]] const EngineConfig& config() const noexcept { return cfg_; }
   [[nodiscard]] std::size_t arena_bytes() const noexcept { return arena_.bytes_used(); }
 
@@ -257,9 +320,16 @@ class RagEngine {
   E embedder_;
   VectorStore<D> store_;
   AlignedArray<ChunkMeta> meta_;
-  Bm25Index bm25_;
-  IvfIndex<D> ivf_;
-  std::uint32_t committed_ = 0;
+  struct Retired {
+    const Snapshot* snap;
+    std::uint64_t epoch;
+  };
+
+  // Read by every query: its own line, never written by queries.
+  alignas(kCacheLine) std::atomic<const Snapshot*> snap_;
+  std::atomic<std::uint32_t> committed_{0};
+  mutable EpochDomain epochs_;     // slots are written by readers (their own lines only)
+  std::vector<Retired> retired_;  // writer only
 
   // Writer-only state (ingest). Vectors are reused, so steady-state ingest
   // stops allocating once they reach the largest document's size.
