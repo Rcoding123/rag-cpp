@@ -1437,3 +1437,28 @@ TEST(Engine, DenseMinScoreFiltersUnrelatedChunks) {
   EXPECT_EQ(run(-2.f).size(), 3u);                          // keep everything
   EXPECT_TRUE(run(0.99f).empty());                          // demand near-duplicates: none
 }
+
+TEST(Arena, FreshArenaFirstAllocationAndAlignment) {
+  // Found by fuzzing: the fast path used to form `nullptr + bytes` on a fresh
+  // arena (UB that Clang's UBSan flags and GCC's does not).
+  for (std::size_t align : {1u, 8u, 64u, 4096u}) {
+    Arena a(128);
+    void* p = a.allocate(1, align);
+    ASSERT_NE(p, nullptr);
+    EXPECT_EQ(reinterpret_cast<std::uintptr_t>(p) % align, 0u);
+    void* q = a.allocate(100, align);  // may or may not fit in the first block
+    EXPECT_EQ(reinterpret_cast<std::uintptr_t>(q) % align, 0u);
+    EXPECT_NE(p, q);
+  }
+  // Many small allocations across block boundaries never overlap.
+  Arena small(64);
+  std::vector<std::pair<std::uintptr_t, std::uintptr_t>> ranges;
+  for (int i = 0; i < 200; ++i) {
+    const std::size_t n = 1 + static_cast<std::size_t>(i % 13);
+    const auto p = reinterpret_cast<std::uintptr_t>(small.allocate(n, 1 + static_cast<std::size_t>(i % 2) * 7));
+    ranges.emplace_back(p, p + n);
+  }
+  EXPECT_GT(small.blocks(), 1u);
+  std::sort(ranges.begin(), ranges.end());
+  for (std::size_t i = 1; i < ranges.size(); ++i) EXPECT_LE(ranges[i - 1].second, ranges[i].first);
+}

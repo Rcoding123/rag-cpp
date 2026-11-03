@@ -29,6 +29,8 @@ jobs:
           - { name: gcc-scalar,        cxx: g++,     arch: x86-64,    build: Release }
           - { name: clang-native,      cxx: clang++, arch: native,    build: Release }
           - { name: gcc-asan-ubsan,    cxx: g++,     arch: native,    build: Debug,          flags: -DRAG_SANITIZE=ON }
+          # Clang's UBSan also checks arithmetic on null pointers, which GCC's doesn't.
+          - { name: clang-asan-ubsan,  cxx: clang++, arch: native,    build: Debug,          flags: -DRAG_SANITIZE=ON }
           - { name: gcc-tsan,          cxx: g++,     arch: native,    build: RelWithDebInfo, flags: -DRAG_TSAN=ON }
     steps:
       - uses: actions/checkout@v4
@@ -79,3 +81,40 @@ jobs:
         run: |
           ./build/rag_demo
           ./build/rag_bench --benchmark_filter='Dot|TopK|Query/' --benchmark_min_time=0.05s
+
+  fuzz:
+    name: fuzz-smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libgtest-dev libclang-rt-18-dev
+
+      - name: Build fuzzers
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=clang++ -DRAG_FUZZ=ON
+          cmake --build build --target fuzz_load fuzz_text make_seeds -j"$(nproc)"
+
+      - name: Seed corpora
+        run: |
+          ./build/make_seeds corpus/load
+          mkdir -p corpus/text
+          printf 'The limit order book. VWAP.\nqueue position' > corpus/text/a
+          printf '\x05\x02\x09caf\xc3\xa9 ZX81Q the of and' > corpus/text/b
+
+      - name: Fuzz index loading (60 s)
+        run: ./build/fuzz_load -max_total_time=60 -rss_limit_mb=2048 -timeout=10 -artifact_prefix=crash-load- corpus/load
+
+      - name: Fuzz text pipeline (60 s)
+        run: ./build/fuzz_text -max_total_time=60 -rss_limit_mb=2048 -timeout=10 -max_len=4096 -artifact_prefix=crash-text- corpus/text
+
+      - name: Upload crashing inputs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashes
+          path: crash-*

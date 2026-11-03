@@ -28,8 +28,13 @@ class Arena {
   Arena& operator=(const Arena&) = delete;
 
   [[nodiscard]] void* allocate(std::size_t bytes, std::size_t align = alignof(std::max_align_t)) {
-    auto* p = align_up(cur_, align);
-    if (p + bytes <= end_) [[likely]] {
+    // Bounds are checked on integer addresses: forming `p + bytes` past the
+    // block (or from the null cur_ of a fresh arena) would itself be UB.
+    const auto cur = reinterpret_cast<std::uintptr_t>(cur_);
+    const auto end = reinterpret_cast<std::uintptr_t>(end_);
+    const auto aligned = (cur + align - 1) & ~(std::uintptr_t{align} - 1);
+    if (cur_ != nullptr && aligned <= end && bytes <= end - aligned) [[likely]] {
+      auto* p = cur_ + (aligned - cur);
       cur_ = p + bytes;
       used_ += bytes;
       return p;
@@ -49,11 +54,6 @@ class Arena {
   [[nodiscard]] std::size_t blocks() const noexcept { return blocks_.size(); }
 
  private:
-  static std::byte* align_up(std::byte* p, std::size_t a) noexcept {
-    const auto v = reinterpret_cast<std::uintptr_t>(p);
-    return reinterpret_cast<std::byte*>((v + a - 1) & ~(std::uintptr_t{a} - 1));
-  }
-
   void* allocate_slow(std::size_t bytes, std::size_t align) {
     const std::size_t size = std::max(block_bytes_, bytes + align);
     blocks_.push_back(make_aligned_array<std::byte>(size, Init::Lazy));
