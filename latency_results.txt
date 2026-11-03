@@ -1,0 +1,5 @@
+corpus: 20000 docs | pinned: cpu1 | iters: 3000
+mode           chunks      p50      p90      p99    p99.9      max  QPS/core
+exact           60000  9608.5us 11557.0us 12547.8us 14815.1us 15884.2us       101
+int8+rerank     60000  2205.6us  2519.2us  2810.1us  4284.0us  5512.7us       469
+ivf             60000   614.6us   797.5us  1032.0us  1325.4us  2703.9us      1587

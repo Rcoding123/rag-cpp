@@ -1,0 +1,33 @@
+2026-11-03T15:47:56+00:00
+Running ./build/rag_bench
+Run on (4 X 2800 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x4)
+  L1 Instruction 32 KiB (x4)
+  L2 Unified 1024 KiB (x4)
+  L3 Unified 33792 KiB (x1)
+Load Average: 1.24, 0.67, 0.27
+Benchmark                            Time             CPU   Iterations UserCounters...
+Dot/f32/scalar/384                 419 ns          408 ns      1020806 bytes_per_second=7.0173Gi/s
+Dot/f32/scalar/768                 921 ns          910 ns       474907 bytes_per_second=6.28857Gi/s
+Dot/f32/avx2/384                  16.3 ns         16.3 ns     20051930 bytes_per_second=175.375Gi/s
+Dot/f32/avx2/768                  31.2 ns         31.1 ns     13646426 bytes_per_second=184Gi/s
+Dot/f32/avx512/384                15.1 ns         15.1 ns     28755907 bytes_per_second=189.525Gi/s
+Dot/f32/avx512/768                35.0 ns         33.5 ns     10000000 bytes_per_second=170.659Gi/s
+Dot/i8/scalar/384                 46.1 ns         45.1 ns      9471720 bytes_per_second=15.8482Gi/s
+Dot/i8/avx2/384                   12.8 ns         12.7 ns     44372440 bytes_per_second=56.3252Gi/s
+Dot/i8/avx512_vnni/384            7.34 ns         7.33 ns     57565172 bytes_per_second=97.5627Gi/s
+TopK/push/10                     34903 ns        34399 ns        12555 items_per_second=1.90516G/s
+TopK/push/64                     53530 ns        53040 ns         8349 items_per_second=1.2356G/s
+Dense/flat_f32/10000               579 us          569 us          740 bytes_per_second=25.1557Gi/s items_per_second=17.5851M/s
+Dense/flat_f32/100000            16296 us        15866 us           28 bytes_per_second=9.01593Gi/s items_per_second=6.30259M/s
+Dense/int8_rerank128/10000         245 us          245 us         1939 bytes_per_second=14.7652Gi/s items_per_second=40.8608M/s
+Dense/int8_rerank128/100000       3321 us         3291 us          120 bytes_per_second=10.9803Gi/s items_per_second=30.3867M/s
+Dense/ivf256_100k/nprobe/4         259 us          257 us         1470 recall@10=1
+Dense/ivf256_100k/nprobe/16       1205 us         1205 us          395 recall@10=1
+Dense/ivf256_100k/nprobe/32       1911 us         1898 us          205 recall@10=1
+Lexical/bm25_query                7.95 us         7.95 us        42454 chunks=60k postings=5.07044M
+Query/tokenize+embed               673 ns          651 ns       664012
+Pipeline/query/0                  9458 us         9381 us           44 chunks=60k exact
+Pipeline/query/1                  2170 us         2160 us          188 chunks=60k int8+rerank
+Pipeline/query/2                   752 us          745 us          860 chunks=60k ivf

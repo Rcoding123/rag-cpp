@@ -1,0 +1,99 @@
+// rag/vector_store.hpp — fixed-capacity, append-only embedding store with
+// single-writer / multi-reader lock-free publication.
+//
+// Layout (Struct of Arrays, each array one aligned allocation):
+//   f32_    [capacity][D]  fp32 rows, 64 B aligned      -> exact scoring / rerank
+//   i8_     [capacity][D]  int8 rows, 64 B aligned      -> 4x less memory traffic
+//   scale_  [capacity]     dequantisation scale per row
+//
+// Concurrency protocol (SWMR):
+//   writer: fill row n in all three arrays  ->  size_.store(n + 1, release)
+//   reader: m = size_.load(acquire)         ->  rows [0, m) are fully visible
+// Rows are never modified after publication, so readers need no locks, no
+// retries, and never observe a torn row. size_ sits on its own cache line so
+// the writer's stores do not invalidate the lines holding the read-only
+// pointers that every reader touches (no false sharing).
+#pragma once
+
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <span>
+
+#include "rag/common.hpp"
+#include "rag/simd.hpp"
+#include "rag/topk.hpp"
+
+namespace rag {
+
+template <std::size_t D>
+  requires ValidDim<D>
+class VectorStore {
+ public:
+  static constexpr std::size_t kDim = D;
+
+  explicit VectorStore(std::size_t capacity)
+      : capacity_(capacity),
+        f32_(make_aligned_array<float>(capacity * D)),
+        i8_(make_aligned_array<std::int8_t>(capacity * D)),
+        scale_(make_aligned_array<float>(capacity)) {}
+
+  // Single writer only. Returns false when full. `v` should be L2-normalised.
+  bool append(std::span<const float, D> v) noexcept {
+    const std::uint32_t n = size_.load(std::memory_order_relaxed);  // writer owns size_
+    if (n >= capacity_) [[unlikely]] return false;
+    float* dst = f32_.get() + std::size_t{n} * D;
+    for (std::size_t i = 0; i < D; ++i) dst[i] = v[i];
+    scale_[n] = simd::quantize_i8(dst, i8_.get() + std::size_t{n} * D, D);
+    size_.store(n + 1, std::memory_order_release);  // publish
+    return true;
+  }
+
+  [[nodiscard]] std::uint32_t size() const noexcept { return size_.load(std::memory_order_acquire); }
+  [[nodiscard]] std::size_t capacity() const noexcept { return capacity_; }
+  [[nodiscard]] const float* row(std::uint32_t i) const noexcept { return f32_.get() + std::size_t{i} * D; }
+  [[nodiscard]] const std::int8_t* qrow(std::uint32_t i) const noexcept { return i8_.get() + std::size_t{i} * D; }
+  [[nodiscard]] float qscale(std::uint32_t i) const noexcept { return scale_[i]; }
+
+  // Exact cosine (= dot, rows normalised) over rows [begin, end).
+  // `end` must come from size() on this thread (acquire) or be <= it.
+  template <class TK>
+  void search_exact(const float* q, std::uint32_t begin, std::uint32_t end, TK& out) const noexcept {
+    std::uint32_t i = begin;
+    float s[4];
+    for (; i + 4 <= end; i += 4) {  // register-blocked: one q load feeds 4 rows
+      simd::dot4(q, row(i), D, D, s);
+      out.push(s[0], i); out.push(s[1], i + 1); out.push(s[2], i + 2); out.push(s[3], i + 3);
+    }
+    for (; i < end; ++i) out.push(simd::dot(q, row(i), D), i);
+  }
+
+  // Approximate scan over int8 rows. Scores are dequantised dot products;
+  // the query scale is a positive constant so it is folded out of ranking.
+  template <class TK>
+  void search_int8(const std::int8_t* qq, std::uint32_t begin, std::uint32_t end, TK& out) const noexcept {
+    for (std::uint32_t i = begin; i < end; ++i) {
+      RAG_PREFETCH(qrow(i) + 8 * D);  // stay ~8 rows (3 KiB @ D=384) ahead of the stream
+      out.push(static_cast<float>(simd::dot_i8(qq, qrow(i), D)) * scale_[i], i);
+    }
+  }
+
+  // Two-stage search: int8 scan keeps `cand` candidates, fp32 reranks them.
+  // Recall is close to exact while the bulk scan moves 4x fewer bytes.
+  template <class TKCand, class TK>
+  void search_two_stage(const float* q, const std::int8_t* qq, std::uint32_t begin, std::uint32_t end,
+                        TKCand& cand, TK& out) const noexcept {
+    search_int8(qq, begin, end, cand);
+    for (const Hit& h : cand.sorted()) out.push(simd::dot(q, row(h.id), D), h.id);
+  }
+
+ private:
+  std::size_t capacity_;
+  AlignedArray<float> f32_;
+  AlignedArray<std::int8_t> i8_;
+  AlignedArray<float> scale_;
+  alignas(kCacheLine) std::atomic<std::uint32_t> size_{0};
+  [[maybe_unused]] char pad_[kCacheLine - sizeof(std::atomic<std::uint32_t>)]{};
+};
+
+}  // namespace rag
