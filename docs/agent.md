@@ -1,0 +1,291 @@
+# A self-learning agent, piece by piece
+
+`include/rag/agent/` holds a complete self-learning agent in about 1,400 lines
+of header-only C++20. Its task: sell 100 lots over 20 steps without being told
+how the market works. It learns from rewards alone and gets within reach of
+the mathematically optimal strategy. It also notices when the market changes
+and relearns.
+
+```bash
+./build/agent_demo   # the whole story in about 5 seconds
+```
+
+This document explains the architecture. Every number quoted here comes from
+`agent_demo`, the tests in `tests/agent_tests.cpp`, or the benchmarks.
+
+---
+
+## 1. The loop
+
+Every self-learning agent, whether a robot, a game player or an LLM agent
+with memory, is some version of this loop:
+
+```
+                  ┌──────────────────────── Trainer (supervision) ────────────────────────┐
+                  │  held-out evaluation · champion/challenger · drift detection           │
+                  └───────▲───────────────────────────────┬────────────────────────────────┘
+                          │ scores, alarms                 │ reexplore(), forget_experience()
+                          │                                ▼
+ ┌─────────────┐  obs   ┌─────────┐ features ┌──────────┐ Q-values ┌──────────┐ action ┌─────────────┐
+ │ Environment ├───────►│ Encoder ├─────────►│ Learner  ├─────────►│  Policy  ├───────►│ Environment │
+ └──────┬──────┘        └─────────┘          └────▲─────┘          │ ε-greedy │        └──────┬──────┘
+        │                                         │ update         └──────────┘               │
+        │                                   ┌─────┴──────┐                                    │
+        └────────── reward, next obs ──────►│   Memory   │◄───────────────────────────────────┘
+                                            │ replay /   │
+                                            │ episodic   │
+                                            └────────────┘
+```
+
+| Stage | Question it answers | Here | File |
+|---|---|---|---|
+| Environment | What is the world, and what counts as good? | `ExecutionEnv`, `ChainEnv` | `env.hpp` |
+| Encoder | How should situations be described so that similar ones are treated alike? | tile coding, random Fourier features | `features.hpp` |
+| Learner | What is each action worth here? | `TileQ` (TD learning), `EpisodicMemory` (k-NN) | `learners.hpp` |
+| Memory | What happened before? | `ReplayBuffer`, episodic slots | `learners.hpp` |
+| Policy | What should I do now, and when should I try something new? | ε-greedy with schedules | `agent.hpp` |
+| Supervision | Am I actually improving? Has the world changed? | `Trainer`, `DriftDetector` | `trainer.hpp` |
+| Yardstick | How good could I possibly be? | `ExecutionDP` | `execution_dp.hpp` |
+
+The agent (`Agent<Env>`) is generic. It sees only observations, an action
+count, rewards, and the feature ranges an environment declares. The same
+class learns the corridor (`ChainEnv`) and the trading task unchanged.
+
+---
+
+## 2. The task, and why it needs learning
+
+`ExecutionEnv`: sell `lots = 100` over `horizon = 20` steps.
+
+* **Impact:** selling `q` lots in one step costs `0.01·q²`. Fast selling is
+  expensive, and the cheapest schedule ignoring everything else is TWAP
+  (5 lots per step).
+* **Signal:** the price moves by `alpha·signal + noise` after each step. The
+  signal persists (AR(1), ρ = 0.7), so a negative signal means the price is
+  about to fall and it pays to sell now.
+* **Deadline:** anything unsold at the end is dumped at 5× the impact.
+* **Reward:** the change in mark-to-market wealth. An episode's total reward
+  is exactly cash received minus the arrival value. A test checks this to
+  1e-9 for random policies.
+
+The agent is never told the impact, the deadline rule, or what the signal
+means. The demo's opening table gives the scale:
+
+| Policy | Gain over TWAP per episode |
+|---|---|
+| TWAP | 0 |
+| rule: "sell faster if signal < 0" | +6.5 (43% of optimal) |
+| **DP optimum** (knows the model) | **+15.2** |
+| learned agent after 40,000 episodes | **+10.1 (67% of optimal)** |
+
+## 3. The yardstick: know what optimal looks like
+
+`ExecutionDP` solves the task exactly (backward induction over time,
+inventory and a 121-point signal grid, in 126 ms).
+
+This matters for any learning system. "The reward went up" is weak evidence.
+"It captures 67% of the gain the optimal policy achieves on the same unseen
+scenarios" is a measurement. Before trusting the DP, the tests check:
+
+* its predicted value matches simulation (paired gain 15.59 vs 15.61);
+* it beats every heuristic;
+* its last-step choices match a brute-force calculation;
+* it is mirror-symmetric (flipping `alpha` and the signal together leaves
+  the value unchanged).
+
+**Evaluation method.** Single-episode returns have a standard deviation
+around 55, far larger than the differences between policies, so comparisons
+use *common random numbers*. Every policy faces the same scenarios
+(`Rng(seed + i)`), and paired differences cancel the shared noise (see
+`compare()` in `trainer.hpp`).
+
+## 4. Encoders: deciding what "similar" means
+
+Learning generalizes only through the encoder. Two are provided:
+
+* **Tile coding** (for `TileQ`). There are 8 offset grids over
+  (time, inventory, signal), and a state activates one cell in each. Nearby
+  states share most cells, so learning in one transfers to its neighbours.
+  Tests check that shared cells fall with distance, from all 8 for the same
+  point to 0 for distant ones.
+* **Random Fourier features** (for episodic memory). A 64-dimensional unit
+  vector whose dot products approximate a Gaussian similarity
+  (Rahimi & Recht). "Recall similar past situations" then becomes exactly
+  the nearest-neighbour search the RAG engine runs over text embeddings, and
+  it uses the same SIMD kernels (`simd::dot4`) and top-K selection.
+
+*Lesson measured:* finer tiles made learning worse. With 12 cells per
+dimension the agent captured 40% instead of 65%, and with one cell per time
+step, 15% at 30,000 episodes. Each cell sees fewer samples, and neighbouring
+states stop sharing what they learn. Generalization was worth more than
+resolution.
+
+## 5. Two ways to learn
+
+| | `TileQ` (parametric) | `EpisodicMemory` (instance-based) |
+|---|---|---|
+| Stores | one weight per tile per action | up to 4,096 remembered situations, each with a value per action |
+| Learns from | every step (TD target `r + max Q(s')`) plus replay | each episode's actual returns (Monte Carlo) |
+| Estimates Q by | summing 8 weights | similarity-weighted mean of the 8 nearest memories |
+| Decision cost | **64 ns** | 19.8 µs (k-NN over 4,096 × 64 floats) |
+| After 1,000 episodes | 5.8% of optimal | **13.6%** |
+| After 40,000 episodes | **62-71%** (across seeds) | ~33% at 10,000 and improving slowly |
+
+Episodic memory turns one good episode into a usable memory immediately.
+The parametric learner generalizes smoothly and wins with data. This is the
+"complementary learning systems" idea from neuroscience, and the reason some
+agents combine both.
+
+**Replay** (`ReplayBuffer`): every real step adds 4 extra updates from past
+transitions, so each interaction with the world is used many times.
+
+**Step size** (`alpha / (1 + episodes/3000)`, floor 0.003): rewards here
+are noisy (about ±2.5 per step), while the difference between good and bad
+actions is often below 1. A constant step size keeps estimates jittering,
+and shrinking it averages the noise out. The floor keeps the agent able to
+learn if the world changes.
+
+*Lessons measured:*
+* **Plateau:** learning levels off around 72% even with 200,000 episodes.
+  The remaining gap is the function approximator's limit, not a lack of data.
+* **Double Q-learning didn't help.** It removes the upward bias that
+  `max()` puts into targets. Here, though, the two were level at 30,000
+  episodes (64.8% with it, 64.5% without), and at 60,000 it was clearly worse
+  (64% vs 72%): halving each estimator's updates cost more than the bias it
+  removed. It's available as `double_q` but off by default.
+
+## 6. Exploration
+
+A fraction ε of decisions is random. ε falls linearly from 1 to 0.02, and
+never reaches 0: an agent that never tries anything new can never notice that
+the world changed. `reexplore(eps, n)` raises it temporarily and restarts
+the step-size schedule, because relearning needs plasticity. Greedy decisions
+(`act(o, false)`) are deterministic and don't touch the agent's random
+number generator. A test shows that interleaving evaluations leaves training
+bit-identical.
+
+## 7. Supervision: the part most tutorials skip
+
+### Held-out evaluation and the champion
+Training returns are measured while exploring, so they understate the
+policy. The trainer scores the greedy policy on fixed scenarios it never
+trains on, and keeps the best policy seen so far as the **champion**:
+
+* A challenger is promoted only if it scores at least as well on the same
+  scenarios.
+* The champion is re-scored every time, so after a change it is judged on
+  the new world.
+* **The champion is what gets deployed** (`deployed_act()`), while the
+  learner keeps its own weights.
+
+*Lessons measured:*
+* **Restoring the champion destroyed learning.** An early version restored
+  the champion into the learner at the end of every `run()`, which silently
+  undid learning between calls (recovery stalled at 16%). A test now
+  requires that training in chunks is bit-identical to training in one go.
+* **The champion check saves real dips.** At episode 30,000 in the demo the
+  learner dipped to 16%. The champion (45%) stayed deployed, and the
+  learner recovered to 63% and then 67%.
+* **Small evaluation sets pick the wrong winner.** Choosing champions on
+  300 scenarios and measuring on 1,000 others showed a winner's curse.
+  Larger evaluation sets are cheap here.
+
+### Drift detection: suspect fast, confirm exactly
+The trainer watches **surprise** = return obtained − return predicted at the
+episode start. It works in two stages:
+
+1. **Suspect:** a one-sided CUSUM test (Page, 1954) on standardized surprise,
+   with allowance 0.3σ and threshold 16σ, against a baseline built only from
+   samples at least 50 episodes old. The parameters were chosen by
+   simulation: about one false alarm per 200,000 episodes, and a 0.55σ shift
+   (what the market flip causes) caught after a median of 51 episodes.
+2. **Confirm:** re-score the frozen champion on the held-out scenarios. In an
+   unchanged world that score is reproduced bit for bit; only a changed world
+   moves it.
+
+The confirmation stage exists because of a measured failure. During ordinary
+learning, value estimates are biased and still moving: early on the agent
+predicts +31 and gets −9.6. At episode ~34,000 the learner's policy dipped, a
+real performance drop the detector correctly flagged, but the world hadn't
+changed. Acting on it reset exploration and cost 18 percentage points (48% instead of
+67% at 40,000 episodes).
+A fast detector can't tell "the world changed" from "my learning wobbled";
+the champion check can.
+
+A confirmed drift makes the agent explore again (ε = 0.5, decaying over
+5,000 episodes), restart its step size, and clear its replay buffer.
+
+*Lessons measured:*
+* **Re-exploration length matters most.** A short boost (ε 0.3 for 600
+  episodes) recovered only 10% of the new optimum after 20,000 episodes; the
+  longer boost recovered about 43%.
+* **Clearing replay helps only early.** It speeds up the first 2,500
+  episodes after the flip (−0.3% vs −59%) and makes no difference later.
+
+**In the demo**, the signal's meaning flips after 40,000 episodes:
+
+| Episodes after the flip | With drift detection | Without |
+|---|---|---|
+| 0 | −143% (old knowledge is harmful) | −143% |
+| 5,000 (drift detected after 17) | 12% | −89% |
+| 25,000 | 43% | −75% |
+| 40,000 | 50% | −75% |
+
+---
+
+## 8. How the same architecture maps onto LLM agents
+
+A "self-improving" LLM agent fills the same slots with different parts:
+
+| Slot | Here | In an LLM agent |
+|---|---|---|
+| Environment | market simulator | tools, users, codebases, web pages |
+| Encoder | tile coding / RFF | a text embedding model |
+| Episodic memory | k-NN over situation embeddings | a vector store of past attempts and outcomes (this repo's RAG engine) |
+| Parametric learner | TD-updated weights | fine-tuning, or learned prompts / rules |
+| Reward | mark-to-market P&L | test results, user feedback, an evaluator model |
+| Policy | ε-greedy over Q | the LLM, conditioned on retrieved memories |
+| Champion/challenger | held-out scenario scores | regression evals before shipping a new prompt or model |
+| Drift detection | CUSUM on surprise, confirmed by champion re-score | monitoring eval scores and user signals in production |
+
+The hard problems are the same in both:
+* measuring improvement against a fixed yardstick;
+* not shipping a policy that got worse;
+* noticing when old lessons stop being true.
+
+## 9. Extending it
+
+* **A new task:** implement the `Environment` concept: `reset`, `step`,
+  `features`, `kNumActions`, `kStateDims` and `kLo`/`kHi`. Nothing else
+  changes.
+* **A new learner:** follow `TileQ` / `EpisodicMemory` and add a
+  `LearnerKind`.
+* **Real market data:** replay historical signals and prices in an
+  environment. Be aware that the price-impact model then becomes an
+  assumption, and that a backtest can't show the agent's own impact on the
+  market.
+
+## 10. Tests (`tests/agent_tests.cpp`, 26 cases)
+
+* **Components:**
+  * the random number generator's moments;
+  * the reward accounting identity and the environment's invariants;
+  * DP self-consistency;
+  * tile and Fourier-feature geometry;
+  * `TileQ` update arithmetic;
+  * the replay buffer ring;
+  * episodic k-NN against brute force, plus LRU eviction.
+* **Behaviour:**
+  * learns the corridor exactly, with both learners and with random slips;
+  * captures more than 55% of the optimal gain, and more than the
+    hand-written rule plus 15 points;
+  * sells more than twice as much when the signal says "falling";
+  * the champion's score never decreases;
+  * no false drift alarms in a stationary world, a real change detected
+    within 500 episodes, and recovery that beats the non-adaptive agent by
+    more than 20 points.
+* **Engineering:**
+  * deterministic runs, bit-identical across chunked training;
+  * evaluation doesn't perturb learning;
+  * snapshots restore the exact policy;
+  * `act()` makes zero heap allocations.

@@ -141,6 +141,31 @@ auto r = rag::pdf::ingest_pdf(engine, "report.pdf", /*doc_id=*/7);
 * **Speed:** a 400-page PDF indexes in 0.42 s, about the same as `pdftotext`
   alone. Loading the index and answering a question takes 24 ms.
 
+## A self-learning agent
+
+`include/rag/agent/` is a complete self-learning agent that teaches itself to
+execute a trade, with no model of the market, from rewards alone:
+
+```bash
+./build/agent_demo
+```
+
+* **Result:** after 40,000 training episodes (0.5 s), it captures 67% of the
+  gain over TWAP that the mathematically optimal policy (solved by dynamic
+  programming) achieves on unseen scenarios. Its learned policy nearly
+  matches the optimal one.
+* **Adaptation:** when the market's behaviour flips, it detects the change
+  within 17 episodes and relearns. An agent without drift detection stays
+  stuck doing the wrong thing.
+* **Speed:** decisions take 64 ns.
+
+**[docs/agent.md](docs/agent.md)** walks through the architecture:
+* environment, encoder, learners (TD learning vs episodic memory), replay,
+  exploration;
+* held-out evaluation, champion/challenger and two-stage drift detection;
+* what each design choice measurably did;
+* how the same architecture maps onto LLM agents.
+
 ## Batched queries
 
 ```cpp

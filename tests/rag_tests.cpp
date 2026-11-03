@@ -41,6 +41,10 @@ struct AllocScope {
   std::size_t count() const { return g_allocs.load(); }
 };
 }  // namespace
+namespace rag::testutil {  // shared with the other test files (see test_util.hpp)
+void begin_alloc_count() { g_allocs = 0; g_track = true; }
+std::size_t end_alloc_count() { g_track = false; return g_allocs.load(); }
+}  // namespace rag::testutil
 void* operator new(std::size_t n) { return counted(n, 0); }
 void* operator new[](std::size_t n) { return counted(n, 0); }
 void* operator new(std::size_t n, std::align_val_t a) { return counted(n, static_cast<std::size_t>(a)); }

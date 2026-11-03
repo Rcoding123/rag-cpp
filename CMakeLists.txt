@@ -32,7 +32,7 @@ endif()
 find_package(Threads REQUIRED)
 find_package(GTest REQUIRED)
 enable_testing()
-add_executable(rag_tests tests/rag_tests.cpp tests/forgery_tests.cpp tests/reference_tests.cpp tests/text_clean_tests.cpp)
+add_executable(rag_tests tests/rag_tests.cpp tests/forgery_tests.cpp tests/reference_tests.cpp tests/text_clean_tests.cpp tests/agent_tests.cpp)
 target_link_libraries(rag_tests PRIVATE rag GTest::gtest_main Threads::Threads)
 include(GoogleTest)
 gtest_discover_tests(rag_tests)
@@ -51,6 +51,9 @@ target_link_libraries(rag_latency PRIVATE rag)
 
 add_executable(rag_demo examples/demo.cpp)
 target_link_libraries(rag_demo PRIVATE rag)
+
+add_executable(agent_demo examples/agent_demo.cpp)
+target_link_libraries(agent_demo PRIVATE rag)
 
 # libFuzzer targets (Clang only): cmake -DCMAKE_CXX_COMPILER=clang++ -DRAG_FUZZ=ON
 option(RAG_FUZZ "Build libFuzzer targets (requires Clang)" OFF)

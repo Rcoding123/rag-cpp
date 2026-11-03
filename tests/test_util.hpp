@@ -16,6 +16,11 @@
 
 namespace rag::testutil {
 
+// Heap allocations (every operator new) between begin and end; defined in
+// rag_tests.cpp, which replaces the global allocation functions.
+void begin_alloc_count();
+std::size_t end_alloc_count();
+
 // Every temp index file a test creates; deleted when the test process ends.
 inline std::vector<std::filesystem::path>& created_files() {
   static std::vector<std::filesystem::path> v;

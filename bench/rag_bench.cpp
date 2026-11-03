@@ -253,4 +253,63 @@ static void BM_EndToEndBatch(benchmark::State& st) {
 }
 BENCHMARK(BM_EndToEndBatch)->Name("Pipeline/query_batch8")->DenseRange(0, 1)->Unit(benchmark::kMicrosecond);
 
+// ------------------------------- agent ---------------------------------------
+#include "rag/agent/trainer.hpp"
+
+namespace {
+rag::agent::Agent<rag::agent::ExecutionEnv>& trained_agent(rag::agent::LearnerKind kind) {
+  using namespace rag::agent;
+  static std::unique_ptr<Agent<ExecutionEnv>> a[2];
+  auto& slot = a[static_cast<int>(kind)];
+  if (!slot) {
+    ExecutionEnv env{ExecutionParams{}};
+    AgentConfig<3> c;
+    c.learner = kind;
+    c.eps_decay_episodes = 2000;
+    slot = std::make_unique<Agent<ExecutionEnv>>(env, c);
+    Trainer<ExecutionEnv> t(*slot, env, {.eval_every = 0, .detect_drift = false});
+    t.run(kind == LearnerKind::TileQ ? 4000 : 1500);  // the episodic memory fills to capacity
+  }
+  return *slot;
+}
+}  // namespace
+
+static void BM_AgentAct(benchmark::State& st) {
+  using namespace rag::agent;
+  auto& agent = trained_agent(static_cast<LearnerKind>(st.range(0)));
+  Rng r(1);
+  std::vector<ExecutionObs> obs(256);
+  for (auto& o : obs) o = {r.below(20), r.below(101), 0.1 * r.normal()};
+  std::size_t i = 0;
+  for (auto _ : st) benchmark::DoNotOptimize(agent.act(obs[i++ & 255], /*explore=*/false));
+  st.SetLabel(st.range(0) == 0 ? "tile-coded Q (8 tilings x 5 actions)"
+                               : "episodic k-NN over " + std::to_string(agent.memory().size()) + " x 64-d memories");
+}
+BENCHMARK(BM_AgentAct)->Name("Agent/act_greedy")->Arg(0)->Arg(1);
+
+static void BM_AgentLearnStep(benchmark::State& st) {
+  using namespace rag::agent;
+  ExecutionEnv env{ExecutionParams{}};
+  Agent<ExecutionEnv> agent(env, AgentConfig<3>{});
+  Rng rng(3);
+  auto o = env.reset(rng);
+  for (auto _ : st) {  // one real step: act, step the world, TD update + 4 replayed updates
+    const Action a = agent.act(o, true);
+    const auto s = env.step(a, rng);
+    agent.observe(o, a, s.reward, s.obs, s.done);
+    o = s.done ? (agent.end_episode(), env.reset(rng)) : s.obs;
+  }
+}
+BENCHMARK(BM_AgentLearnStep)->Name("Agent/learn_step_tileq");
+
+static void BM_AgentTrainEpisode(benchmark::State& st) {
+  using namespace rag::agent;
+  ExecutionEnv env{ExecutionParams{}};
+  Agent<ExecutionEnv> agent(env, AgentConfig<3>{});
+  Trainer<ExecutionEnv> t(agent, env, {.eval_every = 0, .detect_drift = false});
+  for (auto _ : st) benchmark::DoNotOptimize(t.run_episode());
+  st.SetItemsProcessed(st.iterations());
+}
+BENCHMARK(BM_AgentTrainEpisode)->Name("Agent/train_episode_tileq");
+
 BENCHMARK_MAIN();
