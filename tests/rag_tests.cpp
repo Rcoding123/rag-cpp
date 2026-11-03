@@ -1208,3 +1208,116 @@ TEST(Persist, ChecksumIsIndependentOfChunkingAndSeesEveryByte) {
   zero_padded.update(padded.data(), padded.size());
   EXPECT_NE(shorter.value(), zero_padded.value());
 }
+
+// ================================ Batching ==================================
+TEST(VectorStore, BatchedScanIsBitIdenticalToSingleQueries) {
+  VectorStore<kD> s(1003);  // 1003 rows: exercises the 1-3 row tail of the single path
+  synth::fill_clustered(s, 1003, 20, 0.5f);
+  const auto q = synth::random_queries<kD>(8, 21, s, 0.3f);
+  for (std::size_t nq = 1; nq <= 8; ++nq) {
+    alignas(64) std::array<float, 8 * kD> qs{};
+    std::copy_n(q.begin(), nq * kD, qs.begin());
+    std::array<TopK<16>, 8> batch;
+    std::array<TopK<16>*, 8> outs;
+    for (std::size_t j = 0; j < nq; ++j) { batch[j].reset(16); outs[j] = &batch[j]; }
+    s.search_exact_batch(qs.data(), nq, 0, s.size(), outs.data());
+    for (std::size_t j = 0; j < nq; ++j) {
+      TopK<16> single(16);
+      s.search_exact(q.data() + j * kD, 0, s.size(), single);
+      const auto a = single.sorted(), b = batch[j].sorted();
+      ASSERT_EQ(a.size(), b.size());
+      for (std::size_t i = 0; i < a.size(); ++i) EXPECT_EQ(a[i], b[i]) << "nq=" << nq << " q=" << j << " rank=" << i;
+    }
+  }
+}
+
+TEST(Simd, Dot1MatchesEachDot4LaneBitwise) {
+  std::mt19937 rng(12);
+  std::normal_distribution<float> g;
+  auto rows = make_aligned_array<float>(4 * kD);
+  std::vector<float> q(kD);
+  for (auto& x : q) x = g(rng);
+  for (std::size_t i = 0; i < 4 * kD; ++i) rows[i] = g(rng);
+  float s4[4];
+  simd::dot4(q.data(), rows.get(), kD, kD, s4);
+  for (int j = 0; j < 4; ++j) EXPECT_EQ(simd::dot1(q.data(), rows.get() + j * kD, kD), s4[j]);
+}
+
+namespace {
+std::vector<std::string> mixed_queries(const synth::TextCorpus& c, std::size_t n) {
+  std::mt19937 rng(31);
+  std::vector<std::string> qs;
+  for (std::size_t i = 0; i < n; ++i) {
+    if (i % 7 == 3) { qs.emplace_back("the of and"); continue; }  // no signal: dense skipped
+    if (i % 11 == 5) { qs.emplace_back(""); continue; }
+    const auto& w = c.topic_words[rng() % c.topic_words.size()];
+    qs.push_back(w[rng() % 40] + " " + w[rng() % 40] + " f" + std::to_string(rng() % 50));
+  }
+  return qs;
+}
+}  // namespace
+
+class BatchModes : public ::testing::TestWithParam<DenseMode> {};
+
+TEST_P(BatchModes, BatchEqualsSingleQueriesExactly) {
+  EngineConfig cfg;
+  cfg.max_chunks = 8192;
+  cfg.chunker = {64, 16};
+  cfg.dense_mode = GetParam();
+  cfg.ivf.nlist = 16;
+  Engine e(cfg);
+  const auto corpus = synth::make_text_corpus(400, 20, 96);
+  for (std::uint32_t d = 0; d < corpus.docs.size(); ++d) e.ingest(corpus.docs[d], d);
+  e.commit();
+  e.ingest("A late uncommitted chunk about t3w1 t3w2 settlement.", 9999);  // delta segment too
+
+  const auto qs = mixed_queries(corpus, 19);
+  std::vector<std::string_view> views(qs.begin(), qs.end());
+  std::vector<Engine::QueryContext> ctxs;
+  for (std::size_t i = 0; i < qs.size(); ++i) ctxs.push_back(e.make_context());
+  auto single_ctx = e.make_context();
+
+  for (std::size_t n : {1u, 3u, 4u, 8u, 9u, 19u}) {  // crosses the 8-query group boundary
+    std::vector<Engine::QueryResult> out(n);
+    e.query_batch(std::span(views).first(n), 6, std::span(ctxs).first(n), out);
+    for (std::size_t i = 0; i < n; ++i) {
+      const auto ref = e.query(views[i], 6, single_ctx);
+      ASSERT_EQ(ref.hits.size(), out[i].hits.size()) << "n=" << n << " q=" << i;
+      for (std::size_t r = 0; r < ref.hits.size(); ++r) EXPECT_EQ(ref.hits[r], out[i].hits[r]) << "n=" << n << " q=" << i;
+      ASSERT_EQ(ref.dense.size(), out[i].dense.size());
+      for (std::size_t r = 0; r < ref.dense.size(); ++r) EXPECT_EQ(ref.dense[r], out[i].dense[r]);
+      EXPECT_EQ(ref.lexical.size(), out[i].lexical.size());
+      EXPECT_EQ(ref.prompt.prompt, out[i].prompt.prompt);
+    }
+  }
+
+  // Zero heap allocations for a full batch.
+  std::vector<Engine::QueryResult> out(qs.size());
+  e.query_batch(views, 6, ctxs, out);  // warm
+  std::size_t allocs;
+  {
+    AllocScope scope;
+    for (int rep = 0; rep < 20; ++rep) e.query_batch(views, 6, ctxs, out);
+    allocs = scope.count();
+  }
+  EXPECT_EQ(allocs, 0u);
+}
+
+INSTANTIATE_TEST_SUITE_P(Modes, BatchModes,
+                         ::testing::Values(DenseMode::Exact, DenseMode::Int8Rerank, DenseMode::Ivf,
+                                           DenseMode::IvfInt8));
+
+TEST(Engine, BatchHandlesMismatchedSpansSafely) {
+  auto ep = make_engine(DenseMode::Exact);
+  auto& e = *ep;
+  std::vector<std::string_view> qs = {"vwap", "order book", "ZX81Q"};
+  std::vector<Engine::QueryContext> ctxs;
+  ctxs.push_back(e.make_context());
+  ctxs.push_back(e.make_context());
+  std::vector<Engine::QueryResult> out(3);
+  e.query_batch(qs, 3, ctxs, out);  // only 2 contexts: answers the first 2, leaves out[2] untouched
+  EXPECT_FALSE(out[0].hits.empty());
+  EXPECT_FALSE(out[1].hits.empty());
+  EXPECT_TRUE(out[2].hits.empty());
+  e.query_batch({}, 3, ctxs, out);  // empty batch is a no-op
+}

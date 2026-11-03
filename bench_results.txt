@@ -1,4 +1,4 @@
-2026-11-03T17:09:41+00:00
+2026-11-03T17:46:37+00:00
 Running ./build/rag_bench
 Run on (4 X 2800 MHz CPU s)
 CPU Caches:
@@ -6,32 +6,42 @@ CPU Caches:
   L1 Instruction 32 KiB (x4)
   L2 Unified 1024 KiB (x4)
   L3 Unified 33792 KiB (x1)
-Load Average: 2.76, 1.96, 1.37
-Benchmark                                   Time             CPU   Iterations UserCounters...
-Dot/f32/scalar/384                        424 ns          417 ns      1047406 bytes_per_second=6.86468Gi/s
-Dot/f32/scalar/768                        912 ns          886 ns       470174 bytes_per_second=6.46107Gi/s
-Dot/f32/avx2/384                         18.7 ns         18.4 ns     23465794 bytes_per_second=155.716Gi/s
-Dot/f32/avx2/768                         35.3 ns         34.7 ns     12033452 bytes_per_second=164.823Gi/s
-Dot/f32/avx512/384                       19.7 ns         19.5 ns     25077386 bytes_per_second=147.023Gi/s
-Dot/f32/avx512/768                       35.2 ns         34.3 ns     12150694 bytes_per_second=166.963Gi/s
-Dot/i8/scalar/384                        45.2 ns         44.9 ns      9068180 bytes_per_second=15.9278Gi/s
-Dot/i8/avx2/384                          9.59 ns         9.18 ns     44225605 bytes_per_second=77.947Gi/s
-Dot/i8/avx512_vnni/384                   7.71 ns         7.67 ns     55096205 bytes_per_second=93.2794Gi/s
-TopK/push/10                            44805 ns        44629 ns         9757 items_per_second=1.46847G/s
-TopK/push/64                            57226 ns        57206 ns         7298 items_per_second=1.14562G/s
-Dense/flat_f32/10000                      489 us          488 us          851 bytes_per_second=29.2896Gi/s items_per_second=20.4749M/s
-Dense/flat_f32/100000                   15404 us        15273 us           31 bytes_per_second=9.36641Gi/s items_per_second=6.54759M/s
-Dense/int8_rerank128/10000                217 us          213 us         1922 bytes_per_second=16.939Gi/s items_per_second=46.8766M/s
-Dense/int8_rerank128/100000              2952 us         2913 us          104 bytes_per_second=12.406Gi/s items_per_second=34.3321M/s
-Dense/ivf256_100k/nprobe:4/int8:0         271 us          265 us         1622 recall@10=1 fp32
-Dense/ivf256_100k/nprobe:16/int8:0       1130 us         1125 us          445 recall@10=1 fp32
-Dense/ivf256_100k/nprobe:32/int8:0       1953 us         1936 us          198 recall@10=1 fp32
-Dense/ivf256_100k/nprobe:4/int8:1         145 us          145 us         3022 recall@10=1 int8+rerank128
-Dense/ivf256_100k/nprobe:16/int8:1        320 us          320 us         1305 recall@10=1 int8+rerank128
-Dense/ivf256_100k/nprobe:32/int8:1        639 us          630 us          927 recall@10=1 int8+rerank128
-Lexical/bm25_query                       6.99 us         6.98 us        50070 chunks=60k postings=5.07044M
-Query/tokenize+embed                      642 ns          642 ns       676036
-Pipeline/query/0                        10471 us        10458 us           39 chunks=60k exact
-Pipeline/query/1                         2442 us         2387 us          233 chunks=60k int8+rerank
-Pipeline/query/2                          601 us          591 us          712 chunks=60k ivf
-Pipeline/query/3                          271 us          257 us         1867 chunks=60k ivf-sq8
+Load Average: 0.57, 0.56, 0.87
+Benchmark                                     Time             CPU   Iterations UserCounters...
+Dot/f32/scalar/384                          424 ns          422 ns      1040605 bytes_per_second=6.78607Gi/s
+Dot/f32/scalar/768                          964 ns          963 ns       475921 bytes_per_second=5.94114Gi/s
+Dot/f32/avx2/384                           31.6 ns         31.6 ns     13253529 bytes_per_second=90.6406Gi/s
+Dot/f32/avx2/768                           49.1 ns         48.9 ns      7432426 bytes_per_second=117.117Gi/s
+Dot/f32/avx512/384                         16.1 ns         16.0 ns     25835490 bytes_per_second=178.378Gi/s
+Dot/f32/avx512/768                         33.3 ns         33.3 ns     12501386 bytes_per_second=172.053Gi/s
+Dot/i8/scalar/384                          54.6 ns         54.1 ns      9518815 bytes_per_second=13.2194Gi/s
+Dot/i8/avx2/384                            12.6 ns         12.6 ns     40187700 bytes_per_second=56.9852Gi/s
+Dot/i8/avx512_vnni/384                     9.34 ns         9.06 ns     45834099 bytes_per_second=78.9503Gi/s
+TopK/push/10                              39786 ns        39427 ns         9485 items_per_second=1.6622G/s
+TopK/push/64                              90189 ns        89662 ns         6775 items_per_second=730.92M/s
+Dense/flat_f32/10000                        687 us          680 us          628 bytes_per_second=21.0219Gi/s items_per_second=14.6954M/s
+Dense/flat_f32/100000                     15116 us        15105 us           27 bytes_per_second=9.47063Gi/s items_per_second=6.62045M/s
+Dense/int8_rerank128/10000                  239 us          239 us         1540 bytes_per_second=15.1353Gi/s items_per_second=41.8851M/s
+Dense/int8_rerank128/100000                3594 us         3591 us          113 bytes_per_second=10.062Gi/s items_per_second=27.8454M/s
+Dense/ivf256_100k/nprobe:4/int8:0           302 us          302 us         1505 recall@10=1 fp32
+Dense/ivf256_100k/nprobe:16/int8:0         1270 us         1235 us          405 recall@10=1 fp32
+Dense/ivf256_100k/nprobe:32/int8:0         1916 us         1916 us          167 recall@10=1 fp32
+Dense/ivf256_100k/nprobe:4/int8:1           156 us          155 us         2791 recall@10=1 int8+rerank128
+Dense/ivf256_100k/nprobe:16/int8:1          383 us          382 us         1234 recall@10=1 int8+rerank128
+Dense/ivf256_100k/nprobe:32/int8:1          644 us          641 us          839 recall@10=1 int8+rerank128
+Dense/flat_batch_100k/batch:1/int8:0      17772 us        17750 us           23 items_per_second=56.337/s fp32
+Dense/flat_batch_100k/batch:2/int8:0      17472 us        17470 us           24 items_per_second=114.483/s fp32
+Dense/flat_batch_100k/batch:4/int8:0      17825 us        17821 us           26 items_per_second=224.454/s fp32
+Dense/flat_batch_100k/batch:8/int8:0      20564 us        20189 us           19 items_per_second=396.263/s fp32
+Dense/flat_batch_100k/batch:1/int8:1       4691 us         4648 us          111 items_per_second=215.159/s int8+rerank128
+Dense/flat_batch_100k/batch:2/int8:1       7278 us         7173 us           56 items_per_second=278.82/s int8+rerank128
+Dense/flat_batch_100k/batch:4/int8:1      10273 us        10267 us           36 items_per_second=389.59/s int8+rerank128
+Dense/flat_batch_100k/batch:8/int8:1      15024 us        14656 us           34 items_per_second=545.861/s int8+rerank128
+Lexical/bm25_query                         9.28 us         9.08 us        45081 chunks=60k postings=5.07044M
+Query/tokenize+embed                        720 ns          718 ns       583864
+Pipeline/query/0                          11896 us        11894 us           35 chunks=60k exact
+Pipeline/query/1                           2336 us         2231 us          191 chunks=60k int8+rerank
+Pipeline/query/2                            521 us          517 us          827 chunks=60k ivf
+Pipeline/query/3                            251 us          245 us         1847 chunks=60k ivf-sq8
+Pipeline/query_batch8/0                   17408 us        17407 us           24 items_per_second=459.572/s exact
+Pipeline/query_batch8/1                    8997 us         8989 us           45 items_per_second=890.002/s int8+rerank

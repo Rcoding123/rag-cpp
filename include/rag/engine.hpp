@@ -114,6 +114,8 @@ class RagEngine {
     std::array<Token, kMaxQueryTokens> tokens{};
     std::array<std::uint64_t, kMaxQueryTokens> terms{};
     std::array<Hit, MaxK> dense{}, lexical{}, fused{};
+    std::size_t nterms = 0;
+    bool has_signal = false;
     TopK<kMaxRerank> cand{};
     Bm25Scratch bm25;
     AlignedArray<char> prompt_buf;
@@ -343,66 +345,36 @@ class RagEngine {
   // Hot path: no heap allocation, no locks, no syscalls.
   QueryResult query(std::string_view q, std::uint32_t k, QueryContext& ctx) const noexcept {
     k = std::min<std::uint32_t>(k, MaxK);
-    const std::size_t ntok = tokenize(q, ctx.tokens);
-    std::size_t nterms = 0;
-    for (std::size_t i = 0; i < ntok; ++i)
-      if (!is_stopword(ctx.tokens[i].hash)) ctx.terms[nterms++] = ctx.tokens[i].hash;
-
-    embedder_.embed(q, std::span<const Token>(ctx.tokens.data(), ntok), std::span<float, D>(ctx.qvec));
-    const float* qv = ctx.qvec.data();
+    prepare(q, ctx);
     const PinnedSnapshot snap(*this, ctx);    // EBR pin: snapshot can't be freed under us
     const std::uint32_t live = store_.size();  // acquire: sees every published chunk
-    const std::uint32_t depth = cfg_.hybrid ? cfg_.retrieve_depth : k;
+    TopK<MaxK> dense(depth_for(k));
+    if (ctx.has_signal) [[likely]] dense_one(*snap, live, ctx, dense);
+    return finish(q, k, *snap, dense, ctx);
+  }
 
-    // Dense retrieval. An all-zero query vector carries no signal: skip it.
-    TopK<MaxK> dense(depth);
-    if (simd::dot(qv, qv, D) > 0.f) [[likely]] {
-      switch (cfg_.dense_mode) {
-        case DenseMode::Exact:
-          store_.search_exact(qv, 0, live, dense);
-          break;
-        case DenseMode::Int8Rerank:
-          simd::quantize_i8(qv, ctx.qvec_i8.data(), D);
-          ctx.cand.reset(std::max(cfg_.rerank_candidates, depth));
-          store_.search_two_stage(qv, ctx.qvec_i8.data(), 0, live, ctx.cand, dense);
-          break;
-        case DenseMode::Ivf: {
-          const std::uint32_t base = std::min(snap->ivf.covered(), live);
-          snap->ivf.search(qv, cfg_.nprobe, dense);
-          store_.search_exact(qv, base, live, dense);  // uncommitted delta segment
-          break;
-        }
-        case DenseMode::IvfInt8: {
-          const std::uint32_t base = std::min(snap->ivf.covered(), live);
-          simd::quantize_i8(qv, ctx.qvec_i8.data(), D);
-          ctx.cand.reset(std::max(cfg_.rerank_candidates, depth));
-          snap->ivf.search_int8(qv, ctx.qvec_i8.data(), cfg_.nprobe, ctx.cand);
-          for (const Hit& h : ctx.cand.sorted()) dense.push(simd::dot(qv, store_.row(h.id), D), h.id);  // fp32 rerank
-          store_.search_exact(qv, base, live, dense);
-          break;
-        }
-      }
+  // Answer several queries at once. Results are identical to calling query()
+  // on each, but in Exact and Int8Rerank modes every group of up to
+  // kMaxBatch queries shares ONE pass over the vector matrix, which is what
+  // bounds those modes (DRAM bandwidth). IVF modes probe different lists per
+  // query, so they run per query. Needs one QueryContext per query; result i
+  // points into ctxs[i]. No heap allocation.
+  static constexpr std::size_t kMaxBatch = VectorStore<D>::kMaxBatch;
+
+  void query_batch(std::span<const std::string_view> qs, std::uint32_t k, std::span<QueryContext> ctxs,
+                   std::span<QueryResult> out) const noexcept {
+    k = std::min<std::uint32_t>(k, MaxK);
+    const std::size_t n = std::min({qs.size(), ctxs.size(), out.size()});
+    for (std::size_t g = 0; g < n; g += kMaxBatch) {
+      const std::size_t m = std::min(kMaxBatch, n - g);
+      for (std::size_t j = 0; j < m; ++j) prepare(qs[g + j], ctxs[g + j]);
+      const PinnedSnapshot snap(*this, ctxs[g]);  // one pin covers the whole group
+      const std::uint32_t live = store_.size();
+      std::array<TopK<MaxK>, kMaxBatch> dense;
+      for (std::size_t j = 0; j < m; ++j) dense[j].reset(depth_for(k));
+      dense_batch(*snap, live, ctxs.subspan(g, m), dense);
+      for (std::size_t j = 0; j < m; ++j) out[g + j] = finish(qs[g + j], k, *snap, dense[j], ctxs[g + j]);
     }
-    const auto nd = copy_out(dense.sorted(), ctx.dense);
-
-    QueryResult res;
-    res.snapshot_version = snap->version;
-    res.dense = {ctx.dense.data(), nd};
-    if (cfg_.hybrid) {
-      TopK<MaxK> lex(depth);
-      snap->bm25.search(std::span<const std::uint64_t>(ctx.terms.data(), nterms), ctx.bm25, lex);
-      const auto nl = copy_out(lex.sorted(), ctx.lexical);
-      res.lexical = {ctx.lexical.data(), nl};
-      TopK<MaxK> fused(k);
-      rrf_fuse(res.dense, res.lexical, cfg_.rrf, fused);
-      res.hits = {ctx.fused.data(), copy_out(fused.sorted(), ctx.fused)};
-    } else {
-      res.hits = res.dense.first(std::min<std::size_t>(k, nd));
-    }
-
-    res.prompt = build_prompt(q, res.hits, [this](std::uint32_t id) { return chunk(id); }, cfg_.prompt,
-                              std::span<char>(ctx.prompt_buf.get(), ctx.prompt_cap));
-    return res;
   }
 
   // Retrieve, then hand the prompt to a generator.
@@ -426,6 +398,114 @@ class RagEngine {
   [[nodiscard]] std::size_t arena_bytes() const noexcept { return arena_.bytes_used(); }
 
  private:
+  // ---------------------------------------------------------- query stages
+  std::uint32_t depth_for(std::uint32_t k) const noexcept { return cfg_.hybrid ? cfg_.retrieve_depth : k; }
+
+  // Tokenize, collect BM25 terms, embed. Writes only ctx.
+  void prepare(std::string_view q, QueryContext& ctx) const noexcept {
+    const std::size_t ntok = tokenize(q, ctx.tokens);
+    ctx.nterms = 0;
+    for (std::size_t i = 0; i < ntok; ++i)
+      if (!is_stopword(ctx.tokens[i].hash)) ctx.terms[ctx.nterms++] = ctx.tokens[i].hash;
+    embedder_.embed(q, std::span<const Token>(ctx.tokens.data(), ntok), std::span<float, D>(ctx.qvec));
+    // An all-zero query vector carries no signal: dense retrieval is skipped.
+    ctx.has_signal = simd::dot(ctx.qvec.data(), ctx.qvec.data(), D) > 0.f;
+  }
+
+  void dense_one(const Snapshot& snap, std::uint32_t live, QueryContext& ctx, TopK<MaxK>& dense) const noexcept {
+    const float* qv = ctx.qvec.data();
+    const std::uint32_t depth = static_cast<std::uint32_t>(dense.k());
+    switch (cfg_.dense_mode) {
+      case DenseMode::Exact:
+        store_.search_exact(qv, 0, live, dense);
+        break;
+      case DenseMode::Int8Rerank:
+        simd::quantize_i8(qv, ctx.qvec_i8.data(), D);
+        ctx.cand.reset(std::max(cfg_.rerank_candidates, depth));
+        store_.search_two_stage(qv, ctx.qvec_i8.data(), 0, live, ctx.cand, dense);
+        break;
+      case DenseMode::Ivf: {
+        const std::uint32_t base = std::min(snap.ivf.covered(), live);
+        snap.ivf.search(qv, cfg_.nprobe, dense);
+        store_.search_exact(qv, base, live, dense);  // uncommitted delta segment
+        break;
+      }
+      case DenseMode::IvfInt8: {
+        const std::uint32_t base = std::min(snap.ivf.covered(), live);
+        simd::quantize_i8(qv, ctx.qvec_i8.data(), D);
+        ctx.cand.reset(std::max(cfg_.rerank_candidates, depth));
+        snap.ivf.search_int8(qv, ctx.qvec_i8.data(), cfg_.nprobe, ctx.cand);
+        for (const Hit& h : ctx.cand.sorted()) dense.push(simd::dot(qv, store_.row(h.id), D), h.id);  // fp32 rerank
+        store_.search_exact(qv, base, live, dense);
+        break;
+      }
+    }
+  }
+
+  void dense_batch(const Snapshot& snap, std::uint32_t live, std::span<QueryContext> ctxs,
+                   std::array<TopK<MaxK>, kMaxBatch>& dense) const noexcept {
+    // Gather the queries that have signal; the rest keep empty dense lists.
+    std::array<std::size_t, kMaxBatch> idx;
+    std::size_t nq = 0;
+    for (std::size_t j = 0; j < ctxs.size(); ++j)
+      if (ctxs[j].has_signal) idx[nq++] = j;
+    if (nq == 0) return;
+    if (nq == 1 || cfg_.dense_mode == DenseMode::Ivf || cfg_.dense_mode == DenseMode::IvfInt8) {
+      for (std::size_t t = 0; t < nq; ++t) dense_one(snap, live, ctxs[idx[t]], dense[idx[t]]);
+      return;
+    }
+    std::array<TopK<MaxK>*, kMaxBatch> outs;
+    if (cfg_.dense_mode == DenseMode::Exact) {
+      alignas(kCacheLine) std::array<float, kMaxBatch * D> qs;  // contiguous query matrix (stack)
+      for (std::size_t t = 0; t < nq; ++t) {
+        std::copy_n(ctxs[idx[t]].qvec.data(), D, qs.data() + t * D);
+        outs[t] = &dense[idx[t]];
+      }
+      std::fill(qs.begin() + static_cast<std::ptrdiff_t>(nq * D), qs.begin() + static_cast<std::ptrdiff_t>(((nq + 3) & ~std::size_t{3}) * D), 0.f);
+      store_.search_exact_batch(qs.data(), nq, 0, live, outs.data());
+      return;
+    }
+    // Int8Rerank: one shared int8 pass fills each query's shortlist, then each
+    // shortlist is reranked in fp32 exactly as search_two_stage() does.
+    std::array<const std::int8_t*, kMaxBatch> qqs;
+    std::array<TopK<kMaxRerank>*, kMaxBatch> cands;
+    for (std::size_t t = 0; t < nq; ++t) {
+      QueryContext& c = ctxs[idx[t]];
+      simd::quantize_i8(c.qvec.data(), c.qvec_i8.data(), D);
+      c.cand.reset(std::max<std::uint32_t>(cfg_.rerank_candidates, static_cast<std::uint32_t>(dense[idx[t]].k())));
+      qqs[t] = c.qvec_i8.data();
+      cands[t] = &c.cand;
+    }
+    store_.search_int8_batch(qqs.data(), nq, 0, live, cands.data());
+    for (std::size_t t = 0; t < nq; ++t) {
+      const float* qv = ctxs[idx[t]].qvec.data();
+      for (const Hit& h : cands[t]->sorted()) dense[idx[t]].push(simd::dot(qv, store_.row(h.id), D), h.id);
+    }
+  }
+
+  // Lexical retrieval, fusion and prompt assembly for one prepared query.
+  QueryResult finish(std::string_view q, std::uint32_t k, const Snapshot& snap, TopK<MaxK>& dense,
+                     QueryContext& ctx) const noexcept {
+    const auto nd = copy_out(dense.sorted(), ctx.dense);
+    QueryResult res;
+    res.snapshot_version = snap.version;
+    res.dense = {ctx.dense.data(), nd};
+    if (cfg_.hybrid) {
+      TopK<MaxK> lex(depth_for(k));
+      snap.bm25.search(std::span<const std::uint64_t>(ctx.terms.data(), ctx.nterms), ctx.bm25, lex);
+      const auto nl = copy_out(lex.sorted(), ctx.lexical);
+      res.lexical = {ctx.lexical.data(), nl};
+      TopK<MaxK> fused(k);
+      rrf_fuse(res.dense, res.lexical, cfg_.rrf, fused);
+      res.hits = {ctx.fused.data(), copy_out(fused.sorted(), ctx.fused)};
+    } else {
+      res.hits = res.dense.first(std::min<std::size_t>(k, nd));
+    }
+    res.prompt = build_prompt(q, res.hits, [this](std::uint32_t id) { return chunk(id); }, cfg_.prompt,
+                              std::span<char>(ctx.prompt_buf.get(), ctx.prompt_cap));
+    return res;
+  }
+
   static constexpr bool uses_ivf(DenseMode m) noexcept { return m == DenseMode::Ivf || m == DenseMode::IvfInt8; }
   static IvfParams effective_ivf(const EngineConfig& c) noexcept {
     IvfParams ip = c.ivf;

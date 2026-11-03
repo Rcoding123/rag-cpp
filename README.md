@@ -62,20 +62,22 @@ storage, never by queries.
   a global allocation counter in the test binary).
 
 See `bench_results.txt` and `latency_results.txt` for the raw output behind
-these tables. On this shared VM, results vary by about ±15% between runs.
-At D = 384 the fp32 AVX2 and AVX-512 dot products are equally fast,
-because from L1 cache both are limited by load throughput.
+these tables. On this shared VM, scans and full queries vary by about ±15%
+between runs. Single-kernel timings in the nanosecond range vary more, up to
+about 2x for the AVX2 fp32 dot product, so compare them only within one run.
 
 | Benchmark (D = 384) | Result |
 |---|---|
-| fp32 dot: scalar / AVX2 / AVX-512 | 424 / 18.7 / 19.7 ns |
-| int8 dot: scalar / AVX2 / AVX-512 VNNI | 45.2 / 9.6 / 7.7 ns |
-| Flat fp32 scan, 100k rows (154 MB) | 15.4 ms (9.4 GB/s, DRAM-bound) |
-| int8 scan + fp32 rerank of 128, 100k rows | 2.95 ms (5.2x faster) |
-| IVF-256, 100k rows, nprobe=16: fp32 lists | 1130 µs |
-| IVF-256, 100k rows, nprobe=16: int8 lists + fp32 rerank of 128 | 320 µs (3.5x faster) |
-| BM25 query, 60k chunks / 5.07M postings | 6.99 µs |
-| tokenize + embed query | 0.64 µs |
+| fp32 dot: scalar / AVX2 / AVX-512 | 424 / 31.6 / 16.1 ns |
+| int8 dot: scalar / AVX2 / AVX-512 VNNI | 54.6 / 12.6 / 9.3 ns |
+| Flat fp32 scan, 100k rows (154 MB) | 15.1 ms (10.2 GB/s, DRAM-bound) |
+| int8 scan + fp32 rerank of 128, 100k rows | 3.59 ms (4.2x faster) |
+| IVF-256, 100k rows, nprobe=16: fp32 lists | 1270 µs |
+| IVF-256, 100k rows, nprobe=16: int8 lists + fp32 rerank of 128 | 383 µs (3.3x faster) |
+| BM25 query, 60k chunks / 5.07M postings | 9.28 µs |
+| tokenize + embed query | 0.72 µs |
+| fp32 scan of 100k rows, batch of 8 queries | 396 queries/s vs 56 at batch 1 (7.1x) |
+| int8 scan + rerank of 100k rows, batch of 8 | 546 queries/s vs 215 at batch 1 (2.5x) |
 
 End-to-end query (60k chunks, k = 8, pinned core, 5000 queries):
 
@@ -91,6 +93,38 @@ synthetic clusters. Real sentence embeddings need a larger nprobe for the same
 recall, so measure on your own data. `HashingEmbedder` is a lexical-ish
 stand-in. For semantic recall, plug a neural encoder into the `Embedder`
 concept.
+
+## Batched queries
+
+```cpp
+std::vector<Engine::QueryContext> ctxs;  // one per in-flight query
+for (int i = 0; i < 8; ++i) ctxs.push_back(engine.make_context());
+std::array<Engine::QueryResult, 8> out;
+engine.query_batch(queries, /*k=*/8, ctxs, out);
+```
+
+In `Exact` and `Int8Rerank` modes, each group of up to 8 queries shares
+**one** pass over the vector matrix. Those scans are limited by DRAM
+bandwidth, so each row is loaded once and then scored against all 8 queries
+from L1. The fp32 kernel runs a register-blocked tile of 1 row by 4 queries,
+reusing `dot4`.
+
+Batch results are **bit-identical** to calling `query()` on each query,
+because the batch and single-query kernels add up each row's products in the
+same order (`simd::dot1` matches each `dot4` lane). IVF modes probe different
+lists for each query, so they run one query at a time inside a batch.
+
+End-to-end, 60k chunks, one core (`Pipeline/query*` in `bench_results.txt`):
+
+| mode | one at a time | batches of 8 | gain |
+|---|---|---|---|
+| exact | 84 queries/s | 460 queries/s | 5.5x |
+| int8 + rerank | 428 queries/s | 890 queries/s | 2.1x |
+
+Batching trades latency for throughput: each query in a batch waits for the
+whole batch (17.4 ms per batch of 8 in exact mode, against 11.9 ms for one
+query). Use it when many queries arrive together, for offline evaluation, or
+when throughput matters more than latency.
 
 ## Persistence
 

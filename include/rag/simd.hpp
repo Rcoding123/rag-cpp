@@ -173,6 +173,25 @@ RAG_ALWAYS_INLINE void dot4(const float* q, const float* r, std::size_t stride, 
 #endif
 }
 
+// One lane of dot4: identical summation order (single accumulator, same
+// vector width, same horizontal reduction), so dot1(q, r) is bit-identical to
+// the matching dot4 output. Scans use it for tail rows so that a row's score
+// never depends on where it fell in a 4-row block, or on batching. Note that
+// dot() above uses four accumulators and does NOT match dot4 bitwise.
+RAG_ALWAYS_INLINE float dot1(const float* q, const float* r, std::size_t n) noexcept {
+#if defined(__AVX512F__)
+  __m512 a = _mm512_setzero_ps();
+  for (std::size_t i = 0; i < n; i += 16) a = _mm512_fmadd_ps(_mm512_loadu_ps(r + i), _mm512_loadu_ps(q + i), a);
+  return _mm512_reduce_add_ps(a);
+#elif defined(__AVX2__) && defined(__FMA__)
+  __m256 a = _mm256_setzero_ps();
+  for (std::size_t i = 0; i < n; i += 8) a = _mm256_fmadd_ps(_mm256_loadu_ps(r + i), _mm256_loadu_ps(q + i), a);
+  return hsum256(a);
+#else
+  return dot_scalar(q, r, n);
+#endif
+}
+
 RAG_ALWAYS_INLINE std::int32_t dot_i8(const std::int8_t* a, const std::int8_t* b, std::size_t n) noexcept {
 #if defined(__AVX512BW__)
   return dot_i8_avx512(a, b, n);

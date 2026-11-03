@@ -67,7 +67,42 @@ class VectorStore {
       simd::dot4(q, row(i), D, D, s);
       out.push(s[0], i); out.push(s[1], i + 1); out.push(s[2], i + 2); out.push(s[3], i + 3);
     }
-    for (; i < end; ++i) out.push(simd::dot(q, row(i), D), i);
+    for (; i < end; ++i) out.push(simd::dot1(q, row(i), D), i);  // bit-identical to a dot4 lane
+  }
+
+  // ---------------------------------------------------------------- batched
+  // Score nq <= kMaxBatch queries in ONE pass over rows [begin, end). The
+  // scans are DRAM-bound, so streaming each row once for all queries
+  // multiplies throughput: the row is loaded from memory once and then
+  // reused from L1 against every query.
+  static constexpr std::size_t kMaxBatch = 8;
+
+  // `qs`: nq_padded fp32 query rows, contiguous with stride D, 64 B aligned,
+  // nq_padded = nq rounded up to a multiple of 4 (pad rows may hold anything;
+  // their scores are discarded). outs[j] receives query j's hits.
+  // Each score is bit-identical to search_exact() on the same query.
+  template <class TK>
+  void search_exact_batch(const float* qs, std::size_t nq, std::uint32_t begin, std::uint32_t end,
+                          TK* const* outs) const noexcept {
+    const std::size_t padded = (nq + 3) & ~std::size_t{3};
+    float s[kMaxBatch];
+    for (std::uint32_t i = begin; i < end; ++i) {
+      const float* r = row(i);
+      for (std::size_t j = 0; j < padded; j += 4) simd::dot4(r, qs + j * D, D, D, s + j);  // row x 4 queries
+      for (std::size_t j = 0; j < nq; ++j) outs[j]->push(s[j], i);
+    }
+  }
+
+  // Batched int8 scan: qqs[j] is query j's int8 vector.
+  template <class TK>
+  void search_int8_batch(const std::int8_t* const* qqs, std::size_t nq, std::uint32_t begin, std::uint32_t end,
+                         TK* const* outs) const noexcept {
+    for (std::uint32_t i = begin; i < end; ++i) {
+      const std::int8_t* r = qrow(i);
+      RAG_PREFETCH(r + 8 * D);
+      const float sc = scale_[i];
+      for (std::size_t j = 0; j < nq; ++j) outs[j]->push(static_cast<float>(simd::dot_i8(qqs[j], r, D)) * sc, i);
+    }
   }
 
   // Approximate scan over int8 rows. Scores are dequantised dot products;

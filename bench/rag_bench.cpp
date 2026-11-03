@@ -149,6 +149,39 @@ static void BM_Ivf(benchmark::State& st) {
 BENCHMARK(BM_Ivf)->Name("Dense/ivf256_100k")->ArgNames({"nprobe", "int8"})
     ->ArgsProduct({{4, 16, 32}, {0, 1}})->Unit(benchmark::kMicrosecond);
 
+// Batched scans: B queries share one pass over 100k rows. Reports queries/s.
+static void BM_FlatBatch(benchmark::State& st) {
+  constexpr std::uint32_t n = 100'000;
+  const auto nb = static_cast<std::size_t>(st.range(0));
+  const bool int8 = st.range(1) != 0;
+  auto& s = store(n);
+  const auto& q = queries(n);
+  alignas(64) std::array<float, 8 * kD> qs{};
+  std::array<std::array<std::int8_t, kD>, 8> qq;
+  std::array<const std::int8_t*, 8> qqp;
+  std::copy_n(q.begin(), nb * kD, qs.begin());
+  for (std::size_t j = 0; j < nb; ++j) { simd::quantize_i8(qs.data() + j * kD, qq[j].data(), kD); qqp[j] = qq[j].data(); }
+  std::array<TopK<10>, 8> tk;
+  std::array<TopK<128>, 8> cand;
+  std::array<TopK<10>*, 8> outs;
+  std::array<TopK<128>*, 8> couts;
+  for (auto _ : st) {
+    for (std::size_t j = 0; j < nb; ++j) { tk[j].reset(10); cand[j].reset(128); outs[j] = &tk[j]; couts[j] = &cand[j]; }
+    if (int8) {
+      s.search_int8_batch(qqp.data(), nb, 0, n, couts.data());
+      for (std::size_t j = 0; j < nb; ++j)
+        for (const Hit& h : cand[j].sorted()) tk[j].push(simd::dot(qs.data() + j * kD, s.row(h.id), kD), h.id);
+    } else {
+      s.search_exact_batch(qs.data(), nb, 0, n, outs.data());
+    }
+    benchmark::DoNotOptimize(tk[0].threshold());
+  }
+  st.SetItemsProcessed(st.iterations() * std::int64_t(nb));  // items = queries
+  st.SetLabel(int8 ? "int8+rerank128" : "fp32");
+}
+BENCHMARK(BM_FlatBatch)->Name("Dense/flat_batch_100k")->ArgNames({"batch", "int8"})
+    ->ArgsProduct({{1, 2, 4, 8}, {0, 1}})->Unit(benchmark::kMicrosecond);
+
 // ------------------------------ lexical -------------------------------------
 static void BM_Bm25(benchmark::State& st) {
   auto& e = engine(DenseMode::Exact);
@@ -200,5 +233,24 @@ static void BM_EndToEnd(benchmark::State& st) {
   st.SetLabel(mode_name(mode));
 }
 BENCHMARK(BM_EndToEnd)->Name("Pipeline/query")->DenseRange(0, 3)->Unit(benchmark::kMicrosecond);
+
+// End-to-end batches of 8 (reports queries/s, compare with Pipeline/query).
+static void BM_EndToEndBatch(benchmark::State& st) {
+  const auto mode = static_cast<DenseMode>(st.range(0));
+  auto& e = engine(mode);
+  const auto qs = text_queries(256);
+  std::vector<std::string_view> views(qs.begin(), qs.end());
+  std::vector<Engine::QueryContext> ctxs;
+  for (int i = 0; i < 8; ++i) ctxs.push_back(e.make_context());
+  std::array<Engine::QueryResult, 8> out;
+  std::size_t qi = 0;
+  for (auto _ : st) {
+    e.query_batch(std::span(views).subspan((qi++ * 8) & 255, 8), 8, ctxs, out);
+    benchmark::DoNotOptimize(out[7].prompt.prompt.data());
+  }
+  st.SetItemsProcessed(st.iterations() * 8);
+  st.SetLabel(mode_name(mode));
+}
+BENCHMARK(BM_EndToEndBatch)->Name("Pipeline/query_batch8")->DenseRange(0, 1)->Unit(benchmark::kMicrosecond);
 
 BENCHMARK_MAIN();
