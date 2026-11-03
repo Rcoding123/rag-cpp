@@ -10,7 +10,7 @@ single-writer / multi-reader ingestion.
 INGEST (1 writer)                                   QUERY (N readers, 0 allocations)
 text ─► Arena (stable string_views)                 query ─► tokenize   (stack, constexpr LUT)
      ─► tokenize ─► sliding-window chunks                 ─► embed      (stack, L1)
-     ─► Embedder ─► VectorStore.append ─┐                 ├─► dense:  Exact | Int8+rerank | IVF + delta scan
+     ─► Embedder ─► VectorStore.append ─┐                 ├─► dense:  Exact | Int8+rerank | IVF | IVF-SQ8, + delta scan
      ─► Bm25Builder.add                 │                 └─► BM25:   impact-scored postings, dense accumulator
 commit() ─► Snapshot ─► atomic swap     │                      ─► RRF fusion (stack)
                                         │                      ─► prompt into preallocated buffer ─► Generator
@@ -27,7 +27,7 @@ commit() ─► Snapshot ─► atomic swap     │                      ─► 
 | `simd.hpp` | kernels | 4-accumulator FMA, 4-row register blocking, int8 sign-trick / VNNI `vpdpbusd` |
 | `topk.hpp` | selection | stack `std::array` heap, cached threshold, `[[likely]]` reject |
 | `vector_store.hpp` | dense storage | SoA fp32 + int8 + scale, SWMR via release/acquire, padded atomic |
-| `ivf_index.hpp` | ANN | spherical k-means, CSR lists with contiguous reordered vectors |
+| `ivf_index.hpp` | ANN | spherical k-means, CSR lists of contiguous reordered vectors, fp32 or int8 (SQ8) storage |
 | `bm25.hpp` | lexical | precomputed per-posting BM25 impact, open-addressing dictionary, touched-list reset |
 | `fusion.hpp` | RRF | linear id-match over stack array (K ≤ 64) |
 | `prompt.hpp` | context assembly | fixed buffer, reserved question space, greedy token-budget packing |
@@ -62,19 +62,21 @@ See `bench_results.txt` and `latency_results.txt` for raw output.
 | int8 dot: scalar / AVX2 / AVX-512 VNNI | 46.1 / 12.8 / 7.3 ns |
 | Flat fp32 scan, 100k rows (154 MB) | 16.3 ms (9.0 GB/s, DRAM-bound) |
 | int8 scan + fp32 rerank of 128, 100k rows | 3.3 ms (4.9x faster) |
-| IVF-256, nprobe=4, 100k rows | 259 µs |
+| IVF-256, 100k rows, nprobe=16: fp32 lists | 939 µs |
+| IVF-256, 100k rows, nprobe=16: int8 lists + fp32 rerank of 128 | 305 µs (3.1x faster) |
 | BM25 query, 60k chunks / 5.07M postings | 7.95 µs |
 | tokenize + embed query | 0.67 µs |
 
-End-to-end query (60k chunks, k = 8, pinned core, 3000 queries):
+End-to-end query (60k chunks, k = 8, pinned core, 5000 queries):
 
 | mode | p50 | p99 | p99.9 | QPS/core |
 |---|---|---|---|---|
-| exact | 9.6 ms | 12.5 ms | 14.8 ms | 101 |
-| int8 + rerank | 2.2 ms | 2.8 ms | 4.3 ms | 469 |
-| ivf (nprobe 16) | 0.61 ms | 1.03 ms | 1.33 ms | 1587 |
+| exact | 10.1 ms | 15.2 ms | 20.2 ms | 94 |
+| int8 + rerank | 2.7 ms | 4.2 ms | 6.5 ms | 380 |
+| ivf (nprobe 16) | 0.62 ms | 1.08 ms | 1.81 ms | 1575 |
+| ivf-sq8 (nprobe 16, rerank 128) | 0.28 ms | 0.43 ms | 0.57 ms | 3630 |
 
-Caveats: the IVF benchmark's recall@10 = 1.0 reflects well-separated
+Caveats: the IVF benchmarks' recall@10 = 1.0 reflects well-separated
 synthetic clusters. Real sentence embeddings need a larger nprobe for the same
 recall, so measure on your own data. `HashingEmbedder` is a lexical-ish
 stand-in. For semantic recall, plug a neural encoder into the `Embedder`

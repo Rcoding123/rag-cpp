@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
 
   std::printf("corpus: %zu docs | pinned: %s | iters: %zu\n", corpus().docs.size(), pinned ? "cpu1" : "no", iters);
   std::printf("%-12s %8s %8s %8s %8s %8s %8s %9s\n", "mode", "chunks", "p50", "p90", "p99", "p99.9", "max", "QPS/core");
-  for (auto mode : {DenseMode::Exact, DenseMode::Int8Rerank, DenseMode::Ivf}) {
+  for (auto mode : {DenseMode::Exact, DenseMode::Int8Rerank, DenseMode::Ivf, DenseMode::IvfInt8}) {
     auto& e = engine(mode);
     auto ctx = e.make_context();
     for (std::size_t i = 0; i < 2000; ++i) (void)e.query(qs[i & 1023], 8, ctx);  // warm caches + branch predictors
@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
     std::sort(ns.begin(), ns.end());
     auto pct = [&](double p) { return double(ns[std::min(iters - 1, std::size_t(p * double(iters)))]) / 1000.0; };
     std::printf("%-12s %8u %7.1fus %7.1fus %7.1fus %7.1fus %7.1fus %9.0f\n",
-                mode == DenseMode::Exact ? "exact" : mode == DenseMode::Int8Rerank ? "int8+rerank" : "ivf",
+                mode_name(mode),
                 e.size(), pct(0.50), pct(0.90), pct(0.99), pct(0.999), double(ns.back()) / 1000.0, double(iters) / secs);
   }
 }

@@ -402,6 +402,61 @@ TEST(Ivf, EmptyAndTinyBuilds) {
   EXPECT_EQ(tk.size(), 2u);
 }
 
+namespace {
+// IVF-SQ8 search as the engine runs it: int8 shortlist, then fp32 rerank.
+template <std::size_t D, class TK>
+void ivf_sq8_search(const VectorStore<D>& s, const IvfIndex<D>& ivf, const float* q, std::uint32_t nprobe,
+                    std::size_t shortlist, TK& out) {
+  std::array<std::int8_t, D> qq;
+  simd::quantize_i8(q, qq.data(), D);
+  TopK<1024> cand(shortlist);
+  ivf.search_int8(q, qq.data(), nprobe, cand);
+  for (const Hit& h : cand.sorted()) out.push(simd::dot(q, s.row(h.id), D), h.id);
+}
+}  // namespace
+
+TEST(Ivf, Int8ListsWithRerankMatchFp32ListRecall) {
+  VectorStore<kD> s(20000);
+  synth::fill_clustered(s, 20000, 100, 0.6f);
+  IvfIndex<kD> both;
+  both.build(s, s.size(), {.nlist = 64, .storage = IvfStorage::Both});
+  ASSERT_TRUE(both.has_fp32() && both.has_int8());
+  const auto q = synth::random_queries<kD>(50, 5, s, 0.4f);
+  double r_f32 = 0, r_i8 = 0, r_full = 0;
+  for (int qi = 0; qi < 50; ++qi) {
+    const float* qv = q.data() + qi * kD;
+    TopK<10> exact(10), f32(10), i8(10), full(10);
+    s.search_exact(qv, 0, s.size(), exact);
+    both.search(qv, 8, f32);
+    ivf_sq8_search(s, both, qv, 8, 128, i8);
+    ivf_sq8_search(s, both, qv, both.nlist(), 128, full);
+    const auto t = ids(exact);
+    r_f32 += recall(t, ids(f32));
+    r_i8 += recall(t, ids(i8));
+    r_full += recall(t, ids(full));
+  }
+  EXPECT_GE(r_i8 / 50, r_f32 / 50 - 0.02);  // quantisation costs at most 2 points of recall
+  EXPECT_GE(r_full / 50, 0.95);             // probing every list approaches exact search
+}
+
+TEST(Ivf, Int8StorageIsAQuarterOfFp32) {
+  VectorStore<kD> s(1000);
+  synth::fill_clustered(s, 1000, 10, 0.5f);
+  IvfIndex<kD> f, q;
+  f.build(s, 1000, {.nlist = 8, .storage = IvfStorage::Fp32});
+  q.build(s, 1000, {.nlist = 8, .storage = IvfStorage::Int8});
+  EXPECT_FALSE(f.has_int8());
+  EXPECT_FALSE(q.has_fp32());
+  EXPECT_EQ(f.list_bytes(), 1000u * kD * 4);
+  EXPECT_EQ(q.list_bytes(), 1000u * (kD + 4));
+  // Searching a storage kind the index doesn't have is a safe no-op.
+  TopK<4> tk(4);
+  std::array<std::int8_t, kD> qq{};
+  q.search(s.row(0), 4, tk);
+  f.search_int8(s.row(0), qq.data(), 4, tk);
+  EXPECT_EQ(tk.size(), 0u);
+}
+
 // ================================== BM25 ====================================
 namespace {
 std::vector<std::uint64_t> terms(std::string_view text) {
@@ -616,12 +671,14 @@ TEST_P(EngineModes, UncommittedChunksAreVisibleToDenseSearch) {
 }
 
 INSTANTIATE_TEST_SUITE_P(Modes, EngineModes,
-                         ::testing::Values(DenseMode::Exact, DenseMode::Int8Rerank, DenseMode::Ivf),
+                         ::testing::Values(DenseMode::Exact, DenseMode::Int8Rerank, DenseMode::Ivf,
+                                           DenseMode::IvfInt8),
                          [](const auto& info) {
                            switch (info.param) {
                              case DenseMode::Exact: return std::string("Exact");
                              case DenseMode::Int8Rerank: return std::string("Int8Rerank");
-                             default: return std::string("Ivf");
+                             case DenseMode::Ivf: return std::string("Ivf");
+                             default: return std::string("IvfInt8");
                            }
                          });
 

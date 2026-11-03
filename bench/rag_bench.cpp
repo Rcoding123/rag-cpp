@@ -112,29 +112,42 @@ static void BM_FlatInt8Rerank(benchmark::State& st) {
 }
 BENCHMARK(BM_FlatInt8Rerank)->Name("Dense/int8_rerank128")->Arg(10'000)->Arg(100'000)->Unit(benchmark::kMicrosecond);
 
+// IVF over 100k rows, fp32 lists vs int8 lists + fp32 rerank of 128.
+// range(0) = nprobe, range(1) = 0 (fp32) / 1 (int8). Recall@10 vs exact is a counter.
 static void BM_Ivf(benchmark::State& st) {
   constexpr std::uint32_t n = 100'000;
   auto& s = store(n);
   const auto& q = queries(n);
-  static IvfIndex<kD> ivf = [&] { IvfIndex<kD> i; i.build(s, n, {.nlist = 256}); return i; }();
-  // Measure recall@10 against exact search once, report it as a counter.
+  static IvfIndex<kD> ivf = [&] { IvfIndex<kD> i; i.build(s, n, {.nlist = 256, .storage = IvfStorage::Both}); return i; }();
+  const auto nprobe = static_cast<std::uint32_t>(st.range(0));
+  const bool int8 = st.range(1) != 0;
+  std::array<std::int8_t, kD> qq;
+  auto run = [&](const float* qv, TopK<10>& out) {
+    if (!int8) { ivf.search(qv, nprobe, out); return; }
+    simd::quantize_i8(qv, qq.data(), kD);
+    TopK<128> cand(128);
+    ivf.search_int8(qv, qq.data(), nprobe, cand);
+    for (const Hit& h : cand.sorted()) out.push(simd::dot(qv, s.row(h.id), kD), h.id);
+  };
   double r = 0;
   for (int i = 0; i < 64; ++i) {
     TopK<10> e(10), a(10);
     s.search_exact(q.data() + i * kD, 0, n, e);
-    ivf.search(q.data() + i * kD, static_cast<std::uint32_t>(st.range(0)), a);
+    run(q.data() + i * kD, a);
     auto eh = e.sorted(); auto ah = a.sorted();
     for (auto& x : ah) r += std::any_of(eh.begin(), eh.end(), [&](const Hit& y) { return y.id == x.id; });
   }
   std::size_t qi = 0;
   for (auto _ : st) {
     TopK<10> tk(10);
-    ivf.search(q.data() + (qi++ & 255) * kD, static_cast<std::uint32_t>(st.range(0)), tk);
+    run(q.data() + (qi++ & 255) * kD, tk);
     benchmark::DoNotOptimize(tk.threshold());
   }
   st.counters["recall@10"] = r / 640.0;
+  st.SetLabel(int8 ? "int8+rerank128" : "fp32");
 }
-BENCHMARK(BM_Ivf)->Name("Dense/ivf256_100k/nprobe")->Arg(4)->Arg(16)->Arg(32)->Unit(benchmark::kMicrosecond);
+BENCHMARK(BM_Ivf)->Name("Dense/ivf256_100k")->ArgNames({"nprobe", "int8"})
+    ->ArgsProduct({{4, 16, 32}, {0, 1}})->Unit(benchmark::kMicrosecond);
 
 // ------------------------------ lexical -------------------------------------
 static void BM_Bm25(benchmark::State& st) {
@@ -184,8 +197,8 @@ static void BM_EndToEnd(benchmark::State& st) {
     benchmark::DoNotOptimize(r.prompt.prompt.data());
   }
   st.counters["chunks"] = e.size();
-  st.SetLabel(mode == DenseMode::Exact ? "exact" : mode == DenseMode::Int8Rerank ? "int8+rerank" : "ivf");
+  st.SetLabel(mode_name(mode));
 }
-BENCHMARK(BM_EndToEnd)->Name("Pipeline/query")->Arg(0)->Arg(1)->Arg(2)->Unit(benchmark::kMicrosecond);
+BENCHMARK(BM_EndToEnd)->Name("Pipeline/query")->DenseRange(0, 3)->Unit(benchmark::kMicrosecond);
 
 BENCHMARK_MAIN();

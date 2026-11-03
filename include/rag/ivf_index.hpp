@@ -8,6 +8,13 @@
 // pointer chasing, no gathers.
 //
 // Query cost ~ nlist*D (centroids, L1/L2 resident) + (nprobe/nlist)*N*D.
+//
+// Storage options (IvfStorage):
+//   Fp32 — lists hold reordered fp32 rows; probes are exact.
+//   Int8 — lists hold the store's int8 rows + scales (IVF-SQ8): 4x fewer bytes
+//          per probed vector. Probes yield an approximate shortlist that the
+//          caller reranks in fp32 against the original rows.
+//   Both — for side-by-side comparison (benchmarks).
 #pragma once
 
 #include <algorithm>
@@ -24,11 +31,14 @@
 
 namespace rag {
 
+enum class IvfStorage : std::uint8_t { Fp32, Int8, Both };
+
 struct IvfParams {
   std::uint32_t nlist = 0;           // 0 => ~sqrt(n), rounded to a multiple of 4
   std::uint32_t train_iters = 10;
   std::uint32_t max_train_points_per_list = 256;
   std::uint64_t seed = 0x5EED;
+  IvfStorage storage = IvfStorage::Fp32;
 };
 
 template <std::size_t D>
@@ -52,20 +62,27 @@ class IvfIndex {
     for (auto a : assign) ++offsets_[a + 1];
     std::partial_sum(offsets_.begin(), offsets_.end(), offsets_.begin());
     ids_.resize(n);
-    vecs_ = make_aligned_array<float>(std::size_t{n} * D);
+    const bool f32 = p.storage != IvfStorage::Int8, i8 = p.storage != IvfStorage::Fp32;
+    vecs_ = f32 ? make_aligned_array<float>(std::size_t{n} * D) : AlignedArray<float>{};
+    qvecs_ = i8 ? make_aligned_array<std::int8_t>(std::size_t{n} * D) : AlignedArray<std::int8_t>{};
+    qscales_ = i8 ? make_aligned_array<float>(n) : AlignedArray<float>{};
     std::vector<std::uint32_t> cursor(offsets_.begin(), offsets_.end() - 1);
     for (std::uint32_t i = 0; i < n; ++i) {
       const std::uint32_t slot = cursor[assign[i]]++;
       ids_[slot] = i;
-      std::copy_n(store.row(i), D, vecs_.get() + std::size_t{slot} * D);
+      if (f32) std::copy_n(store.row(i), D, vecs_.get() + std::size_t{slot} * D);
+      if (i8) {
+        std::copy_n(store.qrow(i), D, qvecs_.get() + std::size_t{slot} * D);
+        qscales_[slot] = store.qscale(i);
+      }
     }
     covered_ = n;
   }
 
-  // Probe the `nprobe` closest lists. Pushes (score, original row id).
+  // Probe the `nprobe` closest lists of fp32 storage. Pushes (score, original row id).
   template <class TK>
   void search(const float* q, std::uint32_t nprobe, TK& out) const noexcept {
-    if (nlist_ == 0) return;
+    if (nlist_ == 0 || !vecs_) return;
     TopK<kMaxProbe> probes(std::min({nprobe, nlist_, kMaxProbe}));
     score_centroids(q, probes);
     for (const Hit& pr : probes.sorted()) {
@@ -81,6 +98,28 @@ class IvfIndex {
     }
   }
 
+  // Probe int8 storage: `q` (fp32) picks the lists, `qq` (int8) scores rows.
+  // Pushes approximate (dequantised) scores; rerank the shortlist in fp32.
+  template <class TK>
+  void search_int8(const float* q, const std::int8_t* qq, std::uint32_t nprobe, TK& out) const noexcept {
+    if (nlist_ == 0 || !qvecs_) return;
+    TopK<kMaxProbe> probes(std::min({nprobe, nlist_, kMaxProbe}));
+    score_centroids(q, probes);
+    for (const Hit& pr : probes.sorted()) {
+      const std::uint32_t e = offsets_[pr.id + 1];
+      for (std::uint32_t i = offsets_[pr.id]; i < e; ++i) {
+        const std::int8_t* row = qvecs_.get() + std::size_t{i} * D;
+        RAG_PREFETCH(row + 8 * D);
+        out.push(static_cast<float>(simd::dot_i8(qq, row, D)) * qscales_[i], ids_[i]);
+      }
+    }
+  }
+
+  [[nodiscard]] bool has_fp32() const noexcept { return static_cast<bool>(vecs_); }
+  [[nodiscard]] bool has_int8() const noexcept { return static_cast<bool>(qvecs_); }
+  [[nodiscard]] std::size_t list_bytes() const noexcept {
+    return std::size_t{covered_} * ((vecs_ ? D * sizeof(float) : 0) + (qvecs_ ? D + sizeof(float) : 0));
+  }
   [[nodiscard]] std::uint32_t covered() const noexcept { return covered_; }
   [[nodiscard]] std::uint32_t nlist() const noexcept { return nlist_; }
   [[nodiscard]] std::uint32_t list_size(std::uint32_t l) const noexcept { return offsets_[l + 1] - offsets_[l]; }
@@ -148,7 +187,9 @@ class IvfIndex {
   AlignedArray<float> centroids_;
   std::vector<std::uint32_t> offsets_;  // nlist + 1, read-only after build
   std::vector<std::uint32_t> ids_;      // slot -> original row id
-  AlignedArray<float> vecs_;            // rows reordered by list
+  AlignedArray<float> vecs_;            // fp32 rows reordered by list (Fp32/Both)
+  AlignedArray<std::int8_t> qvecs_;     // int8 rows reordered by list (Int8/Both)
+  AlignedArray<float> qscales_;         // per-slot dequantisation scale
 };
 
 }  // namespace rag

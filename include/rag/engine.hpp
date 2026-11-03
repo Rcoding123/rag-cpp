@@ -52,6 +52,7 @@ enum class DenseMode : std::uint8_t {
   Exact,       // fp32 brute force (SIMD, register-blocked) — ground truth
   Int8Rerank,  // int8 scan -> fp32 rerank of a shortlist: ~4x less memory traffic
   Ivf,         // IVF-Flat over the committed snapshot + exact scan of the uncommitted delta
+  IvfInt8,     // IVF-SQ8 shortlist -> fp32 rerank, + exact scan of the uncommitted delta
 };
 
 struct EngineConfig {
@@ -63,8 +64,8 @@ struct EngineConfig {
   DenseMode dense_mode = DenseMode::Exact;
   bool hybrid = true;                    // fuse BM25 with dense; false => dense only
   std::uint32_t retrieve_depth = 32;     // per-retriever list depth fed to RRF
-  std::uint32_t rerank_candidates = 128; // Int8Rerank shortlist size
-  std::uint32_t nprobe = 8;              // Ivf lists probed per query
+  std::uint32_t rerank_candidates = 128; // Int8Rerank / IvfInt8 shortlist size
+  std::uint32_t nprobe = 8;              // Ivf / IvfInt8 lists probed per query
   IvfParams ivf{};
   std::size_t prompt_capacity = 32 * 1024;
 };
@@ -201,7 +202,11 @@ class RagEngine {
     const Snapshot* prev = snap_.load(std::memory_order_relaxed);  // writer owns snap_ stores
     auto next = std::make_unique<Snapshot>();
     next->bm25 = builder_.freeze(cfg_.bm25);
-    if (cfg_.dense_mode == DenseMode::Ivf) next->ivf.build(store_, n, cfg_.ivf);
+    if (cfg_.dense_mode == DenseMode::Ivf || cfg_.dense_mode == DenseMode::IvfInt8) {
+      IvfParams ip = cfg_.ivf;
+      ip.storage = cfg_.dense_mode == DenseMode::IvfInt8 ? IvfStorage::Int8 : IvfStorage::Fp32;
+      next->ivf.build(store_, n, ip);
+    }
     next->covered = n;
     next->version = prev->version + 1;
 
@@ -254,6 +259,15 @@ class RagEngine {
           const std::uint32_t base = std::min(snap->ivf.covered(), live);
           snap->ivf.search(qv, cfg_.nprobe, dense);
           store_.search_exact(qv, base, live, dense);  // uncommitted delta segment
+          break;
+        }
+        case DenseMode::IvfInt8: {
+          const std::uint32_t base = std::min(snap->ivf.covered(), live);
+          simd::quantize_i8(qv, ctx.qvec_i8.data(), D);
+          ctx.cand.reset(std::max(cfg_.rerank_candidates, depth));
+          snap->ivf.search_int8(qv, ctx.qvec_i8.data(), cfg_.nprobe, ctx.cand);
+          for (const Hit& h : ctx.cand.sorted()) dense.push(simd::dot(qv, store_.row(h.id), D), h.id);  // fp32 rerank
+          store_.search_exact(qv, base, live, dense);
           break;
         }
       }

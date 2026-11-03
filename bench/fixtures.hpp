@@ -44,8 +44,17 @@ inline std::vector<std::string> text_queries(std::size_t n) {
   return q;
 }
 
+inline const char* mode_name(DenseMode m) {
+  switch (m) {
+    case DenseMode::Exact: return "exact";
+    case DenseMode::Int8Rerank: return "int8+rerank";
+    case DenseMode::Ivf: return "ivf";
+    default: return "ivf-sq8";
+  }
+}
+
 inline Engine& engine(DenseMode mode) {
-  static std::unique_ptr<Engine> e[3];
+  static std::unique_ptr<Engine> e[4];
   auto& slot = e[static_cast<int>(mode)];
   if (!slot) {
     EngineConfig cfg;
