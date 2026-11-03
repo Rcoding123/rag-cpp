@@ -1,5 +1,7 @@
 # rag-cpp — header-only, low-latency Retrieval-Augmented Generation in C++20
 
+[![CI](https://github.com/Rcoding123/rag-cpp/actions/workflows/ci.yml/badge.svg)](https://github.com/Rcoding123/rag-cpp/actions/workflows/ci.yml)
+
 Hybrid retrieval (dense ANN + BM25, fused by RRF) with a zero-allocation query
 path, SIMD similarity kernels (AVX-512 VNNI / AVX2 / scalar), and lock-free
 single-writer / multi-reader ingestion.
@@ -84,3 +86,17 @@ concept.
 * `commit()`: must not overlap `query()`. It replaces the frozen BM25 and IVF
   structures; a production build would publish immutable segments through an
   atomic pointer with epoch reclamation.
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push and pull request, with
+`-Werror` on all six jobs:
+
+| Job | Covers |
+|---|---|
+| gcc-native | the runner's best ISA (AVX-512 when present), plus a demo and benchmark smoke run |
+| gcc-avx2 | the `-march=x86-64-v3` AVX2 + FMA kernels |
+| gcc-scalar | the `-march=x86-64` scalar fallback |
+| clang-native | Clang 18 |
+| gcc-asan-ubsan | AddressSanitizer + UndefinedBehaviorSanitizer |
+| gcc-tsan | ThreadSanitizer, with the concurrency tests repeated 25 times |

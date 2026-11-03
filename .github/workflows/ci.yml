@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # GitHub-hosted runners vary (some have AVX-512, some don't), so the
+          # SIMD paths are pinned with explicit -march levels. "native" covers
+          # whatever the runner has, including AVX-512 when present.
+          - { name: gcc-native,        cxx: g++,     arch: native,    build: Release }
+          - { name: gcc-avx2,          cxx: g++,     arch: x86-64-v3, build: Release }
+          - { name: gcc-scalar,        cxx: g++,     arch: x86-64,    build: Release }
+          - { name: clang-native,      cxx: clang++, arch: native,    build: Release }
+          - { name: gcc-asan-ubsan,    cxx: g++,     arch: native,    build: Debug,          flags: -DRAG_SANITIZE=ON }
+          - { name: gcc-tsan,          cxx: g++,     arch: native,    build: RelWithDebInfo, flags: -DRAG_TSAN=ON }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libgtest-dev libbenchmark-dev
+
+      - name: Runner CPU
+        run: |
+          lscpu | grep -E 'Model name'
+          grep -o -w -E 'avx2|avx512f|avx512bw|avx512_vnni|fma' /proc/cpuinfo | sort -u | tr '\n' ' '; echo
+
+      # Ubuntu 24.04 kernels use 32 bits of mmap ASLR, which TSan's shadow
+      # memory layout cannot handle ("unexpected memory mapping").
+      - name: Reduce ASLR entropy for TSan
+        if: contains(matrix.flags, 'RAG_TSAN')
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+
+      - name: Configure
+        run: >
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=${{ matrix.build }}
+          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+          -DCMAKE_CXX_FLAGS=-Werror
+          -DRAG_ARCH=${{ matrix.arch }}
+          ${{ matrix.flags }}
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Test
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+          TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+        run: ctest --test-dir build --output-on-failure -j"$(nproc)"
+
+      - name: Repeat concurrency tests
+        if: contains(matrix.flags, 'RAG_TSAN')
+        env:
+          TSAN_OPTIONS: halt_on_error=1
+        run: ./build/rag_tests --gtest_filter='*Concurrent*' --gtest_repeat=25
+
+      - name: Demo and benchmark smoke run
+        if: matrix.name == 'gcc-native'
+        run: |
+          ./build/rag_demo
+          ./build/rag_bench --benchmark_filter='Dot|TopK|Query/' --benchmark_min_time=0.05s
