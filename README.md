@@ -54,18 +54,21 @@ Sanitizer builds: `-DRAG_SANITIZE=ON` (ASan+UBSan), `-DRAG_TSAN=ON` (ThreadSanit
 * Zero `operator new` calls across 200 queries in every dense mode (checked by
   a global allocation counter in the test binary).
 
-See `bench_results.txt` and `latency_results.txt` for raw output.
+See `bench_results.txt` and `latency_results.txt` for the raw output behind
+these tables. On this shared VM, results vary by about ±15% between runs.
+At D = 384 the fp32 AVX2 and AVX-512 dot products are equally fast,
+because from L1 cache both are limited by load throughput.
 
 | Benchmark (D = 384) | Result |
 |---|---|
-| fp32 dot: scalar / AVX2 / AVX-512 | 419 / 16.3 / 15.1 ns |
-| int8 dot: scalar / AVX2 / AVX-512 VNNI | 46.1 / 12.8 / 7.3 ns |
-| Flat fp32 scan, 100k rows (154 MB) | 16.3 ms (9.0 GB/s, DRAM-bound) |
-| int8 scan + fp32 rerank of 128, 100k rows | 3.3 ms (4.9x faster) |
-| IVF-256, 100k rows, nprobe=16: fp32 lists | 939 µs |
-| IVF-256, 100k rows, nprobe=16: int8 lists + fp32 rerank of 128 | 305 µs (3.1x faster) |
-| BM25 query, 60k chunks / 5.07M postings | 7.95 µs |
-| tokenize + embed query | 0.67 µs |
+| fp32 dot: scalar / AVX2 / AVX-512 | 424 / 18.7 / 19.7 ns |
+| int8 dot: scalar / AVX2 / AVX-512 VNNI | 45.2 / 9.6 / 7.7 ns |
+| Flat fp32 scan, 100k rows (154 MB) | 15.4 ms (9.4 GB/s, DRAM-bound) |
+| int8 scan + fp32 rerank of 128, 100k rows | 2.95 ms (5.2x faster) |
+| IVF-256, 100k rows, nprobe=16: fp32 lists | 1130 µs |
+| IVF-256, 100k rows, nprobe=16: int8 lists + fp32 rerank of 128 | 320 µs (3.5x faster) |
+| BM25 query, 60k chunks / 5.07M postings | 6.99 µs |
+| tokenize + embed query | 0.64 µs |
 
 End-to-end query (60k chunks, k = 8, pinned core, 5000 queries):
 
