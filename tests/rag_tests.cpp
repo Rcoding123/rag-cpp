@@ -19,6 +19,7 @@
 
 #include "rag.hpp"
 #include "synthetic.hpp"
+#include "test_util.hpp"
 
 // ============================================================================
 // Global allocation counter: replaces every operator new overload so the
@@ -59,6 +60,7 @@ volatile std::size_t benchmark_sink;  // defeats dead-code elimination of query 
 
 using namespace rag;
 using namespace std::string_view_literals;
+using namespace rag::testutil;
 
 namespace {
 std::vector<std::string> words_of(std::string_view text) {
@@ -907,10 +909,6 @@ TEST(Engine, ConcurrentCommitAndQuery) {
 
 // =============================== Persistence ================================
 namespace {
-std::vector<std::filesystem::path>& created_files() {
-  static std::vector<std::filesystem::path> v;
-  return v;
-}
 // Deletes every index file this test process created, when the run ends.
 struct TempFileCleanup : ::testing::Environment {
   void TearDown() override {
@@ -920,25 +918,6 @@ struct TempFileCleanup : ::testing::Environment {
 };
 [[maybe_unused]] auto* const kCleanup = ::testing::AddGlobalTestEnvironment(new TempFileCleanup);
 
-// Unique per test *and* per process: ctest -j runs tests as parallel processes,
-// so a shared name would let two tests clobber each other's files.
-std::filesystem::path temp_index(const char* name) {
-  const auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
-  std::string id = std::string(info->test_suite_name()) + "." + info->name() + "." + name + "." +
-                   std::to_string(::getpid()) + ".ragidx";
-  for (char& c : id) if (c == '/') c = '_';
-  auto p = std::filesystem::path(::testing::TempDir()) / id;
-  created_files().push_back(p);
-  return p;
-}
-std::vector<char> read_file(const std::filesystem::path& p) {
-  std::ifstream f(p, std::ios::binary);
-  return {std::istreambuf_iterator<char>(f), {}};
-}
-void write_file(const std::filesystem::path& p, const std::vector<char>& b) {
-  std::ofstream f(p, std::ios::binary | std::ios::trunc);
-  f.write(b.data(), static_cast<std::streamsize>(b.size()));
-}
 }  // namespace
 
 // Same vectors as HashingEmbedder<kD>, but claims to be a different model.
@@ -1070,23 +1049,6 @@ TEST(Persist, FailedSaveLeavesPreviousIndexIntact) {
   EXPECT_FALSE(std::filesystem::exists(path.string() + ".tmp"));
 }
 
-namespace {
-// Rewrite the trailing checksum so a deliberately edited file passes the
-// integrity check and exercises the structural validation behind it.
-void fix_checksum(std::vector<char>& b) {
-  io::Checksum c;
-  c.update(b.data(), b.size() - 8);
-  const std::uint64_t h = c.value();
-  std::memcpy(b.data() + b.size() - 8, &h, 8);
-}
-template <class T>
-void poke(std::vector<char>& b, std::size_t off, T v) { std::memcpy(b.data() + off, &v, sizeof v); }
-template <class F>
-std::string error_of(F&& f) {
-  try { f(); } catch (const std::exception& e) { return e.what(); }
-  return "no exception";
-}
-}  // namespace
 
 TEST(Persist, ReusesSavedIndexesOnlyWhenParametersMatch) {
   EngineConfig cfg;
@@ -1320,4 +1282,158 @@ TEST(Engine, BatchHandlesMismatchedSpansSafely) {
   EXPECT_FALSE(out[1].hits.empty());
   EXPECT_TRUE(out[2].hits.empty());
   e.query_batch({}, 3, ctxs, out);  // empty batch is a no-op
+}
+
+// ========================== Gaps found by coverage ==========================
+TEST(Engine, EmptyAndStopwordOnlyDocuments) {
+  EngineConfig cfg;
+  cfg.max_chunks = 64;
+  Engine e(cfg);
+  EXPECT_EQ(e.ingest("", 0), 0u);
+  EXPECT_EQ(e.ingest("  ...  \n\t ", 1), 0u);
+  EXPECT_EQ(e.ingest("the of and is it", 2), 1u);  // a chunk with tokens but no BM25 terms
+  e.commit();                                       // BM25 has docs but an empty dictionary
+  auto ctx = e.make_context();
+  EXPECT_TRUE(e.query("orderbook", 5, ctx).hits.empty());
+  EXPECT_EQ(e.ingest("Microstructure noise dominates at high sampling frequencies.", 3), 1u);
+  e.commit();
+  const auto r = e.query("microstructure noise", 5, ctx);
+  ASSERT_FALSE(r.hits.empty());
+  EXPECT_EQ(e.chunk(r.hits[0].id).doc_id, 3u);
+}
+
+TEST(Bm25, OutOfOrderDocIdsGiveSameIndexAsInOrder) {
+  Bm25Builder in, out;
+  const std::vector<std::string> docs = {"alpha beta", "beta gamma gamma", "delta alpha", "beta"};
+  for (std::uint32_t d = 0; d < docs.size(); ++d) in.add(d, terms(docs[d]));
+  for (std::uint32_t d : {3u, 1u, 0u, 2u}) out.add(d, terms(docs[d]));
+  const auto a = in.freeze(), b = out.freeze();
+  EXPECT_EQ(a.num_docs(), b.num_docs());
+  Bm25Scratch sc(4);
+  for (const char* q : {"alpha", "beta", "gamma alpha", "delta"}) {
+    TopK<4> ta(4), tb(4);
+    a.search(terms(q), sc, ta);
+    b.search(terms(q), sc, tb);
+    const auto ha = ta.sorted(), hb = tb.sorted();
+    ASSERT_EQ(ha.size(), hb.size()) << q;
+    for (std::size_t i = 0; i < ha.size(); ++i) EXPECT_EQ(ha[i], hb[i]) << q;
+  }
+}
+
+TEST(Chunker, TrimsEveryAsciiWhitespaceKind) {
+  constexpr auto text = "end of feed.\t\r\n\f\v "sv;
+  const auto c = chunks_of(text, {8, 2});
+  ASSERT_EQ(c.size(), 1u);
+  EXPECT_EQ(text.substr(c[0].byte_begin, c[0].byte_end - c[0].byte_begin), "end of feed.");
+}
+
+TEST(Ivf, AutomaticListCountScalesWithSqrtN) {
+  for (std::uint32_t n : {3u, 40u, 1000u, 4100u}) {
+    VectorStore<64> s(n);
+    synth::fill_clustered(s, n, 8, 0.5f);
+    IvfIndex<64> ivf;
+    ivf.build(s, n);  // nlist = 0: automatic
+    const std::uint32_t expect =
+        std::min(n, std::max<std::uint32_t>(4, static_cast<std::uint32_t>(std::sqrt(double(n))) & ~3u));
+    EXPECT_EQ(ivf.nlist(), expect) << "n=" << n;
+    std::uint32_t total = 0;
+    for (std::uint32_t l = 0; l < ivf.nlist(); ++l) total += ivf.list_size(l);
+    EXPECT_EQ(total, n);
+  }
+  IvfIndex<64> empty;  // searching an unbuilt index (both storage kinds) is a no-op
+  TopK<4> tk(4);
+  std::array<float, 64> q{};
+  std::array<std::int8_t, 64> qq{};
+  empty.search(q.data(), 4, tk);
+  empty.search_int8(q.data(), qq.data(), 4, tk);
+  EXPECT_EQ(tk.size(), 0u);
+}
+
+TEST(Engine, BatchOfQueriesWithNoSignal) {
+  auto ep = make_engine(DenseMode::Exact);
+  std::vector<std::string_view> qs = {"the of", "", "and is it", "?!"};
+  std::vector<Engine::QueryContext> ctxs;
+  for (int i = 0; i < 4; ++i) ctxs.push_back(ep->make_context());
+  std::vector<Engine::QueryResult> out(4);
+  ep->query_batch(qs, 5, ctxs, out);
+  for (const auto& r : out) {
+    EXPECT_TRUE(r.hits.empty());
+    EXPECT_NE(r.prompt.prompt.find("### Answer"), std::string_view::npos);
+  }
+}
+
+TEST(Engine, DestructorFreesSnapshotsRetiredWhilePinned) {
+  // Under ASan (leak detection on) this would report a leak if the engine
+  // forgot retired snapshots that couldn't be reclaimed at commit time.
+  auto ep = make_engine(DenseMode::Ivf);
+  {
+    auto ctx = ep->make_context();
+    const auto pin = ep->pin(ctx);
+    for (int i = 0; i < 3; ++i) {
+      ep->ingest("Spoofing places orders it intends to cancel.", 50u + static_cast<std::uint32_t>(i));
+      ep->commit();
+    }
+    EXPECT_EQ(ep->retired_snapshots(), 3u);  // all pinned out of reach
+  }
+  ep.reset();  // destroy with three retired snapshots still queued
+}
+
+TEST(Engine, RejectsInvalidRerankAndProbeConfig) {
+  EXPECT_THROW(Engine(EngineConfig{.rerank_candidates = 5000}), std::invalid_argument);
+  EXPECT_THROW(Engine(EngineConfig{.nprobe = 0}), std::invalid_argument);
+}
+
+TEST(Persist, SaveErrorsAndRelativePaths) {
+  auto ep = make_engine(DenseMode::Exact);
+  const auto missing_dir = std::filesystem::path(::testing::TempDir()) / "no-such-dir-xyz" / "a.ragidx";
+  EXPECT_THROW(ep->save(missing_dir), std::runtime_error);
+  EXPECT_FALSE(std::filesystem::exists(missing_dir));
+
+  // A bare filename (no parent directory component) saves into the cwd.
+  const auto old = std::filesystem::current_path();
+  const auto dir = std::filesystem::path(::testing::TempDir()) / ("rel-" + std::to_string(::getpid()));
+  std::filesystem::create_directories(dir);
+  std::filesystem::current_path(dir);
+  ep->save("relative.ragidx");
+  auto loaded = Engine::load("relative.ragidx", ep->config());
+  std::filesystem::current_path(old);
+  EXPECT_EQ(loaded->size(), ep->size());
+  std::filesystem::remove_all(dir);
+}
+
+TEST(TopK, MinScoreFloorAndResetClearsSortedState) {
+  TopK<4> tk;
+  tk.reset(4, 0.5f);
+  for (float s : {0.1f, 0.5f, 0.9f, -1.f, 0.49f}) tk.push(s, static_cast<std::uint32_t>(s * 100 + 100));
+  const auto h = tk.sorted();
+  ASSERT_EQ(h.size(), 2u);  // only 0.9 and 0.5 meet the floor (>= is inclusive)
+  EXPECT_EQ(h[0].score, 0.9f);
+  EXPECT_EQ(h[1].score, 0.5f);
+  tk.reset(2);  // reuse after sorted(): starts clean, no floor
+  tk.push(-3.f, 1); tk.push(-1.f, 2); tk.push(-2.f, 3);
+  const auto g = tk.sorted();
+  ASSERT_EQ(g.size(), 2u);
+  EXPECT_EQ(g[0].id, 2u);
+  EXPECT_EQ(g[1].id, 3u);
+}
+
+TEST(Engine, DenseMinScoreFiltersUnrelatedChunks) {
+  auto run = [](float min_score) {
+    EngineConfig cfg;
+    cfg.max_chunks = 64;
+    cfg.hybrid = false;  // dense only, so the floor is the only filter
+    cfg.dense_min_score = min_score;
+    Engine e(cfg);
+    e.ingest("the of and", 0);                                 // all-zero embedding
+    e.ingest("Latency arbitrage between venues.", 1);          // unrelated
+    e.ingest("Queue position in the limit order book.", 2);    // related
+    e.commit();
+    auto ctx = e.make_context();
+    std::vector<std::uint32_t> docs;
+    for (const Hit& h : e.query("limit order book queue", 5, ctx).hits) docs.push_back(e.chunk(h.id).doc_id);
+    return docs;
+  };
+  EXPECT_EQ(run(0.f), (std::vector<std::uint32_t>{2}));     // default: only the related chunk
+  EXPECT_EQ(run(-2.f).size(), 3u);                          // keep everything
+  EXPECT_TRUE(run(0.99f).empty());                          // demand near-duplicates: none
 }

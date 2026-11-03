@@ -26,8 +26,10 @@
 #include <algorithm>
 #include <array>
 #include <concepts>
+#include <cmath>
 #include <cstdint>
 #include <filesystem>
+#include <limits>
 #include <memory>
 #include <span>
 #include <stdexcept>
@@ -65,6 +67,11 @@ struct EngineConfig {
   PromptParams prompt{};
   DenseMode dense_mode = DenseMode::Exact;
   bool hybrid = true;                    // fuse BM25 with dense; false => dense only
+  // Dense hits must score strictly above this cosine similarity. The default
+  // 0 drops rows that share nothing with the query (orthogonal or opposite),
+  // including empty-content chunks whose embedding is all zeros. Use -2 to
+  // keep every row, or raise it to demand a minimum relevance.
+  float dense_min_score = 0.f;
   std::uint32_t retrieve_depth = 32;     // per-retriever list depth fed to RRF
   std::uint32_t rerank_candidates = 128; // Int8Rerank / IvfInt8 shortlist size
   std::uint32_t nprobe = 8;              // Ivf / IvfInt8 lists probed per query
@@ -286,7 +293,9 @@ class RagEngine {
     std::vector<ChunkRecord> recs(h.n_chunks);
     for (auto& rec : recs) {
       rec = r.pod<ChunkRecord>();
-      if (rec.text_offset + rec.len > h.text_bytes) throw io::FormatError("chunk text out of range");
+      // Written so it cannot overflow: offset + len could wrap past 2^64 and pass a naive check.
+      if (rec.len > h.text_bytes || rec.text_offset > h.text_bytes - rec.len)
+        throw io::FormatError("chunk text out of range");
     }
     if (h.text_bytes > r.remaining()) throw io::FormatError("truncated text section");
     auto* text = static_cast<char*>(e->arena_.allocate(static_cast<std::size_t>(h.text_bytes ? h.text_bytes : 1), 1));
@@ -348,7 +357,8 @@ class RagEngine {
     prepare(q, ctx);
     const PinnedSnapshot snap(*this, ctx);    // EBR pin: snapshot can't be freed under us
     const std::uint32_t live = store_.size();  // acquire: sees every published chunk
-    TopK<MaxK> dense(depth_for(k));
+    TopK<MaxK> dense;
+    dense.reset(depth_for(k), dense_floor());
     if (ctx.has_signal) [[likely]] dense_one(*snap, live, ctx, dense);
     return finish(q, k, *snap, dense, ctx);
   }
@@ -371,7 +381,7 @@ class RagEngine {
       const PinnedSnapshot snap(*this, ctxs[g]);  // one pin covers the whole group
       const std::uint32_t live = store_.size();
       std::array<TopK<MaxK>, kMaxBatch> dense;
-      for (std::size_t j = 0; j < m; ++j) dense[j].reset(depth_for(k));
+      for (std::size_t j = 0; j < m; ++j) dense[j].reset(depth_for(k), dense_floor());
       dense_batch(*snap, live, ctxs.subspan(g, m), dense);
       for (std::size_t j = 0; j < m; ++j) out[g + j] = finish(qs[g + j], k, *snap, dense[j], ctxs[g + j]);
     }
@@ -400,6 +410,8 @@ class RagEngine {
  private:
   // ---------------------------------------------------------- query stages
   std::uint32_t depth_for(std::uint32_t k) const noexcept { return cfg_.hybrid ? cfg_.retrieve_depth : k; }
+  // TopK admits score >= floor; the config means strictly greater.
+  float dense_floor() const noexcept { return std::nextafter(cfg_.dense_min_score, std::numeric_limits<float>::infinity()); }
 
   // Tokenize, collect BM25 terms, embed. Writes only ctx.
   void prepare(std::string_view q, QueryContext& ctx) const noexcept {

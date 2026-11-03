@@ -39,12 +39,15 @@ class TopK {
 
   constexpr explicit TopK(std::size_t k = Cap) noexcept { reset(k); }
 
-  constexpr void reset(std::size_t k) noexcept {
+  // `min_score`: candidates must score >= min_score to be admitted at all.
+  // It is folded into the admission threshold, so it costs nothing per push.
+  constexpr void reset(std::size_t k, float min_score = -std::numeric_limits<float>::infinity()) noexcept {
     k_ = std::min(k, Cap);
     size_ = 0;
+    sorted_ = false;
     // k == 0: a NaN threshold makes `score >= threshold_` false for every
     // input, so nothing is ever admitted and the heap is never touched.
-    threshold_ = k_ ? -std::numeric_limits<float>::infinity() : std::numeric_limits<float>::quiet_NaN();
+    threshold_ = k_ ? min_score : std::numeric_limits<float>::quiet_NaN();
   }
 
   // Scores strictly below threshold() can never be admitted (NaN when k == 0).
