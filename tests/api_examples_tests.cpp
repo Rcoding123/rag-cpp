@@ -13,6 +13,7 @@
 #include "rag/agent/market_making.hpp"
 #include "rag/agent/model_based.hpp"
 #include "rag/agent/ope.hpp"
+#include "rag/agent/policy_table.hpp"
 #include "rag/agent/trainer.hpp"
 #include "rag/text_clean.hpp"
 
@@ -228,4 +229,27 @@ TEST(ApiExamples, MarketMaking) {
   EXPECT_GT(mm.bid_distance(quote), mm.ask_distance(quote));
   const Action best = mm_dp.act(MarketMakingObs{.t = 25, .q = 4});
   EXPECT_GT(mm.bid_distance(best), mm.ask_distance(best));
+}
+
+// --- API.md §13: compile a policy into a lookup table ------------------------
+TEST(ApiExamples, CompileAPolicyIntoATable) {
+  using namespace rag::agent;
+  ExecutionEnv env{ExecutionParams{}};
+  AgentConfig<3> cfg;
+  Agent<ExecutionEnv> agent(env, cfg);
+  Trainer<ExecutionEnv> trainer(agent, env, {.eval_every = 500, .eval_episodes = 200, .detect_drift = false});
+  trainer.run(1000);
+  const ExecutionPolicyTable table(env.params(), [&](const ExecutionObs& o) { return trainer.deployed_act(o); },
+                                   {.signal_bins = 64, .signal_range_sd = 4.0});
+  const ExecutionObs obs{.t = 3, .inventory = 80, .signal = 0.05};
+  const Action fast = table.act(obs);
+  EXPECT_LT(fast, ExecutionEnv::kNumActions);
+  EXPECT_EQ(table.bytes(), 20u * 101u * 64u);
+  const auto path = tmp("policy.tbl");
+  table.save(path);
+  const auto loaded = ExecutionPolicyTable::load(path);
+  const auto voted = ExecutionPolicyTable::median({table, loaded, loaded});
+  EXPECT_EQ(loaded.act(obs), fast);
+  EXPECT_EQ(voted.act(obs), fast);
+  std::filesystem::remove(path);
 }

@@ -300,6 +300,22 @@ const Eigen::VectorXd b = analysis::least_squares(X, y, weights); // rank-reveal
 TileQ on ExecutionEnv. `InnovationControlledEnv` (`variance_reduction.hpp`)
 wraps ExecutionEnv with a control variate for the price noise (E17).
 
+## 13. Compile a policy into a lookup table
+
+```cpp
+#include "rag/agent/policy_table.hpp"
+// Any execution policy: here the trainer's deployed champion (e.g. a NeuralQ network).
+const ExecutionPolicyTable table(env.params(), [&](const ExecutionObs& o) { return trainer.deployed_act(o); },
+                                 {.signal_bins = 64, .signal_range_sd = 4.0});
+const Action fast = table.act(ExecutionObs{.t = 3, .inventory = 80, .signal = 0.05});  // a lookup, no allocation
+table.save("policy.tbl");                                    // rag::io format: checksummed, crash-safe
+const auto loaded = ExecutionPolicyTable::load("policy.tbl"); // throws io::FormatError on a bad file
+const auto voted = ExecutionPolicyTable::median({table, loaded, loaded});  // cell-by-cell vote of same-grid tables
+```
+
+The table holds horizon × (lots + 1) × bins one-byte actions (129 KB at the
+defaults and 64 bins). Signals beyond the range use the edge bins (E22, E23).
+
 A new environment only needs to satisfy the `Environment` concept: an
 `Observation` type, `kNumActions`, `kStateDims`, `kLo`/`kHi`, and
 `reset(rng)`, `step(action, rng)` and `features(obs)`.
