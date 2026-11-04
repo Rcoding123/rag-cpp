@@ -112,8 +112,13 @@ class ChainEnv {
 struct ExecutionParams {
   std::uint32_t lots = 100;
   std::uint32_t horizon = 20;
-  double impact = 0.01;           // eta: selling q lots in one step costs eta * q^2
-  double terminal_impact = 0.05;  // leftover inventory is dumped at this impact
+  double impact = 0.01;           // eta: selling q lots in one step costs eta * q^impact_exponent
+  double terminal_impact = 0.05;  // leftover inventory is dumped at cost terminal_impact * rem^2
+  // Alternative market forms (defaults reproduce the quadratic model exactly).
+  // Used to test agents that assume the quadratic form against markets that
+  // don't follow it.
+  double impact_exponent = 2.0;   // e.g. 1.5: "square-root" style impact per lot
+  double fixed_cost = 0.0;        // charged for every step that sells anything (fees, spread)
   double alpha = 1.0;             // E[next price move] = alpha * signal
   double signal_rho = 0.7;        // signal persistence per step
   double signal_sd = 0.1;         // stationary standard deviation of the signal
@@ -156,17 +161,30 @@ class ExecutionEnv {
     return std::min(q, inventory);
   }
 
+  // Execution cost of selling q lots in one step (excluding the price move).
+  [[nodiscard]] double trade_cost(std::uint32_t q) const noexcept {
+    if (q == 0) return 0.0;
+    const double dq = static_cast<double>(q);
+    const double impact = p_.impact_exponent == 2.0 ? dq * dq : std::pow(dq, p_.impact_exponent);
+    return p_.impact * impact + p_.fixed_cost;
+  }
+  [[nodiscard]] double dump_cost(std::uint32_t rem) const noexcept {
+    if (rem == 0) return 0.0;
+    const double dr = static_cast<double>(rem);
+    return p_.terminal_impact * dr * dr + p_.fixed_cost;
+  }
+
   Step<Observation> step(Action a, Rng& rng) noexcept {
     const std::uint32_t q = lots_for(a, inventory_);
-    const double dq = static_cast<double>(q);
-    cash_ += dq * (price_ - p_.impact * dq);
+    const double cost = trade_cost(q);
+    cash_ += static_cast<double>(q) * price_ - cost;
     inventory_ -= q;
-    double reward = -p_.impact * dq * dq;
+    double reward = -cost;
     ++t_;
     if (t_ >= p_.horizon) {  // last step: dump whatever is left
-      const double rem = static_cast<double>(inventory_);
-      cash_ += rem * (price_ - p_.terminal_impact * rem);
-      reward -= p_.terminal_impact * rem * rem;
+      const double dump = dump_cost(inventory_);
+      cash_ += static_cast<double>(inventory_) * price_ - dump;
+      reward -= dump;
       inventory_ = 0;
       return {obs(), reward, true};
     }

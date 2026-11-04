@@ -19,6 +19,8 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <stdexcept>
+#include <utility>
 #include <vector>
 
 #include "rag/agent/env.hpp"
@@ -30,7 +32,17 @@ class ExecutionDP {
   static constexpr int kQuad = 31;
 
   explicit ExecutionDP(const ExecutionParams& p, std::uint32_t grid = 121, double grid_sds = 4.0)
-      : env_(p), p_(p), m_(grid), lo_(-grid_sds * p.signal_sd), step_(2.0 * grid_sds * p.signal_sd / (grid - 1)) {
+      : ExecutionDP(p, cost_table(p, false), cost_table(p, true), grid, grid_sds) {}
+
+  // Plan with arbitrary cost tables: trade_costs[q] for selling q lots in a
+  // step, dump_costs[rem] for dumping rem lots at the end (both indexed
+  // 0..lots). A model-based agent passes the costs it has learned.
+  ExecutionDP(const ExecutionParams& p, std::vector<double> trade_costs, std::vector<double> dump_costs,
+              std::uint32_t grid = 121, double grid_sds = 4.0)
+      : env_(p), p_(p), m_(grid), lo_(-grid_sds * p.signal_sd), step_(2.0 * grid_sds * p.signal_sd / (grid - 1)),
+        trade_cost_(std::move(trade_costs)), dump_cost_(std::move(dump_costs)) {
+    if (trade_cost_.size() != p.lots + 1u || dump_cost_.size() != p.lots + 1u)
+      throw std::invalid_argument("ExecutionDP: cost tables need lots + 1 entries");
     // Quadrature for E[f(Z)], Z ~ N(0,1): evenly spaced nodes on [-4, 4],
     // weights proportional to the density, normalised to sum to 1.
     double total = 0;
@@ -57,9 +69,9 @@ class ExecutionDP {
   [[nodiscard]] double q_value(std::uint32_t t, std::uint32_t inv, double g, Action a) const noexcept {
     const std::uint32_t q = env_.lots_for(a, inv);
     const std::uint32_t rem = inv - q;
-    const double dq = q, dr = rem;
-    double r = -p_.impact * dq * dq;
-    if (t + 1 >= p_.horizon) return r - p_.terminal_impact * dr * dr;
+    const double dr = rem;
+    double r = -trade_cost_[q];
+    if (t + 1 >= p_.horizon) return r - dump_cost_[rem];
     if (rem == 0) return r;  // flat: the episode ends
     r += dr * p_.alpha * g;
     double future = 0;
@@ -103,11 +115,19 @@ class ExecutionDP {
     return v_[(std::size_t{t} * (p_.lots + 1) + inv) * m_ + j];
   }
 
+  static std::vector<double> cost_table(const ExecutionParams& p, bool dump) {
+    const ExecutionEnv env(p);
+    std::vector<double> t(p.lots + 1);
+    for (std::uint32_t q = 0; q <= p.lots; ++q) t[q] = dump ? env.dump_cost(q) : env.trade_cost(q);
+    return t;
+  }
+
   ExecutionEnv env_;  // only for lots_for()
   ExecutionParams p_;
   std::uint32_t m_;
   double lo_, step_, innov_ = 0;
   std::array<double, kQuad> nodes_{}, weights_{};
+  std::vector<double> trade_cost_, dump_cost_;  // [lots]
   std::vector<double> v_;  // V[t][inventory][signal grid]
 };
 

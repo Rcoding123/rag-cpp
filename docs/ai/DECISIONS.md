@@ -44,3 +44,6 @@ the code looks the way it does.
 | A7 | Drift detection: CUSUM suspects, champion re-score confirms | A learning dip at episode ~34k looked like drift; acting on it cost 18 points. A champion's held-out score is exactly reproducible in an unchanged world. |
 | A8 | CUSUM k = 0.3, h = 16, baseline from samples ≥ 50 episodes old, rate 0.001 | Simulated: ~1 false alarm per 200k episodes; a 0.55σ shift detected after a median of 51 episodes. The first detector's baseline absorbed the shift it was meant to detect. |
 | A9 | Re-explore with ε 0.5 over 5,000 episodes, and clear replay on drift | Short boosts (0.3 / 600) recovered 10% vs 43%. Clearing replay helps in the first 2,500 episodes only. |
+| A10 | Model-based agent: grey-box regression plus a DP planner | 99–100% of optimal after 20–50 episodes vs 67% after 40,000 model-free (E1a). |
+| A11 | Model-based `replan()` forces the assumed form (exponent 2, no fixed cost) | **Bug:** the true exponent and fixed cost leaked from `structure` into the planner. Regression test: identical experience with different hidden parameters must give identical plans. |
+| A12 | Cost model choice: Shrunk (empirical Bayes, k = 30) is the safe default under uncertainty about the form | Quadratic: 53% when wrong. Per-size: 100% eventually but −1,400% to −1,800% on 4 of 10 seeds at 10 episodes. Shrunk: never below 82% (E1c). |
