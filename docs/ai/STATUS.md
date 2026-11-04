@@ -68,7 +68,8 @@
   * model-free learning on execution is slow because returns are noisy
     relative to the gain (0.27 return-sds per episode): default TileQ
     reaches 65–69% at 40k episodes; coarse tiles + advantage learning
-    76–80%; the neural `NeuralQ` 84–89% (deployed 86–92%), and 87–94% deployed at 20k with Double DQN (E20); the model-based
+    76–80%; the neural `NeuralQ` with Double DQN 91.5% [90.1, 92.7]
+    (8 seeds, E21); the model-based
     agent 99–100% in 20–50 episodes (E1, E16, E19);
   * `ExecutionEnv` and `MarketMakingEnv` are stylized on purpose (exact DP
     optima): no order-book dynamics, queue position or real data;

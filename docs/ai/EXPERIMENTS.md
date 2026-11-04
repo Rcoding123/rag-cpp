@@ -35,6 +35,7 @@ and the conclusion; negative results stay in.
 | E17 | Does a control variate for the price noise help? | Not by default: the innovation is ~5% of the return variance (the signal path dominates). In a noisy market (noise_sd 0.2) it lifts TileQ from 49–61% to 67–71%. Decompose before reducing. |
 | E18 | Can a proper optimizer tune the learner? | NLopt (CRS2 global + Subplex) lifts TileQ at 10k episodes from 37% [33, 41] to 59% [52, 66] on held-out seeds; the Eigen response surface rediscovers E8 and E16. Local search alone was start-dependent; winners were 0.3–18.5 points optimistic on their own seeds. |
 | E20 | Do Double DQN and advantage learning help the neural learner? | Yes, mostly through stability: deployed 87–94% at 20k episodes vs 81–87% plain; the learner's own greedy policy 87–91% vs 70%. |
+| E21 | How do all learners rank under one protocol (8 seeds, CIs)? | At 40k episodes: NeuralQ + Double DQN 91.5% [90.1, 92.7], ActorCritic 81.9%, TileQ coarse + AL 78.7%, tuned TileQ 73.4%, default TileQ 66.7%; model-based 99.5% after 50 episodes. |
 | E19 | Do gap-increasing targets help? | Advantage learning (k = 0.5) lifts TileQ from 65–69% to 70–75% at 40k, and to 76–80% with coarse tiles: the best tile-coded result, still below the neural learner. |
 
 ---
@@ -1198,3 +1199,46 @@ R² = 0.56; effect of +1 standard deviation of each parameter):
 * Two seeds only (each run is ~2.5 minutes): treat the ranking between the
   three corrected variants as unresolved; the gain over plain is
   consistent.
+
+
+## E21. The leaderboard: every learner under one protocol
+
+* **Question:** results so far came from different probes, seed counts and
+  evaluation sets. Under one protocol, with confidence intervals, how do
+  the learners rank? (RESEARCH.md §5, "evaluation hygiene".)
+* **Protocol:** default execution market; 8 seeds per learner; ε 1 → 0.02
+  over 10k episodes unless tuned; the `Trainer`'s deployed champion
+  (evaluated every 1,000 episodes on 500 scenarios); share of the optimal
+  gain on the same 1,000 held-out scenarios for every learner; mean,
+  95% percentile-bootstrap interval, interquartile mean (IQM) and range.
+  Probe `experiments/e21_board.cpp`, aggregation `experiments/e21_agg.py`
+  (all probes are in `experiments/`).
+
+| Learner | Episodes | Seeds | Mean | 95% CI (bootstrap) | IQM | Min–max |
+|---|---|---|---|---|---|---|
+| TileQ, default settings | 20,000 | 8 | 58.8% | [57.5, 60.3] | 58.2% | 57–63% |
+| TileQ, default settings | 40,000 | 8 | 66.7% | [65.3, 68.1] | 66.7% | 63–70% |
+| TileQ, tuned by NLopt (E18) | 20,000 | 8 | 67.8% | [59.4, 75.1] | 70.6% | 46–79% |
+| TileQ, tuned by NLopt (E18) | 40,000 | 8 | 73.4% | [66.2, 80.0] | 75.1% | 57–84% |
+| TileQ, coarse tiles + advantage learning (E16, E19) | 20,000 | 8 | 70.8% | [66.9, 74.5] | 71.9% | 62–80% |
+| TileQ, coarse tiles + advantage learning (E16, E19) | 40,000 | 8 | 78.7% | [77.8, 79.6] | 78.6% | 76–81% |
+| ActorCritic | 20,000 | 8 | 77.6% | [73.6, 80.3] | 79.6% | 65–81% |
+| ActorCritic | 40,000 | 8 | 81.9% | [80.5, 83.1] | 82.2% | 78–84% |
+| NeuralQ + Double DQN (E16, E20) | 20,000 | 8 | 86.3% | [84.2, 88.9] | 85.6% | 83–94% |
+| NeuralQ + Double DQN (E16, E20) | 40,000 | 8 | 91.5% | [90.1, 92.7] | 91.6% | 88–94% |
+| Model-based (Shrunk) | 20 | 8 | 98.8% | [97.5, 99.9] | 99.6% | 96–100% |
+| Model-based (Shrunk) | 50 | 8 | 99.5% | [98.8, 100.0] | 99.9% | 97–100% |
+
+* **Ranking at 40,000 episodes:** NeuralQ + Double DQN 91.5% > ActorCritic
+  81.9% > TileQ with coarse tiles and advantage learning 78.7% > NLopt-tuned
+  TileQ 73.4% > default TileQ 66.7%. The top three are separated (their
+  bootstrap intervals don't overlap); the tuned configuration's wide
+  interval overlaps both of its neighbours.
+* **The model-based agent is in a different league:** 98.8% after 20
+  episodes, 99.5% after 50 (2,000× fewer episodes).
+* **Tuning for one budget doesn't transfer cleanly to another:** the E18
+  configuration was chosen at 10k episodes; at 40k its mean (73.4%) beats
+  the default but its spread is wide (57–84%), while coarse tiles plus
+  advantage learning are both better and tight (76–81%).
+* **The neural learner's worst seed beats every other model-free learner's
+  best:** 88% at 40k, against at most 84% for ActorCritic and tuned TileQ.

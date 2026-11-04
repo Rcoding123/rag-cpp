@@ -74,7 +74,7 @@ def main():
                     files.append(rel)
                     seen.add(rel)
 
-    out = pathlib.Path(args.out) if args.out else ROOT / "dist" / ("context_pack_full.md" if args.with_source else "context_pack_docs.md")
+    out = pathlib.Path(args.out).resolve() if args.out else ROOT / "dist" / ("context_pack_full.md" if args.with_source else "context_pack_docs.md")
     out.parent.mkdir(parents=True, exist_ok=True)
 
     parts = ["# rag-cpp context pack\n",
@@ -95,7 +95,7 @@ def main():
         parts.append(f"\n\n---\n\n## FILE: {f}  ({len(text):,} bytes)\n\n{body}\n")
     out.write_text("".join(parts), encoding="utf-8")
     size = out.stat().st_size
-    print(f"wrote {out.relative_to(ROOT)}: {len(files)} files, {size:,} bytes, ~{size // 4:,} tokens", file=sys.stderr)
+    print(f"wrote {out}: {len(files)} files, {size:,} bytes, ~{size // 4:,} tokens", file=sys.stderr)
 
 
 if __name__ == "__main__":

@@ -157,14 +157,20 @@ auto r = rag::pdf::ingest_pdf(engine, "report.pdf", /*doc_id=*/7);
 ## Hand-off pack for AI assistants
 
 [`llms.txt`](llms.txt) and [`docs/ai/`](docs/ai/README.md) describe the project
-for another language model:
-* a project map;
-* a compiled API cheat sheet;
-* engine internals, an experiment log and a decision log;
-* conventions and status.
+for another language model (or a new contributor):
+* objectives, success criteria and non-goals (`OBJECTIVES.md`);
+* specs: toolchain, libraries with versions, build options, the CI matrix
+  (`SPECS.md`);
+* a project map and a compiled API cheat sheet;
+* engine internals, exact task and algorithm specifications
+  (`TASK_SPECS.md`);
+* the experiment log (E0–E21, negative results included), the decision log,
+  27 distilled lessons and a literature review;
+* conventions, status, open questions and next steps.
 
-`python3 tools/make_context_pack.py [--with-source]` bundles it all into one
-file: about 17k tokens for the docs alone, about 120k with every source file.
+Ready-made single-file bundles are in [`handoff/`](handoff/): the docs alone,
+and the docs plus every header, test and example. Regenerate them with
+`python3 tools/make_context_pack.py [--with-source] --out handoff/<file>`.
 
 ## A self-learning agent
 
@@ -185,13 +191,19 @@ execute a trade, with no model of the market, from rewards alone:
 * **Speed:** learned decisions take 64 ns; a planned (model-based) decision
   371 ns; a full re-plan 3.4 ms; a model check (100 paired episodes) 3.6 ms.
 
-| Learner | Share of the optimal gain | Notes |
-|---|---|---|
-| `TileQ` (3-step Q-learning + replay) | 69–70% at 40k episodes, 75–77% at 200k | the default |
-| `ActorCritic` (softmax policy + TD critic) | 80–86% at 40k, 86–89% at 200k | strong model-free learner |
-| `NeuralQ` (from-scratch MLP, DQN-style) | 84–89% at 40k; 87–94% deployed at 20k with Double DQN | no ML library; 1.7 µs per decision |
-| `ModelBasedExecutionAgent` (regression + DP planning) | 99–100% after 20–50 episodes | needs a model class that fits; 22–55% with a missing term, which `check_model()` flags |
-| Model plan → `distill` → fine-tune under a guard | 100% if the model is right, 78–82% if not | never deploys worse than the plan |
+Leaderboard on the execution task (E21: 8 seeds each, deployed policy, the
+same held-out scenarios, share of the optimal gain with a 95% bootstrap
+interval):
+
+| Learner | Episodes | Share of the optimal gain | Notes |
+|---|---|---|---|
+| `TileQ` (tile-coded 3-step Q-learning + replay), defaults | 40,000 | 66.7% [65.3, 68.1] | the default; 64 ns per decision |
+| `TileQ`, tuned with NLopt (`tune_agent`, E18) | 40,000 | 73.4% [66.2, 80.0] | tuned at 10k episodes |
+| `TileQ`, coarse tiles + advantage learning (E16, E19) | 40,000 | 78.7% [77.8, 79.6] | best tile-coded learner |
+| `ActorCritic` (softmax policy + TD critic) | 40,000 | 81.9% [80.5, 83.1] | |
+| `NeuralQ` + Double DQN (from-scratch MLP, E16, E20) | 40,000 | **91.5% [90.1, 92.7]** | no ML library; 1.7 µs per decision |
+| `ModelBasedExecutionAgent` (regression + DP planning) | **50** | 99.5% [98.8, 100.0] | needs a model class that fits; `check_model()` flags one that doesn't |
+| Model plan → `distill` → fine-tune under a guard (E7) | 40,000 | 100% if the model is right, 78–82% if not | never deploys worse than the plan |
 
 On a second task, market making, the same unchanged agent learns the
 optimal inventory skew (actor-critic: 99–100% of the optimal gain after

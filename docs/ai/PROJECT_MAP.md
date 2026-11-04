@@ -95,6 +95,8 @@ rag-cpp/
 │       ├── CONVENTIONS.md       coding, testing and verification rules
 │       └── STATUS.md            what works, limitations, next steps
 ├── tools/make_context_pack.py   bundles docs (and optionally sources) into one file for an AI
+├── handoff/                    generated bundles to paste into another AI (docs ~58k tokens, full ~240k)
+├── experiments/                 the probe programs behind EXPERIMENTS.md (snapshots; not built)
 ├── llms.txt                     index of this pack for language models
 └── .github/workflows/ci.yml     8 CI jobs
 ```
