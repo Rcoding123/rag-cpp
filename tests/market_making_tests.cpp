@@ -119,3 +119,23 @@ TEST(MarketMaking, AnImprovedMarketIsNoticedAndAReturningOneRecalled) {
   EXPECT_FALSE(back.bank_recalls.empty());
   EXPECT_GT(mm_share(ea, da, [&](const MarketMakingObs& o) { return tr.deployed_act(o); }), 0.95);
 }
+
+TEST(MarketMaking, TheInventoryPenaltyCutsTheTail) {
+  // E14, cash outcomes: the risk-neutral optimum averages +31.4 with a worst
+  // 5% of -5.7; the default penalty (0.05) gives up 2.35 of mean and lifts
+  // the worst 5% to +13.7 (sd 16.6 -> 7.6). Here the tail *is* inventory,
+  // which the penalty controls.
+  MarketMakingParams p;
+  MarketMakingParams neutral = p;
+  neutral.risk_aversion = 0;
+  const MarketMakingEnv cash(neutral);
+  const MarketMakingDP dp_neutral(neutral), dp_averse(p);
+  const auto rn = episode_returns(cash, [&](const MarketMakingObs& o) { return dp_neutral.act(o); }, 4000, 7'000'000);
+  const auto ra = episode_returns(cash, [&](const MarketMakingObs& o) { return dp_averse.act(o); }, 4000, 7'000'000);
+  double mn = 0, ma = 0;
+  for (double x : rn) mn += x / static_cast<double>(rn.size());
+  for (double x : ra) ma += x / static_cast<double>(ra.size());
+  EXPECT_LT(ma, mn);                      // some mean given up...
+  EXPECT_GT(ma, mn - 3.5);
+  EXPECT_GT(cvar(ra, 0.05), cvar(rn, 0.05) + 10.0);  // ...for a much better tail
+}

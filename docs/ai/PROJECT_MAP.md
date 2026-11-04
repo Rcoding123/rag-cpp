@@ -70,7 +70,19 @@ rag-cpp/
 │   └── agent_demo.cpp           the self-learning agent end to end (model-free, drift, model-based + model check)
 ├── docs/
 │   ├── agent.md                 the agent's architecture, with every measured lesson
-│   └── ai/                      this hand-off pack
+│   └── ai/                      this hand-off pack:
+│       ├── README.md            reading order and ground rules
+│       ├── OBJECTIVES.md        goals, success criteria, non-goals, request history
+│       ├── PROJECT_MAP.md       this file
+│       ├── SPECS.md             toolchain, libraries + versions, build options, machine, CI
+│       ├── API.md               compiled usage examples and config tables
+│       ├── RAG_ENGINE.md        engine internals, invariants, file format
+│       ├── TASK_SPECS.md        exact task dynamics, rewards, optima, learner updates, metrics
+│       ├── LESSONS.md           24 cross-cutting lessons with their evidence
+│       ├── EXPERIMENTS.md       experiment log E0-E14, including negative results
+│       ├── DECISIONS.md         design decisions with evidence (R*, P*, A*)
+│       ├── CONVENTIONS.md       coding, testing and verification rules
+│       └── STATUS.md            what works, limitations, next steps
 ├── tools/make_context_pack.py   bundles docs (and optionally sources) into one file for an AI
 ├── llms.txt                     index of this pack for language models
 └── .github/workflows/ci.yml     8 CI jobs

@@ -35,7 +35,7 @@
     learns the optimal inventory skew.
 * **Testing:**
   * the CI matrix covers SIMD levels, sanitizers and fuzzing;
-  * 209 ctest cases: 198 in `rag_tests`, 9 PDF tests (Poppler), the
+  * 212 ctest cases: 201 in `rag_tests`, 9 PDF tests (Poppler), the
     stress run and a `rag_pdf` CLI smoke test.
   * The TSan CI job skips the single-threaded learning suites (`Agent*`,
     `ModelBased`, `ExecutionCosts`, `OffPolicy`, `MarketMaking`, `Reference`, `ApiExamples`), which ran

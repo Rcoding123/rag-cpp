@@ -104,12 +104,20 @@ use *common random numbers*. Every policy faces the same scenarios
 (`Rng(seed + i)`), and paired differences cancel the shared noise (see
 `compare()` in `trainer.hpp`).
 
+**Tails, not just means (E14).** Scored on cash outcomes, the risk-neutral
+optimum is more volatile than TWAP (sd 57 vs 54) yet its worst 5% of days
+average −66 against TWAP's −117: the signal lets it avoid the worst
+outcomes. `episode_returns()` and `cvar()` in `evaluate.hpp` measure this.
+
 **Risk aversion.** With `ExecutionParams::risk_aversion` λ > 0, each step's
 reward also subtracts λ·σ²·I², the price variance the held inventory adds.
 The DP stays exact for this mean-variance objective, and it shows the classic
 trade-off: as λ goes from 0 to 1, the optimum sells 26 → 73 lots in its
 first 5 steps, the sd of its cash falls 59 → 28, and its mean falls
-+9.3 → −8.4 (E4).
++9.3 → −8.4 (E4). The tail barely improves, though: the worst 5% goes from
+−66 to −61 (E14). On market making the same kind of penalty does lift the
+tail (worst 5%: −5.7 → +13.7 for 7% of the mean), because there the tail is
+inventory.
 
 ## 4. Encoders: deciding what "similar" means
 
@@ -393,7 +401,7 @@ The hard problems are the same in both:
   assumption, and that a backtest can't show the agent's own impact on the
   market.
 
-## 10. Tests (`tests/agent_tests.cpp` 41 cases, `tests/model_based_tests.cpp` 16, `tests/market_making_tests.cpp` 4)
+## 10. Tests (`tests/agent_tests.cpp` 41 cases, `tests/model_based_tests.cpp` 18, `tests/market_making_tests.cpp` 5)
 
 * **Components:**
   * the random number generator's moments;

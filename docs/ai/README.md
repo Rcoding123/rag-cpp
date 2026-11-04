@@ -11,14 +11,21 @@ python3 tools/make_context_pack.py --with-source   # docs + all headers, tests, 
 
 ## Reading order
 
-1. `PROJECT_MAP.md`: what exists, where, and how it's built.
-2. `API.md`: how to use it. Every snippet compiles (`tests/api_examples_tests.cpp`).
-3. `RAG_ENGINE.md`: engine internals, invariants, file format.
-4. `../agent.md`: the self-learning agent's architecture.
-5. `EXPERIMENTS.md`: what was tried with the agent and what happened.
-6. `DECISIONS.md`: why things are the way they are, with evidence.
-7. `CONVENTIONS.md`: rules to follow when changing code.
-8. `STATUS.md`: limitations and next steps.
+1. `OBJECTIVES.md`: what the project is for, success criteria, non-goals,
+   and the requests it grew from.
+2. `PROJECT_MAP.md`: what exists, where, and how it's built.
+3. `SPECS.md`: toolchain, libraries (with versions), build options, the
+   measurement machine, the CI matrix.
+4. `API.md`: how to use it. Every snippet compiles (`tests/api_examples_tests.cpp`).
+5. `RAG_ENGINE.md`: engine internals, invariants, file format.
+6. `../agent.md`: the self-learning agent's architecture.
+7. `TASK_SPECS.md`: exact task dynamics, rewards, optima, learner update
+   rules and metrics.
+8. `LESSONS.md`: the experiments' cross-cutting lessons, one paragraph each.
+9. `EXPERIMENTS.md`: what was tried with the agent and what happened.
+10. `DECISIONS.md`: why things are the way they are, with evidence.
+11. `CONVENTIONS.md`: rules to follow when changing code.
+12. `STATUS.md`: limitations and next steps.
 
 ## Ground rules for an AI working on this code
 

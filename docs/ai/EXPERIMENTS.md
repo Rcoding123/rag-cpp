@@ -29,6 +29,7 @@ and the conclusion; negative results stay in.
 | E11 | Can system identification be cheaper? | How the agent explores at the start barely matters; ongoing ε 0.05 cost 6–10% of the online gain, so the default is now 0.01. Also fixed: the first plan came after 20 episodes, not 10. |
 | E12 | Does the same agent work on another task? | Market making, unchanged agent: actor-critic 99–100% after 5,000 episodes, TileQ 97–99% at 50k; both discover the inventory skew. The task is 15× less noisy per unit of gain than execution (4.07 vs 0.27), which explains the execution plateau. |
 | E13 | Does drift handling carry over to the second task? | Not at first: a market that got *better* went unnoticed (CUSUM watched only for drops, and a rejected alarm had blinded it: bug). Fixed with evaluation-time detection from the champion's exactly reproducible re-score, `rebase()`, and an optional two-sided test; the bank then recalls returning regimes at 99–100%. |
+| E14 | What about the bad days? | Volatility isn't tail risk: the risk-neutral execution optimum is more volatile than TWAP but its worst 5% is −66 vs −117. A variance penalty halves execution's sd but barely moves its tail; in market making it lifts the worst 5% from −5.7 to +13.7. |
 
 ---
 
@@ -852,3 +853,56 @@ episodes on the q³ market).
   the flattened softmax didn't explore enough: 29–30% at +40,000 against
   37–52% for ε-uniform (probe `e13d_exec.cpp`). Neither is the default for
   every task; ε-uniform stays the default.
+
+## E14. Tail risk: what the mean doesn't show
+
+* **Question:** every score so far is a mean. How do the policies' bad days
+  compare, and does a variance penalty protect against them?
+* **Code:** `episode_returns()` (per-episode returns on the usual scenarios)
+  and `cvar(returns, alpha)` (mean of the worst `alpha` fraction) in
+  `evaluate.hpp`.
+* **Tests:** `TailRisk.CvarArithmetic`,
+  `TailRisk.VarianceIsNotTailRiskInExecution`,
+  `MarketMaking.TheInventoryPenaltyCutsTheTail`.
+* **Setup:** each policy is scored on *cash* outcomes (the same market with
+  the risk penalty switched off), on 20,000 shared scenarios (probe
+  `e14_probe.cpp`).
+
+Execution:
+
+| Policy | Mean | sd | CVaR 5% | CVaR 1% | Worst |
+|---|---|---|---|---|---|
+| TWAP | −5.6 | 54.5 | −117.1 | −150.8 | −215.4 |
+| DP optimum, λ 0 (risk-neutral) | +10.0 | 57.4 | −66.0 | −78.1 | −118.1 |
+| DP optimum, λ 0.05 | +9.2 | 52.6 | −62.5 | −76.6 | −117.5 |
+| DP optimum, λ 0.2 | +3.1 | 41.8 | −60.8 | −75.7 | −117.5 |
+| DP optimum, λ 1 | −8.2 | 27.5 | −61.1 | −75.7 | −116.6 |
+| TileQ, 40k episodes | +5.1 | 51.1 | −72.7 | −90.8 | −135.2 |
+| ActorCritic, 40k episodes | +7.2 | 52.3 | −64.9 | −77.2 | −116.4 |
+
+Market making (default risk penalty 0.05 unless noted):
+
+| Policy | Mean | sd | CVaR 5% | CVaR 1% | Worst |
+|---|---|---|---|---|---|
+| Symmetric quotes | +22.9 | 26.3 | −47.7 | −79.7 | −145.4 |
+| DP optimum, risk penalty 0 | +31.4 | 16.6 | −5.7 | −21.3 | −75.1 |
+| DP optimum, risk penalty 0.05 (and 0.2: same policy) | +29.0 | 7.6 | **+13.7** | +8.8 | −14.9 |
+| ActorCritic, 20k episodes | +29.1 | 7.7 | +13.5 | +8.5 | −24.3 |
+
+* **Volatility isn't tail risk.** The risk-neutral execution optimum is
+  *more* volatile than TWAP (sd 57 vs 54) yet loses far less on its worst
+  days (CVaR 5% −66 vs −117): the signal lets it avoid the worst outcomes,
+  and the extra spread is on the upside.
+* **In execution, a variance penalty buys variance, not tail protection.**
+  λ = 1 halves the sd (57 → 28) but improves the worst 5% only from −66 to
+  −61, while the mean falls from +10 to −8. The worst outcomes come from
+  impact and early price moves that the variance term doesn't target.
+* **In market making the same kind of penalty does protect the tail:**
+  7% of the mean (31.4 → 29.0) buys a worst 5% of +13.7 instead of −5.7,
+  because there the tail *is* inventory, and the penalty controls inventory.
+* **Learned policies:** actor-critic's tails match the optimum's on both
+  tasks; TileQ's execution policy has a noticeably worse tail (−73 vs −66)
+  than its mean gap suggests.
+* **Practical rule:** check the tail you care about directly (CVaR on cash
+  outcomes); whether a variance penalty helps depends on where the tail
+  comes from.

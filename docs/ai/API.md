@@ -234,7 +234,10 @@ fine.run(2000);                            // deployed: never worse than the pla
 ```
 
 `evaluate()`, `compare()` and `EvalStats` are in `rag/agent/evaluate.hpp`
-(included by `trainer.hpp` and `model_based.hpp`).
+(included by `trainer.hpp` and `model_based.hpp`), with
+`episode_returns(env, policy, n, seed)` (every episode's return, same
+scenarios) and `cvar(returns, alpha)` (mean of the worst `alpha` fraction)
+for tails (E14).
 
 ## 10. Off-policy evaluation from logs
 

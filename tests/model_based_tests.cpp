@@ -3,7 +3,9 @@
 // DP, under correct and incorrect model assumptions.
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cmath>
+#include <vector>
 
 #include "rag/agent/model_based.hpp"
 #include "rag/agent/ope.hpp"
@@ -497,4 +499,41 @@ TEST(ModelBased, FirstPlanComesRightAfterExploration) {
     }
     EXPECT_EQ(a.replans(), 1u);
   }
+}
+
+// =================== Experiment E14 (tail risk) =============================
+TEST(TailRisk, CvarArithmetic) {
+  const std::vector<double> r = {5, 1, 3, 2, 4};
+  EXPECT_DOUBLE_EQ(cvar(r, 0.4), 1.5);   // worst 2: 1 and 2
+  EXPECT_DOUBLE_EQ(cvar(r, 0.01), 1.0);  // at least one outcome
+  EXPECT_DOUBLE_EQ(cvar(r, 1.0), 3.0);   // everything: the mean
+  EXPECT_EQ(cvar({}, 0.05), 0.0);
+}
+
+TEST(TailRisk, VarianceIsNotTailRiskInExecution) {
+  // Measured on cash outcomes (20,000 scenarios): the risk-neutral optimum has
+  // a higher sd than TWAP (57.4 vs 54.5) but a far better worst 5% (-66 vs
+  // -117). A strong mean-variance penalty (lambda 1) halves the sd (27.5) yet
+  // improves the worst 5% only to -61, while the mean falls from +10 to -8.
+  const ExecutionParams p;
+  const ExecutionEnv cash(p);
+  auto stats = [&](auto&& pi) {
+    const auto r = episode_returns(cash, pi, 4000, 7'000'000);
+    const double n = static_cast<double>(r.size());
+    double m = 0, v = 0;
+    for (double x : r) m += x / n;
+    for (double x : r) v += (x - m) * (x - m) / (n - 1);
+    return std::array<double, 3>{m, std::sqrt(v), cvar(r, 0.05)};
+  };
+  ExecutionParams averse = p;
+  averse.risk_aversion = 1.0;
+  const ExecutionDP neutral_dp(p), averse_dp(averse);
+  const auto tw = stats(twap);
+  const auto neutral = stats([&](const ExecutionObs& o) { return neutral_dp.act(o); });
+  const auto strong = stats([&](const ExecutionObs& o) { return averse_dp.act(o); });
+  EXPECT_GT(neutral[1], tw[1]);           // more volatile than TWAP...
+  EXPECT_GT(neutral[2], tw[2] + 30.0);    // ...with a much better tail
+  EXPECT_LT(strong[1], 0.6 * neutral[1]); // the penalty cuts the sd...
+  EXPECT_LT(strong[2] - neutral[2], 10.0);  // ...but barely moves the tail
+  EXPECT_LT(strong[0], neutral[0] - 10.0);  // and costs a lot of mean
 }

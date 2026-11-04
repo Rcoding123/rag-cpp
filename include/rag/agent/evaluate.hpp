@@ -10,7 +10,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
+#include <vector>
 
 #include "rag/agent/env.hpp"
 #include "rag/agent/rng.hpp"
@@ -69,6 +71,29 @@ EvalStats compare(const Env& proto, PolicyA&& a, PolicyB&& b, std::uint32_t epis
   const double var = episodes > 1 ? std::max(0.0, (sum2 - episodes * s.mean * s.mean) / (episodes - 1)) : 0;
   s.std_error = episodes ? std::sqrt(var / episodes) : 0;
   return s;
+}
+
+// Every episode's return, on the same scenarios as evaluate() (episode i
+// uses Rng(seed + i)): for distributions, tails and paired analyses.
+template <Environment Env, class Policy>
+std::vector<double> episode_returns(const Env& proto, Policy&& policy, std::uint32_t episodes, std::uint64_t seed) {
+  std::vector<double> out;
+  out.reserve(episodes);
+  for (std::uint32_t i = 0; i < episodes; ++i) out.push_back(evaluate(proto, policy, 1, seed + i).mean);
+  return out;
+}
+
+// Conditional value at risk: the mean of the worst `alpha` fraction of
+// outcomes (alpha in (0, 1]; e.g. 0.05 = the worst 5%). At least one
+// outcome is always included.
+inline double cvar(std::vector<double> returns, double alpha) {
+  if (returns.empty()) return 0;
+  const std::size_t k = std::max<std::size_t>(1, static_cast<std::size_t>(alpha * static_cast<double>(returns.size())));
+  std::nth_element(returns.begin(), returns.begin() + static_cast<std::ptrdiff_t>(k - 1), returns.end());
+  std::sort(returns.begin(), returns.begin() + static_cast<std::ptrdiff_t>(k));
+  double s = 0;
+  for (std::size_t i = 0; i < k; ++i) s += returns[i];
+  return s / static_cast<double>(k);
 }
 
 }  // namespace rag::agent
