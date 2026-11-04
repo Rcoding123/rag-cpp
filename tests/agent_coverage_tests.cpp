@@ -886,3 +886,28 @@ TEST(AgentCoverage, TrainerTwoSidedDetectorConfirmsAnImprovedWorld) {
     }
   }
 }
+
+// --- validation.hpp (E28) ----------------------------------------------------
+#include "rag/agent/validation.hpp"
+
+TEST(Validation, StressSuiteAndPairedMetrics) {
+  const ExecutionParams base;
+  const auto suite = validation::stress_suite(base);
+  ASSERT_EQ(suite.size(), 12u);
+  EXPECT_EQ(suite[0].name, "nominal");
+  EXPECT_EQ(suite[0].params.alpha, base.alpha);
+  EXPECT_EQ(suite[5].name, "signal flipped");
+  EXPECT_EQ(suite[5].params.alpha, -base.alpha);
+  // TWAP against itself: exactly zero gain, never worse.
+  const auto twap = validation::measure(base, [](const ExecutionObs&) { return ExecutionEnv::kTwapAction; }, 200, validation::kSealedSeed);
+  EXPECT_EQ(twap.gain, 0.0);
+  EXPECT_EQ(twap.p_worse, 0.0);
+  EXPECT_GT(twap.optimal_gain, 0.0);
+  // The scenario's own optimum scores 100% of itself.
+  const ExecutionDP dp(base);
+  const auto best = validation::measure(base, [&](const ExecutionObs& o) { return dp.act(o); }, 200, validation::kSealedSeed);
+  EXPECT_NEAR(best.share, 1.0, 1e-12);
+  EXPECT_LE(best.gain_ci.lo, best.gain);
+  EXPECT_GE(best.gain_ci.hi, best.gain);
+  EXPECT_LE(best.cvar5, best.gain);
+}
