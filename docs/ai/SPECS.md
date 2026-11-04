@@ -25,6 +25,7 @@ CMake options:
 | `RAG_HUGEPAGES` | ON | transparent huge pages for large arrays (`MADV_HUGEPAGE`) |
 | `RAG_FUZZ` | OFF | libFuzzer targets (Clang only) |
 | `RAG_PDF` | ON | PDF support, used only if poppler-cpp is found |
+| `RAG_OPTLIBS` | ON | NLopt/Eigen tuning and analysis targets, used only if both are found |
 
 ## Toolchains used
 
@@ -51,12 +52,14 @@ benchmarking or PDF input.
 | Google Benchmark | 1.8.3 | `libbenchmark-dev` | `rag_bench` | optional (skipped if absent) |
 | poppler-cpp | 24.02.0 | `libpoppler-cpp-dev` | `rag/pdf.hpp`, `rag_pdf`, `rag_pdf_tests` | optional (`RAG_PDF`) |
 | libFuzzer + sanitizer runtimes | LLVM 18 | `libclang-rt-18-dev` | `fuzz_load`, `fuzz_text` | optional (`RAG_FUZZ`) |
+| NLopt | 2.7.1 | `libnlopt-cxx-dev` | `rag/agent/tuning.hpp`, `tune_agent`, `rag_optlib_tests` | optional (`RAG_OPTLIBS`) |
+| Eigen | 3.4.0 | `libeigen3-dev` | `rag/agent/analysis.hpp`, `tune_agent`, `rag_optlib_tests` | optional (`RAG_OPTLIBS`) |
 | pthreads | glibc | — | concurrency tests, `rag_stress` | yes (via `Threads::Threads`) |
 
 Install on Ubuntu 24.04:
 
 ```bash
-sudo apt-get install -y cmake g++ libgtest-dev libbenchmark-dev libpoppler-cpp-dev
+sudo apt-get install -y cmake g++ libgtest-dev libbenchmark-dev libpoppler-cpp-dev libeigen3-dev libnlopt-cxx-dev
 ```
 
 Not used, on purpose: no BLAS, no Eigen, no Boost, no JSON library, no

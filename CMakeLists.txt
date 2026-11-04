@@ -68,6 +68,25 @@ if(RAG_FUZZ)
   target_link_libraries(make_seeds PRIVATE rag)
 endif()
 
+# Optimization (NLopt) and data analysis (Eigen) helpers: rag/agent/tuning.hpp,
+# rag/agent/analysis.hpp, the tune_agent tool and their tests. Optional:
+# Debian/Ubuntu libnlopt-cxx-dev and libeigen3-dev. The rest doesn't need them.
+option(RAG_OPTLIBS "Build the NLopt/Eigen tuning and analysis targets when available" ON)
+if(RAG_OPTLIBS)
+  find_package(Eigen3 3.3 QUIET NO_MODULE)
+  find_package(NLopt QUIET)
+  if(Eigen3_FOUND AND NLopt_FOUND)
+    message(STATUS "rag-cpp: tuning/analysis enabled (Eigen ${Eigen3_VERSION}, NLopt ${NLopt_VERSION})")
+    add_executable(rag_optlib_tests tests/optional_libs_tests.cpp)
+    target_link_libraries(rag_optlib_tests PRIVATE rag Eigen3::Eigen NLopt::nlopt GTest::gtest_main Threads::Threads)
+    gtest_discover_tests(rag_optlib_tests)
+    add_executable(tune_agent examples/tune_agent.cpp)
+    target_link_libraries(tune_agent PRIVATE rag Eigen3::Eigen NLopt::nlopt)
+  else()
+    message(STATUS "rag-cpp: Eigen3/NLopt not found; tuning/analysis targets disabled")
+  endif()
+endif()
+
 # PDF support (rag/pdf.hpp, the rag_pdf tool) needs poppler-cpp
 # (Debian/Ubuntu: libpoppler-cpp-dev). The rest of the library does not.
 option(RAG_PDF "Build PDF support when poppler-cpp is available" ON)

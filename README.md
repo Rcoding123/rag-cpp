@@ -50,6 +50,18 @@ cmake --build build -j
 
 Sanitizer builds: `-DRAG_SANITIZE=ON` (ASan+UBSan), `-DRAG_TSAN=ON` (ThreadSanitizer).
 
+Dependencies: the engine and the agent need only the C++20 standard library.
+Optional, each picked up automatically when installed: GoogleTest (tests),
+Google Benchmark, poppler-cpp (PDFs), and NLopt + Eigen for hyperparameter
+search and data analysis (`./build/tune_agent`, `rag_optlib_tests`). On
+Ubuntu 24.04:
+
+```bash
+sudo apt-get install -y libgtest-dev libbenchmark-dev libpoppler-cpp-dev libnlopt-cxx-dev libeigen3-dev
+```
+
+The full list with versions is in [docs/ai/SPECS.md](docs/ai/SPECS.md).
+
 `-DRAG_HUGEPAGES=OFF` turns off transparent huge pages for the large arrays.
 On the test VM, huge pages made scans about 10–25% faster. Faulting in fresh
 huge pages took about 11 times longer, though, because the kernel compacts

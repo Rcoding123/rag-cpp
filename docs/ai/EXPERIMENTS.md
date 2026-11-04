@@ -32,6 +32,8 @@ and the conclusion; negative results stay in.
 | E14 | What about the bad days? | Volatility isn't tail risk: the risk-neutral execution optimum is more volatile than TWAP but its worst 5% is −66 vs −117. A variance penalty halves execution's sd but barely moves its tail; in market making it lifts the worst 5% from −5.7 to +13.7. |
 | E15 | Does a model pay on the easy task too? | Yes: a model-based market maker that counts fills reaches 98–100% after 3 episodes and earns 99–100% of the optimal gain online, against 65–79% for actor-critic. |
 | E16 | Would a neural network (PyTorch-style) do better? | Yes: a from-scratch MLP (DQN-style, no library) reaches 84–89% at 40k (deployed 86–92%) vs 65–69% for TileQ. Not the target network, not Adam: generalization. Coarser tiles alone reach 76–77%. |
+| E17 | Does a control variate for the price noise help? | Not by default: the innovation is ~5% of the return variance (the signal path dominates). In a noisy market (noise_sd 0.2) it lifts TileQ from 49–61% to 67–71%. Decompose before reducing. |
+| E18 | Can a proper optimizer tune the learner? | NLopt (CRS2 global + Subplex) lifts TileQ at 10k episodes from 37% [33, 41] to 59% [52, 66] on held-out seeds; the Eigen response surface rediscovers E8 and E16. Local search alone was start-dependent; winners were 0.3–18.5 points optimistic on their own seeds. |
 
 ---
 
@@ -1036,3 +1038,102 @@ Ablations (DQN, 20,000 episodes, seeds 1–2):
   problem, but wrong to imply that the representation choice didn't matter.
   How a function approximator *averages* noise is as important as what it
   can represent.
+
+## E17. A control variate for the price noise (the research's top idea)
+
+* **Question:** RESEARCH.md ranked first a control variate: each reward
+  contains I′·(price innovation), which has zero mean given (s, a), so
+  subtracting it leaves every policy's value (and the optimum) unchanged
+  while removing noise. Does it break the tile-coding plateau?
+* **Code:** `ExecutionEnv::last_move()` (the step's price move: market data);
+  `variance_reduction.hpp`: `InnovationControlledEnv` wraps `ExecutionEnv`
+  and returns r − I′·(ΔS − α̂·g), with α̂ supplied or estimated online by
+  regressing observed moves on the signal (no market knowledge assumed). It
+  satisfies the `Environment` concept, so learners and the trainer use it
+  unchanged.
+* **Tests:** `VarianceReduction.ControlledRewardsKeepValuesAndCutOnlyTheInnovation`,
+  `VarianceReduction.EstimatesTheDriftFromMarketData`.
+* **First, where the noise comes from** (20,000 episodes; probe
+  `e17_decomp.cpp`):
+
+| Market, policy | Innovation I′·ε | Drift I′·α·g (the signal path) | Costs | Total |
+|---|---|---|---|---|
+| default, TWAP | sd 12.5 | sd 52.9 | sd 0 | sd 54.4 |
+| default, optimal | sd 13.2 | sd 56.1 | sd 1.4 | sd 57.4 |
+| noise_sd 0.2, TWAP | sd 49.9 | sd 52.9 | sd 0 | sd 72.9 |
+| noise_sd 0.2, optimal | sd 52.7 | sd 56.1 | sd 1.4 | sd 76.9 |
+
+* **Learning** (TileQ, 40k episodes, seeds 1–3; α̂ estimated, it came out at
+  0.999–1.001):
+
+| Market | Plain rewards: 5k / 40k | Controlled: 5k / 40k |
+|---|---|---|
+| default | 8–16% / 65–69% | 2–23% / 67–68% |
+| noise_sd 0.2 | −1–10% / 49–61% | **21–26% / 67–71%** |
+
+* **In the default market it does nothing,** because the innovation is not
+  the dominant noise. Most of the return's variance comes from the signal
+  path (sd 53–56): the very information the agent trades on, realized along
+  a random path. A reward-side control variate can't remove that without
+  changing the optimal policy.
+* **Where the innovation is large, it works exactly as theory says:** with
+  noise_sd 0.2 it lifts TileQ from 49–61% to 67–71%, the level of the
+  default market.
+* **Lesson:** decompose the return variance before reducing it. The
+  research's prediction ("the largest single gain; above 90%") assumed the
+  innovation dominated; measured, it was 5% of the variance.
+
+## E18. Proper optimization and data analysis: NLopt and Eigen
+
+* **Question:** you asked for a real optimization and data-analysis library.
+  Can a principled hyperparameter search beat the hand-chosen defaults, and
+  what does a data analysis of the search say?
+* **Libraries** (optional, like poppler; `RAG_OPTLIBS`, on when found):
+  NLopt 2.7.1 (`libnlopt-cxx-dev`) and Eigen 3.4.0 (`libeigen3-dev`).
+* **Code:**
+  * `tuning.hpp`: `maximize()` (any NLopt algorithm, default Subplex) and
+    `maximize_global()` (CRS2 global search, then Subplex), over parameters
+    with log-scale and integer options, keeping every trial; seeded for
+    reproducibility.
+  * `analysis.hpp`: `least_squares()` (weighted, rank-revealing QR) and
+    `quadratic_sensitivity()` (response surface on standardized parameters).
+  * `evaluate.hpp`: `bootstrap_mean()` (percentile bootstrap intervals; no
+    dependency).
+  * `examples/tune_agent.cpp`: tunes six TileQ hyperparameters on
+    ExecutionEnv, validates on held-out seeds and reports sensitivities.
+* **Tests** (`tests/optional_libs_tests.cpp`, target `rag_optlib_tests`):
+  the tuner finds a known optimum with log and integer parameters; the
+  global stage escapes a local optimum a local search gets stuck in;
+  Eigen's QR reproduces the model-based agent's hand-written
+  normal-equations solve to 1e-6 (a cross-check of our own solver);
+  the response surface recovers known effects.
+* **Setup:** objective = mean share of the optimal gain after 10,000
+  training episodes on fixed search seeds (deterministic); 120 evaluations;
+  validation on seeds the search never saw.
+
+| Search | Search seeds | Best on search seeds | Held-out: default | Held-out: tuned |
+|---|---|---|---|---|
+| Subplex, hand-set steps, 60 evals | 1, 2 | 71.4% | 40.9% (seeds 3–7) | 60.9% |
+| Subplex, wider bounds, 120 evals | 1, 2, 8 | 70.1% | 40.9% (seeds 3–7) | 69.8%; at 40k: 64.0% → 75.6% |
+| Subplex via the library (default steps), 120 evals | 1, 2, 8 | 57.0% | 37.1% [32.8, 40.8] (8 seeds) | 42.2% [27.6, 51.7] |
+| **CRS2 global + Subplex (tool default), 120 evals** | 1, 2, 8 | 77.7% | 37.1% [32.8, 40.8] | **59.2% [52.4, 66.4]** |
+
+Sensitivity across the 129 global-search trials (Eigen quadratic surface,
+R² = 0.56; effect of +1 standard deviation of each parameter):
+ε start −14.1%, bins −11.7%, α +8.3% (curvature −7.9%: an interior optimum),
+α decay −3.1%, ε decay −2.7%, tilings +2.0%.
+
+* **Tuning works when validated:** after 10,000 episodes the tuned learner
+  reaches 59–70% on unseen seeds against 37–41% for the defaults, roughly
+  what the defaults reach after 20,000–40,000 episodes.
+* **A local search alone is unreliable here.** With the same budget,
+  Subplex found 57% or 70% depending only on its initial step sizes; the
+  first response surface explained only 17% of the variance. The landscape
+  is rugged and seed-noisy, so the tool searches globally first.
+* **The winner's curse is real:** the best configuration scores 0.3–18.5
+  points higher on the seeds it was chosen on than on unseen ones. With 2 search
+  seeds the gap was 10 points; with 3 seeds and a local search, 0.3; with
+  the broader global search, 18. Always validate on held-out seeds.
+* **The data analysis rediscovers the earlier hand-found lessons
+  independently:** low starting ε matters most (E8), coarser tiles next
+  (E16), and the step size has an interior optimum (A4).

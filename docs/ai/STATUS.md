@@ -34,10 +34,16 @@
   * a second task (market making, exact DP) on which the unchanged agent
     learns the optimal inventory skew, and a model-based market maker;
   * a from-scratch neural Q-learner (`NeuralQ`, no ML library) that breaks
-    the tile-coding plateau on execution (84–89% at 40k episodes).
+    the tile-coding plateau on execution (84–89% at 40k episodes);
+  * optional NLopt/Eigen tooling: hyperparameter search validated on
+    held-out seeds, sensitivity analysis, rank-revealing least squares.
+* **Reviews:** two review agents (adversarial bug hunt, coverage) found
+  and fixed 8 bugs; agent-header coverage is 99.7% of lines and 99.0% of
+  regions. Their schedule fixes may shift the online-gain numbers of E8,
+  E11 and E15 slightly; those were measured before the fixes.
 * **Testing:**
   * the CI matrix covers SIMD levels, sanitizers and fuzzing;
-  * 217 ctest cases: 206 in `rag_tests`, 9 PDF tests (Poppler), the
+  * 256 ctest cases: 241 in `rag_tests`, 4 in `rag_optlib_tests`, 9 PDF tests (Poppler), the
     stress run and a `rag_pdf` CLI smoke test.
   * The TSan CI job skips the single-threaded learning suites (`Agent*`,
     `ModelBased`, `ExecutionCosts`, `OffPolicy`, `MarketMaking`, `Reference`, `ApiExamples`), which ran

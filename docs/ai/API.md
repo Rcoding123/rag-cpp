@@ -280,6 +280,25 @@ const Action quote = mm_trainer.deployed_act(MarketMakingObs{.t = 25, .q = 4});
 
 Any type satisfying the `Environment` concept works the same way.
 
+## 12. Tune and analyse (optional: NLopt + Eigen)
+
+```cpp
+#include "rag/agent/tuning.hpp"    // NLopt
+#include "rag/agent/analysis.hpp"  // Eigen
+const std::vector<tuning::Param> space = {
+    {"alpha", 0.001, 1.0, /*log_scale=*/true}, {"bins", 2, 10, false, /*integer=*/true}};
+auto score = [&](const std::vector<double>& v) { /* train with v on fixed seeds, return the mean share */ return 0.0; };
+const tuning::Result r = tuning::maximize_global(space, {0.1, 8}, score, /*global=*/80, /*local=*/40, /*seed=*/1);
+// r.best, r.best_score, r.history (every trial). Validate r.best on held-out seeds:
+const Interval ci = bootstrap_mean(held_out_scores, 10000, 1);   // evaluate.hpp, no dependency
+const auto sens = analysis::quadratic_sensitivity(rows, scores);  // which parameters matter
+const Eigen::VectorXd b = analysis::least_squares(X, y, weights); // rank-revealing weighted LS
+```
+
+`examples/tune_agent.cpp` (target `tune_agent`) does all of this for
+TileQ on ExecutionEnv. `InnovationControlledEnv` (`variance_reduction.hpp`)
+wraps ExecutionEnv with a control variate for the price noise (E17).
+
 A new environment only needs to satisfy the `Environment` concept: an
 `Observation` type, `kNumActions`, `kStateDims`, `kLo`/`kHi`, and
 `reset(rng)`, `step(action, rng)` and `features(obs)`.

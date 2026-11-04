@@ -107,3 +107,14 @@ building learning systems in general, not just this task.
 24. **Speed up the inner loop before scaling experiments.** A precomputed
     banded expectation made the DP ~9× faster with identical decisions, and
     the slowest tests 4–10× faster (A28).
+25. **Decompose the noise before reducing it.** A textbook control variate
+    for the price innovation did nothing here, because the signal path, not
+    the innovation, carried ~95% of the return variance; where the
+    innovation was large, the same trick worked (E17).
+26. **Tune globally, validate out of sample.** A local optimizer's result
+    depended on its start; a global search plus held-out seeds and
+    bootstrap intervals gave a reliable improvement (37% → 59%), and a
+    response surface over the trials recovered the earlier lessons (E18).
+27. **Independent reviewers find what the author doesn't.** Two review
+    agents found 8 bugs (one of them independently twice) in code that
+    already had ~98% line coverage (A40, A41).

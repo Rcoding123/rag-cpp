@@ -46,6 +46,9 @@ rag-cpp/
 │           ├── evaluate.hpp     evaluate / compare on common random numbers (EvalStats)
 │           ├── drift.hpp        DriftDetector: one-sided CUSUM on surprise (DriftParams)
 │           ├── ope.hpp          off-policy evaluation: PDIS, WPDIS, doubly robust, ESS diagnostics
+│           ├── variance_reduction.hpp  InnovationControlledEnv: control variate for the price noise
+│           ├── tuning.hpp       (optional, NLopt) maximize / maximize_global over log/integer parameters
+│           ├── analysis.hpp     (optional, Eigen) least squares, quadratic sensitivity
 │           ├── model_based.hpp  ModelBasedExecutionAgent: regression + DP planning + check_model
 │           ├── market_making.hpp a second task: MarketMakingEnv, exact MarketMakingDP, ModelBasedMarketMaker
 │           └── trainer.hpp      evaluate, compare, DriftDetector (CUSUM), Trainer (champion, bank, baseline guard)
@@ -58,6 +61,9 @@ rag-cpp/
 │   ├── model_based_tests.cpp    generalized costs, model-based agent, risk aversion, permanent impact
 │   ├── market_making_tests.cpp  the same agent on market making (E12)
 │   ├── mlp_tests.cpp            the neural network: gradient check, regression, determinism (E16)
+│   ├── agent_edge_case_tests.cpp edge cases from the adversarial review (8 bugs)
+│   ├── agent_coverage_tests.cpp hand-computed checks closing coverage gaps (99.7% lines)
+│   ├── optional_libs_tests.cpp  (NLopt + Eigen) tuner, global search, solver cross-check
 │   ├── api_examples_tests.cpp   compiles and runs every snippet in docs/ai/API.md
 │   ├── pdf_tests.cpp            (Poppler) PDF extraction on generated PDFs
 │   ├── pdf_writer.hpp           minimal PDF writer for fixtures
@@ -69,6 +75,7 @@ rag-cpp/
 ├── examples/
 │   ├── demo.cpp                 minimal RAG usage
 │   ├── rag_pdf.cpp              CLI: index PDFs, ask questions with page citations
+│   ├── tune_agent.cpp           (NLopt + Eigen) hyperparameter search, validation, sensitivity
 │   └── agent_demo.cpp           the self-learning agent end to end (model-free, drift, model-based + model check)
 ├── docs/
 │   ├── agent.md                 the agent's architecture, with every measured lesson
@@ -80,7 +87,7 @@ rag-cpp/
 │       ├── API.md               compiled usage examples and config tables
 │       ├── RAG_ENGINE.md        engine internals, invariants, file format
 │       ├── TASK_SPECS.md        exact task dynamics, rewards, optima, learner updates, metrics
-│       ├── LESSONS.md           24 cross-cutting lessons with their evidence
+│       ├── LESSONS.md           27 cross-cutting lessons with their evidence
 │       ├── RESEARCH.md          literature review and ranked next experiments
 │       ├── EXPERIMENTS.md       experiment log, including negative results
 │       ├── DECISIONS.md         design decisions with evidence (R*, P*, A*)
@@ -116,6 +123,7 @@ The agent reuses the engine's SIMD kernels (`simd.hpp`), top-K selection
 | `rag_bench` | microbenchmarks | Google Benchmark |
 | `rag_latency` | p50/p99/p99.9 query latency | |
 | `rag_demo`, `agent_demo`, `rag_pdf` | examples and CLI | `rag_pdf` needs poppler-cpp |
+| `rag_optlib_tests`, `tune_agent` | tuning/analysis tests and tool | NLopt, Eigen |
 | `fuzz_load`, `fuzz_text`, `make_seeds` | with `-DRAG_FUZZ=ON` and Clang | libclang-rt |
 
 CMake options: `RAG_ARCH` (`-march` value, default `native`), `RAG_SANITIZE`

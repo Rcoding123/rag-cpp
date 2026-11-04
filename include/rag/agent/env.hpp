@@ -195,6 +195,7 @@ class ExecutionEnv {
     const double cost = trade_cost(q);
     cash_ += static_cast<double>(q) * price_ - cost;
     inventory_ -= q;
+    last_move_ = 0.0;
     const double drop = p_.permanent_impact * static_cast<double>(q);
     price_ -= drop;
     double reward = -cost - drop * static_cast<double>(inventory_);
@@ -208,6 +209,7 @@ class ExecutionEnv {
     }
     // The price moves while the remaining inventory is held.
     const double move = p_.alpha * signal_ + p_.noise_sd * rng.normal();
+    last_move_ = move;
     price_ += move;
     reward += static_cast<double>(inventory_) * move - holding_penalty(inventory_);
     signal_ = p_.signal_rho * signal_ + std::sqrt(1.0 - p_.signal_rho * p_.signal_rho) * p_.signal_sd * rng.normal();
@@ -224,6 +226,8 @@ class ExecutionEnv {
   [[nodiscard]] double price() const noexcept { return price_; }
   [[nodiscard]] double cash() const noexcept { return cash_; }
   [[nodiscard]] std::uint32_t inventory() const noexcept { return inventory_; }
+  // The last step's price move (market data; 0 on the final step, which has none).
+  [[nodiscard]] double last_move() const noexcept { return last_move_; }
   [[nodiscard]] const ExecutionParams& params() const noexcept { return p_; }
 
   // Change the market's dynamics mid-life (e.g. the signal's meaning flips),
@@ -235,7 +239,7 @@ class ExecutionEnv {
 
   ExecutionParams p_;
   std::uint32_t t_ = 0, inventory_ = 0;
-  double price_ = 0.0, cash_ = 0.0, signal_ = 0.0;
+  double price_ = 0.0, cash_ = 0.0, signal_ = 0.0, last_move_ = 0.0;
 };
 
 static_assert(Environment<ChainEnv>);

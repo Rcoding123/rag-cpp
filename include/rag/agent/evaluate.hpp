@@ -99,4 +99,29 @@ inline double cvar(std::vector<double> returns, double alpha) {
   return s / static_cast<double>(k);
 }
 
+// Percentile bootstrap confidence interval for the mean of `values`
+// (e.g. one score per seed): resample with replacement `resamples` times.
+struct Interval {
+  double mean = 0, lo = 0, hi = 0;
+};
+inline Interval bootstrap_mean(const std::vector<double>& values, std::uint32_t resamples, std::uint64_t seed, double level = 0.95) {
+  Interval out;
+  if (values.empty() || resamples == 0) return out;
+  const auto n = static_cast<std::uint32_t>(values.size());
+  for (double v : values) out.mean += v / n;
+  Rng rng(seed);
+  std::vector<double> means(resamples);
+  for (auto& m : means) {
+    double s = 0;
+    for (std::uint32_t i = 0; i < n; ++i) s += values[rng.below(n)];
+    m = s / n;
+  }
+  std::sort(means.begin(), means.end());
+  const double tail = (1 - level) / 2;
+  const auto at = [&](double q) { return means[std::min<std::size_t>(means.size() - 1, static_cast<std::size_t>(q * static_cast<double>(means.size())))]; };
+  out.lo = at(tail);
+  out.hi = at(1 - tail);
+  return out;
+}
+
 }  // namespace rag::agent
