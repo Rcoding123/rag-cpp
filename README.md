@@ -50,6 +50,16 @@ cmake --build build -j
 
 Sanitizer builds: `-DRAG_SANITIZE=ON` (ASan+UBSan), `-DRAG_TSAN=ON` (ThreadSanitizer).
 
+**Windows** (Visual Studio 2022): see [docs/WINDOWS.md](docs/WINDOWS.md). In a
+"Developer PowerShell for VS 2022":
+
+```powershell
+cmake --preset windows-msvc                         # x64, AVX2 + FMA kernels
+cmake --build --preset windows-release --parallel
+ctest --preset windows-release
+.\build\Release\agent_demo.exe
+```
+
 Dependencies: the engine and the agent need only the C++20 standard library.
 Optional, each picked up automatically when installed: GoogleTest (tests),
 Google Benchmark, poppler-cpp (PDFs), and NLopt + Eigen for hyperparameter
@@ -360,3 +370,4 @@ jobs build with `-Werror`:
 | clang-asan-ubsan | the same with Clang, whose UBSan also checks arithmetic on null pointers |
 | gcc-tsan | ThreadSanitizer: concurrency tests repeated 25 times, then `rag_stress` for 10 s per mode |
 | fuzz-smoke | both fuzzers for 60 s each, seeded by `make_seeds`; crashing inputs uploaded as artifacts |
+| msvc-windows | Windows Server 2022, Visual Studio 2022, AVX2: the `docs/WINDOWS.md` commands, the full test suite, the demos and the latency probe |

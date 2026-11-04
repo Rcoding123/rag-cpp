@@ -97,14 +97,15 @@ jobs:
         shell: pwsh
         run: Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors | Format-List
 
-      - name: Configure (Visual Studio 2022, x64, AVX2)
-        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DRAG_ARCH=x86-64-v3
+      # Exactly the commands in docs/WINDOWS.md.
+      - name: Configure (preset windows-msvc: Visual Studio 2022, x64, AVX2)
+        run: cmake --preset windows-msvc
 
       - name: Build
-        run: cmake --build build --config Release --parallel 4
+        run: cmake --build --preset windows-release --parallel 4
 
       - name: Test
-        run: ctest --test-dir build -C Release --output-on-failure -j 4
+        run: ctest --preset windows-release
 
       - name: Demos and latency smoke run
         shell: bash

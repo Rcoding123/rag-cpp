@@ -11,6 +11,7 @@
 - [API cheat sheet](docs/ai/API.md): compiled examples for the engine, PDFs, persistence, batching, agent
 - [RAG engine internals](docs/ai/RAG_ENGINE.md): data flow, invariants, concurrency, file format, performance
 - [Agent architecture](docs/agent.md): environment, encoders, learners, supervision, lessons
+- [Windows build](docs/WINDOWS.md): Visual Studio 2022 / MSVC build, test and run steps, optimization flags
 - [Lessons](docs/ai/LESSONS.md): 27 cross-cutting lessons from the experiments, each with its evidence
 - [Research notes](docs/ai/RESEARCH.md): literature review (noisy-target RL, execution, market making) with ranked next experiments
 - [Experiment log](docs/ai/EXPERIMENTS.md): RL experiments E0-E23 with results, including failures (summary table at the top)

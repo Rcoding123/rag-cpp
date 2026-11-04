@@ -26,6 +26,7 @@ DOCS = [
     "docs/ai/API.md",
     "docs/ai/RAG_ENGINE.md",
     "docs/agent.md",
+    "docs/WINDOWS.md",
     "docs/ai/TASK_SPECS.md",
     "docs/ai/LESSONS.md",
     "docs/ai/RESEARCH.md",

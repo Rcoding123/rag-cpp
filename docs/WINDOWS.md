@@ -1,0 +1,110 @@
+# Building and running on Windows
+
+The engine and the agent are header-only C++20 and build natively with
+Visual Studio 2022 (MSVC). The optimized build uses the same AVX2 + FMA
+SIMD kernels as Linux. GitHub CI builds this configuration and runs the
+full test suite on Windows on every push (job `msvc-windows`).
+
+## 1. Install (once)
+
+1. **Visual Studio 2022** (the free Community edition is enough):
+   <https://visualstudio.microsoft.com/vs/community/>. In the installer,
+   tick the **"Desktop development with C++"** workload. It includes the
+   MSVC compiler, CMake and the Windows SDK.
+2. **Git for Windows**: <https://git-scm.com/download/win>.
+
+Nothing else is required: GoogleTest (for the tests) is downloaded
+automatically by CMake the first time you configure.
+
+## 2. Build
+
+Open **"Developer PowerShell for VS 2022"** from the Start menu (it puts
+`cmake` and the compiler on the path), then:
+
+```powershell
+git clone https://github.com/Rcoding123/rag-cpp.git
+cd rag-cpp
+cmake --preset windows-msvc
+cmake --build --preset windows-release --parallel
+```
+
+The first configure takes a minute (it downloads GoogleTest); the build
+takes a few minutes. The programs land in `build\Release\`.
+
+The same commands without presets, if you prefer:
+
+```powershell
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DRAG_ARCH=x86-64-v3
+cmake --build build --config Release --parallel
+```
+
+**Always build `Release`.** A Debug build is unoptimized and checks every
+container access; it is many times slower and is meant for stepping
+through code.
+
+## 3. Test
+
+```powershell
+ctest --preset windows-release
+```
+
+Every GoogleTest case runs as its own test, plus a concurrency stress test.
+All should pass.
+
+## 4. Run
+
+```powershell
+.\build\Release\rag_demo.exe          # RAG engine: index documents, retrieve, build a prompt
+.\build\Release\agent_demo.exe        # the self-learning agent: trains, deploys, adapts to a regime change
+.\build\Release\rag_latency.exe 20000 # query latency percentiles (p50 / p99 / p99.9) per search mode
+```
+
+To use the library in your own program, add `include\` to the include path
+and `#include "rag.hpp"` (engine) or the headers under `rag\agent\`
+(agent); see `docs/ai/API.md` for every API with examples. From CMake:
+`add_subdirectory(rag-cpp)` and `target_link_libraries(your_app PRIVATE rag)`,
+which also sets the optimization flags below.
+
+## 5. In the Visual Studio IDE
+
+**File → Open → Folder…**, pick the `rag-cpp` folder. Visual Studio reads
+`CMakePresets.json`: choose the configure preset **"Windows x64, Visual
+Studio 2022, AVX2 + FMA"** and the build configuration **Release** in the
+toolbar, then **Build → Build All**. Run the tests with `ctest --preset windows-release`
+from the Developer PowerShell.
+
+## Optimization: what the Windows build does
+
+| Setting | Why |
+|---|---|
+| `/O2` (CMake's Release) | full optimization |
+| `/arch:AVX2` (presets `windows-msvc`, `RAG_ARCH=x86-64-v3` or `native`) | enables the AVX2 + FMA dot-product and int8 kernels; MSVC defines no `__FMA__`, so the code detects MSVC's AVX2 mode itself (`RAG_AVX2_FMA` in `common.hpp`) |
+| `RAG_ARCH=x86-64-v4` → `/arch:AVX512` | the AVX-512 kernels, for CPUs that have AVX-512 (untested on Windows; AVX-512 is tested on Linux) |
+| `__forceinline`, `__restrict`, `_mm_prefetch` | the same inlining, aliasing and prefetch hints GCC/Clang get |
+| `_aligned_malloc` | cache-line (and 2 MiB for large arrays) alignment, as on Linux |
+| `/fp:precise` (MSVC default) | results reproduce exactly for a given compiler; `/fp:fast` is not used |
+
+Differences from Linux:
+
+* **No AVX2?** Use the preset `windows-msvc-scalar` (or `-DRAG_ARCH=x86-64`):
+  a build that runs on any x64 CPU, with scalar kernels. A CPU from 2013
+  or later almost certainly has AVX2.
+* **Transparent huge pages** are Linux-only, so very large scans can be a
+  little slower on Windows (on Linux they gave 10–25%).
+* **Durable saves:** index and policy-table files are flushed to disk with
+  `_commit` (`FlushFileBuffers`) and renamed into place atomically. Windows
+  has no directory flush, so durability of the rename is up to NTFS's
+  journal.
+* **Not available with MSVC:** ThreadSanitizer (`RAG_TSAN`), UBSan, and the
+  libFuzzer targets; those run on Linux in CI. `-DRAG_SANITIZE=ON` gives
+  MSVC's AddressSanitizer (untested in CI).
+* **Optional extras** (PDF input via poppler, Google Benchmark, NLopt +
+  Eigen tuning) are skipped automatically when not installed. They are
+  tested on Linux only; with vcpkg they may be found, but that isn't
+  tested.
+
+## Alternative: WSL
+
+Under Windows Subsystem for Linux (`wsl --install`, then Ubuntu 24.04) the
+Linux instructions in the README apply unchanged, including the optional
+libraries and sanitizers.

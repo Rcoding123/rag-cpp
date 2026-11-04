@@ -36,13 +36,15 @@ CMake options:
 | CMake | 3.28.3 |
 | Python (tools only) | 3.13 |
 | OS | Ubuntu 24.04.5 LTS, Linux 6.18 |
-| CI runners | GitHub Actions `ubuntu-24.04` |
+| CI runners | GitHub Actions `ubuntu-24.04`; `windows-2022` for MSVC |
+| MSVC (Windows) | Visual Studio 2022 (17.x), `/O2 /arch:AVX2`, via `CMakePresets.json` (see `docs/WINDOWS.md`) |
 
 ## Libraries
 
-The engine and the agent use only the C++ standard library, POSIX
-(`mmap`/`madvise`, `fsync`, `open`/`rename`) and compiler intrinsics
-(`<immintrin.h>`). Everything else is optional and used for testing,
+The engine and the agent use only the C++ standard library, compiler
+intrinsics (`<immintrin.h>`) and a few OS calls behind `#if`: on Linux
+`madvise` (huge pages) and `fsync`; on Windows `_aligned_malloc` and
+`_commit`. Everything else is optional and used for testing,
 benchmarking or PDF input.
 
 | Library | Version measured | Ubuntu package | Used by | Required? |
@@ -130,7 +132,8 @@ unless they reproduce.
 | gcc-asan-ubsan | GCC | Debug, ASan + UBSan | memory and UB errors |
 | clang-asan-ubsan | Clang | Debug, ASan + UBSan | catches UB GCC's UBSan misses (R12) |
 | gcc-tsan | GCC | RelWithDebInfo, TSan | data races (skips single-threaded learning suites) |
-| fuzz-smoke | Clang | libFuzzer | the loader and text pipeline under fuzzing |
+| fuzz-smoke | Clang | libFuzzer | the loaders and text pipeline under fuzzing |
+| msvc-windows | MSVC (VS 2022) | Release, `/arch:AVX2` | Windows build, full test suite, demos, latency probe |
 
 `ctest` registers every GoogleTest case plus `stress_all_modes` (the
 concurrent stress run) and `rag_pdf_cli_smoke`. STATUS.md has the current
