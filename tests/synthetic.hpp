@@ -34,14 +34,14 @@ void fill_clustered(VectorStore<D>& store, std::uint32_t n, std::uint32_t cluste
 }
 
 template <std::size_t D>
-std::vector<float> random_queries(std::uint32_t n, std::uint64_t seed, const VectorStore<D>& near, float noise) {
+std::vector<float> random_queries(std::uint32_t n, std::uint64_t seed, const VectorStore<D>& base, float noise) {
   // Perturbed copies of stored rows: queries land near real data, as in practice.
   std::mt19937_64 rng(seed);
   std::normal_distribution<float> g(0.f, 1.f);
   std::vector<float> q(std::size_t{n} * D);
   const float sigma = noise / std::sqrt(static_cast<float>(D));
   for (std::uint32_t i = 0; i < n; ++i) {
-    const float* r = near.row(static_cast<std::uint32_t>(rng() % near.size()));
+    const float* r = base.row(static_cast<std::uint32_t>(rng() % base.size()));
     float* dst = q.data() + std::size_t{i} * D;
     for (std::size_t d = 0; d < D; ++d) dst[d] = r[d] + sigma * g(rng);
     simd::normalize(dst, D);
