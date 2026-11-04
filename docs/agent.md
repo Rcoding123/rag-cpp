@@ -211,6 +211,17 @@ the step-size schedule, because relearning needs plasticity. Greedy decisions
 number generator. A test shows that interleaving evaluations leaves training
 bit-identical.
 
+*Lesson measured (E8): exploration is expensive when the episodes are
+real.* Counting every training episode as real trading, starting ε at 1
+loses more than a thousand episodes' worth of the optimal gain before it
+pays off (break-even after ~12,000 episodes). Starting at 0.1 breaks even
+after ~2,000 and learns just as well. Little exploration is needed here
+because Q-values start at 0, which is optimistic for the bad actions
+(never selling ends in a dump costing up to 500), so the greedy choice
+tries them by itself. The default stays at 1 for tasks where rewards are
+sparse and nothing is optimistic. The model-based agent earns 88–95% of
+the optimal gain *while* learning.
+
 ## 7. Supervision: the part most tutorials skip
 
 ### Held-out evaluation and the champion

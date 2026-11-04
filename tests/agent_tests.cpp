@@ -864,3 +864,54 @@ TEST(AgentWarmStart, DistilledModelPlusGuardIsBestOfBoth) {
     EXPECT_GT(worst, plan_share - 0.1) << "gamma " << gamma;  // never much below the plan while learning
   }
 }
+
+// ================= Experiment E8 (online regret: learning costs) =============
+TEST(AgentOnline, LowExplorationCostsLessOnlineAndLearnsAsWell) {
+  // Every training episode counted as real. Measured (seeds 1-3), cumulative
+  // gain over TWAP after 10,000 episodes, in units of the optimal gain per
+  // episode: eps 1 -> 0.02: -585 to -1027 (it is still paying for its random
+  // start); eps 0.1 -> 0.02: +2497 to +2971. Zero-initialized Q-values are
+  // optimistic about the bad actions (never selling ends in a dump costing
+  // up to 500), so greedy selection explores them without help.
+  ExecutionParams p;
+  ExecutionEnv env(p);
+  const auto& dp = default_dp();
+  const double v_twap = dp.policy_value(twap);
+  const double gain = dp.expected_start_value() - v_twap;
+  auto online = [&](double eps_start, double& share) {
+    AgentConfig<3> cfg = execution_config();
+    cfg.eps_start = eps_start;
+    Agent<ExecutionEnv> agent(env, cfg);
+    Trainer<ExecutionEnv> tr(agent, env, {.eval_every = 0, .detect_drift = false});
+    const auto rep = tr.run(10000);
+    double cum = 0;
+    for (double r : rep.returns) cum += r - v_twap;
+    share = captured(env, dp, [&](const ExecutionObs& o) { return agent.act(o, false); });
+    return cum / gain;
+  };
+  double share_hi = 0, share_lo = 0;
+  const double cum_hi = online(1.0, share_hi), cum_lo = online(0.1, share_lo);
+  EXPECT_LT(cum_hi, 0.0) << "eps 1 should still be under water at 10k episodes";
+  EXPECT_GT(cum_lo, 1500.0);
+  EXPECT_GT(share_lo, share_hi - 0.1) << share_lo << " vs " << share_hi;
+  // A model-based agent earns most of the optimal gain while it learns: measured 745-913 of 1000.
+  ModelBasedExecutionAgent mb(p, {.cost_model = CostModel::Shrunk, .seed = 1});
+  ExecutionEnv e(p);
+  Rng rng(1);
+  double cum_mb = 0;
+  for (int i = 0; i < 1000; ++i) {
+    auto o = e.reset(rng);
+    for (;;) {
+      const Action a = mb.act(o, true);
+      mb.note_action(o, a);
+      const auto st = e.step(a, rng);
+      mb.observe(o, a, st.reward, st.obs, st.done);
+      cum_mb += st.reward;
+      o = st.obs;
+      if (st.done) break;
+    }
+    mb.end_episode();
+    cum_mb -= v_twap;
+  }
+  EXPECT_GT(cum_mb / gain, 600.0);
+}

@@ -23,6 +23,7 @@ and the conclusion; negative results stay in.
 | E6 | Robustness across markets? | Model-based 100% everywhere; TileQ can deploy policies *worse than TWAP* in weak markets. |
 | E6b | Can deployment be made safe? | A baseline guard: never deploy a policy that hasn't beaten TWAP by 2 standard errors. Worst case −106% → 0%. |
 | E7 | What if the market is outside the model class? | Model-based drops to 22–55% (model-free: 70–91%) and gets *worse* with data. A paired model check flags it after 100 episodes (z > 8 vs < 2.5). Fixes: expand the model (100%), or distill + fine-tune + guard (never below the plan, 78–82%). |
+| E8 | What does learning cost online, with every episode real? | ε from 1 loses >1,000 optimal-episodes and breaks even at ~12k; ε 0.1 breaks even at ~2k and learns as well. Model-based earns 88–95% of the optimum while learning. |
 
 ---
 
@@ -522,3 +523,60 @@ baseline. Deployed share, seeds 1–3 (probe `e7_hybrid.cpp`):
 * **The production recipe:** learn a model; check it (`check_model`); if the
   check passes, deploy its plan; if it fails, either expand the model class
   (E7b) or fine-tune a distilled copy under the guard (E7d).
+
+## E8. Online regret: what learning costs while it happens
+
+* **Question:** every experiment so far scored the *deployed* policy, as if
+  training were free (a simulator). If every training episode is real, what
+  does learning cost compared with just running TWAP?
+* **Metric:** cumulative gain over TWAP across all training episodes,
+  exploration included, divided by the optimal gain per episode (exact:
+  `ExecutionDP::expected_start_value()` − `policy_value(twap)`). The
+  optimum would score +N after N episodes. *Break-even* is the episode
+  after which the cumulative gain stays positive.
+* **Test:** `AgentOnline.LowExplorationCostsLessOnlineAndLearnsAsWell`.
+* **Results** (default market, 20,000 real episodes, seeds 1–3; probe
+  `e8_regret.cpp`):
+
+| Learner | after 1,000 | 5,000 | 10,000 | 20,000 | Break-even | Final greedy share |
+|---|---|---|---|---|---|---|
+| TileQ, ε 1 → 0.02 over 10k (as in E0–E7) | −283 to −474 | −1124 to −1504 | −585 to −1027 | +4002 to +4393 | 11.6k–12.8k | 58–61% |
+| TileQ, ε 0.3 → 0.02 | −243 to −320 | −73 to +571 | +1353 to +2123 | +6659 to +7379 | 3.1k–5.7k | 56–62% |
+| TileQ, ε 0.1 → 0.02 | −190 to +14 | +865 to +1078 | +2497 to +2971 | +7395 to +7652 | 1.5k–2.1k | 60–61% |
+| TileQ, ε 0.02 constant | −6 to +14 | +1048 to +1561 | +3085 to +4192 | +7765 to +9918 | 1.0k–1.4k | 56–65% |
+| TileQ, greedy (ε 0) | −48 to +52 | +811 to +1954 | +2480 to +4933 | +6968 to +11938 | 0.5k–1.3k | 52–73% |
+| ActorCritic | −336 to −408 | −2514 to −4506 | −2629 to +119 | +3769 to +6585 | 9.8k–14.4k | 79–82% |
+| Model-based (Shrunk) | +765 to +913 | +4292 to +4826 | +8517 to +9296 | **+17699 to +18902** | 1–42 | 100% |
+
+With permanent impact γ = 0.01 the picture is the same; the model-based
+agent *without* the permanent term earns +2326 to +3025 (12–15% of the
+optimum online, 19% final), and TileQ with ε 0.1 earns +9551 to +9866.
+
+Final quality at longer horizons (deployed share, seeds 1–3; probe
+`e8_long.cpp`):
+
+| Exploration | 10k | 40k | 100k |
+|---|---|---|---|
+| ε 1 → 0.02 | 32–43% | 65–70% | 72–80% |
+| ε 0.1 → 0.02 | 44–52% | 65–70% | 75–77% |
+| greedy | 44–67% | 55–81% | 61–85% |
+
+* **Starting ε at 1 is a simulator habit.** Online it costs over a thousand
+  optimal-episodes of losses and doesn't break even until ~12,000
+  episodes. Starting at 0.1 breaks even 6–8× sooner, earns ~1.8× more over
+  20,000 episodes, and learns as well at every horizon.
+* **Why so little exploration suffices here:** Q-values start at 0, which
+  is optimistic for the bad actions (selling nothing ends in a dump that
+  costs up to 500), so greedy selection tries them and learns they're bad.
+  Reward noise does the rest.
+* **Greedy is a gamble:** cheapest online on average, but its final quality
+  depends on luck (61% vs 85% across seeds). ε 0.1 keeps the cost low and
+  the outcome predictable.
+* **Actor-critic is the costliest online learner** (break-even at
+  10k–14k), even though it ends with the best model-free policy. Its
+  initial softmax is uniform, i.e. random selling with large dumps.
+* **The model-based agent earns 88–95% of the optimal gain while
+  learning.** Its 10 random exploration episodes are its only real cost.
+* **The library default stays ε 1 → 0.02** (A24): sparse-reward tasks
+  such as the corridor have no optimistic values to explore with. For
+  online learning on cost-like rewards, start at 0.1.

@@ -28,7 +28,7 @@
     warm-starting a model-free learner from a model's plan.
 * **Testing:**
   * the CI matrix covers SIMD levels, sanitizers and fuzzing;
-  * 194 ctest cases: 183 in `rag_tests`, 9 PDF tests (Poppler), the
+  * 195 ctest cases: 184 in `rag_tests`, 9 PDF tests (Poppler), the
     stress run and a `rag_pdf` CLI smoke test.
   * The TSan CI job skips the single-threaded learning suites (`Agent*`,
     `ModelBased`, `ExecutionCosts`, `Reference`, `ApiExamples`), which ran

@@ -5,10 +5,12 @@
 //   3. what the agent learned (its policy next to the optimal one)
 //   4. two kinds of learner: parametric vs episodic memory
 //   5. the world changes: drift detection, re-exploration, recovery
+//   6. learning a model instead, and checking whether the model is right
 #include <cstdio>
 #include <string>
 
 #include "rag/agent/execution_dp.hpp"
+#include "rag/agent/model_based.hpp"
 #include "rag/agent/trainer.hpp"
 
 using namespace rag::agent;
@@ -124,4 +126,45 @@ int main() {
   }
   std::printf("\nOn an alarm the trainer raises exploration and step size and clears the\n"
               "replay buffer; the champion is re-scored on the new world and replaced.\n");
+
+  rule("6. Learning a model instead");
+  std::printf("A model-based agent assumes the *form* of the market and learns only its\n"
+              "numbers, by regression on what it observes; then it plans with the DP.\n\n");
+  {
+    ModelBasedExecutionAgent mb(p, {.cost_model = CostModel::Shrunk});
+    ExecutionEnv e(p);
+    Rng rng(7);
+    train_model_based(mb, e, 50, rng);
+    mb.replan();
+    const ModelEstimate m = mb.model();
+    std::printf("  after 50 episodes:  impact %.4f (true %.4f)  alpha %.3f (%.3f)  rho %.3f (%.3f)\n", m.impact, p.impact, m.alpha,
+                p.alpha, m.rho, p.signal_rho);
+    const auto g = gain_vs_twap(ExecutionEnv(p), [&](const ExecutionObs& o) { return mb.act(o, false); });
+    std::printf("  its plan: %.1f%% of the optimal gain (the model-free agent needed 40,000 episodes for %.0f%%)\n",
+                100 * g.mean / g_opt.mean, 100 * g_agent.mean / g_opt.mean);
+  }
+  ExecutionParams perm = p;
+  perm.permanent_impact = 0.01;
+  const ExecutionEnv pe(perm);
+  const ExecutionDP pdp(perm);
+  const double opt3 = compare(pe, [&](const ExecutionObs& o) { return pdp.act(o); }, twap, 1000, kHeldOut).mean;
+  std::printf("\nNow a market with permanent impact: each lot sold lowers the price of\n"
+              "everything still held. 300 episodes each:\n\n");
+  for (bool term : {false, true}) {
+    ModelBasedExecutionAgent mb(perm, {.cost_model = CostModel::Shrunk, .learn_permanent_impact = term});
+    ExecutionEnv e(perm);
+    Rng rng(7);
+    train_model_based(mb, e, 300, rng);
+    mb.replan();
+    const ModelCheck check = mb.check_model(pe, 100, kHeldOut + 1'000'000);
+    const double share = 100 * compare(pe, [&](const ExecutionObs& o) { return mb.act(o, false); }, twap, 1000, kHeldOut).mean / opt3;
+    std::printf("  %-34s %5.0f%% of optimal   model check: z = %+5.1f  %s\n",
+                term ? "model with a permanent-impact term" : "model without it", share, check.z,
+                check.z > 4 ? "-> the model is wrong" : "(consistent)");
+  }
+  std::printf("\nThe check compares the gain over TWAP the model predicts for its own plan\n"
+              "with the gain measured on real scenarios, paired. A wrong model is\n"
+              "optimistic: its planner picks the actions its errors flatter. When the\n"
+              "missing term isn't known, distill the plan into a model-free learner and\n"
+              "fine-tune it under a guard (docs/ai/EXPERIMENTS.md, E7).\n");
 }

@@ -63,7 +63,7 @@ rag-cpp/
 ├── examples/
 │   ├── demo.cpp                 minimal RAG usage
 │   ├── rag_pdf.cpp              CLI: index PDFs, ask questions with page citations
-│   └── agent_demo.cpp           the self-learning agent end to end
+│   └── agent_demo.cpp           the self-learning agent end to end (model-free, drift, model-based + model check)
 ├── docs/
 │   ├── agent.md                 the agent's architecture, with every measured lesson
 │   └── ai/                      this hand-off pack
