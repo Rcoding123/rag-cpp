@@ -32,10 +32,10 @@
     diagnostics) and exact policy evaluation under a model.
 * **Testing:**
   * the CI matrix covers SIMD levels, sanitizers and fuzzing;
-  * 201 ctest cases: 190 in `rag_tests`, 9 PDF tests (Poppler), the
+  * 202 ctest cases: 191 in `rag_tests`, 9 PDF tests (Poppler), the
     stress run and a `rag_pdf` CLI smoke test.
   * The TSan CI job skips the single-threaded learning suites (`Agent*`,
-    `ModelBased`, `ExecutionCosts`, `Reference`, `ApiExamples`), which ran
+    `ModelBased`, `ExecutionCosts`, `OffPolicy`, `Reference`, `ApiExamples`), which ran
     for over an hour under TSan and have no threads to check.
 
 ## Known limitations

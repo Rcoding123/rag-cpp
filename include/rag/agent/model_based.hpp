@@ -336,7 +336,9 @@ class ModelBasedExecutionAgent {
     const ExecutionDP& m = *plan_;
     auto plan = [&](const ExecutionObs& o) { return m.act(o); };
     auto twap = [](const ExecutionObs&) { return ExecutionEnv::kTwapAction; };
-    c.predicted_gain = m.policy_value(plan) - m.policy_value(twap);
+    // The plan is greedy on the model's own values, so its value under the
+    // model is the DP's optimum (AgentExecutionDP.PolicyValueTablesAreSelfConsistent).
+    c.predicted_gain = m.expected_start_value() - m.policy_value(twap);
     const EvalStats real = compare(market, plan, twap, episodes, seed);
     c.realized_gain = real.mean;
     c.std_error = real.std_error;

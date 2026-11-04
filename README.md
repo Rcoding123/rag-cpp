@@ -170,7 +170,8 @@ execute a trade, with no model of the market, from rewards alone:
   within 44 episodes and relearns. An agent without drift detection stays
   stuck doing the wrong thing. Regimes seen before are recalled from a
   policy bank within 20–131 episodes.
-* **Speed:** decisions take 64 ns.
+* **Speed:** learned decisions take 64 ns; a planned (model-based) decision
+  371 ns; a full re-plan 3.4 ms; a model check (100 paired episodes) 3.6 ms.
 
 | Learner | Share of the optimal gain | Notes |
 |---|---|---|

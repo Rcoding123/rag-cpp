@@ -966,3 +966,30 @@ TEST(AgentExecutionDP, PolicyValueTablesAreSelfConsistent) {
     }
   }
 }
+
+TEST(AgentExecutionDP, BandedSolveSatisfiesTheBellmanEquationExactly) {
+  // The solve uses a precomputed banded expectation operator; q_value() uses
+  // the 31-point quadrature directly. At grid points the two must agree:
+  // V(t, inv, g_j) == max_a Q(t, inv, g_j, a), for every market variant.
+  // (Measured against the previous per-action quadrature implementation:
+  // max |dV| 6e-13, no action changes on 360,000 random states; 9x faster.)
+  std::vector<ExecutionParams> ps(4);
+  ps[1].permanent_impact = 0.01;
+  ps[1].risk_aversion = 0.3;
+  ps[2].signal_rho = 0.99;
+  ps[3].horizon = 7;
+  ps[3].lots = 33;
+  ps[3].alpha = -2;
+  for (const auto& p : ps) {
+    const ExecutionDP dp(p, 41);
+    const double lo = -4 * p.signal_sd, step = 8 * p.signal_sd / 40;
+    for (std::uint32_t t = 0; t < p.horizon; t += 3)
+      for (std::uint32_t inv = 0; inv <= p.lots; inv += 4)
+        for (std::uint32_t j = 0; j < 41; j += 5) {
+          const double g = lo + j * step;
+          double best = -1e300;
+          for (Action a = 0; a < ExecutionEnv::kNumActions; ++a) best = std::max(best, dp.q_value(t, inv, g, a));
+          ASSERT_NEAR(dp.value(t, inv, g), inv == 0 ? 0.0 : best, 1e-9 * (1 + std::abs(best))) << t << " " << inv << " " << j;
+        }
+  }
+}

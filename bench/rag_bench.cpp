@@ -254,6 +254,8 @@ static void BM_EndToEndBatch(benchmark::State& st) {
 BENCHMARK(BM_EndToEndBatch)->Name("Pipeline/query_batch8")->DenseRange(0, 1)->Unit(benchmark::kMicrosecond);
 
 // ------------------------------- agent ---------------------------------------
+#include "rag/agent/execution_dp.hpp"
+#include "rag/agent/model_based.hpp"
 #include "rag/agent/trainer.hpp"
 
 namespace {
@@ -311,5 +313,42 @@ static void BM_AgentTrainEpisode(benchmark::State& st) {
   st.SetItemsProcessed(st.iterations());
 }
 BENCHMARK(BM_AgentTrainEpisode)->Name("Agent/train_episode_tileq");
+
+// The planner behind the model-based agent: one full backward-induction solve.
+static void BM_ExecutionDPSolve(benchmark::State& st) {
+  using namespace rag::agent;
+  const ExecutionParams p;
+  for (auto _ : st) {
+    const ExecutionDP dp(p, static_cast<std::uint32_t>(st.range(0)));
+    benchmark::DoNotOptimize(dp.expected_start_value());
+  }
+  st.SetLabel(std::to_string(st.range(0)) + "-point signal grid, 20 steps x 101 inventories x 5 actions");
+}
+BENCHMARK(BM_ExecutionDPSolve)->Name("Agent/dp_solve")->Arg(61)->Arg(121)->Unit(benchmark::kMillisecond);
+
+// A planned decision: 5 Q-values, each a 31-point quadrature over the next signal.
+static void BM_ExecutionDPAct(benchmark::State& st) {
+  using namespace rag::agent;
+  const ExecutionDP dp(ExecutionParams{}, 61);
+  Rng r(1);
+  std::vector<ExecutionObs> obs(256);
+  for (auto& o : obs) o = {r.below(20), r.below(101), 0.1 * r.normal()};
+  std::size_t i = 0;
+  for (auto _ : st) benchmark::DoNotOptimize(dp.act(obs[i++ & 255]));
+}
+BENCHMARK(BM_ExecutionDPAct)->Name("Agent/dp_act");
+
+// The model-based agent's model check: exact policy evaluation of its plan
+// and TWAP, plus 100 paired real episodes.
+static void BM_ModelCheck(benchmark::State& st) {
+  using namespace rag::agent;
+  ExecutionEnv env{ExecutionParams{}};
+  ModelBasedExecutionAgent mb(ExecutionParams{}, {.cost_model = CostModel::Shrunk, .seed = 1});
+  Rng rng(42);
+  train_model_based(mb, env, 50, rng);
+  mb.replan();
+  for (auto _ : st) benchmark::DoNotOptimize(mb.check_model(env, 100, 6'000'000).z);
+}
+BENCHMARK(BM_ModelCheck)->Name("Agent/check_model_100_episodes")->Unit(benchmark::kMillisecond);
 
 BENCHMARK_MAIN();

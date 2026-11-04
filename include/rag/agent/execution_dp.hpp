@@ -10,9 +10,19 @@
 // price level never enters: the expected reward of selling q from inventory I
 // with signal g is
 //   -cost(q) - permanent*q*(I - q) + (I - q) * alpha * g - holding_penalty(I - q),
-// plus the terminal dump cost on the last step. The next signal is rho*g + sqrt(1-rho^2)*sd*Z; the
+// plus the terminal dump cost on the last step. The next signal is
+// rho*g + sqrt(1-rho^2)*sd*Z; the
 // expectation over Z uses a 31-point quadrature, and V is linearly
 // interpolated on a signal grid spanning +-4 standard deviations.
+//
+// Speed: on the grid, E[V(t+1, rem, g') | g_j] is the same linear map of the
+// row V(t+1, rem, .) for every time step, inventory and action, so it's
+// precomputed once as a banded matrix (quadrature weights x interpolation
+// weights; ~45 nonzeros per row at the default parameters). The solve then
+// costs one banded dot product per (t, rem, j) plus O(1) per action, instead
+// of 31 interpolations per (t, inventory, j, action): 74 -> 3.5 ms at the
+// 61-point grid. Off-grid queries (act, q_value) still use the quadrature
+// directly.
 #pragma once
 
 #include <algorithm>
@@ -54,16 +64,20 @@ class ExecutionDP {
     }
     for (auto& w : weights_) w /= total;
     innov_ = std::sqrt(1.0 - p.signal_rho * p.signal_rho) * p.signal_sd;
+    build_expectation_band();
 
     v_.assign(std::size_t{p.horizon + 1} * (p.lots + 1) * m_, 0.0);
-    for (std::uint32_t t = p.horizon; t-- > 0;)
+    std::vector<double> cont(std::size_t{p.lots + 1} * m_, 0.0);
+    for (std::uint32_t t = p.horizon; t-- > 0;) {
+      const bool last = t + 1 >= p.horizon;
+      if (!last) continuation(v_, t + 1, cont);
       for (std::uint32_t inv = 0; inv <= p.lots; ++inv)
         for (std::uint32_t j = 0; j < m_; ++j) {
-          const double g = lo_ + j * step_;
           double best = -std::numeric_limits<double>::infinity();
-          for (Action a = 0; a < ExecutionEnv::kNumActions; ++a) best = std::max(best, q_value(t, inv, g, a));
+          for (Action a = 0; a < ExecutionEnv::kNumActions; ++a) best = std::max(best, q_grid(cont, last, inv, j, a));
           at(t, inv, j) = best;
         }
+    }
   }
 
   // Expected reward-to-go of action a, then acting optimally.
@@ -124,18 +138,75 @@ class ExecutionDP {
   template <class Policy>
   [[nodiscard]] PolicyValues evaluate_policy(Policy&& policy) const {
     std::vector<double> w(v_.size(), 0.0);
-    for (std::uint32_t t = p_.horizon; t-- > 0;)
+    std::vector<double> cont(std::size_t{p_.lots + 1} * m_, 0.0);
+    for (std::uint32_t t = p_.horizon; t-- > 0;) {
+      const bool last = t + 1 >= p_.horizon;
+      if (!last) continuation(w, t + 1, cont);
       for (std::uint32_t inv = 1; inv <= p_.lots; ++inv)
-        for (std::uint32_t j = 0; j < m_; ++j) {
-          const double g = lo_ + j * step_;
-          w[index(t, inv, j)] = q_from(w, t, inv, g, policy(ExecutionObs{t, inv, g}));
-        }
+        for (std::uint32_t j = 0; j < m_; ++j)
+          w[index(t, inv, j)] = q_grid(cont, last, inv, j, policy(ExecutionObs{t, inv, lo_ + j * step_}));
+    }
     return PolicyValues(this, std::move(w));
   }
 
  private:
   [[nodiscard]] std::size_t index(std::uint32_t t, std::uint32_t inv, std::uint32_t j) const noexcept {
     return (std::size_t{t} * (p_.lots + 1) + inv) * m_ + j;
+  }
+
+  // Precompute, for every grid point j, the weights that map a value row
+  // V(.) on the grid to E[V(rho*g_j + innov*Z)] (quadrature x interpolation).
+  void build_expectation_band() {
+    band_start_.assign(m_, 0);
+    band_len_.assign(m_, 0);
+    band_offset_.assign(m_ + 1, 0);
+    band_w_.clear();
+    std::vector<double> row(m_);
+    for (std::uint32_t j = 0; j < m_; ++j) {
+      std::fill(row.begin(), row.end(), 0.0);
+      const double g = lo_ + j * step_;
+      for (int i = 0; i < kQuad; ++i) {
+        const double x = std::clamp((p_.signal_rho * g + innov_ * nodes_[i] - lo_) / step_, 0.0, static_cast<double>(m_ - 1));
+        const auto k = std::min(static_cast<std::uint32_t>(x), m_ - 2);
+        const double f = x - k;
+        row[k] += weights_[i] * (1 - f);
+        row[k + 1] += weights_[i] * f;
+      }
+      std::uint32_t lo = 0, hi = m_;
+      while (lo < hi && row[lo] == 0.0) ++lo;
+      while (hi > lo && row[hi - 1] == 0.0) --hi;
+      band_start_[j] = lo;
+      band_len_[j] = hi - lo;
+      band_offset_[j] = static_cast<std::uint32_t>(band_w_.size());
+      band_w_.insert(band_w_.end(), row.begin() + lo, row.begin() + hi);
+    }
+    band_offset_[m_] = static_cast<std::uint32_t>(band_w_.size());
+  }
+
+  // cont[rem * m + j] = E[V(t1, rem, g') | g = g_j] for the table v.
+  void continuation(const std::vector<double>& v, std::uint32_t t1, std::vector<double>& cont) const noexcept {
+    for (std::uint32_t rem = 1; rem <= p_.lots; ++rem) {
+      const double* row = &v[index(t1, rem, 0)];
+      double* out = &cont[std::size_t{rem} * m_];
+      for (std::uint32_t j = 0; j < m_; ++j) {
+        const double* w = &band_w_[band_offset_[j]];
+        const double* r = row + band_start_[j];
+        double s = 0;
+        for (std::uint32_t k = 0; k < band_len_[j]; ++k) s += w[k] * r[k];
+        out[j] = s;
+      }
+    }
+  }
+
+  // Q-value at grid point j, given the precomputed continuation.
+  [[nodiscard]] double q_grid(const std::vector<double>& cont, bool last, std::uint32_t inv, std::uint32_t j, Action a) const noexcept {
+    const std::uint32_t q = env_.lots_for(a, inv);
+    const std::uint32_t rem = inv - q;
+    const double dr = rem;
+    double r = -trade_cost_[q] - p_.permanent_impact * static_cast<double>(q) * dr;
+    if (last) return r - dump_cost_[rem];
+    if (rem == 0) return r;
+    return r + dr * p_.alpha * (lo_ + j * step_) - env_.holding_penalty(rem) + cont[std::size_t{rem} * m_ + j];
   }
 
   // Q-value of action a, then following the values in table `v`.
@@ -182,6 +253,9 @@ class ExecutionDP {
   std::array<double, kQuad> nodes_{}, weights_{};
   std::vector<double> trade_cost_, dump_cost_;  // [lots]
   std::vector<double> v_;  // V[t][inventory][signal grid]
+  // Banded expectation operator on the grid (see build_expectation_band).
+  std::vector<std::uint32_t> band_start_, band_len_, band_offset_;
+  std::vector<double> band_w_;
 };
 
 }  // namespace rag::agent

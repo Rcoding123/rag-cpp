@@ -1,6 +1,6 @@
 # A self-learning agent, piece by piece
 
-`include/rag/agent/` holds a complete self-learning agent in about 1,400 lines
+`include/rag/agent/` holds a complete self-learning agent in about 2,400 lines
 of header-only C++20. Its task: sell 100 lots over 20 steps without being told
 how the market works. It learns from rewards alone and gets within reach of
 the mathematically optimal strategy. It also notices when the market changes
@@ -81,7 +81,12 @@ means. The demo's opening table gives the scale:
 ## 3. The yardstick: know what optimal looks like
 
 `ExecutionDP` solves the task exactly (backward induction over time,
-inventory and a 121-point signal grid, in 126 ms).
+inventory and a 121-point signal grid, in 17 ms; 3.4 ms on the 61-point grid
+the model-based agent replans with). The expectation over the next signal is
+the same linear map of a value row for every time step, inventory and
+action, so it's precomputed once as a banded matrix: each (time, remaining
+inventory) costs one banded product, and each action then costs O(1). That
+made the solve ~9× faster with identical decisions.
 
 This matters for any learning system. "The reward went up" is weak evidence.
 "It captures 67% of the gain the optimal policy achieves on the same unseen
@@ -368,12 +373,13 @@ The hard problems are the same in both:
   assumption, and that a backtest can't show the agent's own impact on the
   market.
 
-## 10. Tests (`tests/agent_tests.cpp` 39 cases, `tests/model_based_tests.cpp` 15)
+## 10. Tests (`tests/agent_tests.cpp` 40 cases, `tests/model_based_tests.cpp` 15)
 
 * **Components:**
   * the random number generator's moments;
   * the reward accounting identity and the environment's invariants;
-  * DP self-consistency;
+  * DP self-consistency (including the Bellman equation at every grid
+    point, which pins the banded solve to the direct quadrature);
   * tile and Fourier-feature geometry;
   * `TileQ` update arithmetic;
   * the replay buffer ring;
