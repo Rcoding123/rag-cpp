@@ -120,7 +120,10 @@ building learning systems in general, not just this task.
     differential test suite: among them a heap overflow reachable through
     a config value and through a forged index file, a bit-exactness
     violation in IVF, and an RL schedule off by one doubling (A40, A41,
-    R13–R17). One bug was found independently by two of them.
+    R13–R17). One bug was found independently by two of them. A fourth,
+    on a header whose author had tested it, found three more within hours
+    (an overflowing table size, an endless loop, subnormal bin widths;
+    A46), and its fuzzer re-found one of them unaided.
 28. **Rank learners under one protocol, with intervals.** Numbers gathered
     by different probes (seeds, evaluation sets, deployed vs final policy)
     don't compare. One protocol (8 seeds, deployed champion, the same

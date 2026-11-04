@@ -76,6 +76,10 @@ experiments/e19_al.cpp
 experiments/e20_nq.cpp
 experiments/e21_agg.py
 experiments/e21_board.cpp
+experiments/e22_dp_ceiling.cpp
+experiments/e22_table.cpp
+experiments/e23_fresh.cpp
+experiments/e23_vote.cpp
 experiments/e7_cost.cpp
 experiments/e7_hybrid.cpp
 experiments/e7_probe.cpp
@@ -123,6 +127,7 @@ include/rag/agent/market_making.hpp
 include/rag/agent/mlp.hpp
 include/rag/agent/model_based.hpp
 include/rag/agent/ope.hpp
+include/rag/agent/policy_table.hpp
 include/rag/agent/rng.hpp
 include/rag/agent/trainer.hpp
 include/rag/agent/tuning.hpp
@@ -153,6 +158,7 @@ tests/api_examples_tests.cpp
 tests/forgery_tests.cpp
 tests/fuzz/fuzz_common.hpp
 tests/fuzz/fuzz_load.cpp
+tests/fuzz/fuzz_policy_table.cpp
 tests/fuzz/fuzz_text.cpp
 tests/fuzz/make_seeds.cpp
 tests/market_making_tests.cpp
@@ -161,6 +167,7 @@ tests/model_based_tests.cpp
 tests/optional_libs_tests.cpp
 tests/pdf_tests.cpp
 tests/pdf_writer.hpp
+tests/policy_table_tests.cpp
 tests/rag_property_tests.cpp
 tests/rag_tests.cpp
 tests/reference_tests.cpp
@@ -203,58 +210,61 @@ tools/make_context_pack.py
 28. include/rag/agent/mlp.hpp
 29. include/rag/agent/model_based.hpp
 30. include/rag/agent/ope.hpp
-31. include/rag/agent/rng.hpp
-32. include/rag/agent/trainer.hpp
-33. include/rag/agent/tuning.hpp
-34. include/rag/agent/variance_reduction.hpp
-35. include/rag/arena.hpp
-36. include/rag/bm25.hpp
-37. include/rag/chunker.hpp
-38. include/rag/common.hpp
-39. include/rag/embedder.hpp
-40. include/rag/engine.hpp
-41. include/rag/epoch.hpp
-42. include/rag/fusion.hpp
-43. include/rag/io.hpp
-44. include/rag/ivf_index.hpp
-45. include/rag/pdf.hpp
-46. include/rag/prompt.hpp
-47. include/rag/simd.hpp
-48. include/rag/text_clean.hpp
-49. include/rag/tokenizer.hpp
-50. include/rag/topk.hpp
-51. include/rag/vector_store.hpp
-52. include/rag.hpp
-53. examples/agent_demo.cpp
-54. examples/demo.cpp
-55. examples/rag_pdf.cpp
-56. examples/tune_agent.cpp
-57. bench/latency.cpp
-58. bench/rag_bench.cpp
-59. bench/fixtures.hpp
-60. tests/agent_coverage_tests.cpp
-61. tests/agent_edge_case_tests.cpp
-62. tests/agent_tests.cpp
-63. tests/api_examples_tests.cpp
-64. tests/forgery_tests.cpp
-65. tests/market_making_tests.cpp
-66. tests/mlp_tests.cpp
-67. tests/model_based_tests.cpp
-68. tests/optional_libs_tests.cpp
-69. tests/pdf_tests.cpp
-70. tests/rag_property_tests.cpp
-71. tests/rag_tests.cpp
-72. tests/reference_tests.cpp
-73. tests/stress.cpp
-74. tests/text_clean_tests.cpp
-75. tests/pdf_writer.hpp
-76. tests/synthetic.hpp
-77. tests/test_util.hpp
-78. tests/fuzz/fuzz_common.hpp
-79. tests/fuzz/fuzz_load.cpp
-80. tests/fuzz/fuzz_text.cpp
-81. tests/fuzz/make_seeds.cpp
-82. tools/make_context_pack.py
+31. include/rag/agent/policy_table.hpp
+32. include/rag/agent/rng.hpp
+33. include/rag/agent/trainer.hpp
+34. include/rag/agent/tuning.hpp
+35. include/rag/agent/variance_reduction.hpp
+36. include/rag/arena.hpp
+37. include/rag/bm25.hpp
+38. include/rag/chunker.hpp
+39. include/rag/common.hpp
+40. include/rag/embedder.hpp
+41. include/rag/engine.hpp
+42. include/rag/epoch.hpp
+43. include/rag/fusion.hpp
+44. include/rag/io.hpp
+45. include/rag/ivf_index.hpp
+46. include/rag/pdf.hpp
+47. include/rag/prompt.hpp
+48. include/rag/simd.hpp
+49. include/rag/text_clean.hpp
+50. include/rag/tokenizer.hpp
+51. include/rag/topk.hpp
+52. include/rag/vector_store.hpp
+53. include/rag.hpp
+54. examples/agent_demo.cpp
+55. examples/demo.cpp
+56. examples/rag_pdf.cpp
+57. examples/tune_agent.cpp
+58. bench/latency.cpp
+59. bench/rag_bench.cpp
+60. bench/fixtures.hpp
+61. tests/agent_coverage_tests.cpp
+62. tests/agent_edge_case_tests.cpp
+63. tests/agent_tests.cpp
+64. tests/api_examples_tests.cpp
+65. tests/forgery_tests.cpp
+66. tests/market_making_tests.cpp
+67. tests/mlp_tests.cpp
+68. tests/model_based_tests.cpp
+69. tests/optional_libs_tests.cpp
+70. tests/pdf_tests.cpp
+71. tests/policy_table_tests.cpp
+72. tests/rag_property_tests.cpp
+73. tests/rag_tests.cpp
+74. tests/reference_tests.cpp
+75. tests/stress.cpp
+76. tests/text_clean_tests.cpp
+77. tests/pdf_writer.hpp
+78. tests/synthetic.hpp
+79. tests/test_util.hpp
+80. tests/fuzz/fuzz_common.hpp
+81. tests/fuzz/fuzz_load.cpp
+82. tests/fuzz/fuzz_policy_table.cpp
+83. tests/fuzz/fuzz_text.cpp
+84. tests/fuzz/make_seeds.cpp
+85. tools/make_context_pack.py
 
 
 ---
@@ -277,7 +287,7 @@ tools/make_context_pack.py
 - [Agent architecture](docs/agent.md): environment, encoders, learners, supervision, lessons
 - [Lessons](docs/ai/LESSONS.md): 27 cross-cutting lessons from the experiments, each with its evidence
 - [Research notes](docs/ai/RESEARCH.md): literature review (noisy-target RL, execution, market making) with ranked next experiments
-- [Experiment log](docs/ai/EXPERIMENTS.md): RL experiments E0-E21 with results, including failures (summary table at the top)
+- [Experiment log](docs/ai/EXPERIMENTS.md): RL experiments E0-E23 with results, including failures (summary table at the top)
 - [Decision log](docs/ai/DECISIONS.md): design decisions with evidence
 - [Conventions](docs/ai/CONVENTIONS.md): coding, testing and verification rules
 - [Status](docs/ai/STATUS.md): limitations and next steps
@@ -446,7 +456,7 @@ documents alone.
 
 ---
 
-## FILE: docs/ai/PROJECT_MAP.md  (9,423 bytes)
+## FILE: docs/ai/PROJECT_MAP.md  (9,630 bytes)
 
 # Project map
 
@@ -492,6 +502,7 @@ rag-cpp/
 │           ├── features.hpp     TileCoder, RandomFourierEncoder
 │           ├── learners.hpp     TileQ, ReplayBuffer, EpisodicMemory
 │           ├── mlp.hpp          from-scratch MLP: backprop, Adam, SGD (for NeuralQ)
+│           ├── policy_table.hpp compile a policy into a lookup table; save/load; median-vote ensembles (E22, E23)
 │           ├── agent.hpp        Agent<Env>: TileQ / Episodic / ActorCritic / NeuralQ, n-step, distill, snapshots
 │           ├── evaluate.hpp     evaluate / compare on common random numbers (EvalStats)
 │           ├── drift.hpp        DriftDetector: one-sided CUSUM on surprise (DriftParams)
@@ -514,6 +525,7 @@ rag-cpp/
 │   ├── agent_edge_case_tests.cpp edge cases from the adversarial review (8 bugs)
 │   ├── agent_coverage_tests.cpp hand-computed checks closing coverage gaps (99.7% lines)
 │   ├── optional_libs_tests.cpp  (NLopt + Eigen) tuner, global search, solver cross-check
+│   ├── policy_table_tests.cpp   lookup-table policies: grid, clamping, persistence, voting
 │   ├── rag_property_tests.cpp   engine property tests: TopK, SIMD, tokenizer, chunker, BM25, IVF, persistence (6 bugs)
 │   ├── api_examples_tests.cpp   compiles and runs every snippet in docs/ai/API.md
 │   ├── pdf_tests.cpp            (Poppler) PDF extraction on generated PDFs
@@ -594,7 +606,7 @@ CMake options: `RAG_ARCH` (`-march` value, default `native`), `RAG_SANITIZE`
 
 ---
 
-## FILE: docs/ai/SPECS.md  (7,394 bytes)
+## FILE: docs/ai/SPECS.md  (7,493 bytes)
 
 # Specs: toolchain, machine, libraries, build
 
@@ -677,6 +689,7 @@ other framework is used. What each piece corresponds to:
 | Tile coding, random Fourier features | `features.hpp` | Sutton's tile coder; scikit-learn `RBFSampler` |
 | Q-learning (n-step, replay, annealed step size), episodic k-NN memory | `learners.hpp`, `agent.hpp` | SB3 DQN (with a linear model instead of a network) |
 | Neural Q-learner: MLP, backprop, Adam, target network (`NeuralQ`) | `mlp.hpp`, `agent.hpp` | SB3 DQN / PyTorch |
+| Policy compilation to a lookup table, ensembles by vote | `policy_table.hpp` | (none standard) |
 | Actor-critic (softmax policy, TD critic) | `agent.hpp` | SB3 A2C |
 | Model-based agent (regression + DP planning) | `model_based.hpp` | none standard |
 | Exact optima by dynamic programming | `execution_dp.hpp`, `market_making.hpp` | none (task-specific) |
@@ -750,7 +763,7 @@ count.
 
 ---
 
-## FILE: docs/ai/API.md  (15,276 bytes)
+## FILE: docs/ai/API.md  (16,240 bytes)
 
 # API cheat sheet
 
@@ -1054,6 +1067,22 @@ const Eigen::VectorXd b = analysis::least_squares(X, y, weights); // rank-reveal
 TileQ on ExecutionEnv. `InnovationControlledEnv` (`variance_reduction.hpp`)
 wraps ExecutionEnv with a control variate for the price noise (E17).
 
+## 13. Compile a policy into a lookup table
+
+```cpp
+#include "rag/agent/policy_table.hpp"
+// Any execution policy: here the trainer's deployed champion (e.g. a NeuralQ network).
+const ExecutionPolicyTable table(env.params(), [&](const ExecutionObs& o) { return trainer.deployed_act(o); },
+                                 {.signal_bins = 64, .signal_range_sd = 4.0});
+const Action fast = table.act(ExecutionObs{.t = 3, .inventory = 80, .signal = 0.05});  // a lookup, no allocation
+table.save("policy.tbl");                                    // rag::io format: checksummed, crash-safe
+const auto loaded = ExecutionPolicyTable::load("policy.tbl"); // throws io::FormatError on a bad file
+const auto voted = ExecutionPolicyTable::median({table, loaded, loaded});  // cell-by-cell vote of same-grid tables
+```
+
+The table holds horizon × (lots + 1) × bins one-byte actions (129 KB at the
+defaults and 64 bins). Signals beyond the range use the edge bins (E22, E23).
+
 A new environment only needs to satisfy the `Environment` concept: an
 `Observation` type, `kNumActions`, `kStateDims`, `kLo`/`kHi`, and
 `reset(rng)`, `step(action, rng)` and `features(obs)`.
@@ -1200,7 +1229,7 @@ nanosecond-scale kernels.
 
 ---
 
-## FILE: docs/agent.md  (25,481 bytes)
+## FILE: docs/agent.md  (25,960 bytes)
 
 # A self-learning agent, piece by piece
 
@@ -1397,6 +1426,13 @@ learn if the world changes.
   With Double DQN targets it is the best model-free learner on the
   E21 leaderboard: 91.5% [90.1, 92.7] at 40,000 episodes over 8 seeds,
   against 81.9% for actor-critic and 66.7% for default TileQ.
+* **Compile the network, then vote (E22, E23).** `ExecutionPolicyTable`
+  (`policy_table.hpp`) samples any execution policy at the centre of
+  every (t, inventory, signal bin) cell: from 32 bins it keeps the
+  network's gain within 0.25 points at 3 ns per decision. Because a table
+  costs the same whatever produced it, networks trained with different
+  seeds can be combined: the cell-wise median of 8 seeds' tables keeps
+  97.5% of the optimum, better than every single seed.
 * **Double Q-learning didn't help.** It removes the upward bias that
   `max()` puts into targets. Here, though, the two were level at 30,000
   episodes (64.8% with it, 64.5% without), and at 60,000 it was clearly worse
@@ -1865,7 +1901,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (7,199 bytes)
+## FILE: docs/ai/LESSONS.md  (8,004 bytes)
 
 # Lessons, distilled
 
@@ -1989,19 +2025,30 @@ building learning systems in general, not just this task.
     differential test suite: among them a heap overflow reachable through
     a config value and through a forged index file, a bit-exactness
     violation in IVF, and an RL schedule off by one doubling (A40, A41,
-    R13–R17). One bug was found independently by two of them.
+    R13–R17). One bug was found independently by two of them. A fourth,
+    on a header whose author had tested it, found three more within hours
+    (an overflowing table size, an endless loop, subnormal bin widths;
+    A46), and its fuzzer re-found one of them unaided.
 28. **Rank learners under one protocol, with intervals.** Numbers gathered
     by different probes (seeds, evaluation sets, deployed vs final policy)
     don't compare. One protocol (8 seeds, deployed champion, the same
     held-out scenarios, bootstrap intervals) separated the top three
     learners cleanly and showed that a configuration tuned for 10k episodes
     has a wide spread at 40k (E21).
+29. **Compile what you learned.** On a small state space, a table sampled
+    from the trained network kept its gain within 0.25 points at 1/1,000 of
+    the decision cost. Check the grid on a policy you know first: the exact
+    optimum, compiled the same way, showed what the grid alone costs (E22).
+30. **Seeds are an ensemble you already paid for.** The median of 8 seeds'
+    tables (97.5%) beat the best seed (94.1%) by more than the best seed
+    beat the average one (91.4%). Report every subset, and confirm on fresh
+    scenarios, so the ensemble isn't selected on the test set (E23).
 
 
 
 ---
 
-## FILE: docs/ai/RESEARCH.md  (18,922 bytes)
+## FILE: docs/ai/RESEARCH.md  (28,000 bytes)
 
 # Research notes: noisy-target RL, execution and market making
 
@@ -2210,18 +2257,145 @@ most†).
 7. **All-action updates and afterstates (§4.2–4.3)** as a semi-model-based
    tier, to locate the boundary between model-free and model-based here.
 
+## 6. Compiling and ensembling learned policies
+
+Setting: `ExecutionPolicyTable` (E22) evaluates a trained policy once at the
+centre of each (t, inventory, signal-bin) cell and stores one action byte;
+E23 will combine tables from networks trained with different seeds by a
+per-cell median action. Both steps have published relatives, though none was
+found for optimal execution specifically.
+
+### 6.1 Distillation, extraction and tabulation
+
+* **[E] Policy distillation [Rus16]** trains a smaller student network on the
+  Q-values or action distribution of a trained DQN teacher, using states the
+  teacher visits; the student matches or exceeds the teacher while being much
+  smaller. It builds on knowledge distillation [Hin15]. Their best-performing
+  variants match the teacher's softened outputs (KL), not only its argmax:
+  the student sees how close the runner-up action was.
+* **[E] DAgger [RGB11]** shows why the sampling distribution matters. A
+  student fitted on the teacher's states has errors that compound once its own
+  mistakes move it to states the teacher never visited; training on states
+  from the student's own rollouts (labelled by the teacher) removes the
+  quadratic-in-horizon penalty of plain behaviour cloning.
+* **[E] VIPER / Q-DAgger [Bas18]** adds the weighting. The loss at a state is
+  the oracle's V(s) − min_a Q(s, a), i.e. how much a wrong action can cost,
+  and the dataset is resampled in proportion to it. This gave decision trees
+  an order of magnitude smaller than plain DAgger at equal reward (Pong:
+  769 vs 7,967 nodes). The weight uses the worst action; an
+  expected-regret weight for a specific wrong action is a small variant [I].
+* **[E] Tabulating a continuous-state policy for deployment** has one
+  prominent precedent in the other direction: ACAS Xu stores a dynamic-programming
+  lookup table that is too large for avionics, and [Jul19] replaces it with
+  networks (about 1000x less storage). Our table is the reverse trade, with a
+  small state space where a table is cheap and the network is the slow part.
+  No paper found studies bin-centre evaluation of a network policy.
+
+**What this implies for a bin-centre table [I].**
+1. A uniform grid spends bytes where the policy is never queried. The signal
+   is AR(1), so its distribution at step t is known in closed form, and
+   bins should be equal-probability (quantile) bins, or the evaluation points
+   should be drawn from that distribution, not a fixed range.
+2. Centre evaluation assigns a whole bin the action at one point. If the
+   decision boundary crosses a bin, a better label is the action with the
+   highest *cell-averaged* Q (or the cell's regret-minimising action), which
+   needs only the network's Q-values at several signals per cell.
+3. Errors are not equal. Neighbouring actions have small Q-gaps near
+   boundaries, so a boundary miss costs little, while a miss at a large gap
+   (e.g. nearly all inventory left late in the horizon) costs a lot. Weighting
+   cells by Q-gap, as in [Bas18], tells where to refine bins. Because the
+   exact DP optimum is available, the table's resolution ceiling can be
+   measured directly by tabulating the DP policy on the same grid.
+
+### 6.2 Ensembles of policies and value functions
+
+* **[E] Voting over independently trained learners.** Wiering and van
+  Hasselt [WvH08] combine five RL algorithms by majority voting, rank voting,
+  Boltzmann multiplication and Boltzmann addition on maze tasks; majority
+  voting and Boltzmann multiplication significantly outperformed the single
+  algorithms. Chourasia and Singla [CS19] recast these as social-choice rules
+  over Q-learners. Both combine different *algorithms*; neither isolates seed
+  diversity of one architecture.
+* **[E] Value-function ensembles** are mostly used inside training:
+  Bootstrapped DQN [Osb16] for exploration, Averaged-DQN [ABS17] to lower
+  target variance, Maxmin Q [Lan20] and REDQ [Chen21] to control
+  overestimation. They average or take minima of Q-values and deploy a
+  learned-in-the-loop ensemble; this is different from combining finished
+  policies after the fact.
+* **When voting helps [I].** A vote reduces variance that is independent
+  across members and does nothing for bias shared by all (here: the
+  function-class limit and the noisy-target bias of §1). The 8-seed spread
+  at 40k episodes is the room available: voting can at best approach what an
+  idealised seed-free learner reaches. Policy churn [Sch22] suggests members
+  disagree mostly near decision boundaries, exactly where Q-gaps are small
+  and the cost of disagreement is low, so expected gains are modest and the
+  ensemble mostly smooths boundaries.
+* **Median of ordinal actions.** I found no RL paper that uses the median of
+  ordered actions. By social-choice reasoning [I] it is the L1 consensus
+  (it minimises Σ|a_i − a|) and, for single-peaked preferences over an
+  ordered set, the Condorcet winner; unlike a plurality vote it never selects
+  an extreme action that few members favour while the rest split on the other
+  side. It also needs no Q-values, so it applies to tables.
+
+### 6.3 Weight averaging as a cheaper alternative
+
+Averaging weights over the training trajectory gives one deployed network.
+Polyak–Ruppert averaging [PJ92] is the classical form; an exponential moving
+average is its constant-step variant [I]. Stochastic weight averaging [Izm18]
+averages iterates under a cyclical or constant learning rate and reports
+better generalisation than ordinary SGD at almost no extra cost. For RL,
+[Nik18] reports more stable A2C/DDPG. Caveats [I]: averaged weights are not
+the weights of any visited network, and averaging is sound only when the
+iterates lie in one basin; that holds within a run but not across seeds
+from different initialisations, so weight averaging does not replace a
+seed ensemble. It addresses checkpoint-to-checkpoint fluctuation, not
+seed-to-seed variance.
+
+### 6.4 Ranked experiments for this codebase
+
+1. **Table quality ceiling and fill rule (E22 follow-up).**
+   *Hypothesis:* much of any table-vs-network gap is bin placement and
+   centre labelling, not the network. *Implement:* (a) tabulate the exact DP
+   policy on the same grid; (b) quantile bins; (c) cell-averaged-Q labels
+   from K signals per cell. *Measure:* score share for bins ∈ {16, 32, 64,
+   128}, versus the network. *Cost:* small; no training, a few ns per lookup.
+2. **Seed-ensemble aggregation (E23).** *Hypothesis:* the cell-wise median
+   of N tables beats the mean seed and approaches the best seed, with
+   diminishing returns beyond N ≈ 5. *Implement:* median, plurality, and
+   mean-Q-then-argmax over the same members. *Measure:* score at N = 1, 3,
+   5, 8 with intervals over resampled subsets of seeds, plus per-cell
+   disagreement. *Cost:* the 8 trained networks already exist; evaluation
+   only.
+3. **Weight averaging vs ensemble.** *Hypothesis:* EMA or last-K-checkpoint
+   averaging raises the single-network mean but not above a seed ensemble.
+   *Implement:* an EMA copy of `NeuralQ` weights (one extra vector), SWA over
+   the last K checkpoints. *Measure:* 8-seed score and spread against
+   experiment 2. *Cost:* one extra training batch of 8 seeds.
+4. **Gap-weighted refinement of a table.** *Hypothesis:* spending bins by
+   Q-gap, as in VIPER, beats uniform bins at equal table size. *Implement:*
+   a non-uniform signal-bin edge list per t, refined where the network's
+   Q-gap times visit probability is largest. *Measure:* score versus table
+   bytes. *Cost:* moderate; needs a variable-bin lookup.
+5. **Cross-learner voting.** *Hypothesis:* rank voting over tile,
+   actor-critic and MLP tables (the Wiering-van Hasselt setup) beats the
+   best member only if errors are uncorrelated. *Implement:* rank vote
+   over three tables. *Measure:* score, and error correlation against DP.
+   *Cost:* low. Expect little because the members differ greatly in quality.
+
 ## References
 
 * [ABS17] Anschel, Baram, Shimkin. Averaged-DQN. 2017. https://arxiv.org/abs/1611.01929
 * [AC00] Almgren, Chriss. Optimal execution of portfolio transactions. 2000.
 * [Aga21] Agarwal et al. Deep RL at the edge of the statistical precipice. 2021. https://arxiv.org/abs/2108.13264
 * [AS08] Avellaneda, Stoikov. High-frequency trading in a limit order book. 2008. https://math.nyu.edu/~avellane/HighFrequencyTrading.pdf
+* [Bas18] Bastani, Pu, Solar-Lezama. Verifiable RL via policy extraction. NeurIPS 2018. https://arxiv.org/abs/1805.08328
 * [BDM17] Bellemare, Dabney, Munos. A distributional perspective on RL. 2017. https://arxiv.org/abs/1707.06887
 * [Bel16] Bellemare et al. Increasing the action gap. 2016. https://arxiv.org/abs/1512.04860
 * [BH18] Balles, Hennig. Dissecting Adam. 2018. https://proceedings.mlr.press/v80/balles18a.html
 * [BL98] Bertsimas, Lo. Optimal control of execution costs. 1998.
 * [Chen21] Chen, Wang, Zhou, Ross. REDQ. 2021. https://arxiv.org/abs/2101.05982
 * [Dab18] Dabney et al. Distributional RL with quantile regression. 2018. https://arxiv.org/abs/1710.10044
+* [CS19] Chourasia, Singla. Unifying ensemble methods for Q-learning via social choice theory. 2019. https://arxiv.org/abs/1902.10646
 * [DM17] Devraj, Meyn. Zap Q-learning. 2017. https://arxiv.org/abs/1707.03770
 * [DTC18] Dietterich, Trimponias, Chen. Discovering and removing exogenous state variables and rewards. 2018. https://arxiv.org/abs/1806.01584
 * [EDM03] Even-Dar, Mansour. Learning rates for Q-learning. 2003. https://jmlr.org/papers/v5/evendar03a.html
@@ -2234,9 +2408,12 @@ most†).
 * [GRLGW20] Ghiassian, Rafiee, Lo, Gao, White. Improving performance in RL by breaking generalization in neural networks. 2020. https://arxiv.org/abs/2003.07417
 * [GYRS18] Ghiassian, Yu, Rafiee, Sutton. Two geometric input transformation methods for fast online RL with neural nets. 2018. https://arxiv.org/abs/1805.07476
 * [Hes18] Hessel et al. Rainbow. 2018. https://arxiv.org/abs/1710.02298
+* [Hin15] Hinton, Vinyals, Dean. Distilling the knowledge in a neural network. 2015. https://arxiv.org/abs/1503.02531
 * [HW14] Hendricks, Wilcox. An RL extension to the Almgren–Chriss model. 2014. https://arxiv.org/abs/1403.2229
 * [HXY23] Hambly, Xu, Yang. Recent advances in RL in finance. 2023. https://arxiv.org/abs/2112.04553
+* [Izm18] Izmailov, Podoprikhin, Garipov, Vetrov, Wilson. Averaging weights leads to wider optima and better generalization. UAI 2018. https://arxiv.org/abs/1803.05407
 * [Jer22] Jerome, Sánchez-Betancourt, Savani, Herdegen. Model-based gym environments for LOB trading. 2022. https://arxiv.org/abs/2209.07823
+* [Jul19] Julian, Kochenderfer, Owen. Deep neural network compression for aircraft collision avoidance systems. J. Guidance, Control, and Dynamics, 2019. https://arxiv.org/abs/1810.04240
 * [KB15] Kingma, Ba. Adam. 2015. https://arxiv.org/abs/1412.6980
 * [Lan20] Lan, Pan, Fyshe, White. Maxmin Q-learning. 2020. https://arxiv.org/abs/2002.06487
 * [Lil16] Lillicrap et al. DDPG. 2016. https://arxiv.org/abs/1509.02971
@@ -2258,6 +2435,8 @@ most†).
 * [Rah19] Rahaman et al. On the spectral bias of neural networks. 2019. https://arxiv.org/abs/1806.08734
 * [SB18] Sutton, Barto. Reinforcement Learning: An Introduction, 2nd ed. 2018. http://incompleteideas.net/book/the-book-2nd.html
 * [Sch22] Schaul et al. The phenomenon of policy churn. 2022. https://arxiv.org/abs/2206.00730
+* [RGB11] Ross, Gordon, Bagnell. A reduction of imitation learning and structured prediction to no-regret online learning (DAgger). AISTATS 2011. https://arxiv.org/abs/1011.0686
+* [Rus16] Rusu et al. Policy distillation. ICLR 2016. https://arxiv.org/abs/1511.06295
 * [Sin23] Sinclair et al. Hindsight learning for MDPs with exogenous inputs. 2023. https://arxiv.org/abs/2207.06272
 * [Spo18] Spooner et al. Market making via RL. 2018. https://arxiv.org/abs/1804.04216
 * [Tang23] Tang, Munos, Rowland, Valko. VA-learning. 2023. https://arxiv.org/abs/2305.18161
@@ -2269,13 +2448,14 @@ most†).
 * [Wai19] Wainwright. Variance-reduced Q-learning is minimax optimal. 2019. https://arxiv.org/abs/1906.04697
 * [Wang16] Wang et al. Dueling network architectures. 2016. https://arxiv.org/abs/1511.06581
 * [Wie03] Wiewiora. Potential-based shaping and Q-value initialization are equivalent. 2003.
+* [WvH08] Wiering, van Hasselt. Ensemble algorithms in reinforcement learning. IEEE Trans. SMC-B 38(4), 2008. https://doi.org/10.1109/TSMCB.2008.920231
 * [ZYW21] Zhang, Yao, Whiteson. Breaking the deadly triad with a target network. 2021. https://arxiv.org/abs/2101.08862
 
 
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (70,125 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (75,920 bytes)
 
 # RL experiment log
 
@@ -2315,6 +2495,8 @@ and the conclusion; negative results stay in.
 | E18 | Can a proper optimizer tune the learner? | NLopt (CRS2 global + Subplex) lifts TileQ at 10k episodes from 37% [33, 41] to 59% [52, 66] on held-out seeds; the Eigen response surface rediscovers E8 and E16. Local search alone was start-dependent; winners were 0.3–18.5 points optimistic on their own seeds. |
 | E20 | Do Double DQN and advantage learning help the neural learner? | Yes, mostly through stability: deployed 87–94% at 20k episodes vs 81–87% plain; the learner's own greedy policy 87–91% vs 70%. |
 | E21 | How do all learners rank under one protocol (8 seeds, CIs)? | At 40k episodes: NeuralQ + Double DQN 91.5% [90.1, 92.7], ActorCritic 81.9%, TileQ coarse + AL 78.7%, tuned TileQ 73.4%, default TileQ 66.7%; model-based 99.5% after 50 episodes. |
+| E22 | Can a lookup table replace the neural policy? | From 32 signal bins the table keeps the network's gain (within 0.25 points; never worse than 0.8) at ~3 ns per decision instead of ~1.7–3 µs; the exact DP policy compiled the same way keeps 99.6–100%. |
+| E23 | Does a vote across seeds' tables beat one network? | Yes: the median of 8 seeds' tables keeps 97.5% (fresh scenarios: 97.9%, better than every member by 4.4–10.2 points), vs 91.4% for the average seed and 94.1% for the best; 3 members already beat the best seed. |
 | E19 | Do gap-increasing targets help? | Advantage learning (k = 0.5) lifts TileQ from 65–69% to 70–75% at 40k, and to 76–80% with coarse tiles: the best tile-coded result, still below the neural learner. |
 
 ---
@@ -3523,10 +3705,99 @@ R² = 0.56; effect of +1 standard deviation of each parameter):
   best:** 88% at 40k, against at most 84% for ActorCritic and tuned TileQ.
 
 
+## E22. Compile the neural policy into a lookup table
+
+* **Question:** `NeuralQ` is the best model-free learner (E21) but costs
+  1.7 µs per decision (about 3 µs with all cores busy), against 64 ns for
+  TileQ. The execution state is small: 20 time steps × 101 inventories ×
+  one continuous signal. Can a table of the network's greedy actions,
+  sampled at the centre of each (t, inventory, signal bin) cell, keep its
+  gain?
+* **Setup:** `ExecutionPolicyTable` (`policy_table.hpp`); NeuralQ + Double
+  DQN, 40,000 episodes, deployed champion, seeds 1–8 (the E21 protocol:
+  the network scores match E21 to six digits); the same 1,000 held-out
+  scenarios. "Same action" is the share of the decisions the network makes
+  on those scenarios where the table picks the same action. Probes
+  `experiments/e22_table.cpp`, `e22_dp_ceiling.cpp`.
+* **The grid's own cost** (the exact DP policy, compiled): 82.1% of the
+  optimum at 4 bins, 95.4% at 8, 98.9% at 16, and 99.6–100.4% from 32
+  bins up (sampling noise around 100%).
+
+| Signal bins | Range (sd) | Table size | Share (mean, min–max) | Change vs the network, points (mean, min–max) | Same action as the network | ns per decision |
+|---|---|---|---|---|---|---|
+| network | | | 91.5% (87.7–94.1) | | | ~3,000 (cores shared) |
+| 4 | ±4 | 8 KB | 76.8% (75.0–78.7) | −14.71 (−16.08 to −11.13) | 63.8% | 2.6 |
+| 8 | ±4 | 16 KB | 87.8% (83.3–91.3) | −3.69 (−4.75 to −1.73) | 76.5% | 2.8 |
+| 16 | ±4 | 32 KB | 90.3% (86.3–93.6) | −1.21 (−1.71 to −0.53) | 86.7% | 2.5 |
+| 32 | ±4 | 65 KB | 91.3% (86.9–94.1) | −0.16 (−0.80 to +0.22) | 93.2% | 2.7 |
+| 64 | ±4 | 129 KB | 91.2% (87.2–93.9) | −0.25 (−0.52 to −0.02) | 96.6% | 2.9 |
+| 64 | ±3 | 129 KB | 91.6% (87.5–94.2) | +0.15 (−0.22 to +0.44) | 97.3% | 3.1 |
+| 128 | ±4 | 259 KB | 91.3% (87.5–93.9) | −0.16 (−0.47 to +0.11) | 98.3% | 2.7 |
+| 256 | ±4 | 517 KB | 91.4% (87.2–94.1) | −0.05 (−0.48 to +0.14) | 99.1% | 3.0 |
+
+* **From 32 bins, the table is the network:** within 0.25 points on
+  average and never more than 0.8 points worse on any seed, about 1,000×
+  faster (3 ns; 3.45 ns at random states), with no floating-point model at
+  decision time.
+* **Disagreement doesn't mean loss:** at 32 bins the table disagrees on
+  6.8% of decisions yet loses 0.16 points. The disagreements are at bin
+  edges, where the network's own action boundary lies and the two actions
+  are worth nearly the same.
+* **Bins matter more than range:** 64 bins over ±3 sd (finer bins, 0.3% of
+  signals clamped) did slightly better than over ±4 sd.
+
+## E23. Ensembles of compiled policies
+
+* **Question:** a table costs the same whatever produced it. Does a vote
+  across networks trained with different seeds beat a single network, at
+  no extra decision cost?
+* **Setup:** the 8 seeds' tables from E22 (256 and 64 bins, ±4 sd);
+  `ExecutionPolicyTable::median` combines tables cell by cell with the
+  lower median action (actions are ordered by trade size); a plurality
+  vote (ties to the smaller action) for comparison. Every one of the 255
+  non-empty subsets of the 8 seeds is scored, so no ensemble is selected on
+  the test scenarios. Probes `experiments/e23_vote.cpp`, `e23_fresh.cpp`.
+
+256 bins (64 bins: within 0.3 points of these everywhere):
+
+| Members | Ensembles | Median vote: mean (min–max) | Plurality vote: mean (min–max) | Median vote beats its members' mean |
+|---|---|---|---|---|
+| 1 | 8 | 91.4% (87.2–94.1) | 91.4% (87.2–94.1) | — |
+| 2 | 28 | 93.1% (89.0–96.3) | 93.1% (89.0–96.3) | 22/28 |
+| 3 | 56 | 95.4% (93.5–97.2) | 94.5% (92.6–96.1) | 56/56 |
+| 4 | 70 | 96.7% (95.4–97.9) | 95.5% (93.8–96.5) | 70/70 |
+| 5 | 56 | 96.4% (95.2–97.4) | 96.2% (94.9–97.2) | 56/56 |
+| 6 | 28 | 97.4% (96.5–98.1) | 96.7% (95.6–97.2) | 28/28 |
+| 7 | 8 | 96.7% (96.2–97.2) | 96.8% (96.2–97.3) | 8/8 |
+| 8 | 1 | 97.5% | 97.3% | 1/1 |
+
+* **The ensemble is the best model-free policy in the project:** the median
+  of all 8 tables keeps 97.5% of the optimal gain, against 91.4% for the
+  average seed and 94.1% for the best one. Three members already beat the
+  best single seed on average (95.4%).
+* **Confirmed on fresh scenarios:** on 4,000 scenarios none of the earlier
+  evaluations used, the 8-member ensemble scores 97.9% and beats every
+  member, by 4.4 to 10.2 points (paired standard errors 0.3–0.5, so z ≥ 13).
+* **Why it works:** the networks reach the same score by different routes:
+  each one's errors sit in different cells, and the median removes errors
+  that a majority doesn't share. This is the variance argument for bagging;
+  the seeds' policies are diverse enough for it to pay.
+* **Median vs plurality:** the median is better or equal at every size
+  except 7 (within 0.1 points). With ordered actions, the median also
+  accounts for how far apart the votes are, not only how many there are.
+* **An unconfirmed hint:** at even sizes the lower median (which leans
+  toward the smaller trade) does as well as or better than the next odd
+  size (4 members 96.7% vs 5 members 96.4%; 6 vs 7: 97.4% vs 96.7%), and
+  for two members it beats their mean in 22 of 28 pairs. That suggests the
+  networks err toward trading too much; untested.
+* **The cost is training, not deployment:** N members need N× the
+  training compute; a decision stays one 3 ns lookup.
+
+
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (16,342 bytes)
+## FILE: docs/ai/DECISIONS.md  (17,376 bytes)
 
 # Decision log
 
@@ -3614,6 +3885,9 @@ the code looks the way it does.
 | A41 | `cvar` counts the worst fraction with a rounding tolerance; `evidence()` is the larger of both CUSUM statistics; empty OPE logs cover no step; `ExecutionDP` rejects grids < 2 and floors a zero-width grid | Bugs found by the same review: 0.29 × 100 = 28.999… dropped an outcome; two-sided evidence read 0 until an upward alarm; empty logs reported full coverage; `signal_sd = 0` made every value NaN and `grid < 2` wrote out of bounds. |
 | A42 | `advantage_learning` (k) is available for TileQ, default 0 | k = 0.5 gave +5 points at 40k (70–75%) and ~2× the share at 5k; k = 0.9 widened the spread across seeds (E19). Other tasks' tests are tuned on k = 0. |
 | A43 | For `NeuralQ`, `double_q` means Double DQN and `advantage_learning` applies; both stay opt-in | Deployed 87–94% at 20k with either or both vs 81–87% plain, and a far more stable greedy policy (87–91% vs 70%); two seeds, so the defaults are unchanged (E20). |
+| A44 | Deploy learned execution policies as `ExecutionPolicyTable`s (≥ 32 signal bins) | Same gain as the network within 0.25 points, ~1,000× faster (3 ns), no model code at decision time; saved in the checksummed `rag::io` format (E22). |
+| A45 | Ensemble seeds with the cell-wise median of their tables | 8 seeds: 97.5% vs 91.4% average and 94.1% best single seed; better than every member on fresh scenarios (z ≥ 13); median ≥ plurality at all sizes but one (E23). |
+| A46 | `ExecutionPolicyTable` checks its grid: the cell count must not overflow or exceed `vector::max_size()`, the loops use 64-bit counters, and the bin width must be a normal double, in the constructor and in `load()` | Bugs found by the review agent: a huge grid wrapped the size to 0 and wrote past the table; `lots = UINT32_MAX` looped forever; a subnormal width (1e-150 × 1e-160) sent every bin centre to the last bin, and `load()` accepted such files. Regression tests in `policy_table_tests.cpp`; `fuzz_policy_table` in CI found the last one unaided. |
 
 
 
@@ -3700,7 +3974,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (6,383 bytes)
+## FILE: docs/ai/STATUS.md  (6,795 bytes)
 
 # Status, limitations and next steps
 
@@ -3740,12 +4014,16 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
   * a from-scratch neural Q-learner (`NeuralQ`, no ML library) that breaks
     the tile-coding plateau on execution (91.5% [90.1, 92.7] at 40k
     episodes with Double DQN, 8 seeds; E21 ranks every learner);
+  * `ExecutionPolicyTable`: any execution policy compiled into a lookup
+    table (3 ns per decision, the network's gain within 0.25 points), and
+    a median vote of 8 seeds' tables at 97.5% of the optimum (E22, E23);
   * optional NLopt/Eigen tooling: hyperparameter search validated on
     held-out seeds, sensitivity analysis, rank-revealing least squares.
-* **Reviews:** three review agents (adversarial bug hunt, coverage, RAG
-  property tests) found and fixed 14 bugs, six of them in the engine
-  (including a heap overflow reachable through config and through a forged
-  index file, R13–R17); agent-header coverage is 99.7% of lines and 99.0% of
+* **Reviews:** four review agents (adversarial bug hunt, coverage, RAG
+  property tests, and a review plus fuzzer for `policy_table.hpp`) found
+  and fixed 17 bugs, six of them in the engine (including a heap overflow
+  reachable through config and through a forged index file, R13–R17) and
+  three in the policy table (A46); agent-header coverage is 99.7% of lines and 99.0% of
   regions. Their schedule fixes may shift the online-gain numbers of E8,
   E11 and E15 slightly; those were measured before the fixes.
 * **Testing:**
@@ -3807,8 +4085,10 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 1. A neural `Embedder` (e.g. ONNX Runtime with a MiniLM model, 384 dims to
    match), on a machine that can download models.
 2. Incremental BM25 segments with background merging.
-3. Agent: vectorize `NeuralQ`'s forward pass (float, SIMD) and distill a
-   trained network into tiles or a lookup table for nanosecond decisions.
+3. Agent: compare the seed ensemble (E23) with weight averaging (EMA /
+   SWA of one network's weights) and with Q-value averaging across seeds
+   (RESEARCH.md §6.4); test the hint that the networks over-trade (E23);
+   a policy table for market making.
 4. Agent: the research's remaining ideas (RESEARCH.md §5): all-action
    counterfactual updates, value/advantage sharing across actions,
    Munchausen targets, weight averaging for the deployed policy.
@@ -3821,7 +4101,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: README.md  (19,395 bytes)
+## FILE: README.md  (19,793 bytes)
 
 # rag-cpp — header-only, low-latency Retrieval-Augmented Generation in C++20
 
@@ -3989,7 +4269,7 @@ for another language model (or a new contributor):
 * a project map and a compiled API cheat sheet;
 * engine internals, exact task and algorithm specifications
   (`TASK_SPECS.md`);
-* the experiment log (E0–E21, negative results included), the decision log,
+* the experiment log (E0–E23, negative results included), the decision log,
   27 distilled lessons and a literature review;
 * conventions, status, open questions and next steps.
 
@@ -4029,6 +4309,8 @@ interval):
 | `NeuralQ` + Double DQN (from-scratch MLP, E16, E20) | 40,000 | **91.5% [90.1, 92.7]** | no ML library; 1.7 µs per decision |
 | `ModelBasedExecutionAgent` (regression + DP planning) | **50** | 99.5% [98.8, 100.0] | needs a model class that fits; `check_model()` flags one that doesn't |
 | Model plan → `distill` → fine-tune under a guard (E7) | 40,000 | 100% if the model is right, 78–82% if not | never deploys worse than the plan |
+| `NeuralQ` compiled to an `ExecutionPolicyTable` (E22) | 40,000 | 91.4% (64–256 bins) | same as the network; 3 ns per decision |
+| Median vote of 8 seeds' tables (E23) | 8 × 40,000 | **97.5%** (fresh scenarios: 97.9%) | best model-free result; still 3 ns per decision |
 
 On a second task, market making, the same unchanged agent learns the
 optimal inventory skew (actor-critic: 99–100% of the optimal gain after
@@ -4148,7 +4430,7 @@ minutes or hours.
 | `tests/rag_tests.cpp` | Unit and integration tests per component. Includes SIMD kernels against scalar references (bit-exact for int8) and recall floors for every approximate mode. A global `operator new` counter proves the query paths make zero heap allocations. |
 | `tests/reference_tests.cpp` | Differential tests against a deliberately naive reference written from each stage's spec (`std::string`, `std::map`, `double`). Covers tokenizer, chunker, stopwords, embedder, BM25, exact dense ranking and RRF on randomized corpora and configs. |
 | `tests/forgery_tests.cpp` | Every structural check in the index loader, using files with a **valid** checksum and one forged field each. Each case requires its check's specific error message. |
-| `tests/fuzz/` | libFuzzer targets (`-DRAG_FUZZ=ON`, Clang). `fuzz_load` loads arbitrary payloads with a fixed-up checksum, then queries, ingests, commits and reloads them. `fuzz_text` checks tokenizer, chunker, engine and prompt invariants on arbitrary bytes. |
+| `tests/fuzz/` | libFuzzer targets (`-DRAG_FUZZ=ON`, Clang). `fuzz_load` loads arbitrary payloads with a fixed-up checksum, then queries, ingests, commits and reloads them. `fuzz_text` checks tokenizer, chunker, engine and prompt invariants on arbitrary bytes. `fuzz_policy_table` loads arbitrary policy tables (checksum fixed up) and checks every lookup, voting and the save round trip. |
 | `tests/stress.cpp` | `rag_stress <seconds>`: one writer ingests, commits, saves and reloads while threads run single queries, batches and long pins. Committed documents must rank first for their unique token, batch and single results must agree on the same snapshot, pinned snapshots must never change, and everything retired must be reclaimed. |
 
 What this found:
@@ -4188,7 +4470,7 @@ jobs build with `-Werror`:
 
 ---
 
-## FILE: CMakeLists.txt  (5,549 bytes)
+## FILE: CMakeLists.txt  (5,596 bytes)
 
 ```cmake
 cmake_minimum_required(VERSION 3.20)
@@ -4225,7 +4507,7 @@ endif()
 find_package(Threads REQUIRED)
 find_package(GTest REQUIRED)
 enable_testing()
-add_executable(rag_tests tests/rag_tests.cpp tests/forgery_tests.cpp tests/reference_tests.cpp tests/text_clean_tests.cpp tests/agent_tests.cpp tests/api_examples_tests.cpp tests/model_based_tests.cpp tests/market_making_tests.cpp tests/mlp_tests.cpp tests/agent_edge_case_tests.cpp tests/agent_coverage_tests.cpp tests/rag_property_tests.cpp)
+add_executable(rag_tests tests/rag_tests.cpp tests/forgery_tests.cpp tests/reference_tests.cpp tests/text_clean_tests.cpp tests/agent_tests.cpp tests/api_examples_tests.cpp tests/model_based_tests.cpp tests/market_making_tests.cpp tests/mlp_tests.cpp tests/agent_edge_case_tests.cpp tests/agent_coverage_tests.cpp tests/rag_property_tests.cpp tests/policy_table_tests.cpp)
 target_link_libraries(rag_tests PRIVATE rag GTest::gtest_main Threads::Threads)
 include(GoogleTest)
 gtest_discover_tests(rag_tests)
@@ -4251,7 +4533,7 @@ target_link_libraries(agent_demo PRIVATE rag)
 # libFuzzer targets (Clang only): cmake -DCMAKE_CXX_COMPILER=clang++ -DRAG_FUZZ=ON
 option(RAG_FUZZ "Build libFuzzer targets (requires Clang)" OFF)
 if(RAG_FUZZ)
-  foreach(t fuzz_load fuzz_text)
+  foreach(t fuzz_load fuzz_text fuzz_policy_table)
     add_executable(${t} tests/fuzz/${t}.cpp)
     target_link_libraries(${t} PRIVATE rag)
     target_compile_options(${t} PRIVATE -fsanitize=fuzzer,address,undefined -fno-sanitize-recover=undefined -g)
@@ -4312,7 +4594,7 @@ endif()
 
 ---
 
-## FILE: .github/workflows/ci.yml  (4,818 bytes)
+## FILE: .github/workflows/ci.yml  (5,032 bytes)
 
 ```yaml
 name: CI
@@ -4419,11 +4701,11 @@ jobs:
       - name: Build fuzzers
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=clang++ -DRAG_FUZZ=ON
-          cmake --build build --target fuzz_load fuzz_text make_seeds -j"$(nproc)"
+          cmake --build build --target fuzz_load fuzz_text fuzz_policy_table make_seeds -j"$(nproc)"
 
       - name: Seed corpora
         run: |
-          ./build/make_seeds corpus/load
+          ./build/make_seeds corpus/load corpus/policy
           mkdir -p corpus/text
           printf 'The limit order book. VWAP.\nqueue position' > corpus/text/a
           printf '\x05\x02\x09caf\xc3\xa9 ZX81Q the of and' > corpus/text/b
@@ -4433,6 +4715,9 @@ jobs:
 
       - name: Fuzz text pipeline (60 s)
         run: ./build/fuzz_text -max_total_time=60 -rss_limit_mb=2048 -timeout=10 -max_len=4096 -artifact_prefix=crash-text- corpus/text
+
+      - name: Fuzz policy-table loading (30 s)
+        run: ./build/fuzz_policy_table -max_total_time=30 -rss_limit_mb=2048 -timeout=10 -artifact_prefix=crash-policy- corpus/policy
 
       - name: Upload crashing inputs
         if: failure()
@@ -7401,6 +7686,171 @@ OpeEstimates off_policy_estimates(const std::vector<LoggedEpisode<Obs>>& logs, T
   }
   return out;
 }
+
+}  // namespace rag::agent
+
+```
+
+
+---
+
+## FILE: include/rag/agent/policy_table.hpp  (7,418 bytes)
+
+```cpp
+// rag/agent/policy_table.hpp — compile an execution policy into a lookup
+// table (E22).
+//
+// The execution state is small: time (horizon values), inventory (lots + 1
+// values) and one continuous signal. Sampling any policy (a trained neural
+// network, a planner, an expensive ensemble) at the centre of every
+// (t, inventory, signal bin) cell gives a table of one-byte actions whose
+// lookup costs a few nanoseconds, whatever the original policy cost.
+//
+//   ExecutionPolicyTable table(params, [&](const ExecutionObs& o) { return trainer.deployed_act(o); });
+//   Action a = table.act(obs);            // no allocation, no floating-point model
+//
+// Signals outside +-signal_range_sd standard deviations use the edge bins; a
+// NaN signal uses bin 0. Times and inventories past the grid are clamped.
+//
+//   table.save(path); auto t = ExecutionPolicyTable::load(path);   // rag::io format, checksummed
+//   auto ens = ExecutionPolicyTable::median({t1, t2, t3});         // ensemble at table cost
+//
+// median() combines tables of the same shape cell by cell with the (lower)
+// median action. Actions are ordered by trade size (ExecutionParams::sizes is
+// increasing by default), so the median is the natural vote for an ordinal
+// choice.
+#pragma once
+
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <cstring>
+#include <filesystem>
+#include <limits>
+#include <stdexcept>
+#include <vector>
+
+#include "rag/agent/env.hpp"
+#include "rag/io.hpp"
+
+namespace rag::agent {
+
+struct PolicyTableParams {
+  std::uint32_t signal_bins = 64;  // bins over [-range, +range] signal standard deviations
+  double signal_range_sd = 4.0;    // the signal's stationary sd is ExecutionParams::signal_sd
+};
+
+class ExecutionPolicyTable {
+ public:
+  template <class Policy>
+  ExecutionPolicyTable(const ExecutionParams& p, Policy&& policy, PolicyTableParams tp = {})
+      : horizon_(p.horizon), lots_(p.lots), bins_(tp.signal_bins) {
+    if (p.horizon == 0 || tp.signal_bins == 0 || !(tp.signal_range_sd > 0) || !(p.signal_sd > 0) ||
+        !std::isfinite(tp.signal_range_sd * p.signal_sd))
+      throw std::invalid_argument("ExecutionPolicyTable: horizon, bins, range and signal_sd must be positive");
+    lo_ = -tp.signal_range_sd * p.signal_sd;
+    width_ = 2 * tp.signal_range_sd * p.signal_sd / static_cast<double>(bins_);
+    if (!valid_grid(lo_, width_))
+      throw std::invalid_argument("ExecutionPolicyTable: signal_range_sd * signal_sd gives a zero, infinite or subnormal bin width");
+    inv_width_ = 1.0 / width_;
+    const std::size_t cells = cell_count(horizon_, lots_, bins_);
+    if (cells == 0 || cells > table_.max_size())
+      throw std::invalid_argument("ExecutionPolicyTable: horizon x (lots + 1) x signal_bins is too large");
+    table_.resize(cells);
+    std::size_t k = 0;
+    for (std::uint32_t t = 0; t < horizon_; ++t)
+      for (std::uint64_t inv = 0; inv <= lots_; ++inv)  // 64-bit: lots_ may be UINT32_MAX
+        for (std::uint32_t b = 0; b < bins_; ++b) {
+          const Action a = policy(ExecutionObs{t, static_cast<std::uint32_t>(inv), bin_centre(b)});
+          if (a >= ExecutionEnv::kNumActions) throw std::out_of_range("ExecutionPolicyTable: policy returned an invalid action");
+          table_[k++] = static_cast<std::uint8_t>(a);
+        }
+  }
+
+  [[nodiscard]] Action act(const ExecutionObs& o) const noexcept {
+    const double x = (o.signal - lo_) * inv_width_;
+    const std::uint32_t b = !(x > 0) ? 0u : x >= static_cast<double>(bins_) ? bins_ - 1 : static_cast<std::uint32_t>(x);
+    const std::uint32_t t = std::min(o.t, horizon_ - 1), inv = std::min(o.inventory, lots_);
+    return table_[(static_cast<std::size_t>(t) * (static_cast<std::size_t>(lots_) + 1) + inv) * bins_ + b];
+  }
+
+  // Cell-by-cell lower median of tables with the same grid.
+  [[nodiscard]] static ExecutionPolicyTable median(const std::vector<ExecutionPolicyTable>& tables) {
+    if (tables.empty()) throw std::invalid_argument("ExecutionPolicyTable::median: no tables");
+    const auto& f = tables.front();
+    for (const auto& t : tables)
+      if (t.horizon_ != f.horizon_ || t.lots_ != f.lots_ || t.bins_ != f.bins_ || t.lo_ != f.lo_ || t.width_ != f.width_)
+        throw std::invalid_argument("ExecutionPolicyTable::median: tables have different grids");
+    ExecutionPolicyTable out = f;
+    std::vector<std::uint8_t> votes(tables.size());
+    for (std::size_t k = 0; k < out.table_.size(); ++k) {
+      for (std::size_t i = 0; i < tables.size(); ++i) votes[i] = tables[i].table_[k];
+      std::nth_element(votes.begin(), votes.begin() + static_cast<std::ptrdiff_t>((votes.size() - 1) / 2), votes.end());
+      out.table_[k] = votes[(votes.size() - 1) / 2];
+    }
+    return out;
+  }
+
+  void save(const std::filesystem::path& path) const {
+    io::Writer w(path);
+    w.bytes(kMagic, sizeof kMagic);
+    w.pod(horizon_);
+    w.pod(lots_);
+    w.pod(bins_);
+    w.pod(lo_);
+    w.pod(width_);
+    w.vec(table_);
+    w.commit();
+  }
+
+  // Rejects anything save() could not have written (io::FormatError).
+  [[nodiscard]] static ExecutionPolicyTable load(const std::filesystem::path& path) {
+    io::Reader r(path);
+    char magic[sizeof kMagic];
+    r.bytes(magic, sizeof magic);
+    if (std::memcmp(magic, kMagic, sizeof magic) != 0) throw io::FormatError("ExecutionPolicyTable: not a policy table");
+    ExecutionPolicyTable t;
+    t.horizon_ = r.pod<std::uint32_t>();
+    t.lots_ = r.pod<std::uint32_t>();
+    t.bins_ = r.pod<std::uint32_t>();
+    t.lo_ = r.pod<double>();
+    t.width_ = r.pod<double>();
+    t.table_ = r.vec<std::uint8_t>();
+    r.finish();
+    const double cells = static_cast<double>(t.horizon_) * (static_cast<double>(t.lots_) + 1) * static_cast<double>(t.bins_);
+    if (t.horizon_ == 0 || t.bins_ == 0 || !valid_grid(t.lo_, t.width_) || cells != static_cast<double>(t.table_.size()))
+      throw io::FormatError("ExecutionPolicyTable: inconsistent grid");
+    for (auto a : t.table_)
+      if (a >= ExecutionEnv::kNumActions) throw io::FormatError("ExecutionPolicyTable: invalid action");
+    t.inv_width_ = 1.0 / t.width_;
+    return t;
+  }
+
+  [[nodiscard]] double bin_centre(std::uint32_t b) const noexcept { return lo_ + (static_cast<double>(b) + 0.5) * width_; }
+  [[nodiscard]] std::size_t bytes() const noexcept { return table_.size(); }
+  [[nodiscard]] std::uint32_t signal_bins() const noexcept { return bins_; }
+
+ private:
+  static constexpr char kMagic[8] = {'R', 'A', 'G', 'P', 'T', 'B', 'L', '1'};
+  ExecutionPolicyTable() = default;
+
+  // A finite origin and a normal (finite, non-zero, non-subnormal) bin width:
+  // then 1 / width is finite too and act()'s multiply bins what bin_centre()
+  // describes.
+  [[nodiscard]] static bool valid_grid(double lo, double width) noexcept {
+    return std::isfinite(lo) && width > 0 && std::isnormal(width);
+  }
+  // horizon x (lots + 1) x bins, or 0 if that does not fit in a size_t.
+  [[nodiscard]] static std::size_t cell_count(std::uint32_t horizon, std::uint32_t lots, std::uint32_t bins) noexcept {
+    const std::uint64_t rows = std::uint64_t{horizon} * (std::uint64_t{lots} + 1);  // < 2^64
+    if (bins == 0 || rows > std::numeric_limits<std::size_t>::max() / bins) return 0;
+    return static_cast<std::size_t>(rows * bins);
+  }
+
+  std::uint32_t horizon_ = 1, lots_ = 0, bins_ = 1;
+  double lo_ = 0, width_ = 1, inv_width_ = 1;
+  std::vector<std::uint8_t> table_;
+};
 
 }  // namespace rag::agent
 
@@ -14746,7 +15196,7 @@ TEST(AgentNeural, DoubleAndAdvantageTargetsStillLearn) {
 
 ---
 
-## FILE: tests/api_examples_tests.cpp  (10,820 bytes)
+## FILE: tests/api_examples_tests.cpp  (11,936 bytes)
 
 ```cpp
 // api_examples_tests.cpp — every code example in docs/ai/API.md, compiled
@@ -14764,6 +15214,7 @@ TEST(AgentNeural, DoubleAndAdvantageTargetsStillLearn) {
 #include "rag/agent/market_making.hpp"
 #include "rag/agent/model_based.hpp"
 #include "rag/agent/ope.hpp"
+#include "rag/agent/policy_table.hpp"
 #include "rag/agent/trainer.hpp"
 #include "rag/text_clean.hpp"
 
@@ -14979,6 +15430,29 @@ TEST(ApiExamples, MarketMaking) {
   EXPECT_GT(mm.bid_distance(quote), mm.ask_distance(quote));
   const Action best = mm_dp.act(MarketMakingObs{.t = 25, .q = 4});
   EXPECT_GT(mm.bid_distance(best), mm.ask_distance(best));
+}
+
+// --- API.md §13: compile a policy into a lookup table ------------------------
+TEST(ApiExamples, CompileAPolicyIntoATable) {
+  using namespace rag::agent;
+  ExecutionEnv env{ExecutionParams{}};
+  AgentConfig<3> cfg;
+  Agent<ExecutionEnv> agent(env, cfg);
+  Trainer<ExecutionEnv> trainer(agent, env, {.eval_every = 500, .eval_episodes = 200, .detect_drift = false});
+  trainer.run(1000);
+  const ExecutionPolicyTable table(env.params(), [&](const ExecutionObs& o) { return trainer.deployed_act(o); },
+                                   {.signal_bins = 64, .signal_range_sd = 4.0});
+  const ExecutionObs obs{.t = 3, .inventory = 80, .signal = 0.05};
+  const Action fast = table.act(obs);
+  EXPECT_LT(fast, ExecutionEnv::kNumActions);
+  EXPECT_EQ(table.bytes(), 20u * 101u * 64u);
+  const auto path = tmp("policy.tbl");
+  table.save(path);
+  const auto loaded = ExecutionPolicyTable::load(path);
+  const auto voted = ExecutionPolicyTable::median({table, loaded, loaded});
+  EXPECT_EQ(loaded.act(obs), fast);
+  EXPECT_EQ(voted.act(obs), fast);
+  std::filesystem::remove(path);
 }
 
 ```
@@ -16433,6 +16907,229 @@ TEST_F(PdfTest, IndexOfPdfsSurvivesSaveAndLoad) {
   EXPECT_EQ(top.source, "report.pdf");
   EXPECT_LE(top.page_first, 2u);  // the maker-rebates text is on page 2 (the chunk may start on page 1)
   EXPECT_GE(top.page_last, 2u);
+}
+
+```
+
+
+---
+
+## FILE: tests/policy_table_tests.cpp  (10,080 bytes)
+
+```cpp
+// policy_table_tests.cpp — compiling a policy into a lookup table (E22).
+#include <gtest/gtest.h>
+
+#include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <limits>
+#include <optional>
+#include <vector>
+
+#include "rag/agent/evaluate.hpp"
+#include "rag/agent/execution_dp.hpp"
+#include "rag/agent/policy_table.hpp"
+#include "test_util.hpp"
+
+using namespace rag::agent;
+
+TEST(PolicyTable, ReproducesThePolicyAtBinCentresAndClampsOutsideTheGrid) {
+  ExecutionParams p;
+  p.lots = 10;
+  p.horizon = 4;
+  // A policy that depends on every coordinate.
+  auto policy = [](const ExecutionObs& o) -> Action {
+    return (o.t + o.inventory + (o.signal > 0.05 ? 2u : 0u)) % ExecutionEnv::kNumActions;
+  };
+  const ExecutionPolicyTable table(p, policy, {.signal_bins = 8, .signal_range_sd = 2.0});
+  EXPECT_EQ(table.bytes(), 4u * 11u * 8u);
+  for (std::uint32_t t = 0; t < 4; ++t)
+    for (std::uint32_t inv = 0; inv <= 10; ++inv)
+      for (std::uint32_t b = 0; b < 8; ++b) {
+        const ExecutionObs o{t, inv, table.bin_centre(b)};
+        EXPECT_EQ(table.act(o), policy(o));
+      }
+  // Bins are 0.05 wide over [-0.2, 0.2]: 0.07 lies in the bin centred at 0.075.
+  EXPECT_EQ(table.act({1, 3, 0.07}), policy({1, 3, 0.075}));
+  // Outside the grid: edge bins, last time step, full inventory.
+  EXPECT_EQ(table.act({0, 0, 5.0}), table.act({0, 0, table.bin_centre(7)}));
+  EXPECT_EQ(table.act({0, 0, -5.0}), table.act({0, 0, table.bin_centre(0)}));
+  EXPECT_EQ(table.act({0, 0, std::numeric_limits<double>::quiet_NaN()}), table.act({0, 0, table.bin_centre(0)}));
+  EXPECT_EQ(table.act({99, 99, 0.0}), table.act({3, 10, 0.0}));
+}
+
+TEST(PolicyTable, RejectsBadParametersAndInvalidActions) {
+  const ExecutionParams p;
+  auto twap = [](const ExecutionObs&) { return ExecutionEnv::kTwapAction; };
+  EXPECT_THROW(ExecutionPolicyTable(p, twap, {.signal_bins = 0}), std::invalid_argument);
+  EXPECT_THROW(ExecutionPolicyTable(p, twap, {.signal_range_sd = 0}), std::invalid_argument);
+  EXPECT_THROW(ExecutionPolicyTable(p, twap, {.signal_range_sd = std::numeric_limits<double>::quiet_NaN()}), std::invalid_argument);
+  ExecutionParams zero = p;
+  zero.horizon = 0;
+  EXPECT_THROW(ExecutionPolicyTable(zero, twap), std::invalid_argument);
+  EXPECT_THROW(ExecutionPolicyTable(p, [](const ExecutionObs&) { return Action{5}; }), std::out_of_range);
+}
+
+TEST(PolicyTable, RejectsAGridWhoseCellCountOverflows) {
+  // horizon x (lots + 1) x bins = 2^64 wraps to 0 in size_t: the table must be
+  // rejected before anything is allocated or sampled, not resized to nothing
+  // and then written past its end.
+  std::size_t calls = 0;
+  auto counting = [&](const ExecutionObs&) {
+    ++calls;
+    return ExecutionEnv::kTwapAction;
+  };
+  ExecutionParams p;
+  p.horizon = 1u << 16;
+  p.lots = std::numeric_limits<std::uint32_t>::max();  // 2^32 inventory values
+  EXPECT_THROW(ExecutionPolicyTable(p, counting, {.signal_bins = 1u << 16}), std::invalid_argument);
+  p.horizon = 1u << 31;
+  p.lots = (1u << 31) - 1;
+  EXPECT_THROW(ExecutionPolicyTable(p, counting, {.signal_bins = 4}), std::invalid_argument);
+  EXPECT_EQ(calls, 0u);
+}
+
+TEST(PolicyTable, EveryAcceptedSignalGridReproducesThePolicyAndRoundTrips) {
+  // Individually valid, jointly extreme scales: signal_range_sd * signal_sd
+  // can underflow to 0, overflow once doubled, or give a subnormal bin width
+  // whose reciprocal is infinite. The constructor must reject such a grid or
+  // build one that act() bins correctly and that load() reads back.
+  struct Case {
+    double range, sd;
+    bool must_accept;
+  };
+  const Case cases[] = {{4.0, 0.1, true},       {4.0, 1e-300, true}, {1e300, 1e7, true},
+                        {1e-300, 1e-300, false}, {1e308, 1.0, false}, {1e-150, 1e-160, false}};
+  auto by_sign = [](const ExecutionObs& o) -> Action { return o.signal < 0 ? 0u : o.signal > 0 ? 4u : 2u; };
+  const auto path = rag::testutil::temp_index("grid");
+  for (const Case& c : cases) {
+    SCOPED_TRACE(::testing::Message() << "range " << c.range << " sd " << c.sd);
+    ExecutionParams p;
+    p.lots = 2;
+    p.horizon = 2;
+    p.signal_sd = c.sd;
+    std::optional<ExecutionPolicyTable> table;
+    try {
+      table.emplace(p, by_sign, PolicyTableParams{.signal_bins = 8, .signal_range_sd = c.range});
+    } catch (const std::invalid_argument&) {
+      EXPECT_FALSE(c.must_accept);
+      continue;
+    }
+    for (std::uint32_t b = 0; b < 8; ++b) {
+      const ExecutionObs o{1, 1, table->bin_centre(b)};
+      EXPECT_EQ(table->act(o), by_sign(o)) << "bin " << b;
+    }
+    table->save(path);
+    EXPECT_NO_THROW((void)ExecutionPolicyTable::load(path));
+  }
+}
+
+TEST(PolicyTable, LoadValidatesTheStructureBehindTheChecksum) {
+  // Edited files with a recomputed checksum reach the structural checks.
+  ExecutionParams p;
+  p.lots = 3;
+  p.horizon = 2;
+  const ExecutionPolicyTable table(p, [](const ExecutionObs& o) { return Action{o.inventory % 5}; }, {.signal_bins = 4});
+  const auto path = rag::testutil::temp_index("structure");
+  table.save(path);
+  const auto good = rag::testutil::read_file(path);
+  // Layout: magic[8], horizon@8, lots@12, bins@16, lo@20, width@28, length@36, cells@44, checksum.
+  ASSERT_EQ(good.size(), 44u + 2u * 4u * 4u + 8u);
+  auto expect_rejected = [&](auto edit, const char* what) {
+    auto b = good;
+    edit(b);
+    rag::testutil::fix_checksum(b);
+    rag::testutil::write_file(path, b);
+    EXPECT_THROW((void)ExecutionPolicyTable::load(path), rag::io::FormatError) << what;
+  };
+  using rag::testutil::poke;
+  const double inf = std::numeric_limits<double>::infinity(), nan = std::numeric_limits<double>::quiet_NaN();
+  expect_rejected([&](auto& b) { poke<std::uint32_t>(b, 8, 0); }, "zero horizon");
+  expect_rejected([&](auto& b) { poke<std::uint32_t>(b, 16, 0); }, "zero bins");
+  expect_rejected([&](auto& b) { poke<std::uint32_t>(b, 12, 4); }, "lots disagree with the cell count");
+  expect_rejected([&](auto& b) { poke<std::uint32_t>(b, 8, 1); }, "horizon disagrees with the cell count");
+  expect_rejected([&](auto& b) { b[44 + 7] = 5; }, "invalid action");
+  for (double lo : {inf, -inf, nan}) expect_rejected([&](auto& b) { poke<double>(b, 20, lo); }, "non-finite lo");
+  for (double w : {0.0, -0.1, inf, nan, 1e-310})  // 1e-310 is subnormal: 1 / width is infinite
+    expect_rejected([&](auto& b) { poke<double>(b, 28, w); }, "bad width");
+  rag::testutil::write_file(path, good);
+  EXPECT_NO_THROW((void)ExecutionPolicyTable::load(path));
+}
+
+TEST(PolicyTable, ACompiledOptimalPolicyKeepsNearlyAllOfItsGain) {
+  // The DP's own policy, compiled at 64 bins, against the DP itself.
+  const ExecutionParams p;
+  const ExecutionEnv env(p);
+  const ExecutionDP dp(p);
+  auto twap = [](const ExecutionObs&) { return ExecutionEnv::kTwapAction; };
+  auto opt = [&](const ExecutionObs& o) { return dp.act(o); };
+  const ExecutionPolicyTable table(p, opt);
+  const double best = compare(env, opt, twap, 400, 5).mean;
+  const double compiled = compare(env, [&](const ExecutionObs& o) { return table.act(o); }, twap, 400, 5).mean;
+  ASSERT_GT(best, 0);
+  EXPECT_GT(compiled / best, 0.97);
+  EXPECT_LE(compiled / best, 1.0 + 1e-9 + 0.02);  // sampling noise only; a table can't beat the optimum by much
+}
+
+TEST(PolicyTable, SavesAndLoadsExactlyAndRejectsCorruptFiles) {
+  ExecutionParams p;
+  p.lots = 12;
+  p.horizon = 5;
+  auto policy = [](const ExecutionObs& o) -> Action { return (o.t * 7 + o.inventory * 3 + (o.signal > 0 ? 1u : 0u)) % 5; };
+  const ExecutionPolicyTable table(p, policy, {.signal_bins = 6});
+  const auto path = std::filesystem::path(::testing::TempDir()) / "policy_table_roundtrip.tbl";
+  table.save(path);
+  const auto back = ExecutionPolicyTable::load(path);
+  EXPECT_EQ(back.bytes(), table.bytes());
+  EXPECT_EQ(back.signal_bins(), 6u);
+  for (std::uint32_t t = 0; t < 5; ++t)
+    for (std::uint32_t inv = 0; inv <= 12; ++inv)
+      for (double s : {-1.0, -0.13, -0.01, 0.0, 0.02, 0.2, 3.0}) EXPECT_EQ(back.act({t, inv, s}), table.act({t, inv, s}));
+
+  std::vector<char> bytes;
+  {
+    std::ifstream f(path, std::ios::binary);
+    bytes.assign(std::istreambuf_iterator<char>(f), {});
+  }
+  auto write = [&](const std::vector<char>& b) {
+    std::ofstream f(path, std::ios::binary | std::ios::trunc);
+    f.write(b.data(), static_cast<std::streamsize>(b.size()));
+  };
+  auto corrupt = bytes;
+  corrupt[50] ^= 1;  // a table byte (they start at 44): the checksum catches it
+  write(corrupt);
+  EXPECT_THROW((void)ExecutionPolicyTable::load(path), rag::io::FormatError);
+  write({bytes.begin(), bytes.end() - 3});  // truncated
+  EXPECT_THROW((void)ExecutionPolicyTable::load(path), rag::io::FormatError);
+  corrupt = bytes;
+  corrupt[0] = 'X';  // wrong magic (the checksum would fail too; either rejects it)
+  write(corrupt);
+  EXPECT_THROW((void)ExecutionPolicyTable::load(path), rag::io::FormatError);
+  std::filesystem::remove(path);
+}
+
+TEST(PolicyTable, MedianVotesCellByCell) {
+  ExecutionParams p;
+  p.lots = 4;
+  p.horizon = 3;
+  auto constant = [&](Action a) { return ExecutionPolicyTable(p, [a](const ExecutionObs&) { return a; }, {.signal_bins = 4}); };
+  const auto ens = ExecutionPolicyTable::median({constant(0), constant(4), constant(2)});
+  const auto even = ExecutionPolicyTable::median({constant(3), constant(1)});  // lower median
+  // A table that varies by cell, voted with two copies of itself, is unchanged.
+  auto varied = [](const ExecutionObs& o) -> Action { return (o.t + o.inventory) % 5; };
+  const ExecutionPolicyTable v(p, varied, {.signal_bins = 4});
+  const auto self = ExecutionPolicyTable::median({v, constant(0), v});
+  for (std::uint32_t t = 0; t < 3; ++t)
+    for (std::uint32_t inv = 0; inv <= 4; ++inv) {
+      EXPECT_EQ(ens.act({t, inv, 0.0}), 2u);
+      EXPECT_EQ(even.act({t, inv, 0.0}), 1u);
+      EXPECT_EQ(self.act({t, inv, 0.0}), varied({t, inv, 0.0}));
+    }
+  EXPECT_THROW((void)ExecutionPolicyTable::median({}), std::invalid_argument);
+  const ExecutionPolicyTable other(p, varied, {.signal_bins = 8});
+  EXPECT_THROW((void)ExecutionPolicyTable::median({v, other}), std::invalid_argument);
 }
 
 ```
@@ -21194,6 +21891,130 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
 
 ---
 
+## FILE: tests/fuzz/fuzz_policy_table.cpp  (5,365 bytes)
+
+```cpp
+// fuzz_policy_table — ExecutionPolicyTable::load on arbitrary files.
+//
+// As in fuzz_load, the fuzzer's bytes are the file payload and a correct
+// checksum is appended, so mutations get past the integrity check and reach
+// the structural validation behind it.
+//
+// Invariants: load() either throws io::FormatError (anything else escapes and
+// is reported) or returns a table that matches the payload's layout. Every
+// lookup, including times, inventories and signals far outside the grid, NaN
+// and infinities, is in bounds (ASan) and a valid action; NaN and -inf use
+// bin 0, +inf the last bin, and on a grid whose bins are resolvable in double
+// precision each bin centre maps to its own cell, all checked against the
+// payload's bytes. median() of the table with itself is the table, and save()
+// writes back exactly the bytes that were loaded.
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <cstring>
+#include <fstream>
+#include <iterator>
+#include <limits>
+#include <optional>
+#include <vector>
+
+#include "fuzz_common.hpp"
+#include "rag/agent/policy_table.hpp"
+
+using namespace rag;
+using namespace rag::agent;
+using namespace rag::fuzz;
+
+namespace {
+template <class T>
+T peek(const std::uint8_t* p) {
+  T v;
+  std::memcpy(&v, p, sizeof v);
+  return v;
+}
+}  // namespace
+
+extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size) {
+  static const auto path = scratch_file("policy-table");
+  io::Checksum c;
+  c.update(data, size);
+  const std::uint64_t h = c.value();
+  {
+    std::ofstream f(path, std::ios::binary | std::ios::trunc);
+    f.write(reinterpret_cast<const char*>(data), static_cast<std::streamsize>(size));
+    f.write(reinterpret_cast<const char*>(&h), sizeof h);
+  }
+  std::optional<ExecutionPolicyTable> loaded;
+  try {
+    loaded.emplace(ExecutionPolicyTable::load(path));
+  } catch (const io::FormatError&) {
+    return 0;  // rejected: fine
+  }
+  const ExecutionPolicyTable& table = *loaded;
+
+  // Layout: magic[8], horizon, lots, bins (u32), lo, width (f64), u64 length, cells.
+  constexpr std::size_t kHeader = 44;
+  FUZZ_CHECK(size == kHeader + table.bytes());
+  const auto horizon = peek<std::uint32_t>(data + 8), lots = peek<std::uint32_t>(data + 12),
+             bins = peek<std::uint32_t>(data + 16);
+  const double lo = peek<double>(data + 20), width = peek<double>(data + 28);
+  FUZZ_CHECK(table.signal_bins() == bins && horizon > 0 && bins > 0);
+  const std::uint64_t inventories = std::uint64_t{lots} + 1, cells = table.bytes();
+  FUZZ_CHECK(cells % bins == 0 && (cells / bins) % inventories == 0 && cells / bins / inventories == horizon);
+  const std::uint8_t* cell = data + kHeader;
+
+  const ExecutionPolicyTable self3 = ExecutionPolicyTable::median({table, table, table});
+  const ExecutionPolicyTable self2 = ExecutionPolicyTable::median({table, table});
+
+  constexpr std::uint32_t kMax32 = std::numeric_limits<std::uint32_t>::max();
+  constexpr double kInf = std::numeric_limits<double>::infinity(), kNaN = std::numeric_limits<double>::quiet_NaN(),
+                   kMaxD = std::numeric_limits<double>::max(), kTiny = std::numeric_limits<double>::denorm_min();
+  const std::uint32_t ts[] = {0, 1, horizon - 1, horizon, kMax32 - 1, kMax32};
+  const std::uint32_t invs[] = {0, 1, lots, lots + 1 /* wraps at UINT32_MAX: fine */, kMax32};
+  const double span = static_cast<double>(bins) * width;
+  const double signals[] = {0.0,   -0.0,  1e-3,   -1e-3, 1.0,  -1.0,  1e300,       -1e300,
+                            kMaxD, -kMaxD, kInf,  -kInf, kNaN, kTiny, -kTiny,      lo,
+                            lo + span, std::nextafter(lo, -kInf), table.bin_centre(0), table.bin_centre(bins / 2),
+                            table.bin_centre(bins - 1)};
+  // Bin centres map back to their bins when the grid's coordinates are
+  // resolvable: |lo| at most the grid's span (true of everything save()
+  // writes) and no overflow at the top edge.
+  const bool resolvable = std::isfinite(2 * span) && std::abs(lo) <= span;
+  for (const std::uint32_t t : ts)
+    for (const std::uint32_t inv : invs) {
+      const std::uint64_t row = (std::uint64_t{std::min(t, horizon - 1)} * inventories + std::min(inv, lots)) * bins;
+      for (const double s : signals) {
+        const ExecutionObs o{t, inv, s};
+        const Action a = table.act(o);
+        FUZZ_CHECK(a < ExecutionEnv::kNumActions);
+        FUZZ_CHECK(self3.act(o) == a && self2.act(o) == a);
+      }
+      const Action first{cell[row]}, last{cell[row + bins - 1]};
+      FUZZ_CHECK(table.act({t, inv, kNaN}) == first);
+      FUZZ_CHECK(table.act({t, inv, -kInf}) == first);
+      FUZZ_CHECK(table.act({t, inv, -kMaxD}) == first);
+      FUZZ_CHECK(table.act({t, inv, std::nextafter(lo, -kInf)}) == first);
+      FUZZ_CHECK(table.act({t, inv, kInf}) == last);
+      if (resolvable)
+        for (const std::uint32_t b : {0u, bins / 2, bins - 1})
+          FUZZ_CHECK(table.act({t, inv, table.bin_centre(b)}) == Action{cell[row + b]});
+    }
+
+  // save() writes back exactly what was loaded, checksum included.
+  table.save(path);
+  std::ifstream f(path, std::ios::binary);
+  const std::vector<char> back{std::istreambuf_iterator<char>(f), {}};
+  FUZZ_CHECK(back.size() == size + sizeof h);
+  FUZZ_CHECK(std::memcmp(back.data(), data, size) == 0);
+  FUZZ_CHECK(std::memcmp(back.data() + size, &h, sizeof h) == 0);
+  return 0;
+}
+
+```
+
+
+---
+
 ## FILE: tests/fuzz/fuzz_text.cpp  (5,267 bytes)
 
 ```cpp
@@ -21316,23 +22137,72 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
 
 ---
 
-## FILE: tests/fuzz/make_seeds.cpp  (2,011 bytes)
+## FILE: tests/fuzz/make_seeds.cpp  (3,652 bytes)
 
 ```cpp
 // make_seeds — writes valid index payloads (file minus trailing checksum)
-// for every dense mode, as a starting corpus for fuzz_load.
+// for every dense mode, as a starting corpus for fuzz_load; given a second
+// directory, also valid policy-table payloads for fuzz_policy_table.
 #include <cstdio>
 #include <fstream>
 #include <iterator>
 #include <vector>
 
 #include "fuzz_common.hpp"
+#include "rag/agent/policy_table.hpp"
 
 using namespace rag;
 using namespace rag::fuzz;
 
+namespace {
+// A saved file minus its trailing checksum: the fuzzers append a fresh one.
+std::vector<char> payload_of(const std::filesystem::path& tmp) {
+  std::vector<char> b;
+  {
+    std::ifstream f(tmp, std::ios::binary);
+    b.assign(std::istreambuf_iterator<char>(f), {});
+  }
+  std::filesystem::remove(tmp);
+  b.resize(b.size() - 8);
+  return b;
+}
+
+void write_payload(const std::filesystem::path& p, const std::vector<char>& b) {
+  std::ofstream o(p, std::ios::binary);
+  o.write(b.data(), static_cast<std::streamsize>(b.size()));
+}
+
+// Small policy tables (each a few hundred bytes at most) over varied grids,
+// including widths near both ends of the normal range (1e-307 is one byte
+// edit from a subnormal width).
+int policy_table_seeds(const std::filesystem::path& out) {
+  using namespace rag::agent;
+  std::filesystem::create_directories(out);
+  struct Shape {
+    std::uint32_t horizon, lots, bins;
+    double range, sd;
+  };
+  const Shape shapes[] = {{1, 0, 1, 4.0, 0.1}, {2, 3, 4, 4.0, 0.1}, {5, 12, 6, 2.0, 0.1}, {3, 2, 32, 4.0, 1e-300},
+                          {2, 1, 16, 1e300, 1e7}, {4, 9, 5, 0.5, 3.0},   {2, 2, 8, 4.0, 1e-307}};
+  int idx = 0;
+  for (const Shape& s : shapes) {
+    ExecutionParams p;
+    p.horizon = s.horizon;
+    p.lots = s.lots;
+    p.signal_sd = s.sd;
+    const ExecutionPolicyTable table(
+        p, [](const ExecutionObs& o) -> Action { return (o.t * 3 + o.inventory + (o.signal > 0 ? 2u : 0u)) % 5; },
+        {.signal_bins = s.bins, .signal_range_sd = s.range});
+    const auto tmp = out / "tmp.tbl";
+    table.save(tmp);
+    write_payload(out / ("seed-" + std::to_string(idx++)), payload_of(tmp));
+  }
+  return idx;
+}
+}  // namespace
+
 int main(int argc, char** argv) {
-  if (argc < 2) { std::fprintf(stderr, "usage: make_seeds <out-dir>\n"); return 2; }
+  if (argc < 2) { std::fprintf(stderr, "usage: make_seeds <out-dir> [<policy-table-out-dir>]\n"); return 2; }
   const std::filesystem::path out = argv[1];
   std::filesystem::create_directories(out);
   const char* docs[] = {"alpha beta gamma delta epsilon zeta eta theta iota kappa",
@@ -21353,15 +22223,11 @@ int main(int argc, char** argv) {
       if (ndocs == 4) e.ingest("uncommitted tail chunk", 9);
       const auto tmp = out / "tmp.idx";
       e.save(tmp);
-      std::ifstream f(tmp, std::ios::binary);
-      std::vector<char> b{std::istreambuf_iterator<char>(f), {}};
-      std::filesystem::remove(tmp);
-      b.resize(b.size() - 8);  // drop the checksum: the fuzzer appends a fresh one
-      std::ofstream o(out / ("seed-" + std::to_string(idx++)), std::ios::binary);
-      o.write(b.data(), static_cast<std::streamsize>(b.size()));
+      write_payload(out / ("seed-" + std::to_string(idx++)), payload_of(tmp));
     }
   }
   std::printf("wrote %d seeds to %s\n", idx, out.c_str());
+  if (argc >= 3) std::printf("wrote %d policy-table seeds to %s\n", policy_table_seeds(argv[2]), argv[2]);
 }
 
 ```

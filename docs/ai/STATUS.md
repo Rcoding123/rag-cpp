@@ -41,10 +41,11 @@
     a median vote of 8 seeds' tables at 97.5% of the optimum (E22, E23);
   * optional NLopt/Eigen tooling: hyperparameter search validated on
     held-out seeds, sensitivity analysis, rank-revealing least squares.
-* **Reviews:** three review agents (adversarial bug hunt, coverage, RAG
-  property tests) found and fixed 14 bugs, six of them in the engine
-  (including a heap overflow reachable through config and through a forged
-  index file, R13–R17); agent-header coverage is 99.7% of lines and 99.0% of
+* **Reviews:** four review agents (adversarial bug hunt, coverage, RAG
+  property tests, and a review plus fuzzer for `policy_table.hpp`) found
+  and fixed 17 bugs, six of them in the engine (including a heap overflow
+  reachable through config and through a forged index file, R13–R17) and
+  three in the policy table (A46); agent-header coverage is 99.7% of lines and 99.0% of
   regions. Their schedule fixes may shift the online-gain numbers of E8,
   E11 and E15 slightly; those were measured before the fixes.
 * **Testing:**

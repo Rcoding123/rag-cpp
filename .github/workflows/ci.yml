@@ -102,11 +102,11 @@ jobs:
       - name: Build fuzzers
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=clang++ -DRAG_FUZZ=ON
-          cmake --build build --target fuzz_load fuzz_text make_seeds -j"$(nproc)"
+          cmake --build build --target fuzz_load fuzz_text fuzz_policy_table make_seeds -j"$(nproc)"
 
       - name: Seed corpora
         run: |
-          ./build/make_seeds corpus/load
+          ./build/make_seeds corpus/load corpus/policy
           mkdir -p corpus/text
           printf 'The limit order book. VWAP.\nqueue position' > corpus/text/a
           printf '\x05\x02\x09caf\xc3\xa9 ZX81Q the of and' > corpus/text/b
@@ -116,6 +116,9 @@ jobs:
 
       - name: Fuzz text pipeline (60 s)
         run: ./build/fuzz_text -max_total_time=60 -rss_limit_mb=2048 -timeout=10 -max_len=4096 -artifact_prefix=crash-text- corpus/text
+
+      - name: Fuzz policy-table loading (30 s)
+        run: ./build/fuzz_policy_table -max_total_time=30 -rss_limit_mb=2048 -timeout=10 -artifact_prefix=crash-policy- corpus/policy
 
       - name: Upload crashing inputs
         if: failure()
