@@ -1,6 +1,6 @@
 // E23: ensembles of compiled policies. Loads the tables e22_table saved
-// (seed1..8, one bin count), evaluates every subset of size 1, 3, 5, 7 and 8
-// with ExecutionPolicyTable::median, and prints CSV rows:
+// (seed1..8, one bin count), evaluates every non-empty subset (255) with
+// ExecutionPolicyTable::median (lower median for even sizes) and a plurality vote, and prints CSV rows:
 //   bins,size,members,share_median,share_plurality
 // Usage: e23_vote TABLE_DIR BINS
 #include <cstdio>
@@ -27,7 +27,6 @@ int main(int argc, char** argv) {
   for (int s = 1; s <= 8; ++s) all.push_back(ExecutionPolicyTable::load(dir + "/seed" + std::to_string(s) + "_bins" + bins + ".tbl"));
   for (unsigned mask = 1; mask < 256u; ++mask) {
     const int size = __builtin_popcount(mask);
-    if (size != 1 && size != 3 && size != 5 && size != 7 && size != 8) continue;
     std::vector<ExecutionPolicyTable> members;
     std::string names;
     for (int s = 0; s < 8; ++s)

@@ -42,6 +42,7 @@ rag-cpp/
 │           ├── features.hpp     TileCoder, RandomFourierEncoder
 │           ├── learners.hpp     TileQ, ReplayBuffer, EpisodicMemory
 │           ├── mlp.hpp          from-scratch MLP: backprop, Adam, SGD (for NeuralQ)
+│           ├── policy_table.hpp compile a policy into a lookup table; save/load; median-vote ensembles (E22, E23)
 │           ├── agent.hpp        Agent<Env>: TileQ / Episodic / ActorCritic / NeuralQ, n-step, distill, snapshots
 │           ├── evaluate.hpp     evaluate / compare on common random numbers (EvalStats)
 │           ├── drift.hpp        DriftDetector: one-sided CUSUM on surprise (DriftParams)
@@ -64,6 +65,7 @@ rag-cpp/
 │   ├── agent_edge_case_tests.cpp edge cases from the adversarial review (8 bugs)
 │   ├── agent_coverage_tests.cpp hand-computed checks closing coverage gaps (99.7% lines)
 │   ├── optional_libs_tests.cpp  (NLopt + Eigen) tuner, global search, solver cross-check
+│   ├── policy_table_tests.cpp   lookup-table policies: grid, clamping, persistence, voting
 │   ├── rag_property_tests.cpp   engine property tests: TopK, SIMD, tokenizer, chunker, BM25, IVF, persistence (6 bugs)
 │   ├── api_examples_tests.cpp   compiles and runs every snippet in docs/ai/API.md
 │   ├── pdf_tests.cpp            (Poppler) PDF extraction on generated PDFs

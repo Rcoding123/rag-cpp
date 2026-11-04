@@ -79,6 +79,7 @@ other framework is used. What each piece corresponds to:
 | Tile coding, random Fourier features | `features.hpp` | Sutton's tile coder; scikit-learn `RBFSampler` |
 | Q-learning (n-step, replay, annealed step size), episodic k-NN memory | `learners.hpp`, `agent.hpp` | SB3 DQN (with a linear model instead of a network) |
 | Neural Q-learner: MLP, backprop, Adam, target network (`NeuralQ`) | `mlp.hpp`, `agent.hpp` | SB3 DQN / PyTorch |
+| Policy compilation to a lookup table, ensembles by vote | `policy_table.hpp` | (none standard) |
 | Actor-critic (softmax policy, TD critic) | `agent.hpp` | SB3 A2C |
 | Model-based agent (regression + DP planning) | `model_based.hpp` | none standard |
 | Exact optima by dynamic programming | `execution_dp.hpp`, `market_making.hpp` | none (task-specific) |

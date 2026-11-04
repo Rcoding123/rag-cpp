@@ -127,3 +127,11 @@ building learning systems in general, not just this task.
     held-out scenarios, bootstrap intervals) separated the top three
     learners cleanly and showed that a configuration tuned for 10k episodes
     has a wide spread at 40k (E21).
+29. **Compile what you learned.** On a small state space, a table sampled
+    from the trained network kept its gain within 0.25 points at 1/1,000 of
+    the decision cost. Check the grid on a policy you know first: the exact
+    optimum, compiled the same way, showed what the grid alone costs (E22).
+30. **Seeds are an ensemble you already paid for.** The median of 8 seeds'
+    tables (97.5%) beat the best seed (94.1%) by more than the best seed
+    beat the average one (91.4%). Report every subset, and confirm on fresh
+    scenarios, so the ensemble isn't selected on the test set (E23).

@@ -36,6 +36,9 @@
   * a from-scratch neural Q-learner (`NeuralQ`, no ML library) that breaks
     the tile-coding plateau on execution (91.5% [90.1, 92.7] at 40k
     episodes with Double DQN, 8 seeds; E21 ranks every learner);
+  * `ExecutionPolicyTable`: any execution policy compiled into a lookup
+    table (3 ns per decision, the network's gain within 0.25 points), and
+    a median vote of 8 seeds' tables at 97.5% of the optimum (E22, E23);
   * optional NLopt/Eigen tooling: hyperparameter search validated on
     held-out seeds, sensitivity analysis, rank-revealing least squares.
 * **Reviews:** three review agents (adversarial bug hunt, coverage, RAG
@@ -103,8 +106,10 @@
 1. A neural `Embedder` (e.g. ONNX Runtime with a MiniLM model, 384 dims to
    match), on a machine that can download models.
 2. Incremental BM25 segments with background merging.
-3. Agent: vectorize `NeuralQ`'s forward pass (float, SIMD) and distill a
-   trained network into tiles or a lookup table for nanosecond decisions.
+3. Agent: compare the seed ensemble (E23) with weight averaging (EMA /
+   SWA of one network's weights) and with Q-value averaging across seeds
+   (RESEARCH.md §6.4); test the hint that the networks over-trade (E23);
+   a policy table for market making.
 4. Agent: the research's remaining ideas (RESEARCH.md §5): all-action
    counterfactual updates, value/advantage sharing across actions,
    Munchausen targets, weight averaging for the deployed policy.

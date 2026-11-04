@@ -36,6 +36,8 @@ and the conclusion; negative results stay in.
 | E18 | Can a proper optimizer tune the learner? | NLopt (CRS2 global + Subplex) lifts TileQ at 10k episodes from 37% [33, 41] to 59% [52, 66] on held-out seeds; the Eigen response surface rediscovers E8 and E16. Local search alone was start-dependent; winners were 0.3–18.5 points optimistic on their own seeds. |
 | E20 | Do Double DQN and advantage learning help the neural learner? | Yes, mostly through stability: deployed 87–94% at 20k episodes vs 81–87% plain; the learner's own greedy policy 87–91% vs 70%. |
 | E21 | How do all learners rank under one protocol (8 seeds, CIs)? | At 40k episodes: NeuralQ + Double DQN 91.5% [90.1, 92.7], ActorCritic 81.9%, TileQ coarse + AL 78.7%, tuned TileQ 73.4%, default TileQ 66.7%; model-based 99.5% after 50 episodes. |
+| E22 | Can a lookup table replace the neural policy? | From 32 signal bins the table keeps the network's gain (within 0.25 points; never worse than 0.8) at ~3 ns per decision instead of ~1.7–3 µs; the exact DP policy compiled the same way keeps 99.6–100%. |
+| E23 | Does a vote across seeds' tables beat one network? | Yes: the median of 8 seeds' tables keeps 97.5% (fresh scenarios: 97.9%, better than every member by 4.4–10.2 points), vs 91.4% for the average seed and 94.1% for the best; 3 members already beat the best seed. |
 | E19 | Do gap-increasing targets help? | Advantage learning (k = 0.5) lifts TileQ from 65–69% to 70–75% at 40k, and to 76–80% with coarse tiles: the best tile-coded result, still below the neural learner. |
 
 ---
@@ -1242,3 +1244,92 @@ R² = 0.56; effect of +1 standard deviation of each parameter):
   advantage learning are both better and tight (76–81%).
 * **The neural learner's worst seed beats every other model-free learner's
   best:** 88% at 40k, against at most 84% for ActorCritic and tuned TileQ.
+
+
+## E22. Compile the neural policy into a lookup table
+
+* **Question:** `NeuralQ` is the best model-free learner (E21) but costs
+  1.7 µs per decision (about 3 µs with all cores busy), against 64 ns for
+  TileQ. The execution state is small: 20 time steps × 101 inventories ×
+  one continuous signal. Can a table of the network's greedy actions,
+  sampled at the centre of each (t, inventory, signal bin) cell, keep its
+  gain?
+* **Setup:** `ExecutionPolicyTable` (`policy_table.hpp`); NeuralQ + Double
+  DQN, 40,000 episodes, deployed champion, seeds 1–8 (the E21 protocol:
+  the network scores match E21 to six digits); the same 1,000 held-out
+  scenarios. "Same action" is the share of the decisions the network makes
+  on those scenarios where the table picks the same action. Probes
+  `experiments/e22_table.cpp`, `e22_dp_ceiling.cpp`.
+* **The grid's own cost** (the exact DP policy, compiled): 82.1% of the
+  optimum at 4 bins, 95.4% at 8, 98.9% at 16, and 99.6–100.4% from 32
+  bins up (sampling noise around 100%).
+
+| Signal bins | Range (sd) | Table size | Share (mean, min–max) | Change vs the network, points (mean, min–max) | Same action as the network | ns per decision |
+|---|---|---|---|---|---|---|
+| network | | | 91.5% (87.7–94.1) | | | ~3,000 (cores shared) |
+| 4 | ±4 | 8 KB | 76.8% (75.0–78.7) | −14.71 (−16.08 to −11.13) | 63.8% | 2.6 |
+| 8 | ±4 | 16 KB | 87.8% (83.3–91.3) | −3.69 (−4.75 to −1.73) | 76.5% | 2.8 |
+| 16 | ±4 | 32 KB | 90.3% (86.3–93.6) | −1.21 (−1.71 to −0.53) | 86.7% | 2.5 |
+| 32 | ±4 | 65 KB | 91.3% (86.9–94.1) | −0.16 (−0.80 to +0.22) | 93.2% | 2.7 |
+| 64 | ±4 | 129 KB | 91.2% (87.2–93.9) | −0.25 (−0.52 to −0.02) | 96.6% | 2.9 |
+| 64 | ±3 | 129 KB | 91.6% (87.5–94.2) | +0.15 (−0.22 to +0.44) | 97.3% | 3.1 |
+| 128 | ±4 | 259 KB | 91.3% (87.5–93.9) | −0.16 (−0.47 to +0.11) | 98.3% | 2.7 |
+| 256 | ±4 | 517 KB | 91.4% (87.2–94.1) | −0.05 (−0.48 to +0.14) | 99.1% | 3.0 |
+
+* **From 32 bins, the table is the network:** within 0.25 points on
+  average and never more than 0.8 points worse on any seed, about 1,000×
+  faster (3 ns; 3.45 ns at random states), with no floating-point model at
+  decision time.
+* **Disagreement doesn't mean loss:** at 32 bins the table disagrees on
+  6.8% of decisions yet loses 0.16 points. The disagreements are at bin
+  edges, where the network's own action boundary lies and the two actions
+  are worth nearly the same.
+* **Bins matter more than range:** 64 bins over ±3 sd (finer bins, 0.3% of
+  signals clamped) did slightly better than over ±4 sd.
+
+## E23. Ensembles of compiled policies
+
+* **Question:** a table costs the same whatever produced it. Does a vote
+  across networks trained with different seeds beat a single network, at
+  no extra decision cost?
+* **Setup:** the 8 seeds' tables from E22 (256 and 64 bins, ±4 sd);
+  `ExecutionPolicyTable::median` combines tables cell by cell with the
+  lower median action (actions are ordered by trade size); a plurality
+  vote (ties to the smaller action) for comparison. Every one of the 255
+  non-empty subsets of the 8 seeds is scored, so no ensemble is selected on
+  the test scenarios. Probes `experiments/e23_vote.cpp`, `e23_fresh.cpp`.
+
+256 bins (64 bins: within 0.3 points of these everywhere):
+
+| Members | Ensembles | Median vote: mean (min–max) | Plurality vote: mean (min–max) | Median vote beats its members' mean |
+|---|---|---|---|---|
+| 1 | 8 | 91.4% (87.2–94.1) | 91.4% (87.2–94.1) | — |
+| 2 | 28 | 93.1% (89.0–96.3) | 93.1% (89.0–96.3) | 22/28 |
+| 3 | 56 | 95.4% (93.5–97.2) | 94.5% (92.6–96.1) | 56/56 |
+| 4 | 70 | 96.7% (95.4–97.9) | 95.5% (93.8–96.5) | 70/70 |
+| 5 | 56 | 96.4% (95.2–97.4) | 96.2% (94.9–97.2) | 56/56 |
+| 6 | 28 | 97.4% (96.5–98.1) | 96.7% (95.6–97.2) | 28/28 |
+| 7 | 8 | 96.7% (96.2–97.2) | 96.8% (96.2–97.3) | 8/8 |
+| 8 | 1 | 97.5% | 97.3% | 1/1 |
+
+* **The ensemble is the best model-free policy in the project:** the median
+  of all 8 tables keeps 97.5% of the optimal gain, against 91.4% for the
+  average seed and 94.1% for the best one. Three members already beat the
+  best single seed on average (95.4%).
+* **Confirmed on fresh scenarios:** on 4,000 scenarios none of the earlier
+  evaluations used, the 8-member ensemble scores 97.9% and beats every
+  member, by 4.4 to 10.2 points (paired standard errors 0.3–0.5, so z ≥ 13).
+* **Why it works:** the networks reach the same score by different routes:
+  each one's errors sit in different cells, and the median removes errors
+  that a majority doesn't share. This is the variance argument for bagging;
+  the seeds' policies are diverse enough for it to pay.
+* **Median vs plurality:** the median is better or equal at every size
+  except 7 (within 0.1 points). With ordered actions, the median also
+  accounts for how far apart the votes are, not only how many there are.
+* **An unconfirmed hint:** at even sizes the lower median (which leans
+  toward the smaller trade) does as well as or better than the next odd
+  size (4 members 96.7% vs 5 members 96.4%; 6 vs 7: 97.4% vs 96.7%), and
+  for two members it beats their mean in 22 of 28 pairs. That suggests the
+  networks err toward trading too much; untested.
+* **The cost is training, not deployment:** N members need N× the
+  training compute; a decision stays one 3 ns lookup.

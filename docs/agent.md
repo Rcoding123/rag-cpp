@@ -193,6 +193,13 @@ learn if the world changes.
   With Double DQN targets it is the best model-free learner on the
   E21 leaderboard: 91.5% [90.1, 92.7] at 40,000 episodes over 8 seeds,
   against 81.9% for actor-critic and 66.7% for default TileQ.
+* **Compile the network, then vote (E22, E23).** `ExecutionPolicyTable`
+  (`policy_table.hpp`) samples any execution policy at the centre of
+  every (t, inventory, signal bin) cell: from 32 bins it keeps the
+  network's gain within 0.25 points at 3 ns per decision. Because a table
+  costs the same whatever produced it, networks trained with different
+  seeds can be combined: the cell-wise median of 8 seeds' tables keeps
+  97.5% of the optimum, better than every single seed.
 * **Double Q-learning didn't help.** It removes the upward bias that
   `max()` puts into targets. Here, though, the two were level at 30,000
   episodes (64.8% with it, 64.5% without), and at 60,000 it was clearly worse
