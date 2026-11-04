@@ -1129,3 +1129,32 @@ TEST(VarianceReduction, EstimatesTheDriftFromMarketData) {
   }
   EXPECT_NEAR(env.alpha_hat(), 1.0, 0.05);
 }
+
+// ================= Experiment E19 (advantage learning) =====================
+TEST(AgentLearning, AdvantageLearningTargetByHand) {
+  // Two updates of Q(s0, right) toward r + max Q(s1) = -1 with step 0.5.
+  // The first sees no gap. The second: Q(s0) = {0, -0.5}, so the action's
+  // advantage deficit is 0.5 and advantage learning with k = 0.5 lowers the
+  // target to -1.25: Q = -0.5 + 0.5 * (-1.25 + 0.5) = -0.875 (plain: -0.75).
+  // Measured on ExecutionEnv (E19): k = 0.5 lifts TileQ from 65-69% to
+  // 70-75% at 40k episodes, and to 76-80% with coarse tiles.
+  for (double k : {0.0, 0.5}) {
+    AgentConfig<1> cfg;
+    cfg.n_step = 1;
+    cfg.replay_per_step = 0;
+    cfg.alpha = 0.5;
+    cfg.alpha_decay_episodes = 0;
+    cfg.tilings = 1;
+    cfg.bins = {16};
+    cfg.advantage_learning = k;
+    ChainEnv env;
+    Agent<ChainEnv> agent(env, cfg);
+    const ChainEnv::Observation s0{0, 0}, s1{1, 1};
+    agent.observe(s0, 1, -1.0, s1, false);
+    agent.observe(s0, 1, -1.0, s1, false);
+    double q[2];
+    agent.q_values(s0, q);
+    EXPECT_NEAR(q[0], 0.0, 1e-12);
+    EXPECT_NEAR(q[1], k > 0 ? -0.875 : -0.75, 1e-12) << "k = " << k;
+  }
+}

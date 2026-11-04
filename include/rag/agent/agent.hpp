@@ -75,6 +75,10 @@ struct AgentConfig {
   // toward the other's value of its own best next action. Removes the upward
   // bias that max() over noisy estimates puts into every Q-learning target.
   bool double_q = false;  // measured: on ExecutionEnv, halving each estimator's updates costs more than the bias it removes
+  // Advantage learning (Baird 1999; Bellemare et al. 2016): subtract k times
+  // the action's advantage deficit from its target, widening action gaps
+  // while keeping the optimal policy. 0 = plain Q-learning. TileQ only. E19.
+  double advantage_learning = 0.0;
   std::uint32_t replay_capacity = 100'000;
   std::uint32_t replay_per_step = 4;  // extra updates from replayed experience per real step
   // n-step returns: targets sum n real rewards before bootstrapping from
@@ -508,6 +512,11 @@ class Agent {
       const auto best = static_cast<Action>(std::max_element(qn.begin(), qn.end()) - qn.begin());
       const double boot = cfg_.gamma == 1.0 ? 1.0 : std::pow(cfg_.gamma, t.steps);
       target += boot * judge->q(t.next.data(), best);
+    }
+    if (cfg_.advantage_learning > 0) {
+      std::array<double, A> qs;
+      learn->q_values(t.s.data(), qs.data());
+      target -= cfg_.advantage_learning * (*std::max_element(qs.begin(), qs.end()) - qs[t.action]);
     }
     learn->update(t.s.data(), t.action, target);
   }

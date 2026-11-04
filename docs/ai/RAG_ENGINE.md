@@ -52,6 +52,16 @@ QUERY (any number of threads, each with its own QueryContext; zero heap allocati
   (`EpochDomain::quiescent_since`).
 * **Lifetime:** destroy every `QueryContext` before the engine.
 
+## Validation added by the property-test review (R13–R17)
+
+* `EngineConfig`: BM25 `k1` must be finite and ≥ 0, `b` in [0, 1].
+* `Bm25Index::load()`: every posting weight must be finite and > 0.
+* IVF list rows are scored with `simd::dot1` (bit-identical to the exact scan).
+* IVF training uses at least one point per list; `build(store, 0)` resets.
+* `tests/rag_property_tests.cpp` checks these and the properties above on
+  random inputs (48 random corpora × configs × all dense modes against the
+  reference implementation).
+
 ## Invariants that tests rely on (don't break these)
 
 1. **Bit-exact batching:** `query_batch` returns bit-identical results to

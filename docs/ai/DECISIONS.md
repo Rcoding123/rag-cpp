@@ -21,6 +21,12 @@ the code looks the way it does.
 | R11 | Saved snapshot reused on load when the parameters match | IVF training dominated load time (4.2 s). |
 | R12 | Arena bounds checked on integer addresses | **Bug found by fuzzing:** `nullptr + n` on a fresh arena. GCC's UBSan misses it, so CI also runs Clang's. |
 
+| R13 | `EngineConfig` validation rejects BM25 `k1 < 0` or non-finite, and `b` outside [0, 1] | **Bug found by the RAG review agent:** `k1 = -1` made every posting weight 0 and the next query overflowed a heap buffer in `Bm25Index::search`. |
+| R14 | `Bm25Index::load()` rejects posting weights that aren't finite and > 0 | **Bug:** a forged file with a valid checksum and zero weights loaded, then overflowed at query time (checksums don't stop forgers; R9). |
+| R15 | IVF scores every list row with `simd::dot1` | **Bug:** the tail of each list used `dot`, so a row's score depended on its position: 46 of 1,280 hits differed from the exact scan with every list probed. Same root cause as R6. |
+| R16 | IVF training samples at least one point per list; `build(store, 0)` resets the whole index | **Bugs:** `max_train_points_per_list = 0` divided by zero (SIGFPE) on the first IVF commit; rebuilding a used index over zero rows let `save()` write a file its own `load()` rejects. |
+| R17 | `BufWriter::put` skips empty writes | **Bug (UB):** an empty `string_view` with a null data pointer reached `memcpy`; UBSan caught it with an empty system prompt. |
+
 ## PDF support
 
 | # | Decision | Why |
@@ -76,3 +82,4 @@ the code looks the way it does.
 | A39 | Hyperparameter searches go global first (CRS2), then local (Subplex), and are always validated on held-out seeds with bootstrap intervals | A local search alone found 57% or 70% depending on its initial steps; winners scored 0–18 points higher on their own seeds than on unseen ones (E18). |
 | A40 | Model-based agents: the gap doubles only after a re-plan; greedy acting before the first plan returns a fixed baseline action; `observe()` alone separates the last sale from the dump | Bugs found by the adversarial-review agent: the first plan's gap doubled too early (plans at 10, 50, 130 instead of 10, 30, 70), greedy evaluation consumed the agent's RNG, and trainers calling only `observe()` biased `terminal_impact` (0.038 vs 0.050). Each has a regression test (`agent_edge_case_tests.cpp`). |
 | A41 | `cvar` counts the worst fraction with a rounding tolerance; `evidence()` is the larger of both CUSUM statistics; empty OPE logs cover no step; `ExecutionDP` rejects grids < 2 and floors a zero-width grid | Bugs found by the same review: 0.29 × 100 = 28.999… dropped an outcome; two-sided evidence read 0 until an upward alarm; empty logs reported full coverage; `signal_sd = 0` made every value NaN and `grid < 2` wrote out of bounds. |
+| A42 | `advantage_learning` (k) is available for TileQ, default 0 | k = 0.5 gave +5 points at 40k (70–75%) and ~2× the share at 5k; k = 0.9 widened the spread across seeds (E19). Other tasks' tests are tuned on k = 0. |

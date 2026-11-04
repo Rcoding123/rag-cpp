@@ -107,7 +107,8 @@ target y adds (α / tilings) · (y − Q(s, a)) to each active weight.
   re-exploration).
 * Exploration: ε falls linearly from eps_start (1) to eps_end (0.02) over
   eps_decay_episodes (1,500), and never reaches 0. Optional double
-  Q-learning (off).
+  Q-learning (off) and advantage learning: y ← y − k · (maxᵦ Q(s, b) − Q(s, a))
+  (`advantage_learning`, default 0).
 
 **ActorCritic:** a softmax policy π(a | s) ∝ exp(h(s, a) / T) over
 tile-coded logits h, and a tile-coded critic V(s).

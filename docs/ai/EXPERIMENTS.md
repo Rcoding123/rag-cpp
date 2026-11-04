@@ -34,6 +34,7 @@ and the conclusion; negative results stay in.
 | E16 | Would a neural network (PyTorch-style) do better? | Yes: a from-scratch MLP (DQN-style, no library) reaches 84–89% at 40k (deployed 86–92%) vs 65–69% for TileQ. Not the target network, not Adam: generalization. Coarser tiles alone reach 76–77%. |
 | E17 | Does a control variate for the price noise help? | Not by default: the innovation is ~5% of the return variance (the signal path dominates). In a noisy market (noise_sd 0.2) it lifts TileQ from 49–61% to 67–71%. Decompose before reducing. |
 | E18 | Can a proper optimizer tune the learner? | NLopt (CRS2 global + Subplex) lifts TileQ at 10k episodes from 37% [33, 41] to 59% [52, 66] on held-out seeds; the Eigen response surface rediscovers E8 and E16. Local search alone was start-dependent; winners were 0.3–18.5 points optimistic on their own seeds. |
+| E19 | Do gap-increasing targets help? | Advantage learning (k = 0.5) lifts TileQ from 65–69% to 70–75% at 40k, and to 76–80% with coarse tiles: the best tile-coded result, still below the neural learner. |
 
 ---
 
@@ -1137,3 +1138,33 @@ R² = 0.56; effect of +1 standard deviation of each parameter):
 * **The data analysis rediscovers the earlier hand-found lessons
   independently:** low starting ε matters most (E8), coarser tiles next
   (E16), and the step size has an interior optimum (A4).
+
+## E19. Advantage learning: widening the action gaps
+
+* **Question:** RESEARCH.md §2 suggests gap-increasing targets for tasks
+  whose action-value gaps are tiny relative to target noise (here: gaps < 1,
+  targets ±20–50). Advantage learning (Baird 1999; Bellemare et al. 2016)
+  subtracts k × (max_b Q(s, b) − Q(s, a)) from each target, which widens
+  the gaps while preserving the optimal policy.
+* **Code:** `AgentConfig::advantage_learning` (k; default 0 = plain
+  Q-learning), applied in TileQ's TD update.
+* **Test:** `AgentLearning.AdvantageLearningTargetByHand`.
+* **Results** (TileQ, ε 1 → 0.02 over 10k, seeds 1–3; probe `e19_al.cpp`):
+
+| Tiles | k | 5,000 | 20,000 | 40,000 |
+|---|---|---|---|---|
+| default 8×8×8 × 8 | 0 | 8–16% | 56–60% | 65–69% |
+| default 8×8×8 × 8 | **0.5** | **23–36%** | 62–65% | **70–75%** |
+| default 8×8×8 × 8 | 0.9 | −4 to +36% | 64–68% | 62–75% |
+| coarse 2×4×4 × 16 | 0 | 33–47% | 65–72% | 76–77% |
+| coarse 2×4×4 × 16 | **0.5** | −123 to +46% | 70–76% | **76–80%** |
+| coarse 2×4×4 × 16 | 0.9 | 30–47% | 70–78% | 68–80% |
+
+* **k = 0.5 helps:** +5 points at 40k with the default tiles and roughly
+  twice the share at 5k; with coarse tiles it gives the best tile-coded
+  result so far (76–80%), still below the neural learner (84–89%).
+* **k = 0.9 is too aggressive:** the spread across seeds widens (62–75%).
+* **Early learning is noisier with gap-increasing targets** (one coarse
+  seed at −123% at 5k), so the champion mechanism matters.
+* Not made the default: the gain is moderate and other tasks' tests are
+  tuned on k = 0.

@@ -64,6 +64,7 @@ rag-cpp/
 │   ├── agent_edge_case_tests.cpp edge cases from the adversarial review (8 bugs)
 │   ├── agent_coverage_tests.cpp hand-computed checks closing coverage gaps (99.7% lines)
 │   ├── optional_libs_tests.cpp  (NLopt + Eigen) tuner, global search, solver cross-check
+│   ├── rag_property_tests.cpp   engine property tests: TopK, SIMD, tokenizer, chunker, BM25, IVF, persistence (6 bugs)
 │   ├── api_examples_tests.cpp   compiles and runs every snippet in docs/ai/API.md
 │   ├── pdf_tests.cpp            (Poppler) PDF extraction on generated PDFs
 │   ├── pdf_writer.hpp           minimal PDF writer for fixtures

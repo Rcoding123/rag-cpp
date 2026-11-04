@@ -138,6 +138,7 @@ EvalStats best = compare(env, [&](const ExecutionObs& o) { return dp.act(o); }, 
 | `gamma` | 1.0 | discount |
 | `init_q` | 0 | initial Q-values |
 | `double_q` | false | double Q-learning |
+| `advantage_learning` | 0 | TileQ: subtract k × the action's advantage deficit from its target (gap-increasing; 0.5 helped, E19) |
 | `replay_capacity`, `replay_per_step` | 100,000, 4 | experience replay |
 | `n_step` | 3 | n-step returns (1 = Q-learning, ≥ horizon = Monte Carlo) |
 | `actor_alpha`, `critic_alpha`, `temperature` | 0.03, 0.1, 1.0 | `ActorCritic` step sizes and softmax temperature |
