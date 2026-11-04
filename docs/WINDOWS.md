@@ -74,9 +74,11 @@ ctest --preset windows-avx512-release
 
 The AVX-512 build puts its programs in `build-avx512\Release\`. CI compiles
 it on Windows but can't run it (GitHub's Windows runners have no
-AVX-512); the AVX-512 kernels are tested on Linux. So run `ctest` once on
-your machine: if every test passes, use this build; if any fails, use
-`windows-msvc` and tell us. Not sure what your CPU supports? Run
+AVX-512); the AVX-512 kernels are tested on Linux. Verified on Windows:
+**285/285 tests on an AMD Ryzen 9 9900X (Zen 5, 12 cores, 128 GB) under
+Windows Server 2025 Standard with Build Tools for Visual Studio 2022
+17.14, in 13 s.** On a different CPU, run `ctest` once: if every test
+passes, use this build; if any fails, use `windows-msvc` and tell us. Not sure what your CPU supports? Run
 `Get-CimInstance Win32_Processor | Select-Object Name` and look it up.
 
 ## 3. Test
