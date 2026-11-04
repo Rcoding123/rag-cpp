@@ -1,5 +1,5 @@
 // E22: compile a trained NeuralQ + Double DQN policy into a lookup table.
-// Usage: e22_table SEED [episodes=40000] [table_dir]. Prints CSV rows:
+// Usage: e22_table SEED [episodes=40000] [table_dir] [nn_polyak=0] (E25: averaged networks). Prints CSV rows:
 //   seed,policy,bins,range_sd,bytes,share,agreement,ns_per_decision
 #include <chrono>
 #include <cstdio>
@@ -38,6 +38,7 @@ int main(int argc, char** argv) {
   c.eps_decay_episodes = 10000;
   c.learner = LearnerKind::NeuralQ;
   c.double_q = true;
+  c.nn_polyak = argc > 4 ? std::atof(argv[4]) : 0.0;
   ExecutionEnv e(p);
   auto agent = std::make_unique<Agent<ExecutionEnv>>(e, c);
   Trainer<ExecutionEnv> tr(*agent, e, {.eval_every = 1000, .eval_episodes = 500, .train_seed = seed, .detect_drift = false});

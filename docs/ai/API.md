@@ -145,6 +145,7 @@ EvalStats best = compare(env, [&](const ExecutionObs& o) { return dp.act(o); }, 
 | `ac_decay_episodes` | 10,000 | `ActorCritic` annealing half-life (3,000 is too fast, E5) |
 | `nn_hidden`, `nn_lr`, `nn_batch` | 64, 1e-3, 32 | `NeuralQ`: units per hidden layer (two layers), Adam step, minibatch |
 | `nn_target_sync`, `nn_warmup` | 2,000, 2,000 | `NeuralQ`: updates between target-network copies (0 = none), transitions before learning starts |
+| `nn_polyak` | 0 | `NeuralQ`: > 0 deploys an exponential moving average of the weights (avg += τ (net − avg) per update); training is unchanged. τ = 1e-4 beat no averaging on all 8 seeds (94.1% vs 91.5% at 40k, E24) |
 | `ac_reexplore_temperature` | 0 | `ActorCritic` re-exploration: 0 = ε-uniform actions; > 0 = sample the policy at a raised temperature (task-dependent, E13) |
 | `memory` | | `EpisodicParams` |
 | `kernel_width` | 0 = 10% of each range | episodic similarity scale |

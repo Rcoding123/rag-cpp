@@ -174,7 +174,7 @@ for another language model (or a new contributor):
 * a project map and a compiled API cheat sheet;
 * engine internals, exact task and algorithm specifications
   (`TASK_SPECS.md`);
-* the experiment log (E0–E23, negative results included), the decision log,
+* the experiment log (E0–E25, negative results included), the decision log,
   27 distilled lessons and a literature review;
 * conventions, status, open questions and next steps.
 
@@ -215,6 +215,7 @@ interval):
 | `ModelBasedExecutionAgent` (regression + DP planning) | **50** | 99.5% [98.8, 100.0] | needs a model class that fits; `check_model()` flags one that doesn't |
 | Model plan → `distill` → fine-tune under a guard (E7) | 40,000 | 100% if the model is right, 78–82% if not | never deploys worse than the plan |
 | `NeuralQ` compiled to an `ExecutionPolicyTable` (E22) | 40,000 | 91.4% (64–256 bins) | same as the network; 3 ns per decision |
+| `NeuralQ` + Double DQN + weight averaging, `nn_polyak = 1e-4` (E24) | 40,000 | 94.1% (93.0–95.5) | better than no averaging on all 8 seeds |
 | Median vote of 8 seeds' tables (E23) | 8 × 40,000 | **97.5%** (fresh scenarios: 97.9%) | best model-free result; still 3 ns per decision |
 
 On a second task, market making, the same unchanged agent learns the

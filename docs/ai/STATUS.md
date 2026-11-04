@@ -111,10 +111,10 @@
 1. A neural `Embedder` (e.g. ONNX Runtime with a MiniLM model, 384 dims to
    match), on a machine that can download models.
 2. Incremental BM25 segments with background merging.
-3. Agent: compare the seed ensemble (E23) with weight averaging (EMA /
-   SWA of one network's weights) and with Q-value averaging across seeds
-   (RESEARCH.md §6.4); test the hint that the networks over-trade (E23);
-   a policy table for market making.
+3. Agent: Q-value averaging across seeds (vote on values, not actions;
+   RESEARCH.md §6.4); test the hint that the networks over-trade (E23);
+   a policy table for market making. (Weight averaging: done, E24;
+   averaged networks voted: E25.)
 4. Agent: the research's remaining ideas (RESEARCH.md §5): all-action
    counterfactual updates, value/advantage sharing across actions,
    Munchausen targets, weight averaging for the deployed policy.

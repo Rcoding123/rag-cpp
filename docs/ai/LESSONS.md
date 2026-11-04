@@ -138,3 +138,7 @@ building learning systems in general, not just this task.
     tables (97.5%) beat the best seed (94.1%) by more than the best seed
     beat the average one (91.4%). Report every subset, and confirm on fresh
     scenarios, so the ensemble isn't selected on the test set (E23).
+31. **Average the weights you deploy.** A slow moving average of the
+    network (τ = 1e-4) beat the network itself on every seed, at the cost
+    of one extra copy of the weights; a fast one (1e-3) didn't. It also made
+    the final policy usable without champion selection (E24).

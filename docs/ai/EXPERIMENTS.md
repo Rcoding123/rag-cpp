@@ -38,6 +38,7 @@ and the conclusion; negative results stay in.
 | E21 | How do all learners rank under one protocol (8 seeds, CIs)? | At 40k episodes: NeuralQ + Double DQN 91.5% [90.1, 92.7], ActorCritic 81.9%, TileQ coarse + AL 78.7%, tuned TileQ 73.4%, default TileQ 66.7%; model-based 99.5% after 50 episodes. |
 | E22 | Can a lookup table replace the neural policy? | From 32 signal bins the table keeps the network's gain (within 0.25 points; never worse than 0.8) at ~3 ns per decision instead of ~1.7–3 µs; the exact DP policy compiled the same way keeps 99.6–100%. |
 | E23 | Does a vote across seeds' tables beat one network? | Yes: the median of 8 seeds' tables keeps 97.5% (fresh scenarios: 97.9%, better than every member by 4.4–10.2 points), vs 91.4% for the average seed and 94.1% for the best; 3 members already beat the best seed; at equal compute, 4 × 40k voted (96.7%) beats 1 × 160k (93.5%). |
+| E24 | Does averaging one network's weights help? | Yes, with a slow average: τ = 1e-4 deploys 94.1% (93.0–95.5) at 40k vs 91.5%, better on all 8 seeds (+1.0 to +5.6 points); ~ a 2–3-network vote for one training run. τ = 1e-3 is too fast. |
 | E19 | Do gap-increasing targets help? | Advantage learning (k = 0.5) lifts TileQ from 65–69% to 70–75% at 40k, and to 76–80% with coarse tiles: the best tile-coded result, still below the neural learner. |
 
 ---
@@ -1339,3 +1340,37 @@ R² = 0.56; effect of +1 standard deviation of each parameter):
   for the same compute, independent seeds are worth more than longer runs.
 * **The cost is training, not deployment:** N members need N× the
   training compute; a decision stays one 3 ns lookup.
+
+
+## E24. Weight averaging: one network, averaged
+
+* **Question:** E23's vote needs N training runs. Averaging one network's
+  weights over time (Polyak averaging, an exponential moving average; the
+  idea behind stochastic weight averaging, RESEARCH.md §6.3) costs one
+  extra copy of the weights. How much of the ensemble's gain does it get?
+* **Setup:** `AgentConfig::nn_polyak = τ`: after every update,
+  avg += τ (net − avg). Exploring actions use the online network, so
+  training is bit-identical to E21 (a test checks this); greedy actions,
+  snapshots and the deployed champion use the average. NeuralQ + Double
+  DQN, the E21 protocol, seeds 1–8, paired against E21's runs of the same
+  seeds. "Final" is the last greedy policy, without the Trainer's champion
+  selection. Probe `experiments/e24_polyak.cpp`.
+
+| | Deployed, 20k | Deployed, 40k | vs no averaging at 40k (paired) | Final greedy, 40k |
+|---|---|---|---|---|
+| No averaging (E21) | 86.3% (83.0–94.1) | 91.5% (87.7–94.1) | | |
+| τ = 0.001 (~1,000-update window) | 90.2% (85.4–92.7) | 92.1% (90.9–93.1) | +0.6 points (−1.0 to +3.3), better on 4/8 | 88.2% (80.9–92.9) |
+| τ = 0.0001 (~10,000 updates) | 92.5% (89.6–95.3) | **94.1% (93.0–95.5)** | **+2.7 points (+1.0 to +5.6), better on 8/8** | 93.1% (90.1–95.5) |
+
+* **Slow averaging helps on every seed:** τ = 1e-4 raised the deployed
+  policy on all 8 seeds, and the worst seed (93.0%) beats the average
+  unaveraged one. It is worth most early: +6.2 points at 20k episodes.
+* **The average is a usable policy by itself:** without champion
+  selection, the averaged final policy scores 93.1%, close to the champion
+  (94.1%). The online network's greedy policy jumps from update to update;
+  the average smooths those jumps out.
+* **Against the ensemble:** one averaged network (94.1%) is about as good
+  as a vote of 2–3 unaveraged networks (93.1% and 95.4%, E23), for one
+  training run. The 8-network vote (97.5%) is still better.
+* **τ = 0.001 is too fast:** a ~1,000-update window still follows the
+  online network's jumps (final greedy 88.2%).
