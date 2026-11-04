@@ -459,7 +459,6 @@ inline void train_model_based(ModelBasedExecutionAgent& agent, ExecutionEnv& env
     auto o = env.reset(rng);
     for (;;) {
       const Action a = agent.act(o, true);
-      agent.note_action(o, a);
       const auto st = env.step(a, rng);
       agent.observe(o, a, st.reward, st.obs, st.done);
       o = st.obs;
