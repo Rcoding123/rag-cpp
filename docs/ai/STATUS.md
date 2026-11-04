@@ -4,8 +4,8 @@
 
 * **Platforms:** Linux (GCC 13, Clang 18; seven CI jobs including
   sanitizers and fuzzing) and Windows (Visual Studio 2022 / MSVC, AVX2;
-  CI job `msvc-windows` runs the full test suite). Build steps for
-  Windows: `docs/WINDOWS.md`.
+  CI job `msvc-windows`: 284/284 tests, demos, latency probe). Build
+  steps and measured latency for Windows: `docs/WINDOWS.md`.
 * **RAG engine:**
   * hybrid retrieval in four dense modes;
   * zero-allocation queries;

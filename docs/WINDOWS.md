@@ -103,6 +103,28 @@ Differences from Linux:
   tested on Linux only; with vcpkg they may be found, but that isn't
   tested.
 
+## Measured on Windows
+
+GitHub's `windows-2022` runner (AMD EPYC 7763, 2 cores / 4 threads, shared
+VM), Visual Studio 2022, preset `windows-msvc` (AVX2 + FMA):
+
+* **Tests:** 284 of 284 pass (`ctest --preset windows-release`).
+* **Query latency** (`rag_latency.exe 20000`; 60,000 chunks, k = 8, pinned
+  to one core):
+
+| Mode | p50 | p90 | p99 | p99.9 | Queries/s per core |
+|---|---|---|---|---|---|
+| exact | 5.68 ms | 6.34 ms | 7.63 ms | 9.97 ms | 173 |
+| int8 + rerank | 1.51 ms | 1.75 ms | 2.10 ms | 2.64 ms | 664 |
+| ivf | 345 µs | 434 µs | 596 µs | 1.47 ms | 2,773 |
+| ivf-sq8 | 154 µs | 186 µs | 251 µs | 479 µs | 6,190 |
+
+The exact mode streams the whole 92 MB embedding matrix per query
+(~16 GB/s), so the SIMD kernels are active. The README's Linux numbers come
+from a different machine (a 4-vCPU Xeon with AVX-512), so the two tables
+don't compare directly. The "max" column on a shared CI VM is dominated by
+the scheduler (up to 78 ms), which is why it is left out here.
+
 ## Alternative: WSL
 
 Under Windows Subsystem for Linux (`wsl --install`, then Ubuntu 24.04) the
