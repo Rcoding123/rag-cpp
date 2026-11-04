@@ -27,6 +27,7 @@
 #include "rag/agent/env.hpp"
 #include "rag/agent/features.hpp"
 #include "rag/agent/learners.hpp"
+#include "rag/agent/mlp.hpp"
 #include "rag/agent/rng.hpp"
 
 namespace rag::agent {
@@ -40,6 +41,12 @@ enum class LearnerKind : std::uint8_t {
   // (epsilon only applies during reexplore()), no replay. Measured best
   // model-free learner on ExecutionEnv (EXPERIMENTS.md E5).
   ActorCritic,
+  // DQN-style: an MLP (ReLU, Adam) over the features, n-step targets from a
+  // target network, uniform replay of n-step transitions, one minibatch per
+  // step taken (applied at episode end). Measured on ExecutionEnv: 84-89% of
+  // the optimal gain at 40k episodes vs 65-69% for TileQ (EXPERIMENTS.md
+  // E16); ~75x the training compute per episode, 1.7 us per decision.
+  NeuralQ,
 };
 
 template <std::size_t Dims>
@@ -95,6 +102,13 @@ struct AgentConfig {
   EpisodicParams memory{};
   std::array<double, Dims> kernel_width{};  // similarity length scale per dimension; 0 => 10% of the range
 
+  // NeuralQ learner.
+  std::uint32_t nn_hidden = 64;          // units in each of two hidden layers
+  double nn_lr = 1e-3;                   // Adam step size
+  std::uint32_t nn_batch = 32;           // minibatch per update
+  std::uint32_t nn_target_sync = 2000;   // updates between target-network copies (0 = no target network)
+  std::uint32_t nn_warmup = 2000;        // transitions in replay before updates start
+
   std::uint64_t seed = 1;
 };
 
@@ -120,6 +134,13 @@ class Agent {
         rng_(cfg_.seed) {
     episode_.reserve(1024);
     pending_.reserve(cfg_.n_step + 1);
+    if (cfg_.learner == LearnerKind::NeuralQ) {
+      Rng init(cfg_.seed ^ 0x4E4E4E4Eull);
+      net_ = Mlp({static_cast<std::uint32_t>(Dims), cfg_.nn_hidden, cfg_.nn_hidden, static_cast<std::uint32_t>(A)}, init);
+      target_ = net_;
+      nscratch_.resize(net_.scratch_size());
+      nreplay_.reserve(std::min<std::size_t>(cfg_.replay_capacity, 1u << 16));
+    }
     apply_step_sizes();  // actor-critic step sizes from the first episode on
   }
 
@@ -190,6 +211,12 @@ class Agent {
       episode_.push_back({env_.features(o), a, r});
       return;
     }
+    if (cfg_.learner == LearnerKind::NeuralQ) {
+      episode_.push_back({env_.features(o), a, r});
+      if (done) neural_learn_episode();
+      (void)next;
+      return;
+    }
     if (cfg_.n_step <= 1) {
       Transition t;
       coder_.encode(env_.features(o), t.s.data());
@@ -216,6 +243,7 @@ class Agent {
 
   // Called once at the end of every training episode.
   void end_episode() {
+    if (cfg_.learner == LearnerKind::NeuralQ && !episode_.empty()) neural_learn_episode();
     if (cfg_.learner == LearnerKind::Episodic) {
       double g = 0;  // Monte Carlo return-to-go, computed backwards
       alignas(kCacheLine) std::array<float, kEmbed> key;
@@ -265,15 +293,16 @@ class Agent {
     TileQ q, q2;  // q: Q-values, or the actor's logits for ActorCritic
     Memory mem;
     TileQ critic;
+    Mlp net;  // NeuralQ
   };
-  [[nodiscard]] Snapshot snapshot() const { return {q_, q2_, mem_, critic_}; }
+  [[nodiscard]] Snapshot snapshot() const { return {q_, q2_, mem_, critic_, net_}; }
 
   // Act greedily as the snapshot would, without touching the learner: the
   // deployed (champion) policy and the still-learning one coexist.
   [[nodiscard]] Action act_as(const Snapshot& s, const Obs& o) const noexcept {
     std::array<double, A> q;
     std::array<bool, A> known;
-    estimate_with(s.q, s.q2, s.mem, o, q.data(), known.data());
+    estimate_with(s.q, s.q2, s.mem, s.net, o, q.data(), known.data());
     Action best = 0;
     for (Action a = 1; a < A; ++a)
       if ((known[a] && !known[best]) || (known[a] == known[best] && q[a] > q[best])) best = a;
@@ -284,6 +313,7 @@ class Agent {
     q2_ = s.q2;
     mem_ = s.mem;
     critic_ = s.critic;
+    net_ = s.net;  // the target network is training state, not policy: left alone
   }
 
   // Supervised warm start (TileQ only): regress the Q-function onto a
@@ -327,7 +357,11 @@ class Agent {
   // Drop replayed experience. After the world changes, old transitions
   // describe dynamics that no longer hold, and replaying them keeps
   // teaching the agent the past.
-  void forget_experience() noexcept { replay_.clear(); }
+  void forget_experience() noexcept {
+    replay_.clear();
+    nreplay_.clear();
+    nhead_ = 0;
+  }
 
   [[nodiscard]] std::uint64_t episodes() const noexcept { return episodes_; }
   [[nodiscard]] const Config& config() const noexcept { return cfg_; }
@@ -429,10 +463,16 @@ class Agent {
     return c;
   }
 
-  void estimate(const Obs& o, double* out, bool* known) const noexcept { estimate_with(q_, q2_, mem_, o, out, known); }
+  void estimate(const Obs& o, double* out, bool* known) const noexcept { estimate_with(q_, q2_, mem_, net_, o, out, known); }
 
-  void estimate_with(const TileQ& q1, const TileQ& q2, const Memory& mem, const Obs& o, double* out,
+  void estimate_with(const TileQ& q1, const TileQ& q2, const Memory& mem, const Mlp& net, const Obs& o, double* out,
                      bool* known) const noexcept {
+    if (cfg_.learner == LearnerKind::NeuralQ) {
+      const auto f = env_.features(o);
+      net.forward(f.data(), out, nscratch_.data());
+      for (std::size_t a = 0; a < A; ++a) known[a] = true;
+      return;
+    }
     if (cfg_.learner != LearnerKind::Episodic) {  // TileQ values, or ActorCritic logits
       std::array<std::uint32_t, kMaxTilings> idx;
       coder_.encode(env_.features(o), idx.data());
@@ -483,6 +523,64 @@ class Agent {
   std::vector<EpisodeStep> episode_;
   std::vector<PendingStep> pending_;  // n-step window (n_step > 1)
   Rng rng_;
+  // NeuralQ: online and target networks, replay of n-step transitions in feature space.
+  struct NeuralTransition {
+    std::array<double, Dims> s, next;
+    Action action;
+    double ret;         // discounted sum of up to n rewards
+    double bootstrap;   // gamma^steps, or 0 if the episode ended within n steps
+  };
+  Mlp net_, target_;
+  std::vector<NeuralTransition> nreplay_;
+  std::size_t nhead_ = 0;
+  std::uint64_t nn_updates_ = 0;
+  mutable std::vector<double> nscratch_;
+
+  // Turn the finished episode into n-step transitions, then run one
+  // minibatch update per step it took.
+  void neural_learn_episode() {
+    const std::size_t T = episode_.size();
+    const std::uint32_t n = std::max(1u, cfg_.n_step);
+    const std::size_t cap = std::max<std::size_t>(1, cfg_.replay_capacity);
+    for (std::size_t t = 0; t < T; ++t) {
+      NeuralTransition tr{};
+      tr.s = episode_[t].features;
+      tr.action = episode_[t].action;
+      double disc = 1.0;
+      std::size_t k = t;
+      for (; k < std::min(T, t + n); ++k) {
+        tr.ret += disc * episode_[k].reward;
+        disc *= cfg_.gamma;
+      }
+      if (k < T) {
+        tr.next = episode_[k].features;
+        tr.bootstrap = disc;
+      }
+      if (nreplay_.size() < cap) {
+        nreplay_.push_back(tr);
+      } else {
+        nreplay_[nhead_] = tr;
+        nhead_ = (nhead_ + 1) % cap;
+      }
+    }
+    episode_.clear();
+    if (nreplay_.size() < cfg_.nn_warmup) return;
+    std::array<double, A> qn;
+    for (std::size_t u = 0; u < T; ++u) {
+      for (std::uint32_t b = 0; b < cfg_.nn_batch; ++b) {
+        const NeuralTransition& tr = nreplay_[rng_.below(static_cast<std::uint32_t>(nreplay_.size()))];
+        double y = tr.ret;
+        if (tr.bootstrap > 0) {
+          (cfg_.nn_target_sync ? target_ : net_).forward(tr.next.data(), qn.data(), nscratch_.data());
+          y += tr.bootstrap * *std::max_element(qn.begin(), qn.end());
+        }
+        net_.accumulate(tr.s.data(), tr.action, y);
+      }
+      net_.step(cfg_.nn_lr);
+      if (cfg_.nn_target_sync && ++nn_updates_ % cfg_.nn_target_sync == 0) target_ = net_;
+    }
+  }
+
   std::uint64_t episodes_ = 0;
   std::uint64_t plastic_episodes_ = 0;  // episodes since the last reexplore() (step-size annealing clock)
   double boost_eps_ = 0;

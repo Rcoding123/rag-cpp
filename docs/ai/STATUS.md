@@ -32,10 +32,12 @@
   * off-policy evaluation (importance sampling, doubly robust, ESS
     diagnostics) and exact policy evaluation under a model;
   * a second task (market making, exact DP) on which the unchanged agent
-    learns the optimal inventory skew.
+    learns the optimal inventory skew, and a model-based market maker;
+  * a from-scratch neural Q-learner (`NeuralQ`, no ML library) that breaks
+    the tile-coding plateau on execution (84–89% at 40k episodes).
 * **Testing:**
   * the CI matrix covers SIMD levels, sanitizers and fuzzing;
-  * 213 ctest cases: 202 in `rag_tests`, 9 PDF tests (Poppler), the
+  * 217 ctest cases: 206 in `rag_tests`, 9 PDF tests (Poppler), the
     stress run and a `rag_pdf` CLI smoke test.
   * The TSan CI job skips the single-threaded learning suites (`Agent*`,
     `ModelBased`, `ExecutionCosts`, `OffPolicy`, `MarketMaking`, `Reference`, `ApiExamples`), which ran

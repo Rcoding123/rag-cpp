@@ -181,6 +181,15 @@ learn if the world changes.
   80–86% at 40,000 and 86–89% at 200,000. Its failure mode is different:
   too small an actor step, or annealing too early (`ac_decay_episodes`
   3,000), leaves the policy near-uniform, which loses money (E5).
+* **A neural network breaks the plateau (E16).** `LearnerKind::NeuralQ`
+  replaces the tiles with a small MLP (two hidden layers of 64, written
+  from scratch in `mlp.hpp`: no ML library), trained DQN-style on the same
+  3-step targets: 84–89% at 40,000 episodes against 65–69% for TileQ.
+  Ablations rule out the target network and Adam; giving TileQ 32 replayed
+  updates per step made it worse. The difference is how the function
+  generalizes: coarser tiles, which average the noisy targets over more
+  states, already reach 76–77%, and the network goes further. The cost:
+  ~75× the training compute and 1.7 µs per decision instead of 39 ns.
 * **Double Q-learning didn't help.** It removes the upward bias that
   `max()` puts into targets. Here, though, the two were level at 30,000
   episodes (64.8% with it, 64.5% without), and at 60,000 it was clearly worse
@@ -403,7 +412,7 @@ The hard problems are the same in both:
   assumption, and that a backtest can't show the agent's own impact on the
   market.
 
-## 10. Tests (`tests/agent_tests.cpp` 41 cases, `tests/model_based_tests.cpp` 18, `tests/market_making_tests.cpp` 6)
+## 10. Tests (`tests/agent_tests.cpp` 43 cases, `tests/mlp_tests.cpp` 2, `tests/model_based_tests.cpp` 18, `tests/market_making_tests.cpp` 6)
 
 * **Components:**
   * the random number generator's moments;

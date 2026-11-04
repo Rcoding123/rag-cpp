@@ -28,9 +28,11 @@ building learning systems in general, not just this task.
    space.** Execution: optimal gain 0.27 return-sds per episode, TileQ
    plateaus near 70%. Market making: 4.07, TileQ reaches 97–99% and
    actor-critic 100% in 5,000 episodes (E12).
-7. **The plateau is target noise, not representation.** The same tiles
-   fitted to the true optimum score 99.5% (E2b). Multi-step returns helped
-   most (n = 3; E2a).
+7. **The plateau is target noise, not capacity, but how the approximator
+   averages noise matters.** The default tiles can represent a 99.5% policy
+   (E2b), yet coarser tiles learned better (76–77% vs 65–69%) and a small
+   neural network better still (84–89%), with the same targets (E16).
+   Multi-step returns helped too (n = 3; E2a).
 8. **A model that's right beats any model-free learner by orders of
    magnitude:** 99–100% after 20–50 episodes vs ~70% after 40,000 (E1);
    even on the task model-free learning finds easy, 3 episodes vs 5,000

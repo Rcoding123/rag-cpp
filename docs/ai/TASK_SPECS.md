@@ -118,6 +118,16 @@ actor_alpha 0.03, critic_alpha 0.1, T = 1, both step sizes scaled by
 ε-uniform actions are used only during a re-exploration boost (or a raised
 temperature, with `ac_reexplore_temperature`).
 
+**NeuralQ:** an MLP (`mlp.hpp`: features → 2 × 64 ReLU → 5 linear
+outputs, He-uniform initialization) estimates Q(s, ·). Each finished
+episode becomes n-step transitions (s, a, Σ γᵏ rₖ, s_{t+n}) in a replay
+buffer (capacity `replay_capacity`); after `nn_warmup` transitions, every
+step taken triggers one minibatch of `nn_batch` uniform samples, with target
+y = R + γⁿ · maxₐ Q_target(s_{t+n}, a), a squared-error gradient on the
+taken action's output, and one Adam step (`nn_lr`). The target network is
+copied from the online one every `nn_target_sync` updates. Same ε schedule
+as TileQ.
+
 **EpisodicMemory:** k-NN (k = 8) over up to 4,096 remembered situations
 (random-Fourier-feature embeddings, 64 dimensions), each with Monte Carlo
 returns per action; LRU eviction.

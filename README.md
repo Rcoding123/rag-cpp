@@ -176,7 +176,8 @@ execute a trade, with no model of the market, from rewards alone:
 | Learner | Share of the optimal gain | Notes |
 |---|---|---|
 | `TileQ` (3-step Q-learning + replay) | 69–70% at 40k episodes, 75–77% at 200k | the default |
-| `ActorCritic` (softmax policy + TD critic) | 80–86% at 40k, 86–89% at 200k | best model-free learner |
+| `ActorCritic` (softmax policy + TD critic) | 80–86% at 40k, 86–89% at 200k | strong model-free learner |
+| `NeuralQ` (from-scratch MLP, DQN-style) | 84–89% at 40k | no ML library; 1.7 µs per decision |
 | `ModelBasedExecutionAgent` (regression + DP planning) | 99–100% after 20–50 episodes | needs a model class that fits; 22–55% with a missing term, which `check_model()` flags |
 | Model plan → `distill` → fine-tune under a guard | 100% if the model is right, 78–82% if not | never deploys worse than the plan |
 

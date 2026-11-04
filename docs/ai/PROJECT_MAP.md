@@ -41,7 +41,8 @@ rag-cpp/
 │           ├── execution_dp.hpp exact optimum for ExecutionEnv (cost tables, policy_value, evaluate_policy)
 │           ├── features.hpp     TileCoder, RandomFourierEncoder
 │           ├── learners.hpp     TileQ, ReplayBuffer, EpisodicMemory
-│           ├── agent.hpp        Agent<Env>: TileQ / Episodic / ActorCritic, n-step, distill, snapshots
+│           ├── mlp.hpp          from-scratch MLP: backprop, Adam, SGD (for NeuralQ)
+│           ├── agent.hpp        Agent<Env>: TileQ / Episodic / ActorCritic / NeuralQ, n-step, distill, snapshots
 │           ├── evaluate.hpp     evaluate / compare on common random numbers (EvalStats)
 │           ├── drift.hpp        DriftDetector: one-sided CUSUM on surprise (DriftParams)
 │           ├── ope.hpp          off-policy evaluation: PDIS, WPDIS, doubly robust, ESS diagnostics
@@ -56,6 +57,7 @@ rag-cpp/
 │   ├── agent_tests.cpp          agent: components through learning outcomes
 │   ├── model_based_tests.cpp    generalized costs, model-based agent, risk aversion, permanent impact
 │   ├── market_making_tests.cpp  the same agent on market making (E12)
+│   ├── mlp_tests.cpp            the neural network: gradient check, regression, determinism (E16)
 │   ├── api_examples_tests.cpp   compiles and runs every snippet in docs/ai/API.md
 │   ├── pdf_tests.cpp            (Poppler) PDF extraction on generated PDFs
 │   ├── pdf_writer.hpp           minimal PDF writer for fixtures
@@ -79,7 +81,8 @@ rag-cpp/
 │       ├── RAG_ENGINE.md        engine internals, invariants, file format
 │       ├── TASK_SPECS.md        exact task dynamics, rewards, optima, learner updates, metrics
 │       ├── LESSONS.md           24 cross-cutting lessons with their evidence
-│       ├── EXPERIMENTS.md       experiment log E0-E14, including negative results
+│       ├── RESEARCH.md          literature review and ranked next experiments
+│       ├── EXPERIMENTS.md       experiment log, including negative results
 │       ├── DECISIONS.md         design decisions with evidence (R*, P*, A*)
 │       ├── CONVENTIONS.md       coding, testing and verification rules
 │       └── STATUS.md            what works, limitations, next steps
@@ -94,7 +97,7 @@ rag-cpp/
 L0  common.hpp  rng.hpp
 L1  arena  tokenizer  simd  topk  io  text_clean
 L2  chunker  embedder  vector_store  bm25  fusion  prompt  epoch  features
-L3  ivf_index                    learners      env  market_making
+L3  ivf_index                    learners      env  market_making  mlp
 L4  engine                       execution_dp  agent  evaluate  drift  ope
 L5  pdf (Poppler)                trainer       model_based
 ```
@@ -107,7 +110,7 @@ The agent reuses the engine's SIMD kernels (`simd.hpp`), top-K selection
 
 | Target | What | Needs |
 |---|---|---|
-| `rag_tests` | main test binary (rag, forgery, reference, text_clean, agent, model_based, market_making, api_examples) | GoogleTest |
+| `rag_tests` | main test binary (rag, forgery, reference, text_clean, agent, model_based, market_making, mlp, api_examples) | GoogleTest |
 | `rag_pdf_tests` | PDF tests | GoogleTest, poppler-cpp |
 | `rag_stress` | concurrency stress test (also registered with ctest, 2 s per mode) | threads |
 | `rag_bench` | microbenchmarks | Google Benchmark |

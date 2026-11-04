@@ -1025,3 +1025,58 @@ TEST(AgentExecutionDP, BandedSolveSatisfiesTheBellmanEquationExactly) {
         }
   }
 }
+
+// ============ Experiment E16 (a neural Q-learner, from scratch) ==============
+TEST(AgentNeural, LearnsFasterThanTileCodingOnExecution) {
+  // Measured with the full-size network (64 hidden, batch 32): 66-81% of
+  // the optimal gain at 5,000 episodes and 84-89% at 40,000, against 8-21%
+  // and 65-69% for TileQ. Here a small network for speed: 28-57% after
+  // 3,000 episodes (seeds 1-3) vs -72% to +19% for TileQ.
+  ExecutionParams p;
+  ExecutionEnv env(p);
+  const auto& dp = default_dp();
+  AgentConfig<3> nq = execution_config();
+  nq.learner = LearnerKind::NeuralQ;
+  nq.eps_decay_episodes = 3000;
+  nq.nn_hidden = 32;
+  nq.nn_batch = 8;
+  AgentConfig<3> tq = execution_config();
+  tq.eps_decay_episodes = 3000;
+  double share[2];
+  for (int k = 0; k < 2; ++k) {
+    ExecutionEnv e(p);
+    Agent<ExecutionEnv> agent(e, k ? tq : nq);
+    Trainer<ExecutionEnv> tr(agent, e, {.eval_every = 0, .detect_drift = false});
+    tr.run(3000);
+    share[k] = captured(env, dp, [&](const ExecutionObs& o) { return agent.act(o, false); });
+  }
+  EXPECT_GT(share[0], 0.25);
+  EXPECT_GT(share[0], share[1] + 0.15) << "neural " << share[0] << " vs tiles " << share[1];
+}
+
+TEST(AgentNeural, EvaluationDoesNotPerturbLearningAndSnapshotsAct) {
+  // The trainer scores champions by restoring them into the learner and
+  // back. For NeuralQ that must leave the online network, its Adam state
+  // and the target network exactly as they were.
+  AgentConfig<3> cfg = execution_config();
+  cfg.learner = LearnerKind::NeuralQ;
+  cfg.nn_hidden = 8;
+  cfg.nn_batch = 4;
+  cfg.nn_warmup = 200;
+  ExecutionEnv e1{ExecutionParams{}}, e2{ExecutionParams{}};
+  Agent<ExecutionEnv> a(e1, cfg), b(e2, cfg);
+  Trainer<ExecutionEnv> ta(a, e1, {.eval_every = 25, .eval_episodes = 20, .detect_drift = false});
+  Trainer<ExecutionEnv> tb(b, e2, {.eval_every = 0, .detect_drift = false});
+  ta.run(200);
+  tb.run(200);
+  EXPECT_EQ(a.snapshot().net.weights(), b.snapshot().net.weights());
+  // A snapshot acts like the network it was taken from, after the learner moves on.
+  const auto snap = a.snapshot();
+  Rng r(4);
+  std::vector<ExecutionObs> obs(50);
+  for (auto& o : obs) o = {r.below(20), r.below(101), 0.1 * r.normal()};
+  std::vector<Action> before;
+  for (const auto& o : obs) before.push_back(a.act(o, false));
+  ta.run(100);
+  for (std::size_t i = 0; i < obs.size(); ++i) EXPECT_EQ(a.act_as(snap, obs[i]), before[i]);
+}

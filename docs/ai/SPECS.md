@@ -75,6 +75,7 @@ other framework is used. What each piece corresponds to:
 | `Environment` concept (`reset`, `step`, `features`, action count, feature ranges) | `env.hpp` | Gymnasium `Env` |
 | Tile coding, random Fourier features | `features.hpp` | Sutton's tile coder; scikit-learn `RBFSampler` |
 | Q-learning (n-step, replay, annealed step size), episodic k-NN memory | `learners.hpp`, `agent.hpp` | SB3 DQN (with a linear model instead of a network) |
+| Neural Q-learner: MLP, backprop, Adam, target network (`NeuralQ`) | `mlp.hpp`, `agent.hpp` | SB3 DQN / PyTorch |
 | Actor-critic (softmax policy, TD critic) | `agent.hpp` | SB3 A2C |
 | Model-based agent (regression + DP planning) | `model_based.hpp` | none standard |
 | Exact optima by dynamic programming | `execution_dp.hpp`, `market_making.hpp` | none (task-specific) |
@@ -93,9 +94,11 @@ Why from scratch:
 * **Exact yardsticks:** the tasks are built so a DP can compute the optimum;
   that integration is simplest when everything shares one codebase.
 
-The trade-off: no neural-network function approximation (linear models on
-tile features only), no vectorized or GPU environments, and no
-distributed training.
+The trade-off: the neural network is small and CPU-only (an MLP in double
+precision, no GPU, no automatic differentiation beyond the hand-written
+backpropagation), and there are no vectorized environments or distributed
+training. E16 tested whether a framework-style neural learner would help:
+the from-scratch MLP did (84–89% vs 65–69% on execution).
 
 ## Measurement machine
 

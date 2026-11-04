@@ -31,6 +31,7 @@ and the conclusion; negative results stay in.
 | E13 | Does drift handling carry over to the second task? | Not at first: a market that got *better* went unnoticed (CUSUM watched only for drops, and a rejected alarm had blinded it: bug). Fixed with evaluation-time detection from the champion's exactly reproducible re-score, `rebase()`, and an optional two-sided test; the bank then recalls returning regimes at 99–100%. |
 | E14 | What about the bad days? | Volatility isn't tail risk: the risk-neutral execution optimum is more volatile than TWAP but its worst 5% is −66 vs −117. A variance penalty halves execution's sd but barely moves its tail; in market making it lifts the worst 5% from −5.7 to +13.7. |
 | E15 | Does a model pay on the easy task too? | Yes: a model-based market maker that counts fills reaches 98–100% after 3 episodes and earns 99–100% of the optimal gain online, against 65–79% for actor-critic. |
+| E16 | Would a neural network (PyTorch-style) do better? | Yes: a from-scratch MLP (DQN-style, no library) reaches 84–89% at 40k (deployed 86–92%) vs 65–69% for TileQ. Not the target network, not Adam: generalization. Coarser tiles alone reach 76–77%. |
 
 ---
 
@@ -943,3 +944,95 @@ Market making (default risk penalty 0.05 unless noted):
   directly (fills are counted, moves are seen), and the planner is exact.
   The expensive part of model-based RL is getting the model *class* right;
   here it's non-parametric over the three distances, so any fill curve fits.
+
+## E16. A neural Q-learner, from scratch
+
+* **Question:** you asked whether a framework like PyTorch would do better.
+  Rather than add the dependency, the question behind it was tested with a
+  small neural network written from scratch: does neural function
+  approximation beat tile coding on execution, and if so, why?
+* **Code:**
+  * `mlp.hpp`: a multilayer perceptron (ReLU hidden layers, linear output),
+    backpropagation, Adam and plain SGD, He-uniform initialization from the
+    seeded `Rng`. No library.
+  * `LearnerKind::NeuralQ` in `agent.hpp`: DQN-style. The MLP (default 2 ×
+    64 hidden units) maps the features to five Q-values; each finished
+    episode becomes 3-step transitions in a feature-space replay buffer
+    (100k); one Adam minibatch (32) per step taken; a target network copied
+    every 2,000 updates. `AgentConfig::nn_hidden`, `nn_lr`, `nn_batch`,
+    `nn_target_sync`, `nn_warmup`. Trainer, champion, drift detection and
+    guard work unchanged.
+* **Tests:** `Mlp.GradientMatchesFiniteDifferences`,
+  `Mlp.AdamFitsASmoothFunctionAndIsDeterministic`,
+  `AgentNeural.LearnsFasterThanTileCodingOnExecution`,
+  `AgentNeural.EvaluationDoesNotPerturbLearningAndSnapshotsAct`.
+* **Verification:** backpropagation matches finite differences to
+  1.4 × 10⁻¹¹; the network fits a nonlinear 3-D function to MSE 0.0004.
+
+**Representation** (supervised fit to the exact Q*, greedy policy; probe
+`e16_dqn.cpp fit`, `ceiling2.cpp`):
+
+| Function approximator | Weights | Greedy on fitted Q* |
+|---|---|---|
+| MLP 3-32-32-5 | 1,349 | 83.6% (one step per episode) |
+| MLP 3-64-64-5 | 4,741 | 92.8% (one step per episode); **98.6%** (one per state) |
+| MLP 3-128-128-5 | 17,669 | 99.0% |
+| tiles 8×8×8 × 8 (default) | 5,832 per action | 99.4% |
+| tiles 4×4×4 × 8 | 1,000 per action | 98.2% |
+| tiles 2×4×4 × 16 | 1,200 per action | 98.3% |
+
+All of them can represent a ≥ 98% policy. The differences below are about
+learning, not capacity.
+
+**Learning from rewards** (default market, ε 1 → 0.02 over 10k episodes,
+greedy learner's share of the optimal gain, seeds 1–3; probes
+`e16_dqn.cpp`, `e16_tileq.cpp`, `e16_coarse.cpp`):
+
+| Learner | 3,000 | 5,000 | 20,000 | 40,000 |
+|---|---|---|---|---|
+| TileQ, default tiles, 4 replays/step | −13 to +19% | 8–16% | 56–60% | 65–69% |
+| TileQ, default tiles, 32 replays/step | −72 to −5% | 2–21% | 48–57% | 58–61% |
+| TileQ, tiles 4×4×4 × 8 | | 7–46% | 57–67% | 72–75% |
+| TileQ, tiles 2×4×4 × 16 | | 33–47% | 65–72% | **76–77%** |
+| **DQN (MLP 64-64, Adam, target net)** | 67% (seed 1) | 66–81% | 76–86% | **84–89%** |
+
+Ablations (DQN, 20,000 episodes, seeds 1–2):
+
+| Variant | 5,000 | 10,000 | 20,000 |
+|---|---|---|---|
+| as above | 66–81% | 68–82% | 76–86% |
+| no target network | 57–73% | 78–81% | 85–87% |
+| SGD lr 10⁻³ instead of Adam | 63–75% | 78–80% | 67–83% |
+| SGD lr 10⁻² | diverged | | |
+
+* **The neural learner breaks the plateau:** 84–89% at 40k episodes
+  against 65–69% for tile-coded Q-learning (and 75–77% after 200k, E2),
+  with the same 3-step targets and the same exploration schedule.
+* **It isn't the extra computation:** giving TileQ 32 replayed updates per
+  step (DQN's minibatch) made it *worse* (58–61%).
+* **It isn't the target network or Adam:** without the target network it
+  did as well (85–87% at 20k); plain SGD reached 67–83% (less stable, but
+  far above TileQ).
+* **It's how the function generalizes.** Coarser tiles, which average the
+  noisy targets over more states per weight, already lift TileQ from
+  65–69% to 76–77% while keeping a 98% representation ceiling, so the
+  default 8×8×8 tiling is too fine for this noise level (A3 concluded the
+  same about 12³ vs 8³). The network goes further: it averages globally
+  but can still put resolution where the values bend.
+* **Through the library** (`LearnerKind::NeuralQ` with the standard
+  `Trainer`, champion evaluated every 1,000 episodes on 500 scenarios,
+  seeds 1–3; probe `e16_lib.cpp`): deployed 63–80% at 5k, 78–87% at 10k,
+  81–88% at 20k, **86–92%** at 40k.
+* **The champion matters more for neural learners:** the learner's greedy
+  policy swings between checkpoints (seed 1: 81% → 70% → 90%; seed 2 ends
+  at 73%), while the deployed champion holds (87%, 86%).
+* **Costs:** about 7.5 ms of training per episode (vs ~0.1 ms for TileQ)
+  and 1.7 µs per greedy decision (vs 39 ns), measured with the current
+  scalar double-precision forward pass (not yet vectorized). For a latency-critical deployment the
+  natural split is to train the network offline and distill it into tiles
+  or a lookup table.
+* **What this changes in the earlier conclusions:** E2 was right that the
+  tiles could represent a near-optimal policy and that target noise was the
+  problem, but wrong to imply that the representation choice didn't matter.
+  How a function approximator *averages* noise is as important as what it
+  can represent.

@@ -130,7 +130,7 @@ EvalStats best = compare(env, [&](const ExecutionObs& o) { return dp.act(o); }, 
 
 | Field | Default | Meaning |
 |---|---|---|
-| `learner` | `TileQ` | or `Episodic`, `ActorCritic` |
+| `learner` | `TileQ` | or `Episodic`, `ActorCritic`, `NeuralQ` |
 | `eps_start`, `eps_end`, `eps_decay_episodes` | 1.0, 0.02, 1500 | exploration schedule |
 | `bins` | 0 = 8 per dimension | tile grid |
 | `tilings` | 8 | number of offset grids |
@@ -142,6 +142,8 @@ EvalStats best = compare(env, [&](const ExecutionObs& o) { return dp.act(o); }, 
 | `n_step` | 3 | n-step returns (1 = Q-learning, ≥ horizon = Monte Carlo) |
 | `actor_alpha`, `critic_alpha`, `temperature` | 0.03, 0.1, 1.0 | `ActorCritic` step sizes and softmax temperature |
 | `ac_decay_episodes` | 10,000 | `ActorCritic` annealing half-life (3,000 is too fast, E5) |
+| `nn_hidden`, `nn_lr`, `nn_batch` | 64, 1e-3, 32 | `NeuralQ`: units per hidden layer (two layers), Adam step, minibatch |
+| `nn_target_sync`, `nn_warmup` | 2,000, 2,000 | `NeuralQ`: updates between target-network copies (0 = none), transitions before learning starts |
 | `ac_reexplore_temperature` | 0 | `ActorCritic` re-exploration: 0 = ε-uniform actions; > 0 = sample the policy at a raised temperature (task-dependent, E13) |
 | `memory` | | `EpisodicParams` |
 | `kernel_width` | 0 = 10% of each range | episodic similarity scale |

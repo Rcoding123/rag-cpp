@@ -28,6 +28,7 @@ DOCS = [
     "docs/agent.md",
     "docs/ai/TASK_SPECS.md",
     "docs/ai/LESSONS.md",
+    "docs/ai/RESEARCH.md",
     "docs/ai/EXPERIMENTS.md",
     "docs/ai/DECISIONS.md",
     "docs/ai/CONVENTIONS.md",

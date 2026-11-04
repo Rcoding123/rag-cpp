@@ -22,6 +22,8 @@ python3 tools/make_context_pack.py --with-source   # docs + all headers, tests, 
 7. `TASK_SPECS.md`: exact task dynamics, rewards, optima, learner update
    rules and metrics.
 8. `LESSONS.md`: the experiments' cross-cutting lessons, one paragraph each.
+   `RESEARCH.md`: a literature review mapping published RL results onto
+   them, with ranked next experiments.
 9. `EXPERIMENTS.md`: what was tried with the agent and what happened.
 10. `DECISIONS.md`: why things are the way they are, with evidence.
 11. `CONVENTIONS.md`: rules to follow when changing code.
