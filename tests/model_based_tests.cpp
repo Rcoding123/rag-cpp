@@ -481,3 +481,20 @@ TEST(OffPolicy, ImportanceSamplingCollapsesAtLongHorizonsAndTheModelDecides) {
     EXPECT_LT((r.dm - v_perm) / gain_perm, -0.4) << n << " episodes";
   }
 }
+
+// ============ Experiment E11 (cheaper system identification) ================
+TEST(ModelBased, FirstPlanComesRightAfterExploration) {
+  // Regression test: the first plan used to wait for replan_every (20)
+  // episodes as well, so explore_episodes below 20 had no effect and the
+  // agent acted randomly for 20 episodes instead of 10.
+  for (std::uint32_t explore : {0u, 3u, 10u}) {
+    ModelBasedExecutionAgent a(ExecutionParams{}, {.explore_episodes = explore});
+    ExecutionEnv env{ExecutionParams{}};
+    Rng rng(1);
+    for (std::uint32_t ep = 1; ep <= 12; ++ep) {
+      train_model_based(a, env, 1, rng);
+      EXPECT_EQ(a.has_plan(), ep >= std::max(1u, explore)) << "explore " << explore << ", after episode " << ep;
+    }
+    EXPECT_EQ(a.replans(), 1u);
+  }
+}

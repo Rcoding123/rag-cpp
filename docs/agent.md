@@ -249,8 +249,10 @@ after ~2,000 and learns just as well. Little exploration is needed here
 because Q-values start at 0, which is optimistic for the bad actions
 (never selling ends in a dump costing up to 500), so the greedy choice
 tries them by itself. The default stays at 1 for tasks where rewards are
-sparse and nothing is optimistic. The model-based agent earns 88–95% of
-the optimal gain *while* learning.
+sparse and nothing is optimistic. The model-based agent earns 95–100% of
+the optimal gain *while* learning (E11: after its first plan it explores
+only 1% of the time; exploring 5% of the time cost 6–10% of the online
+gain).
 
 ## 7. Supervision: the part most tutorials skip
 
@@ -373,7 +375,7 @@ The hard problems are the same in both:
   assumption, and that a backtest can't show the agent's own impact on the
   market.
 
-## 10. Tests (`tests/agent_tests.cpp` 40 cases, `tests/model_based_tests.cpp` 15)
+## 10. Tests (`tests/agent_tests.cpp` 40 cases, `tests/model_based_tests.cpp` 16)
 
 * **Components:**
   * the random number generator's moments;

@@ -202,7 +202,7 @@ const Action c = mb.act(ExecutionObs{.t = 5, .inventory = 60, .signal = -0.1}, /
 ```
 
 `ModelBasedExecutionAgent::Config` fields, in order: `explore_episodes` 10,
-`eps` 0.05, `replan_every` 20, `replan_max_gap` 500, `dp_grid` 61,
+`eps` 0.01, `explore_lo` 0, `explore_hi` 4, `replan_every` 20, `replan_max_gap` 500, `dp_grid` 61,
 `cost_model` (`Quadratic`, `PerSize`, or `Shrunk`), `shrink_steps` 30,
 `learn_holding_cost` true, `learn_permanent_impact` true, `forget` 1.0,
 `detect_drift` false, `drift` (lag 10, allowance 0.3, threshold 10,

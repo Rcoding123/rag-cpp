@@ -94,7 +94,11 @@ class ModelBasedExecutionAgent {
  public:
   struct Config {
     std::uint32_t explore_episodes = 10;  // purely random actions first: diverse data for the regressions
-    double eps = 0.05;                    // exploration after that
+    double eps = 0.01;                    // exploration after that (E11: 0.05 cost 6-10% of the online gain)
+    // Exploratory actions are drawn uniformly from [explore_lo, explore_hi].
+    // The full range (0-4) includes selling nothing and 3x TWAP, which make
+    // random episodes expensive; 1-3 explores near TWAP (E11).
+    Action explore_lo = 0, explore_hi = ExecutionEnv::kNumActions - 1;
     std::uint32_t replan_every = 20;      // episodes between DP re-solves...
     std::uint32_t replan_max_gap = 500;   // ...growing (doubling) up to this, as estimates settle
     std::uint32_t dp_grid = 61;           // signal grid of the planner (121 = the benchmark's)
@@ -129,7 +133,7 @@ class ModelBasedExecutionAgent {
 
   Action act(const ExecutionObs& o, bool explore) {
     if (!plan_ || (explore && (episodes_ < cfg_.explore_episodes || rng_.uniform() < cfg_.eps)))
-      return rng_.below(static_cast<std::uint32_t>(ExecutionEnv::kNumActions));
+      return static_cast<Action>(cfg_.explore_lo + rng_.below(static_cast<std::uint32_t>(cfg_.explore_hi - cfg_.explore_lo + 1)));
     return plan_->act(o);
   }
 
@@ -202,7 +206,10 @@ class ModelBasedExecutionAgent {
       gap_ = cfg_.replan_every;
       return;
     }
-    if (episodes_ >= cfg_.explore_episodes && episodes_ - last_plan_ >= gap_) {
+    // The first plan comes as soon as exploration ends. (Bug fixed in E11:
+    // it used to wait for replan_every episodes too, so the agent acted
+    // randomly for max(explore_episodes, replan_every) = 20 episodes, not 10.)
+    if (episodes_ >= cfg_.explore_episodes && (!plan_ || episodes_ - last_plan_ >= gap_)) {
       replan();
       gap_ = std::min(gap_ * 2, cfg_.replan_max_gap);
     }

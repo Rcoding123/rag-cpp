@@ -23,9 +23,10 @@ and the conclusion; negative results stay in.
 | E6 | Robustness across markets? | Model-based 100% everywhere; TileQ can deploy policies *worse than TWAP* in weak markets. |
 | E6b | Can deployment be made safe? | A baseline guard: never deploy a policy that hasn't beaten TWAP by 2 standard errors. Worst case −106% → 0%. |
 | E7 | What if the market is outside the model class? | Model-based drops to 22–55% (model-free: 70–91%) and gets *worse* with data. A paired model check flags it after 100 episodes (z > 8 vs < 2.5). Fixes: expand the model (100%), or distill + fine-tune + guard (never below the plan, 78–82%). |
-| E8 | What does learning cost online, with every episode real? | ε from 1 loses >1,000 optimal-episodes and breaks even at ~12k; ε 0.1 breaks even at ~2k and learns as well. Model-based earns 88–95% of the optimum while learning. |
+| E8 | What does learning cost online, with every episode real? | ε from 1 loses >1,000 optimal-episodes and breaks even at ~12k; ε 0.1 breaks even at ~2k and learns as well. Model-based earns 88–95% of the optimum while learning (95–100% with E11's defaults). |
 | E9 | How fast can the model-based agent adapt? | Without forgetting: −166% 20 episodes after a flip. Constant forgetting tracks but costs up to 46 points when stable. Change detection + reset: 95–100% within 20 episodes, free when stable. |
 | E10 | Can a policy be scored from logs before deployment? | Not by importance sampling at horizon 20 (errors 45–2,968%, ESS ≈ 0). A model can (2–4% when its class is right), but its bias under a wrong model doesn't shrink with data; doubly robust repairs it only near the logged policy. |
+| E11 | Can system identification be cheaper? | How the agent explores at the start barely matters; ongoing ε 0.05 cost 6–10% of the online gain, so the default is now 0.01. Also fixed: the first plan came after 20 episodes, not 10. |
 
 ---
 
@@ -579,6 +580,9 @@ Final quality at longer horizons (deployed share, seeds 1–3; probe
   initial softmax is uniform, i.e. random selling with large dumps.
 * **The model-based agent earns 88–95% of the optimal gain while
   learning.** Its 10 random exploration episodes are its only real cost.
+  *(Corrected by E11: because of a bug, that phase lasted 20 episodes, and
+  the larger cost was the ongoing ε 0.05. With E11's defaults it earns
+  95–100%.)*
 * **The library default stays ε 1 → 0.02** (A24): sparse-reward tasks
   such as the corridor have no optimistic values to explore with. For
   online learning on cost-like rewards, start at 0.1.
@@ -695,3 +699,47 @@ Permanent impact γ = 0.01 and a model without the term, bias (RMSE):
   unpaired form needed ~1,500 episodes to flag γ = 0.005, where the paired,
   simulator-based check needed 100. When evaluation scenarios can be replayed (a calibrated
   simulator), paired evaluation remains far more sample-efficient.
+
+## E11. Cheaper system identification (and a bug in the first plan)
+
+* **Question:** E8 put the model-based agent's online losses in its
+  random exploration. Would exploring near TWAP, or exploring less, make
+  identification cheaper without making the model worse?
+* **Bug found while setting this up:** the agent acts randomly until it
+  has a plan, and the first plan waited for `replan_every` (20) episodes on
+  top of `explore_episodes`. So the documented "10 exploration episodes"
+  were 20, and any `explore_episodes` below 20 had no effect. Fixed: the
+  first plan is made as soon as exploration ends
+  (`ModelBased.FirstPlanComesRightAfterExploration`).
+* **Code:** `Config::explore_lo`/`explore_hi` (range of exploratory
+  actions); the default `eps` is now 0.01 (was 0.05).
+* **Setup:** 1,000 online episodes, 5 seeds, mean cumulative gain over TWAP
+  in optimal-episodes (+1,000 is the optimum); final share after 1,000
+  episodes. Probe `e11_probe.cpp`.
+
+| Variant (after the fix) | default market | q³ impact + fixed cost | permanent impact 0.01 |
+|---|---|---|---|
+| uniform 0–4, 10 episodes, ε 0.05 (old default) | +842 | +844 | +855 |
+| uniform 0–4, 3 episodes, ε 0.05 | +847 | +817 | +863 |
+| near TWAP (0.5–2×), 10 episodes, ε 0.05 | +840 | +805 | +870 |
+| near TWAP, 3 episodes, ε 0.05 | +861 | +840 | +870 |
+| uniform, 10 episodes, ε 0.02 | +836 | +860 | +918 |
+| **uniform, 10 episodes, ε 0.01 (new default)** | **+893** | **+908** | **+943** |
+| uniform, 10 episodes, ε 0 | +911 | +908 | +917 |
+
+Every variant reached 99.7–100.2% of the optimum by episode 1,000, and
+92–97% by episode 50 (86% for the near-TWAP variant with no exploration
+episodes on the q³ market).
+
+* **How the agent explores at the start barely matters** (±3%, within seed
+  noise): ten random episodes lose 3–7 episodes' worth of the optimal gain
+  relative to TWAP, once.
+* **Ongoing exploration is the cost:** ε 0.05 after identification gave up
+  6–10% of the online gain. The plan's own actions already vary with the
+  signal, so the regressions stay identified without random actions.
+* **New defaults re-measured:** 97.5–100% of the optimum after 20
+  episodes, 99.4–100.4% after 50 (5 seeds, both cost models), as before.
+  Online over 20,000 episodes: +19,043 to +19,988 (seeds 1–3), against
+  +17,699 to +18,902 in E8 (old defaults). These online sums carry about
+  ±500 of noise (returns have sd ≈ 55 per episode), so read them to
+  ~2.5%.
