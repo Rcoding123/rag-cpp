@@ -93,17 +93,17 @@ struct SimParams {
   // Fair value (ticks): diffusion per sqrt(second) at activity 1, scaled by
   // sqrt(activity) (information arrives with trading: volatility clusters
   // with volume, and the mixture fattens the tails); jumps.
-  double value_vol = 0.40, jump_rate = 1.0 / 900, jump_sd = 10;
+  double value_vol = 0.33, jump_rate = 1.0 / 900, jump_sd = 10;
   // Noise takers: orders per second per side at activity 1.
-  double noise_rate = 3.0;
+  double noise_rate = 2.0;
   double taker_size_mean = 4.0, taker_size_logsd = 0.9;
   // Meta-orders: total size Pareto(meta_min, meta_alpha) capped at meta_max,
   // executed as child market orders at meta_child_rate per second.
   double meta_min = 20, meta_alpha = 1.5, meta_max = 3000, meta_child_rate = 2.0;
   double informed_meta_rate = 0.8, informed_scale = 2;  // starts per second at |value - mid| >= informed_scale
-  double uninformed_meta_rate = 0.25;                   // starts per second, random side
+  double uninformed_meta_rate = 0.4;                    // starts per second, random side
   // Momentum takers.
-  double momentum_rate = 1.0, momentum_scale = 8, momentum_lookback = 30;
+  double momentum_rate = 0.8, momentum_scale = 8, momentum_lookback = 30;
   // Makers: limit orders per second at level i = maker_rate * exp(-i / maker_decay);
   // each resting lot is cancelled at cancel_rate per second.
   double maker_rate = 6.0, maker_decay = 3.0, maker_size_mean = 6.0, cancel_rate = 0.10;

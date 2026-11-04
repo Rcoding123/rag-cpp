@@ -120,3 +120,72 @@ TEST(EsSimulator, LimitOrdersThroughTheMarketAreRejected) {
   EXPECT_EQ(sim.submit_limit(Side::Buy, sim.bid(), 0), 0u);
   EXPECT_THROW(EsSimulator(SimParams{.dt = 0}), std::invalid_argument);
 }
+
+// --- features.hpp and scalp_env.hpp ------------------------------------------
+#include "rag/orderflow/scalp_env.hpp"
+
+TEST(FeatureBuilder, WindowSumsMatchTheTapeAndValuesStayBounded) {
+  EsSimulator sim(SimParams{}, 5);
+  FeatureBuilder fb(0.1);
+  std::vector<double> deltas;
+  for (int s = 0; s < 2000; ++s) {
+    sim.step();
+    double d = 0;
+    for (const auto& t : sim.trades()) {
+      fb.add_trade(t);
+      d += sign(t.aggressor) * t.size;
+    }
+    fb.end_bucket(sim.quote());
+    deltas.push_back(d);
+    for (double x : fb.values()) {
+      ASSERT_TRUE(std::isfinite(x));
+      ASSERT_LE(std::abs(x), kClip);
+    }
+  }
+  EXPECT_TRUE(fb.warm());  // 200 s > the 120 s window
+  double d5 = 0, d30 = 0;
+  for (std::size_t i = 0; i < 50; ++i) d5 += deltas[deltas.size() - 1 - i];
+  for (std::size_t i = 0; i < 300; ++i) d30 += deltas[deltas.size() - 1 - i];
+  EXPECT_NEAR(fb.raw()[0], d5, 1e-6);   // delta over 5 s = 50 buckets
+  EXPECT_NEAR(fb.raw()[1], d30, 1e-6);  // 30 s
+}
+
+TEST(ScalpEnv, RewardsAddUpToNetPnlAndFlatEarnsNothing) {
+  ScalpParams p;
+  p.episode_seconds = 120;
+  ScalpEnv env(p);
+  for (rag::agent::Action fixed : {rag::agent::Action{1}, rag::agent::Action{2}}) {
+    rag::agent::Rng r(11);
+    auto o = env.reset(r);
+    double total = 0;
+    int steps = 0;
+    for (;;) {
+      const auto st = env.step(fixed, r);
+      total += st.reward;
+      ++steps;
+      o = st.obs;
+      if (st.done) break;
+    }
+    EXPECT_EQ(steps, 120);
+    EXPECT_EQ(o.position, 0);  // the episode ends flat
+    EXPECT_NEAR(total, env.net_pnl_ticks(), 1e-6);
+    if (fixed == 1) {
+      EXPECT_EQ(total, 0.0);
+      EXPECT_EQ(env.orders(), 0u);
+    } else {
+      EXPECT_EQ(env.orders(), 2u);  // in once, out at the end
+      EXPECT_NEAR(env.fees_ticks(), 2 * p.fee_dollars / kTickValue, 1e-12);
+    }
+  }
+}
+
+TEST(ScalpEnv, TradingEveryStepLosesTheSpreadAndFees) {
+  ScalpParams p;
+  p.episode_seconds = 60;
+  ScalpEnv env(p);
+  rag::agent::Rng r(3);
+  env.reset(r);
+  for (int i = 0; i < 60; ++i) env.step(static_cast<rag::agent::Action>(i % 2 == 0 ? 0 : 2), r);  // flip short/long every second
+  // ~60 flips of 2 contracts: each pays about a spread (1 tick) per contract plus fees.
+  EXPECT_LT(env.net_pnl_ticks(), -40.0);
+}
