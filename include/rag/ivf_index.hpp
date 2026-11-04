@@ -49,7 +49,7 @@ class IvfIndex {
 
   // Index rows [0, n) of `store`. Cold path.
   void build(const VectorStore<D>& store, std::uint32_t n, IvfParams p = {}) {
-    if (n == 0) { covered_ = 0; nlist_ = 0; return; }
+    if (n == 0) { *this = IvfIndex{}; return; }  // drop any earlier build's lists and storage too
     nlist_ = p.nlist ? p.nlist : std::max<std::uint32_t>(4, static_cast<std::uint32_t>(std::sqrt(double(n))) & ~3u);
     nlist_ = std::min(nlist_, n);
     centroids_ = make_aligned_array<float>(std::size_t{nlist_} * D, Init::Lazy);
@@ -95,7 +95,8 @@ class IvfIndex {
         out.push(s[0], ids_[i]); out.push(s[1], ids_[i + 1]);
         out.push(s[2], ids_[i + 2]); out.push(s[3], ids_[i + 3]);
       }
-      for (; i < e; ++i) out.push(simd::dot(q, vecs_.get() + std::size_t{i} * D, D), ids_[i]);
+      // dot1, not dot: a row's score must not depend on where it fell in its list.
+      for (; i < e; ++i) out.push(simd::dot1(q, vecs_.get() + std::size_t{i} * D, D), ids_[i]);
     }
   }
 
@@ -208,7 +209,10 @@ class IvfIndex {
     std::uint64_t rng = p.seed;
     std::vector<std::uint32_t> perm(n);
     std::iota(perm.begin(), perm.end(), 0u);
-    const auto m = static_cast<std::uint32_t>(std::min<std::uint64_t>(n, std::uint64_t{nlist_} * p.max_train_points_per_list));
+    // At least one sample per list (nlist_ <= n): the seeding below reads
+    // perm[0, nlist_), and the empty-cluster reseed divides by m.
+    const auto m = static_cast<std::uint32_t>(std::clamp<std::uint64_t>(
+        std::uint64_t{nlist_} * p.max_train_points_per_list, nlist_, n));
     for (std::uint32_t i = 0; i < m; ++i) std::swap(perm[i], perm[i + splitmix(rng) % (n - i)]);  // partial Fisher-Yates
     for (std::uint32_t c = 0; c < nlist_; ++c) std::copy_n(store.row(perm[c]), D, centroids_.get() + std::size_t{c} * D);
 

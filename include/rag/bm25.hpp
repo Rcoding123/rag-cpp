@@ -118,6 +118,10 @@ class Bm25Index {
       throw std::runtime_error("Bm25Index::load: bad term table");
     for (auto d : doc)
       if (d >= ndocs) throw std::runtime_error("Bm25Index::load: doc id out of range");
+    // search() relies on every weight being > 0 (acc == 0 marks a first touch,
+    // which bounds the touched list); freeze() never produces anything else.
+    for (float x : weight)
+      if (!(x > 0.f) || !std::isfinite(x)) throw std::runtime_error("Bm25Index::load: bad posting weight");
     table_ = std::move(table);
     mask_ = table_.empty() ? 0 : table_.size() - 1;
     num_terms_ = static_cast<std::size_t>(nterms);

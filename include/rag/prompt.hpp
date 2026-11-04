@@ -57,6 +57,7 @@ class BufWriter {
   // mistake can never become a buffer overflow.
   void put(std::string_view s) noexcept {
     const std::size_t n = std::min(s.size(), cap_ - len_);
+    if (n == 0) return;  // an empty view's data() may be null: memcpy(dst, nullptr, 0) is UB
     std::memcpy(p_ + len_, s.data(), n);
     len_ += n;
   }

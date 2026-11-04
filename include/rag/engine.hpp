@@ -639,6 +639,9 @@ class RagEngine {
     if (c.retrieve_depth == 0 || c.retrieve_depth > MaxK) throw std::invalid_argument("retrieve_depth must be in [1, MaxK]");
     if (c.rerank_candidates > kMaxRerank) throw std::invalid_argument("rerank_candidates > kMaxRerank");
     if (c.nprobe == 0) throw std::invalid_argument("nprobe must be > 0");
+    // These keep every BM25 posting weight finite and > 0, which Bm25Index::search relies on.
+    if (!(c.bm25.k1 >= 0.f) || !std::isfinite(c.bm25.k1) || !(c.bm25.b >= 0.f && c.bm25.b <= 1.f))
+      throw std::invalid_argument("bm25 needs a finite k1 >= 0 and b in [0, 1]");
     return c;
   }
 
