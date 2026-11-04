@@ -2,7 +2,7 @@
 #pragma once
 
 #include <gtest/gtest.h>
-#include <unistd.h>
+#include "pid.hpp"
 
 #include <cstdint>
 #include <cstring>
@@ -32,7 +32,7 @@ inline std::vector<std::filesystem::path>& created_files() {
 inline std::filesystem::path temp_index(const char* name) {
   const auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
   std::string id = std::string(info ? info->test_suite_name() : "nosuite") + "." + (info ? info->name() : "notest") +
-                   "." + name + "." + std::to_string(::getpid()) + ".ragidx";
+                   "." + name + "." + std::to_string(test_pid()) + ".ragidx";
   for (char& c : id) if (c == '/') c = '_';
   auto p = std::filesystem::path(::testing::TempDir()) / id;
   created_files().push_back(p);

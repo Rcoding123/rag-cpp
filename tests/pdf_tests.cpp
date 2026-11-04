@@ -1,7 +1,7 @@
 // pdf_tests.cpp — PDF extraction and page-cited retrieval, on PDFs generated
 // by tests/pdf_writer.hpp (no binary fixtures in the repository).
 #include <gtest/gtest.h>
-#include <unistd.h>
+#include "pid.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -21,7 +21,7 @@ namespace {
 class PdfTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    dir_ = std::filesystem::temp_directory_path() / ("rag-pdf-tests-" + std::to_string(::getpid()) + "-" +
+    dir_ = std::filesystem::temp_directory_path() / ("rag-pdf-tests-" + std::to_string(test_pid()) + "-" +
                                                      ::testing::UnitTest::GetInstance()->current_test_info()->name());
     std::filesystem::create_directories(dir_);
   }

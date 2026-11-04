@@ -2,7 +2,7 @@
 // and run. If an API changes, this file stops compiling and the docs get
 // fixed along with the code.
 #include <gtest/gtest.h>
-#include <unistd.h>
+#include "pid.hpp"
 
 #include <filesystem>
 #include <string>
@@ -19,7 +19,7 @@
 
 namespace {
 std::filesystem::path tmp(const char* n) {
-  return std::filesystem::temp_directory_path() / (std::string(n) + "-" + std::to_string(::getpid()));
+  return std::filesystem::temp_directory_path() / (std::string(n) + "-" + std::to_string(test_pid()));
 }
 }  // namespace
 

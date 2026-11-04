@@ -29,6 +29,8 @@
 #include <thread>
 #include <vector>
 
+#include "pid.hpp"
+
 #include "rag.hpp"
 
 using namespace rag;
@@ -74,7 +76,7 @@ struct Counters {
 int main(int argc, char** argv) {
   const double seconds = argc > 1 ? std::atof(argv[1]) : 5.0;
   const int only_mode = argc > 2 ? std::atoi(argv[2]) : -1;
-  const auto tmp = std::filesystem::temp_directory_path() / ("rag-stress-" + std::to_string(::getpid()) + ".ragidx");
+  const auto tmp = std::filesystem::temp_directory_path() / ("rag-stress-" + std::to_string(test_pid()) + ".ragidx");
   int rc = 0;
 
   for (int m = 0; m < 4 && !g_failed; ++m) {

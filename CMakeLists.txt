@@ -16,26 +16,65 @@ option(RAG_HUGEPAGES "Back large arrays with transparent huge pages (faster scan
 
 add_library(rag INTERFACE)
 target_include_directories(rag INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_compile_options(rag INTERFACE -march=${RAG_ARCH} -Wall -Wextra -Wpedantic -Wconversion -Wno-sign-conversion)
+if(MSVC)
+  # MSVC has no -march and can't target "the build host"; map the levels to
+  # /arch. AVX2 implies FMA under MSVC (see RAG_AVX2_FMA in common.hpp).
+  # "native" assumes an AVX2 CPU (Intel Haswell / AMD Excavator or newer);
+  # use -DRAG_ARCH=x86-64 for a scalar build that runs anywhere.
+  if(RAG_ARCH STREQUAL "x86-64-v4")
+    set(RAG_MSVC_ARCH /arch:AVX512)
+  elseif(RAG_ARCH STREQUAL "x86-64" OR RAG_ARCH STREQUAL "x86-64-v2")
+    set(RAG_MSVC_ARCH "")
+  else()
+    set(RAG_MSVC_ARCH /arch:AVX2)
+  endif()
+  # /Zc:__cplusplus: report C++20 correctly; /bigobj: the test units are large;
+  # /utf-8: sources and test strings are UTF-8; /Zc:preprocessor: standard preprocessor.
+  target_compile_options(rag INTERFACE ${RAG_MSVC_ARCH} /W4 /permissive- /Zc:__cplusplus /Zc:preprocessor /utf-8 /bigobj /EHsc
+                                       /wd4244 /wd4267 /wd4324)
+  # C4244/C4267: integer and size_t narrowing (GCC's -Wconversion checks these on Linux);
+  # C4324: structure padded because of alignas (intended: cache-line alignment).
+  target_compile_definitions(rag INTERFACE NOMINMAX _CRT_SECURE_NO_WARNINGS)
+else()
+  target_compile_options(rag INTERFACE -march=${RAG_ARCH} -Wall -Wextra -Wpedantic -Wconversion -Wno-sign-conversion)
+endif()
 if(NOT RAG_HUGEPAGES)
   target_compile_definitions(rag INTERFACE RAG_NO_HUGEPAGES)
 endif()
 if(RAG_SANITIZE)
-  target_compile_options(rag INTERFACE -fsanitize=address,undefined -fno-omit-frame-pointer)
-  target_link_options(rag INTERFACE -fsanitize=address,undefined)
+  if(MSVC)
+    target_compile_options(rag INTERFACE /fsanitize=address)  # MSVC has ASan but no UBSan
+  else()
+    target_compile_options(rag INTERFACE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(rag INTERFACE -fsanitize=address,undefined)
+  endif()
 endif()
 if(RAG_TSAN)
+  if(MSVC)
+    message(FATAL_ERROR "RAG_TSAN needs GCC or Clang (ThreadSanitizer is not available with MSVC)")
+  endif()
   target_compile_options(rag INTERFACE -fsanitize=thread)
   target_link_options(rag INTERFACE -fsanitize=thread)
 endif()
 
 find_package(Threads REQUIRED)
-find_package(GTest REQUIRED)
+# GoogleTest: use an installed copy (Linux packages, vcpkg) or download it.
+find_package(GTest QUIET)
+if(NOT GTest_FOUND)
+  message(STATUS "rag-cpp: GoogleTest not found; downloading v1.15.2")
+  include(FetchContent)
+  FetchContent_Declare(googletest URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip
+                       DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)  # match CMake's default MSVC runtime
+  set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+  set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(googletest)
+endif()
 enable_testing()
 add_executable(rag_tests tests/rag_tests.cpp tests/forgery_tests.cpp tests/reference_tests.cpp tests/text_clean_tests.cpp tests/agent_tests.cpp tests/api_examples_tests.cpp tests/model_based_tests.cpp tests/market_making_tests.cpp tests/mlp_tests.cpp tests/agent_edge_case_tests.cpp tests/agent_coverage_tests.cpp tests/rag_property_tests.cpp tests/policy_table_tests.cpp)
 target_link_libraries(rag_tests PRIVATE rag GTest::gtest_main Threads::Threads)
 include(GoogleTest)
-gtest_discover_tests(rag_tests)
+gtest_discover_tests(rag_tests DISCOVERY_TIMEOUT 120)
 
 find_package(benchmark QUIET)
 if(benchmark_FOUND)
@@ -101,10 +140,12 @@ if(RAG_PDF)
     target_link_libraries(rag_pdf_support INTERFACE rag PkgConfig::POPPLER_CPP)
     add_executable(rag_pdf examples/rag_pdf.cpp)
     target_link_libraries(rag_pdf PRIVATE rag_pdf_support)
-    # CLI smoke test: index this repository's docs and query them.
+    # CLI smoke test: index this repository's docs and query them (POSIX shell).
+    if(NOT WIN32)
     add_test(NAME rag_pdf_cli_smoke COMMAND sh -c
       "$<TARGET_FILE:rag_pdf> index \"$TMPDIR_RAG\"/cli.ragidx ${CMAKE_CURRENT_SOURCE_DIR}/docs && $<TARGET_FILE:rag_pdf> ask \"$TMPDIR_RAG\"/cli.ragidx 'champion challenger' -k 2 | grep -q 'chunk'")
     set_tests_properties(rag_pdf_cli_smoke PROPERTIES ENVIRONMENT "TMPDIR_RAG=${CMAKE_CURRENT_BINARY_DIR}")
+    endif()
     add_executable(rag_pdf_tests tests/pdf_tests.cpp)
     target_include_directories(rag_pdf_tests PRIVATE tests)
     target_link_libraries(rag_pdf_tests PRIVATE rag_pdf_support GTest::gtest_main Threads::Threads)

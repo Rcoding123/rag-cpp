@@ -87,6 +87,32 @@ jobs:
           ./build/rag_demo
           ./build/rag_bench --benchmark_filter='Dot|TopK|Query/' --benchmark_min_time=0.05s
 
+  windows:
+    name: msvc-windows
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Runner CPU
+        shell: pwsh
+        run: Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors | Format-List
+
+      - name: Configure (Visual Studio 2022, x64, AVX2)
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DRAG_ARCH=x86-64-v3
+
+      - name: Build
+        run: cmake --build build --config Release --parallel 4
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure -j 4
+
+      - name: Demos and latency smoke run
+        shell: bash
+        run: |
+          ./build/Release/rag_demo.exe
+          ./build/Release/agent_demo.exe | tail -n 25
+          ./build/Release/rag_latency.exe
+
   fuzz:
     name: fuzz-smoke
     runs-on: ubuntu-24.04

@@ -1,6 +1,8 @@
 // text_clean_tests.cpp — cleanup of extracted page text (no PDF dependency).
 #include <gtest/gtest.h>
 
+#include "pid.hpp"
+
 #include <random>
 #include <string>
 #include <vector>
@@ -214,7 +216,7 @@ TEST(PagedIngest, SourcesAndPagesSurviveSaveAndLoadAndKeepInterning) {
   e.ingest(t, 1, IngestOptions{.source = "a.pdf", .page_starts = starts});
   e.ingest("unsourced text", 2);
   e.commit();
-  const auto path = std::filesystem::temp_directory_path() / ("paged-" + std::to_string(::getpid()) + ".ragidx");
+  const auto path = std::filesystem::temp_directory_path() / ("paged-" + std::to_string(test_pid()) + ".ragidx");
   e.save(path);
   const auto info = Engine::inspect(path);
   EXPECT_EQ(info.format_version, io::kFormatVersion);

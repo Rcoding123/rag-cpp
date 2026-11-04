@@ -36,7 +36,7 @@ inline std::int32_t dot_i8_scalar(const std::int8_t* a, const std::int8_t* b, st
 }
 
 // -------------------------------- AVX2 --------------------------------------
-#if defined(__AVX2__) && defined(__FMA__)
+#if defined(RAG_AVX2_FMA)
 RAG_ALWAYS_INLINE float hsum256(__m256 v) noexcept {
   __m128 lo = _mm256_castps256_ps128(v), hi = _mm256_extractf128_ps(v, 1);
   lo = _mm_add_ps(lo, hi);
@@ -155,7 +155,7 @@ RAG_ALWAYS_INLINE std::int32_t dot_i8_avx512(const std::int8_t* a, const std::in
 RAG_ALWAYS_INLINE float dot(const float* a, const float* b, std::size_t n) noexcept {
 #if defined(__AVX512F__)
   return dot_avx512(a, b, n);
-#elif defined(__AVX2__) && defined(__FMA__)
+#elif defined(RAG_AVX2_FMA)
   return dot_avx2(a, b, n);
 #else
   return dot_scalar(a, b, n);
@@ -166,7 +166,7 @@ RAG_ALWAYS_INLINE float dot(const float* a, const float* b, std::size_t n) noexc
 RAG_ALWAYS_INLINE void dot4(const float* q, const float* r, std::size_t stride, std::size_t n, float* out) noexcept {
 #if defined(__AVX512F__)
   dot4_avx512(q, r, stride, n, out);
-#elif defined(__AVX2__) && defined(__FMA__)
+#elif defined(RAG_AVX2_FMA)
   dot4_avx2(q, r, stride, n, out);
 #else
   for (int j = 0; j < 4; ++j) out[j] = dot_scalar(q, r + j * stride, n);
@@ -183,7 +183,7 @@ RAG_ALWAYS_INLINE float dot1(const float* q, const float* r, std::size_t n) noex
   __m512 a = _mm512_setzero_ps();
   for (std::size_t i = 0; i < n; i += 16) a = _mm512_fmadd_ps(_mm512_loadu_ps(r + i), _mm512_loadu_ps(q + i), a);
   return _mm512_reduce_add_ps(a);
-#elif defined(__AVX2__) && defined(__FMA__)
+#elif defined(RAG_AVX2_FMA)
   __m256 a = _mm256_setzero_ps();
   for (std::size_t i = 0; i < n; i += 8) a = _mm256_fmadd_ps(_mm256_loadu_ps(r + i), _mm256_loadu_ps(q + i), a);
   return hsum256(a);

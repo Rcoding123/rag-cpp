@@ -4,7 +4,12 @@
 // This harness records every query's wall time into a preallocated array
 // (no allocation inside the timed loop), pins itself to one core to keep
 // scheduler migrations out of the tail, and prints percentiles.
+#if defined(__linux__)
 #include <sched.h>
+#elif defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 
 #include <algorithm>
 #include <chrono>
@@ -17,12 +22,23 @@ using namespace rag;
 using namespace rag::bench;
 using Clock = std::chrono::steady_clock;
 
-int main(int argc, char** argv) {
-  const std::size_t iters = argc > 1 ? std::strtoul(argv[1], nullptr, 10) : 20000;
+// Pin the calling thread to CPU 1 (keeps migrations out of the tail).
+static bool pin_to_cpu1() {
+#if defined(__linux__)
   cpu_set_t set;
   CPU_ZERO(&set);
   CPU_SET(1, &set);
-  const bool pinned = sched_setaffinity(0, sizeof(set), &set) == 0;
+  return sched_setaffinity(0, sizeof(set), &set) == 0;
+#elif defined(_WIN32)
+  return SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR{1} << 1) != 0;
+#else
+  return false;
+#endif
+}
+
+int main(int argc, char** argv) {
+  const std::size_t iters = argc > 1 ? std::strtoul(argv[1], nullptr, 10) : 20000;
+  const bool pinned = pin_to_cpu1();
   const auto qs = text_queries(1024);
   std::vector<std::int64_t> ns(iters);  // preallocated
 

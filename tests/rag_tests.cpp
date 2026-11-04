@@ -14,8 +14,12 @@
 #include <set>
 #include <string>
 #include <thread>
-#include <unistd.h>
+#include "pid.hpp"
 #include <vector>
+
+#if defined(_WIN32)
+#include <malloc.h>
+#endif
 
 #include "rag.hpp"
 #include "synthetic.hpp"
@@ -30,10 +34,23 @@ std::atomic<bool> g_track{false};
 std::atomic<std::size_t> g_allocs{0};
 void* counted(std::size_t n, std::size_t align) {
   if (g_track.load(std::memory_order_relaxed)) g_allocs.fetch_add(1, std::memory_order_relaxed);
+#if defined(_WIN32)
+  // Windows: aligned blocks need _aligned_malloc / _aligned_free (no std::aligned_alloc);
+  // the aligned operator delete overloads below are always paired with these.
+  void* p = align ? _aligned_malloc(n ? n : 1, align) : std::malloc(n ? n : 1);
+#else
   void* p = align > alignof(std::max_align_t) ? std::aligned_alloc(align, (n + align - 1) / align * align)
                                               : std::malloc(n ? n : 1);
+#endif
   if (!p) throw std::bad_alloc{};
   return p;
+}
+void aligned_release(void* p) noexcept {
+#if defined(_WIN32)
+  _aligned_free(p);
+#else
+  std::free(p);
+#endif
 }
 struct AllocScope {
   AllocScope() { g_allocs = 0; g_track = true; }
@@ -55,10 +72,10 @@ void operator delete(void* p) noexcept { std::free(p); }
 void operator delete[](void* p) noexcept { std::free(p); }
 void operator delete(void* p, std::size_t) noexcept { std::free(p); }
 void operator delete[](void* p, std::size_t) noexcept { std::free(p); }
-void operator delete(void* p, std::align_val_t) noexcept { std::free(p); }
-void operator delete[](void* p, std::align_val_t) noexcept { std::free(p); }
-void operator delete(void* p, std::size_t, std::align_val_t) noexcept { std::free(p); }
-void operator delete[](void* p, std::size_t, std::align_val_t) noexcept { std::free(p); }
+void operator delete(void* p, std::align_val_t) noexcept { aligned_release(p); }
+void operator delete[](void* p, std::align_val_t) noexcept { aligned_release(p); }
+void operator delete(void* p, std::size_t, std::align_val_t) noexcept { aligned_release(p); }
+void operator delete[](void* p, std::size_t, std::align_val_t) noexcept { aligned_release(p); }
 
 volatile std::size_t benchmark_sink;  // defeats dead-code elimination of query results
 
@@ -1395,7 +1412,7 @@ TEST(Persist, SaveErrorsAndRelativePaths) {
 
   // A bare filename (no parent directory component) saves into the cwd.
   const auto old = std::filesystem::current_path();
-  const auto dir = std::filesystem::path(::testing::TempDir()) / ("rel-" + std::to_string(::getpid()));
+  const auto dir = std::filesystem::path(::testing::TempDir()) / ("rel-" + std::to_string(test_pid()));
   std::filesystem::create_directories(dir);
   std::filesystem::current_path(dir);
   ep->save("relative.ragidx");

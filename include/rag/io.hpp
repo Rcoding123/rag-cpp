@@ -26,6 +26,9 @@
 #if defined(__unix__) || defined(__APPLE__)
 #include <fcntl.h>
 #include <unistd.h>
+#elif defined(_WIN32)
+#include <fcntl.h>
+#include <io.h>  // _wopen, _commit (FlushFileBuffers), _close
 #endif
 
 namespace rag::io {
@@ -39,6 +42,14 @@ inline void fsync_path(const std::filesystem::path& p, bool directory) {
   const int rc = ::fsync(fd);
   ::close(fd);
   if (rc != 0) throw std::runtime_error("rag::io: fsync failed for " + p.string());
+#elif defined(_WIN32)
+  // Windows has no directory handle to flush; NTFS journals the rename itself.
+  if (directory) return;
+  const int fd = ::_wopen(p.c_str(), _O_RDWR | _O_BINARY);
+  if (fd < 0) throw std::runtime_error("rag::io: cannot open " + p.string() + " to sync");
+  const int rc = ::_commit(fd);
+  ::_close(fd);
+  if (rc != 0) throw std::runtime_error("rag::io: flush failed for " + p.string());
 #else
   (void)p; (void)directory;  // portable fallback: rename-only (atomic, not durable)
 #endif
