@@ -235,6 +235,26 @@ fine.run(2000);                            // deployed: never worse than the pla
 `evaluate()`, `compare()` and `EvalStats` are in `rag/agent/evaluate.hpp`
 (included by `trainer.hpp` and `model_based.hpp`).
 
+## 10. Off-policy evaluation from logs
+
+```cpp
+#include "rag/agent/ope.hpp"
+// Logged under the behaviour policy, with its propensity b(a | obs) > 0:
+std::vector<LoggedEpisode<ExecutionObs>> logs = /* {obs, action, reward, propensity} per step */ {};
+auto target = [&](const ExecutionObs& o) { return dp.act(o); };
+const auto values = mb.plan()->evaluate_policy(target);   // a fitted model's V/Q for the target
+const OpeEstimates e = off_policy_estimates(
+    logs, target,
+    [&](const ExecutionObs& o, Action a) { return values.q(o.t, o.inventory, o.signal, a); },
+    [&](const ExecutionObs& o) { return values.value(o.t, o.inventory, o.signal); },
+    /*horizon=*/20);
+// e.pdis, e.wpdis, e.dr; trust them only if e.min_ess is large and e.uncovered_steps == 0.
+const double direct = values.start_value();               // the model's own estimate (DM)
+```
+
+At horizon 20 the importance-sampling estimates are unusable unless the
+target is close to the behaviour (E10); rely on the model, and check it.
+
 A new environment only needs to satisfy the `Environment` concept: an
 `Observation` type, `kNumActions`, `kStateDims`, `kLo`/`kHi`, and
 `reset(rng)`, `step(action, rng)` and `features(obs)`.

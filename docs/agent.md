@@ -212,6 +212,20 @@ over. It recovers to 95–100% within 20 episodes, against 5,000 episodes
 for the model-free agent to reach 18%, and costs nothing while the market
 is stable (E9).
 
+### Scoring a policy before deploying it
+The trainer's held-out evaluations and the paired model check replay
+scenarios, which needs a simulator. From live logs alone, importance
+sampling reweights the logged episodes by how likely the target was to act
+as the behaviour did. At a horizon of 20 that fails: a target that differs
+from the logged policy in many states is followed by almost no logged
+episode beyond a few steps, so the effective sample size collapses to ~0
+and errors are 45–2,968% of the optimal gain even with 10,000 logs.
+Evaluating the target under a fitted model works (2–4%) when the model
+class is right; doubly robust estimation only repairs model bias for
+targets close to the logged policy (`ope.hpp`, E10). Offline evaluation
+therefore comes back to the same requirement as model-based control:
+check the model.
+
 ## 6. Exploration
 
 A fraction ε of decisions is random. ε falls linearly from 1 to 0.02, and
@@ -354,7 +368,7 @@ The hard problems are the same in both:
   assumption, and that a backtest can't show the agent's own impact on the
   market.
 
-## 10. Tests (`tests/agent_tests.cpp` 37 cases, `tests/model_based_tests.cpp` 14)
+## 10. Tests (`tests/agent_tests.cpp` 39 cases, `tests/model_based_tests.cpp` 15)
 
 * **Components:**
   * the random number generator's moments;
@@ -392,6 +406,9 @@ The hard problems are the same in both:
   * change detection catches a market flip and recovers within 30
     episodes, and is free in a stable market, where constant forgetting
     isn't;
+  * off-policy estimators match a hand-computed log; importance sampling
+    collapses at horizon 20 while a right model evaluates the target
+    accurately, and a wrong model's bias doesn't shrink with data;
   * a wrong model form is costly, a flexible one fixes it, and shrinkage
     makes the flexible one safe with little data.
 * **Engineering:**

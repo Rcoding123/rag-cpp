@@ -6,6 +6,7 @@
 #include <cmath>
 
 #include "rag/agent/model_based.hpp"
+#include "rag/agent/ope.hpp"
 #include "rag/agent/trainer.hpp"
 
 using namespace rag::agent;
@@ -411,4 +412,72 @@ TEST(ModelBased, ChangeDetectionIsFreeInAStableMarketButConstantForgettingIsNot)
     }
   }
   EXPECT_GT(err_forget, 4 * err_full) << err_forget << " vs " << err_full;
+}
+
+// ============== Experiment E10 (off-policy evaluation) ======================
+namespace {
+struct OpeRun {
+  double dm, wpdis, dr;  // estimates of the target's value
+  OpeEstimates is;
+};
+// Log n episodes of TWAP with 20% uniformly random actions, fit a model on
+// them (passively), and estimate `target`'s value from the logs alone.
+template <class Target>
+OpeRun estimate_offline(const ExecutionParams& market, bool permanent_term, unsigned n, std::uint64_t seed, Target&& target) {
+  constexpr double eps = 0.2;
+  ExecutionEnv env(market);
+  Rng rng(1000 + seed), pick(5 + seed);
+  ModelBasedExecutionAgent mb(market, {.replan_every = 1'000'000, .cost_model = CostModel::Shrunk,
+                                       .learn_permanent_impact = permanent_term, .seed = 1});
+  std::vector<LoggedEpisode<ExecutionObs>> logs(n);
+  for (auto& ep : logs) {
+    auto o = env.reset(rng);
+    for (;;) {
+      const Action a = pick.uniform() < eps ? static_cast<Action>(pick.below(5)) : ExecutionEnv::kTwapAction;
+      mb.note_action(o, a);
+      const auto st = env.step(a, rng);
+      mb.observe(o, a, st.reward, st.obs, st.done);
+      ep.push_back({o, a, st.reward, (a == ExecutionEnv::kTwapAction ? 1 - eps : 0.0) + eps / 5});
+      o = st.obs;
+      if (st.done) break;
+    }
+    mb.end_episode();
+  }
+  mb.replan();
+  const auto values = mb.plan()->evaluate_policy(target);
+  const auto is = off_policy_estimates(
+      logs, target, [&](const ExecutionObs& o, Action a) { return values.q(o.t, o.inventory, o.signal, a); },
+      [&](const ExecutionObs& o) { return values.value(o.t, o.inventory, o.signal); }, market.horizon);
+  return {values.start_value(), is.wpdis, is.dr, is};
+}
+}  // namespace
+
+TEST(OffPolicy, ImportanceSamplingCollapsesAtLongHorizonsAndTheModelDecides) {
+  // Measured (20 replications, errors in % of the optimal gain): for the DP
+  // optimum from 1,000 logged episodes, DM rmse 4% with the right model,
+  // WPDIS 98%, DR 134%; ~17 of 20 steps had no logged episode following the
+  // target. With the permanent term missing (gamma 0.01) DM's bias was -62%
+  // at 1,000 episodes and still -62% at 10,000: more data doesn't fix a
+  // wrong model.
+  ExecutionParams p;
+  const ExecutionDP truth(p);
+  auto optimal = [&](const ExecutionObs& o) { return truth.act(o); };
+  const double gain = truth.expected_start_value() - truth.policy_value(twap);
+  const double v_opt = truth.policy_value(optimal);
+  for (std::uint64_t seed = 1; seed <= 2; ++seed) {
+    const auto r = estimate_offline(p, true, 1000, seed, optimal);
+    EXPECT_NEAR(r.dm, v_opt, 0.08 * gain) << "seed " << seed;
+    EXPECT_GE(r.is.uncovered_steps, 10u);  // nobody followed the target for long
+    EXPECT_LT(r.is.min_ess, 1.0);
+  }
+  ExecutionParams perm;
+  perm.permanent_impact = 0.01;
+  const ExecutionDP truth_perm(perm);
+  auto optimal_perm = [&](const ExecutionObs& o) { return truth_perm.act(o); };
+  const double gain_perm = truth_perm.expected_start_value() - truth_perm.policy_value(twap);
+  const double v_perm = truth_perm.policy_value(optimal_perm);
+  for (unsigned n : {1000u, 10000u}) {
+    const auto r = estimate_offline(perm, false, n, 1, optimal_perm);
+    EXPECT_LT((r.dm - v_perm) / gain_perm, -0.4) << n << " episodes";
+  }
 }

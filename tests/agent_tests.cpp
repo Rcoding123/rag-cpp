@@ -11,6 +11,7 @@
 
 #include "rag/agent/execution_dp.hpp"
 #include "rag/agent/model_based.hpp"
+#include "rag/agent/ope.hpp"
 #include "rag/agent/trainer.hpp"
 #include "test_util.hpp"
 
@@ -914,4 +915,54 @@ TEST(AgentOnline, LowExplorationCostsLessOnlineAndLearnsAsWell) {
     cum_mb -= v_twap;
   }
   EXPECT_GT(cum_mb / gain, 600.0);
+}
+
+// ============== Experiment E10 (off-policy evaluation) ======================
+TEST(OffPolicy, EstimatorArithmeticOnAHandMadeLog) {
+  // Episode 1: (t0, a1, r2, b 0.5), (t1, a0, r4, b 0.25). Episode 2: (t0, a0, r10, b 0.5), then over.
+  // Target: action 1 at t = 0, action 0 after. Weights: ep1 2 then 8; ep2 0.
+  std::vector<LoggedEpisode<ExecutionObs>> logs = {
+      {{ExecutionObs{0, 100, 0}, 1, 2.0, 0.5}, {ExecutionObs{1, 95, 0}, 0, 4.0, 0.25}},
+      {{ExecutionObs{0, 100, 0}, 0, 10.0, 0.5}},
+  };
+  auto pi = [](const ExecutionObs& o) { return o.t == 0 ? Action{1} : Action{0}; };
+  const auto e = off_policy_estimates(logs, pi, [](const ExecutionObs&, Action) { return 1.0; },
+                                      [](const ExecutionObs&) { return 3.0; }, 2);
+  EXPECT_DOUBLE_EQ(e.pdis, (2 * 2 + 8 * 4) / 2.0);       // 18
+  EXPECT_DOUBLE_EQ(e.wpdis, 4.0 / 2.0 + 32.0 / 8.0);     // 6
+  EXPECT_DOUBLE_EQ(e.dr, ((2 * 1 + 3) + (8 * 3 + 2 * 3) + 3) / 2.0);  // 19
+  EXPECT_DOUBLE_EQ(e.min_ess, 1.0);
+  EXPECT_EQ(e.uncovered_steps, 0u);
+  // A target nobody followed leaves its steps uncovered.
+  const auto none = off_policy_estimates(logs, [](const ExecutionObs&) { return Action{4}; },
+                                         [](const ExecutionObs&, Action) { return 0.0; }, [](const ExecutionObs&) { return 0.0; }, 2);
+  EXPECT_EQ(none.uncovered_steps, 2u);
+  EXPECT_EQ(none.min_ess, 0.0);
+}
+
+TEST(AgentExecutionDP, PolicyValueTablesAreSelfConsistent) {
+  // Evaluating the optimal policy reproduces the optimal value function; for
+  // any policy, V(s) = Q(s, pi(s)); and a worse policy is worth less everywhere it differs.
+  ExecutionParams p;
+  p.permanent_impact = 0.005;
+  p.risk_aversion = 0.1;
+  const ExecutionDP dp(p, 61);
+  const auto opt = dp.evaluate_policy([&](const ExecutionObs& o) { return dp.act(o); });
+  const auto tw = dp.evaluate_policy(twap);
+  EXPECT_NEAR(opt.start_value(), dp.expected_start_value(), 1e-9);
+  Rng rng(3);
+  for (int i = 0; i < 300; ++i) {
+    const std::uint32_t t = rng.below(p.horizon), inv = 1 + rng.below(p.lots);
+    const double g = (rng.uniform() - 0.5) * 4 * p.signal_sd;
+    EXPECT_NEAR(opt.value(t, inv, g), dp.value(t, inv, g), 1e-6 * (1 + std::abs(dp.value(t, inv, g))));
+    EXPECT_GE(opt.value(t, inv, g) + 1e-9, tw.value(t, inv, g));
+  }
+  // At grid points V(s) == Q(s, pi(s)) exactly (off the grid V is interpolated).
+  const double lo = -4 * p.signal_sd, step = 8 * p.signal_sd / 60;
+  for (std::uint32_t j = 0; j < 61; j += 6) {
+    const double g = lo + j * step;
+    for (std::uint32_t inv : {1u, 37u, 100u}) {
+      EXPECT_NEAR(tw.value(7, inv, g), tw.q(7, inv, g, ExecutionEnv::kTwapAction), 1e-9);
+    }
+  }
 }

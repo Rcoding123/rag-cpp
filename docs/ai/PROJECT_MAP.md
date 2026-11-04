@@ -38,12 +38,13 @@ rag-cpp/
 │       └── agent/
 │           ├── rng.hpp          xoshiro256** + splitmix seeding, Marsaglia normals
 │           ├── env.hpp          Environment concept, ChainEnv, ExecutionEnv (costs, risk aversion)
-│           ├── execution_dp.hpp exact optimum for ExecutionEnv (cost tables, policy_value)
+│           ├── execution_dp.hpp exact optimum for ExecutionEnv (cost tables, policy_value, evaluate_policy)
 │           ├── features.hpp     TileCoder, RandomFourierEncoder
 │           ├── learners.hpp     TileQ, ReplayBuffer, EpisodicMemory
 │           ├── agent.hpp        Agent<Env>: TileQ / Episodic / ActorCritic, n-step, distill, snapshots
 │           ├── evaluate.hpp     evaluate / compare on common random numbers (EvalStats)
 │           ├── drift.hpp        DriftDetector: one-sided CUSUM on surprise (DriftParams)
+│           ├── ope.hpp          off-policy evaluation: PDIS, WPDIS, doubly robust, ESS diagnostics
 │           ├── model_based.hpp  ModelBasedExecutionAgent: regression + DP planning + check_model
 │           └── trainer.hpp      evaluate, compare, DriftDetector (CUSUM), Trainer (champion, bank, baseline guard)
 ├── tests/
@@ -80,7 +81,7 @@ L0  common.hpp  rng.hpp
 L1  arena  tokenizer  simd  topk  io  text_clean
 L2  chunker  embedder  vector_store  bm25  fusion  prompt  epoch  features
 L3  ivf_index                    learners      env
-L4  engine                       execution_dp  agent  evaluate  drift
+L4  engine                       execution_dp  agent  evaluate  drift  ope
 L5  pdf (Poppler)                trainer       model_based
 ```
 

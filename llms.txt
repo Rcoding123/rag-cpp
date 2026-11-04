@@ -8,7 +8,7 @@
 - [API cheat sheet](docs/ai/API.md): compiled examples for the engine, PDFs, persistence, batching, agent
 - [RAG engine internals](docs/ai/RAG_ENGINE.md): data flow, invariants, concurrency, file format, performance
 - [Agent architecture](docs/agent.md): environment, encoders, learners, supervision, lessons
-- [Experiment log](docs/ai/EXPERIMENTS.md): RL experiments E0-E7 with results, including failures (summary table at the top)
+- [Experiment log](docs/ai/EXPERIMENTS.md): RL experiments E0-E10 with results, including failures (summary table at the top)
 - [Decision log](docs/ai/DECISIONS.md): design decisions with evidence
 - [Conventions](docs/ai/CONVENTIONS.md): coding, testing and verification rules
 - [Status](docs/ai/STATUS.md): limitations and next steps

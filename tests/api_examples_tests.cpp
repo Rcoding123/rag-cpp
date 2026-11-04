@@ -11,6 +11,7 @@
 #include "rag.hpp"
 #include "rag/agent/execution_dp.hpp"
 #include "rag/agent/model_based.hpp"
+#include "rag/agent/ope.hpp"
 #include "rag/agent/trainer.hpp"
 #include "rag/text_clean.hpp"
 
@@ -175,4 +176,37 @@ TEST(ApiExamples, CheckAModelAndWarmStartFromIt) {
   fine.run(2000);
   auto twap = [](const ExecutionObs&) { return ExecutionEnv::kTwapAction; };
   EXPECT_GT(compare(env, [&](const ExecutionObs& o) { return fine.deployed_act(o); }, twap, 300, 1).mean, 5.0);
+}
+
+// docs/ai/API.md section 10.
+TEST(ApiExamples, OffPolicyEvaluationFromLogs) {
+  using namespace rag::agent;
+  const ExecutionDP dp{ExecutionParams{}};
+  ExecutionEnv env{ExecutionParams{}};
+  ModelBasedExecutionAgent mb(ExecutionParams{}, {.cost_model = CostModel::Shrunk, .seed = 1});
+  // Log 200 episodes of TWAP with 20% random actions, and let the model learn from them.
+  std::vector<LoggedEpisode<ExecutionObs>> logs(200);
+  Rng rng(1), pick(2);
+  for (auto& ep : logs) {
+    auto o = env.reset(rng);
+    for (;;) {
+      const Action a = pick.uniform() < 0.2 ? static_cast<Action>(pick.below(5)) : ExecutionEnv::kTwapAction;
+      mb.note_action(o, a);
+      const auto st = env.step(a, rng);
+      mb.observe(o, a, st.reward, st.obs, st.done);
+      ep.push_back({o, a, st.reward, (a == ExecutionEnv::kTwapAction ? 0.8 : 0.0) + 0.04});
+      o = st.obs;
+      if (st.done) break;
+    }
+    mb.end_episode();
+  }
+  mb.replan();
+  auto target = [&](const ExecutionObs& o) { return dp.act(o); };
+  const auto values = mb.plan()->evaluate_policy(target);
+  const OpeEstimates e = off_policy_estimates(
+      logs, target, [&](const ExecutionObs& o, Action a) { return values.q(o.t, o.inventory, o.signal, a); },
+      [&](const ExecutionObs& o) { return values.value(o.t, o.inventory, o.signal); }, /*horizon=*/20);
+  const double direct = values.start_value();
+  EXPECT_GT(e.uncovered_steps, 0u);  // the optimum differs from TWAP too often for IS
+  EXPECT_NEAR(direct, dp.expected_start_value(), 2.0);
 }

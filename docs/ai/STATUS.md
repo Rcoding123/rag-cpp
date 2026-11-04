@@ -27,10 +27,12 @@
   * a paired model check that flags a wrong model after 100 episodes, and
     warm-starting a model-free learner from a model's plan;
   * change detection for the model-based agent: recovery within 20
-    episodes of a market flip, free while the market is stable.
+    episodes of a market flip, free while the market is stable;
+  * off-policy evaluation (importance sampling, doubly robust, ESS
+    diagnostics) and exact policy evaluation under a model.
 * **Testing:**
   * the CI matrix covers SIMD levels, sanitizers and fuzzing;
-  * 197 ctest cases: 186 in `rag_tests`, 9 PDF tests (Poppler), the
+  * 201 ctest cases: 190 in `rag_tests`, 9 PDF tests (Poppler), the
     stress run and a `rag_pdf` CLI smoke test.
   * The TSan CI job skips the single-threaded learning suites (`Agent*`,
     `ModelBased`, `ExecutionCosts`, `Reference`, `ApiExamples`), which ran

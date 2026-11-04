@@ -99,6 +99,30 @@ class ExecutionDP {
   // in the real world, paired, checks the model (E7).
   template <class Policy>
   [[nodiscard]] double policy_value(Policy&& policy) const {
+    return evaluate_policy(std::forward<Policy>(policy)).start_value();
+  }
+
+  // The full value table of a fixed policy under this model: V^pi(t, inv, g)
+  // and Q^pi(t, inv, g, a) = take a now, follow the policy afterwards. Used
+  // by doubly robust off-policy evaluation (E10). Holds a pointer to this
+  // DP, which must outlive it.
+  class PolicyValues {
+   public:
+    [[nodiscard]] double value(std::uint32_t t, std::uint32_t inv, double g) const noexcept { return dp_->value_from(v_, t, inv, g); }
+    [[nodiscard]] double q(std::uint32_t t, std::uint32_t inv, double g, Action a) const noexcept {
+      return dp_->q_from(v_, t, inv, g, a);
+    }
+    [[nodiscard]] double start_value() const noexcept { return dp_->start_value_from(v_); }
+
+   private:
+    friend class ExecutionDP;
+    PolicyValues(const ExecutionDP* dp, std::vector<double> v) : dp_(dp), v_(std::move(v)) {}
+    const ExecutionDP* dp_;
+    std::vector<double> v_;
+  };
+
+  template <class Policy>
+  [[nodiscard]] PolicyValues evaluate_policy(Policy&& policy) const {
     std::vector<double> w(v_.size(), 0.0);
     for (std::uint32_t t = p_.horizon; t-- > 0;)
       for (std::uint32_t inv = 1; inv <= p_.lots; ++inv)
@@ -106,7 +130,7 @@ class ExecutionDP {
           const double g = lo_ + j * step_;
           w[index(t, inv, j)] = q_from(w, t, inv, g, policy(ExecutionObs{t, inv, g}));
         }
-    return start_value_from(w);
+    return PolicyValues(this, std::move(w));
   }
 
  private:

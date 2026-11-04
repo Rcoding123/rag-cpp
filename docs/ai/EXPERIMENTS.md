@@ -25,6 +25,7 @@ and the conclusion; negative results stay in.
 | E7 | What if the market is outside the model class? | Model-based drops to 22–55% (model-free: 70–91%) and gets *worse* with data. A paired model check flags it after 100 episodes (z > 8 vs < 2.5). Fixes: expand the model (100%), or distill + fine-tune + guard (never below the plan, 78–82%). |
 | E8 | What does learning cost online, with every episode real? | ε from 1 loses >1,000 optimal-episodes and breaks even at ~12k; ε 0.1 breaks even at ~2k and learns as well. Model-based earns 88–95% of the optimum while learning. |
 | E9 | How fast can the model-based agent adapt? | Without forgetting: −166% 20 episodes after a flip. Constant forgetting tracks but costs up to 46 points when stable. Change detection + reset: 95–100% within 20 episodes, free when stable. |
+| E10 | Can a policy be scored from logs before deployment? | Not by importance sampling at horizon 20 (errors 45–2,968%, ESS ≈ 0). A model can (2–4% when its class is right), but its bias under a wrong model doesn't shrink with data; doubly robust repairs it only near the logged policy. |
 
 ---
 
@@ -633,3 +634,64 @@ episodes, seeds 1–3; share of the optimum at the end):
   parameters re-estimate from a few episodes while tile weights need
   thousands of noisy updates. A false alarm costs little: the agent
   relearns a stable market in ~20 episodes.
+
+## E10. Off-policy evaluation: can a policy be scored before it's deployed?
+
+* **Question:** E7's paired model check and the trainer's held-out
+  evaluations both replay scenarios, which needs a simulator. In a live
+  market each scenario happens once, under the policy that was deployed.
+  Can logs of that policy say how a *different* policy would have done?
+* **Code:**
+  * `ope.hpp`: `LoggedStep`/`LoggedEpisode`, and `off_policy_estimates()`
+    with per-decision importance sampling (PDIS), its self-normalized form
+    (WPDIS), doubly robust (DR), and two diagnostics: `min_ess` (the
+    effective sample size of the weights) and `uncovered_steps`.
+  * `ExecutionDP::evaluate_policy()`: a fixed policy's full V/Q table under
+    a model (DR needs Q and V; the direct method, DM, is the model's start
+    value of the target).
+* **Tests:** `OffPolicy.EstimatorArithmeticOnAHandMadeLog`,
+  `OffPolicy.ImportanceSamplingCollapsesAtLongHorizonsAndTheModelDecides`,
+  `AgentExecutionDP.PolicyValueTablesAreSelfConsistent`.
+* **Setup:** the behaviour is TWAP with 20% uniformly random actions (known
+  propensities). DM fits the model-based agent passively to the same logs.
+  The truth is exact (`policy_value` under the true market). Errors are in
+  % of the optimal gain; 20 replications (probe `e10_ope.cpp`).
+
+Model class right (default market), RMSE:
+
+| Target | Logged episodes | DM | PDIS | WPDIS | DR | Steps nobody followed (of 20) |
+|---|---|---|---|---|---|---|
+| TWAP (the behaviour's base) | 100 / 1,000 / 10,000 | 5.1 / 2.0 / 0.7 | 63 / 13 / 6.2 | 58 / 13 / 6.4 | 56 / 13 / 5.7 | 0–0.1 |
+| near-TWAP nudge | 100 / 1,000 / 10,000 | 4.9 / 1.8 / 0.6 | 108 / 78 / 100 | 119 / 58 / 45 | 94 / 48 / 118 | 0–0.5 |
+| sign rule | 100 / 1,000 / 10,000 | 6.6 / 2.9 / 2.1 | 2968 / 57 / 101 | 47 / 55 / 55 | 311 / 76 / 159 | 17–19 |
+| DP optimum | 100 / 1,000 / 10,000 | 10.7 / 4.1 / 1.1 | 137 / 395 / 91 | 108 / 98 / 87 | 285 / 134 / 137 | 15–18 |
+
+Permanent impact γ = 0.01 and a model without the term, bias (RMSE):
+
+| Target | 1,000 logs: DM | DR | 10,000 logs: DM | DR |
+|---|---|---|---|---|
+| TWAP | −8.1 (8.6) | −1.6 (10.5) | −8.6 (8.6) | +1.1 (4.6) |
+| near-TWAP nudge | +13.0 (13.2) | +13.0 (39.5) | +12.7 (12.7) | +19.6 (70.4) |
+| sign rule | +27.1 (29.2) | +28.5 (63.9) | +27.7 (29.6) | +21.8 (112.8) |
+| DP optimum | −62.4 (62.5) | +74.7 (376) | −62.2 (62.2) | +29.6 (314) |
+
+* **Importance sampling doesn't work at this horizon.** A deterministic
+  target that differs from the behaviour in many states is followed by
+  almost no logged episode beyond a few steps (`uncovered_steps` 15–19,
+  ESS ≈ 0). Even TWAP itself, the behaviour's base, is followed for all
+  20 steps by only 0.84²⁰ ≈ 3% of episodes. Errors of 45–2,968% don't
+  shrink usefully with 10× more data.
+* **The model decides.** DM is accurate when the model class is right
+  (2–4% RMSE at 1,000 episodes), and biased when it isn't, by an amount more
+  data doesn't shrink (−62% at both 1,000 and 10,000 episodes).
+* **DR repairs model bias only near the behaviour:** for TWAP −8.6% →
+  +1.1% at 10,000 episodes; for anything further away its IS corrections
+  are pure noise.
+* **What this means for deployment:** offline, only policies close to
+  what was logged can be certified from data alone; anything else rests on
+  a model, so the model has to be checked first. The check that works on
+  live data compares the model's predictions with the logged behaviour
+  policy itself, whose propensities are known. Measured in E7, that
+  unpaired form needed ~1,500 episodes to flag γ = 0.005, where the paired,
+  simulator-based check needed 100. When evaluation scenarios can be replayed (a calibrated
+  simulator), paired evaluation remains far more sample-efficient.
