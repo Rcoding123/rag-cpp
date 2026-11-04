@@ -107,6 +107,13 @@ jobs:
       - name: Test
         run: ctest --preset windows-release
 
+      # The runner's CPU (Zen 3) has no AVX-512: compile the AVX-512 preset
+      # so MSVC accepts those kernels; they run on Linux CI and on AVX-512 PCs.
+      - name: Build the AVX-512 preset (compile only)
+        run: |
+          cmake --preset windows-msvc-avx512
+          cmake --build --preset windows-avx512-release --parallel 4 --target rag_tests rag_latency train_ensemble
+
       - name: Demos and latency smoke run
         shell: bash
         run: |

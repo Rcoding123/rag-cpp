@@ -60,6 +60,10 @@ ctest --preset windows-release
 .\build\Release\agent_demo.exe
 ```
 
+The best learned policy (E25: 8 averaged networks trained in parallel,
+compiled to tables, median-voted): `train_ensemble 8 40000 8 ensemble.tbl`
+(`./build/train_ensemble` on Linux).
+
 Dependencies: the engine and the agent need only the C++20 standard library.
 Optional, each picked up automatically when installed: GoogleTest (tests),
 Google Benchmark, poppler-cpp (PDFs), and NLopt + Eigen for hyperparameter

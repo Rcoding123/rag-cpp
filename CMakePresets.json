@@ -1,6 +1,10 @@
 {
   "version": 3,
-  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
   "configurePresets": [
     {
       "name": "windows-msvc",
@@ -9,35 +13,84 @@
       "generator": "Visual Studio 17 2022",
       "architecture": "x64",
       "binaryDir": "${sourceDir}/build",
-      "cacheVariables": { "RAG_ARCH": "x86-64-v3" },
-      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+      "cacheVariables": {
+        "RAG_ARCH": "x86-64-v3"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "windows-msvc-avx512",
+      "inherits": "windows-msvc",
+      "displayName": "Windows x64, Visual Studio 2022, AVX-512 (Zen 4/5, Intel Xeon Skylake-SP or newer)",
+      "binaryDir": "${sourceDir}/build-avx512",
+      "cacheVariables": {
+        "RAG_ARCH": "x86-64-v4"
+      }
     },
     {
       "name": "windows-msvc-scalar",
       "inherits": "windows-msvc",
       "displayName": "Windows x64, Visual Studio 2022, no AVX2 (runs on any x64 CPU)",
       "binaryDir": "${sourceDir}/build-scalar",
-      "cacheVariables": { "RAG_ARCH": "x86-64" }
+      "cacheVariables": {
+        "RAG_ARCH": "x86-64"
+      }
     }
   ],
   "buildPresets": [
-    { "name": "windows-release", "configurePreset": "windows-msvc", "configuration": "Release" },
-    { "name": "windows-scalar-release", "configurePreset": "windows-msvc-scalar", "configuration": "Release" }
+    {
+      "name": "windows-release",
+      "configurePreset": "windows-msvc",
+      "configuration": "Release"
+    },
+    {
+      "name": "windows-avx512-release",
+      "configurePreset": "windows-msvc-avx512",
+      "configuration": "Release"
+    },
+    {
+      "name": "windows-scalar-release",
+      "configurePreset": "windows-msvc-scalar",
+      "configuration": "Release"
+    }
   ],
   "testPresets": [
     {
       "name": "windows-release",
       "configurePreset": "windows-msvc",
       "configuration": "Release",
-      "output": { "outputOnFailure": true },
-      "execution": { "jobs": 4 }
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 4
+      }
+    },
+    {
+      "name": "windows-avx512-release",
+      "configurePreset": "windows-msvc-avx512",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 4
+      }
     },
     {
       "name": "windows-scalar-release",
       "configurePreset": "windows-msvc-scalar",
       "configuration": "Release",
-      "output": { "outputOnFailure": true },
-      "execution": { "jobs": 4 }
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 4
+      }
     }
   ]
 }

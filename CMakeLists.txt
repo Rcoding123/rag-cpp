@@ -94,6 +94,13 @@ target_link_libraries(rag_demo PRIVATE rag)
 add_executable(agent_demo examples/agent_demo.cpp)
 target_link_libraries(agent_demo PRIVATE rag)
 
+# The recommended learned policy (E25, A48): N averaged networks trained in
+# parallel, compiled to tables, median-voted. The smoke test also runs the
+# threads under the sanitizer jobs.
+add_executable(train_ensemble examples/train_ensemble.cpp)
+target_link_libraries(train_ensemble PRIVATE rag Threads::Threads)
+add_test(NAME train_ensemble_smoke COMMAND train_ensemble 2 300 2 ${CMAKE_CURRENT_BINARY_DIR}/smoke_ensemble.tbl)
+
 # libFuzzer targets (Clang only): cmake -DCMAKE_CXX_COMPILER=clang++ -DRAG_FUZZ=ON
 option(RAG_FUZZ "Build libFuzzer targets (requires Clang)" OFF)
 if(RAG_FUZZ)

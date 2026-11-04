@@ -56,6 +56,29 @@ cmake --build build --config Release --parallel
 container access; it is many times slower and is meant for stepping
 through code.
 
+### Which preset for your CPU
+
+| CPU | Preset (configure / build / test) | Kernels |
+|---|---|---|
+| AVX-512: AMD Zen 4 / Zen 5 (Ryzen 7000/9000, EPYC 9004/9005), Intel Xeon Skylake-SP or newer | `windows-msvc-avx512` / `windows-avx512-release` | AVX-512 (fastest) |
+| AVX2: almost any x64 CPU since 2013 | `windows-msvc` / `windows-release` | AVX2 + FMA |
+| older | `windows-msvc-scalar` / `windows-scalar-release` | scalar |
+
+For example, on an **AMD Ryzen 9 9900X** (Zen 5, AVX-512):
+
+```powershell
+cmake --preset windows-msvc-avx512
+cmake --build --preset windows-avx512-release --parallel
+ctest --preset windows-avx512-release
+```
+
+The AVX-512 build puts its programs in `build-avx512\Release\`. CI compiles
+it on Windows but can't run it (GitHub's Windows runners have no
+AVX-512); the AVX-512 kernels are tested on Linux. So run `ctest` once on
+your machine: if every test passes, use this build; if any fails, use
+`windows-msvc` and tell us. Not sure what your CPU supports? Run
+`Get-CimInstance Win32_Processor | Select-Object Name` and look it up.
+
 ## 3. Test
 
 ```powershell
@@ -72,6 +95,23 @@ All should pass.
 .\build\Release\agent_demo.exe        # the self-learning agent: trains, deploys, adapts to a regime change
 .\build\Release\rag_latency.exe 20000 # query latency percentiles (p50 / p99 / p99.9) per search mode
 ```
+
+### Train the best learned policy (`train_ensemble.exe`)
+
+```powershell
+.\build\Release\train_ensemble.exe 8 40000 8 ensemble.tbl
+```
+
+trains 8 neural networks (Double DQN with weight averaging, seeds 1–8)
+in parallel, one per thread, compiles each to a lookup table, and saves
+the cell-wise median vote to `ensemble.tbl`: the E25 recipe, 97.8% of the
+optimal gain in the experiments. It prints each network's score and the
+ensemble's. Arguments: networks, episodes per network, threads, output
+file. Use up to one network per physical core (12 on a Ryzen 9 9900X).
+Prefer 8 or an odd number: with an even count the median takes the lower
+of the two middle votes, which for 2 networks is just the smaller trade.
+With the AVX-512 build, run `.\build-avx512\Release\train_ensemble.exe` instead.
+Load the result in your code with `ExecutionPolicyTable::load("ensemble.tbl")`.
 
 To use the library in your own program, add `include\` to the include path
 and `#include "rag.hpp"` (engine) or the headers under `rag\agent\`

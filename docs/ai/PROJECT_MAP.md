@@ -79,6 +79,7 @@ rag-cpp/
 │   ├── demo.cpp                 minimal RAG usage
 │   ├── rag_pdf.cpp              CLI: index PDFs, ask questions with page citations
 │   ├── tune_agent.cpp           (NLopt + Eigen) hyperparameter search, validation, sensitivity
+│   ├── train_ensemble.cpp       the recommended policy (E25, A48): N averaged networks in parallel, tables, median vote
 │   └── agent_demo.cpp           the self-learning agent end to end (model-free, drift, model-based + model check)
 ├── docs/
 │   ├── agent.md                 the agent's architecture, with every measured lesson
