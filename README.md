@@ -216,7 +216,8 @@ interval):
 | Model plan → `distill` → fine-tune under a guard (E7) | 40,000 | 100% if the model is right, 78–82% if not | never deploys worse than the plan |
 | `NeuralQ` compiled to an `ExecutionPolicyTable` (E22) | 40,000 | 91.4% (64–256 bins) | same as the network; 3 ns per decision |
 | `NeuralQ` + Double DQN + weight averaging, `nn_polyak = 1e-4` (E24) | 40,000 | 94.1% (93.0–95.5) | better than no averaging on all 8 seeds |
-| Median vote of 8 seeds' tables (E23) | 8 × 40,000 | **97.5%** (fresh scenarios: 97.9%) | best model-free result; still 3 ns per decision |
+| Median vote of 8 seeds' tables (E23) | 8 × 40,000 | 97.5% (fresh scenarios: 97.9%) | still 3 ns per decision |
+| Median vote of 8 averaged networks' tables (E25) | 8 × 40,000 | **97.8%** | best model-free result; 3–4 networks: 96.6–97.1% |
 
 On a second task, market making, the same unchanged agent learns the
 optimal inventory skew (actor-critic: 99–100% of the optimal gain after

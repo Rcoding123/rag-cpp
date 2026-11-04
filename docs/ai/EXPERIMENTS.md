@@ -39,6 +39,7 @@ and the conclusion; negative results stay in.
 | E22 | Can a lookup table replace the neural policy? | From 32 signal bins the table keeps the network's gain (within 0.25 points; never worse than 0.8) at ~3 ns per decision instead of ~1.7–3 µs; the exact DP policy compiled the same way keeps 99.6–100%. |
 | E23 | Does a vote across seeds' tables beat one network? | Yes: the median of 8 seeds' tables keeps 97.5% (fresh scenarios: 97.9%, better than every member by 4.4–10.2 points), vs 91.4% for the average seed and 94.1% for the best; 3 members already beat the best seed; at equal compute, 4 × 40k voted (96.7%) beats 1 × 160k (93.5%). |
 | E24 | Does averaging one network's weights help? | Yes, with a slow average: τ = 1e-4 deploys 94.1% (93.0–95.5) at 40k vs 91.5%, better on all 8 seeds (+1.0 to +5.6 points); ~ a 2–3-network vote for one training run. τ = 1e-3 is too fast. |
+| E25 | Do the vote and weight averaging add up? | Yes, with diminishing returns: 8 averaged networks voted reach 97.8% (best model-free result), 3 reach 96.6% (vs 95.4% unaveraged); the gains overlap because both remove per-network noise. |
 | E19 | Do gap-increasing targets help? | Advantage learning (k = 0.5) lifts TileQ from 65–69% to 70–75% at 40k, and to 76–80% with coarse tiles: the best tile-coded result, still below the neural learner. |
 
 ---
@@ -1374,3 +1375,36 @@ R² = 0.56; effect of +1 standard deviation of each parameter):
   training run. The 8-network vote (97.5%) is still better.
 * **τ = 0.001 is too fast:** a ~1,000-update window still follows the
   online network's jumps (final greedy 88.2%).
+
+
+## E25. Vote across averaged networks
+
+* **Question:** do E23 (vote across seeds) and E24 (average each network's
+  weights) add up?
+* **Setup:** E22's table probe with `nn_polyak = 1e-4` (seeds 1–8, 40,000
+  episodes, deployed champion compiled at 256 bins), then E23's vote over
+  all 255 subsets. Probes `experiments/e22_table.cpp` (4th argument) and
+  `e23_vote.cpp`. The single tables reproduce E24's deployed scores
+  exactly (94.1%, 93.0–95.5).
+
+| Members | Unaveraged networks (E23), median vote | Averaged networks, median vote | Averaged, plurality vote |
+|---|---|---|---|
+| 1 | 91.4% | 94.1% (93.0–95.5) | 94.1% |
+| 2 | 93.1% | 94.1% (91.0–96.5) | 94.1% |
+| 3 | 95.4% | 96.6% (95.4–97.8) | 95.9% |
+| 4 | 96.7% | 97.1% (96.0–98.3) | 96.2% |
+| 5 | 96.4% | 97.3% (96.5–98.0) | 97.2% |
+| 6 | 97.4% | 97.7% (97.0–98.6) | 97.0% |
+| 8 | 97.5% | **97.8%** | 96.9% |
+
+* **They add up, with diminishing returns:** averaging lifts every
+  ensemble size, most for small ones (+2.7 points alone, +1.2 at 3
+  members, +0.3 at 8). Averaging removes much of the per-network noise that
+  the vote also removes, so their gains overlap.
+* **Best model-free result: 97.8%** of the optimal gain (8 averaged
+  networks, median vote), at 3 ns per decision. Every vote of 3 or more
+  averaged networks beats the best single averaged network on average.
+* **Median again beats plurality** at every size above 2.
+* **Practical recipe:** train 3–4 networks with `nn_polyak = 1e-4` and
+  different seeds, compile each with `ExecutionPolicyTable`, deploy the
+  median: 96.6–97.1% for 3–4× one network's training.
