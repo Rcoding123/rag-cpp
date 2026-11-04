@@ -29,13 +29,15 @@
   * change detection for the model-based agent: recovery within 20
     episodes of a market flip, free while the market is stable;
   * off-policy evaluation (importance sampling, doubly robust, ESS
-    diagnostics) and exact policy evaluation under a model.
+    diagnostics) and exact policy evaluation under a model;
+  * a second task (market making, exact DP) on which the unchanged agent
+    learns the optimal inventory skew.
 * **Testing:**
   * the CI matrix covers SIMD levels, sanitizers and fuzzing;
-  * 203 ctest cases: 192 in `rag_tests`, 9 PDF tests (Poppler), the
+  * 207 ctest cases: 196 in `rag_tests`, 9 PDF tests (Poppler), the
     stress run and a `rag_pdf` CLI smoke test.
   * The TSan CI job skips the single-threaded learning suites (`Agent*`,
-    `ModelBased`, `ExecutionCosts`, `OffPolicy`, `Reference`, `ApiExamples`), which ran
+    `ModelBased`, `ExecutionCosts`, `OffPolicy`, `MarketMaking`, `Reference`, `ApiExamples`), which ran
     for over an hour under TSan and have no threads to check.
 
 ## Known limitations

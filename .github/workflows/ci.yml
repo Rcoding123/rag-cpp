@@ -34,7 +34,7 @@ jobs:
           # TSan only needs code that runs threads: the single-threaded agent and
           # reference suites are excluded here (they run in every other job).
           - { name: gcc-tsan,          cxx: g++,     arch: native,    build: RelWithDebInfo, flags: -DRAG_TSAN=ON,
-              ctest_args: '-E "^(Agent|ModelBased|ExecutionCosts|OffPolicy|Reference|ApiExamples)"' }
+              ctest_args: '-E "^(Agent|ModelBased|ExecutionCosts|OffPolicy|MarketMaking|Reference|ApiExamples)"' }
     steps:
       - uses: actions/checkout@v4
 

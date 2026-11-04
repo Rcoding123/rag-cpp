@@ -10,6 +10,7 @@
 
 #include "rag.hpp"
 #include "rag/agent/execution_dp.hpp"
+#include "rag/agent/market_making.hpp"
 #include "rag/agent/model_based.hpp"
 #include "rag/agent/ope.hpp"
 #include "rag/agent/trainer.hpp"
@@ -209,4 +210,22 @@ TEST(ApiExamples, OffPolicyEvaluationFromLogs) {
   const double direct = values.start_value();
   EXPECT_GT(e.uncovered_steps, 0u);  // the optimum differs from TWAP too often for IS
   EXPECT_NEAR(direct, dp.expected_start_value(), 2.0);
+}
+
+// docs/ai/API.md section 11.
+TEST(ApiExamples, MarketMaking) {
+  using namespace rag::agent;
+  const MarketMakingParams mp;
+  MarketMakingEnv mm(mp);
+  AgentConfig<2> mm_cfg;
+  mm_cfg.learner = LearnerKind::ActorCritic;
+  mm_cfg.eps_decay_episodes = 5000;
+  Agent<MarketMakingEnv> maker(mm, mm_cfg);
+  Trainer<MarketMakingEnv> mm_trainer(maker, mm, {.eval_every = 1000, .eval_episodes = 500, .detect_drift = false});
+  mm_trainer.run(5000);
+  const MarketMakingDP mm_dp(mp);
+  const Action quote = mm_trainer.deployed_act(MarketMakingObs{.t = 25, .q = 4});
+  EXPECT_GT(mm.bid_distance(quote), mm.ask_distance(quote));
+  const Action best = mm_dp.act(MarketMakingObs{.t = 25, .q = 4});
+  EXPECT_GT(mm.bid_distance(best), mm.ask_distance(best));
 }

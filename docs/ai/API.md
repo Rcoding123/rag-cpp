@@ -255,6 +255,25 @@ const double direct = values.start_value();               // the model's own est
 At horizon 20 the importance-sampling estimates are unusable unless the
 target is close to the behaviour (E10); rely on the model, and check it.
 
+## 11. Another task: market making
+
+```cpp
+#include "rag/agent/market_making.hpp"
+const MarketMakingParams mp;                // quote distances, fill model, risk penalty
+MarketMakingEnv mm(mp);
+AgentConfig<2> mm_cfg;                       // 2 = MarketMakingEnv::kStateDims: (t, inventory)
+mm_cfg.learner = LearnerKind::ActorCritic;
+mm_cfg.eps_decay_episodes = 5000;
+Agent<MarketMakingEnv> maker(mm, mm_cfg);
+Trainer<MarketMakingEnv> mm_trainer(maker, mm, {.eval_every = 1000, .eval_episodes = 500, .detect_drift = false});
+mm_trainer.run(5000);
+const MarketMakingDP mm_dp(mp);              // the exact optimum, for scoring
+const Action quote = mm_trainer.deployed_act(MarketMakingObs{.t = 25, .q = 4});
+// long 4 units: expect a wide bid and a tight ask (mm.bid_distance(quote) > mm.ask_distance(quote))
+```
+
+Any type satisfying the `Environment` concept works the same way.
+
 A new environment only needs to satisfy the `Environment` concept: an
 `Observation` type, `kNumActions`, `kStateDims`, `kLo`/`kHi`, and
 `reset(rng)`, `step(action, rng)` and `features(obs)`.

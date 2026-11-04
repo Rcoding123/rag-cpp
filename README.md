@@ -180,6 +180,10 @@ execute a trade, with no model of the market, from rewards alone:
 | `ModelBasedExecutionAgent` (regression + DP planning) | 99–100% after 20–50 episodes | needs a model class that fits; 22–55% with a missing term, which `check_model()` flags |
 | Model plan → `distill` → fine-tune under a guard | 100% if the model is right, 78–82% if not | never deploys worse than the plan |
 
+On a second task, market making, the same unchanged agent learns the
+optimal inventory skew (actor-critic: 99–100% of the optimal gain after
+5,000 episodes; `market_making.hpp`).
+
 Production safeguards: champion/challenger deployment, two-stage drift
 detection, and an optional baseline guard that never deploys a policy that
 hasn't beaten TWAP by 2 standard errors. Every experiment, including the

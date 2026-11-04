@@ -367,7 +367,14 @@ The hard problems are the same in both:
 
 * **A new task:** implement the `Environment` concept: `reset`, `step`,
   `features`, `kNumActions`, `kStateDims` and `kLo`/`kHi`. Nothing else
-  changes.
+  changes. `market_making.hpp` is a worked example: a market maker quoting
+  a bid and an ask (9 actions, state (t, inventory)), with an exact DP.
+  The unchanged agent learns the optimal inventory skew (actor-critic:
+  99–100% of the optimal gain after 5,000 episodes). It's much easier than
+  execution because its optimal gain is 4 return standard deviations per
+  episode, against 0.27 for execution: the ratio of gain to return noise,
+  not the size of the state space, sets how hard model-free learning is
+  (E12).
 * **A new learner:** follow `TileQ` / `EpisodicMemory` / the actor-critic
   branch in `agent.hpp` and add a `LearnerKind`.
 * **Real market data:** replay historical signals and prices in an
@@ -375,7 +382,7 @@ The hard problems are the same in both:
   assumption, and that a backtest can't show the agent's own impact on the
   market.
 
-## 10. Tests (`tests/agent_tests.cpp` 40 cases, `tests/model_based_tests.cpp` 16)
+## 10. Tests (`tests/agent_tests.cpp` 40 cases, `tests/model_based_tests.cpp` 16, `tests/market_making_tests.cpp` 3)
 
 * **Components:**
   * the random number generator's moments;

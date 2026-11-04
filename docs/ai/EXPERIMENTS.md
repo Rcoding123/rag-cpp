@@ -27,6 +27,7 @@ and the conclusion; negative results stay in.
 | E9 | How fast can the model-based agent adapt? | Without forgetting: −166% 20 episodes after a flip. Constant forgetting tracks but costs up to 46 points when stable. Change detection + reset: 95–100% within 20 episodes, free when stable. |
 | E10 | Can a policy be scored from logs before deployment? | Not by importance sampling at horizon 20 (errors 45–2,968%, ESS ≈ 0). A model can (2–4% when its class is right), but its bias under a wrong model doesn't shrink with data; doubly robust repairs it only near the logged policy. |
 | E11 | Can system identification be cheaper? | How the agent explores at the start barely matters; ongoing ε 0.05 cost 6–10% of the online gain, so the default is now 0.01. Also fixed: the first plan came after 20 episodes, not 10. |
+| E12 | Does the same agent work on another task? | Market making, unchanged agent: actor-critic 99–100% after 5,000 episodes, TileQ 97–99% at 50k; both discover the inventory skew. The task is 15× less noisy per unit of gain than execution (4.07 vs 0.27), which explains the execution plateau. |
 
 ---
 
@@ -743,3 +744,44 @@ episodes on the q³ market).
   +17,699 to +18,902 in E8 (old defaults). These online sums carry about
   ±500 of noise (returns have sd ≈ 55 per episode), so read them to
   ~2.5%.
+
+## E12. A second task: market making, with the same agent
+
+* **Question:** the agent, trainer and safeguards are written against the
+  `Environment` concept. Do they work unchanged on a different task? And
+  why did model-free learning plateau at ~70% on execution?
+* **Code:** `market_making.hpp`: `MarketMakingEnv` (quote a bid and an ask,
+  each one of three distances from the mid; fills with probability
+  0.9·e^(−d); inventory capped at ±10; mark-to-market reward with a
+  per-step inventory-risk penalty and a liquidation penalty at the end) and
+  `MarketMakingDP` (exact, over (t, q)). No other file changed.
+* **Tests:** `MarketMaking.AccountingIdentityAndInventoryCap`,
+  `MarketMaking.DpMatchesSimulationAndSkewsAgainstInventory`,
+  `MarketMaking.TheSameAgentDiscoversTheSkew`.
+* **The task:** symmetric quoting at the spread-maximizing distance *loses*
+  money (−3.27 per episode), because inventory drifts and the risk penalty
+  grows with q². The optimum (+27.38; simulated 27.43 ± 0.05) skews: when
+  long it quotes a wide bid and a tight ask, and the mirror image when
+  short (the discrete-time version of Avellaneda & Stoikov, 2008). A
+  hand-written "lean against inventory beyond ±2" rule gets 86% of the
+  optimal gain.
+* **Results** (share of the optimal gain over symmetric quoting, deployed
+  policy, seeds 1–3; probe `e12_probe.cpp`):
+
+| Learner | 1,000 episodes | 5,000 | 20,000 | 50,000 |
+|---|---|---|---|---|
+| TileQ | 61–68% | 85–87% | 95–96% | 97–99% |
+| ActorCritic | 94–95% | 99–100% | 100% | 100% |
+
+  On seed 1, both learners' quotes at mid-horizon match the DP's for every
+  inventory from −8 to +8, except TileQ at q = −8.
+
+* **Why this task is so much easier than execution:** the optimal gain
+  divided by the return's standard deviation is **4.07** here and **0.27**
+  for execution (gain 30.4 vs 15.6 per episode, return sd 7.5 vs 57.4).
+  That ratio, not the size of the state space, is what makes model-free
+  learning slow: with 15× less noise per unit of gain, TileQ gets to 97–99%
+  instead of plateauing near 70%, and actor-critic needs 5,000 episodes
+  instead of 200,000 to reach its best.
+* **Generality, checked:** `Agent`, `Trainer`, the champion, the baseline
+  guard and `compare()` worked on the new task without a single change.
