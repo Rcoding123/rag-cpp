@@ -205,18 +205,145 @@ most†).
 7. **All-action updates and afterstates (§4.2–4.3)** as a semi-model-based
    tier, to locate the boundary between model-free and model-based here.
 
+## 6. Compiling and ensembling learned policies
+
+Setting: `ExecutionPolicyTable` (E22) evaluates a trained policy once at the
+centre of each (t, inventory, signal-bin) cell and stores one action byte;
+E23 will combine tables from networks trained with different seeds by a
+per-cell median action. Both steps have published relatives, though none was
+found for optimal execution specifically.
+
+### 6.1 Distillation, extraction and tabulation
+
+* **[E] Policy distillation [Rus16]** trains a smaller student network on the
+  Q-values or action distribution of a trained DQN teacher, using states the
+  teacher visits; the student matches or exceeds the teacher while being much
+  smaller. It builds on knowledge distillation [Hin15]. Their best-performing
+  variants match the teacher's softened outputs (KL), not only its argmax:
+  the student sees how close the runner-up action was.
+* **[E] DAgger [RGB11]** shows why the sampling distribution matters. A
+  student fitted on the teacher's states has errors that compound once its own
+  mistakes move it to states the teacher never visited; training on states
+  from the student's own rollouts (labelled by the teacher) removes the
+  quadratic-in-horizon penalty of plain behaviour cloning.
+* **[E] VIPER / Q-DAgger [Bas18]** adds the weighting. The loss at a state is
+  the oracle's V(s) − min_a Q(s, a), i.e. how much a wrong action can cost,
+  and the dataset is resampled in proportion to it. This gave decision trees
+  an order of magnitude smaller than plain DAgger at equal reward (Pong:
+  769 vs 7,967 nodes). The weight uses the worst action; an
+  expected-regret weight for a specific wrong action is a small variant [I].
+* **[E] Tabulating a continuous-state policy for deployment** has one
+  prominent precedent in the other direction: ACAS Xu stores a dynamic-programming
+  lookup table that is too large for avionics, and [Jul19] replaces it with
+  networks (about 1000x less storage). Our table is the reverse trade, with a
+  small state space where a table is cheap and the network is the slow part.
+  No paper found studies bin-centre evaluation of a network policy.
+
+**What this implies for a bin-centre table [I].**
+1. A uniform grid spends bytes where the policy is never queried. The signal
+   is AR(1), so its distribution at step t is known in closed form, and
+   bins should be equal-probability (quantile) bins, or the evaluation points
+   should be drawn from that distribution, not a fixed range.
+2. Centre evaluation assigns a whole bin the action at one point. If the
+   decision boundary crosses a bin, a better label is the action with the
+   highest *cell-averaged* Q (or the cell's regret-minimising action), which
+   needs only the network's Q-values at several signals per cell.
+3. Errors are not equal. Neighbouring actions have small Q-gaps near
+   boundaries, so a boundary miss costs little, while a miss at a large gap
+   (e.g. nearly all inventory left late in the horizon) costs a lot. Weighting
+   cells by Q-gap, as in [Bas18], tells where to refine bins. Because the
+   exact DP optimum is available, the table's resolution ceiling can be
+   measured directly by tabulating the DP policy on the same grid.
+
+### 6.2 Ensembles of policies and value functions
+
+* **[E] Voting over independently trained learners.** Wiering and van
+  Hasselt [WvH08] combine five RL algorithms by majority voting, rank voting,
+  Boltzmann multiplication and Boltzmann addition on maze tasks; majority
+  voting and Boltzmann multiplication significantly outperformed the single
+  algorithms. Chourasia and Singla [CS19] recast these as social-choice rules
+  over Q-learners. Both combine different *algorithms*; neither isolates seed
+  diversity of one architecture.
+* **[E] Value-function ensembles** are mostly used inside training:
+  Bootstrapped DQN [Osb16] for exploration, Averaged-DQN [ABS17] to lower
+  target variance, Maxmin Q [Lan20] and REDQ [Chen21] to control
+  overestimation. They average or take minima of Q-values and deploy a
+  learned-in-the-loop ensemble; this is different from combining finished
+  policies after the fact.
+* **When voting helps [I].** A vote reduces variance that is independent
+  across members and does nothing for bias shared by all (here: the
+  function-class limit and the noisy-target bias of §1). The 8-seed spread
+  at 40k episodes is the room available: voting can at best approach what an
+  idealised seed-free learner reaches. Policy churn [Sch22] suggests members
+  disagree mostly near decision boundaries, exactly where Q-gaps are small
+  and the cost of disagreement is low, so expected gains are modest and the
+  ensemble mostly smooths boundaries.
+* **Median of ordinal actions.** I found no RL paper that uses the median of
+  ordered actions. By social-choice reasoning [I] it is the L1 consensus
+  (it minimises Σ|a_i − a|) and, for single-peaked preferences over an
+  ordered set, the Condorcet winner; unlike a plurality vote it never selects
+  an extreme action that few members favour while the rest split on the other
+  side. It also needs no Q-values, so it applies to tables.
+
+### 6.3 Weight averaging as a cheaper alternative
+
+Averaging weights over the training trajectory gives one deployed network.
+Polyak–Ruppert averaging [PJ92] is the classical form; an exponential moving
+average is its constant-step variant [I]. Stochastic weight averaging [Izm18]
+averages iterates under a cyclical or constant learning rate and reports
+better generalisation than ordinary SGD at almost no extra cost. For RL,
+[Nik18] reports more stable A2C/DDPG. Caveats [I]: averaged weights are not
+the weights of any visited network, and averaging is sound only when the
+iterates lie in one basin; that holds within a run but not across seeds
+from different initialisations, so weight averaging does not replace a
+seed ensemble. It addresses checkpoint-to-checkpoint fluctuation, not
+seed-to-seed variance.
+
+### 6.4 Ranked experiments for this codebase
+
+1. **Table quality ceiling and fill rule (E22 follow-up).**
+   *Hypothesis:* much of any table-vs-network gap is bin placement and
+   centre labelling, not the network. *Implement:* (a) tabulate the exact DP
+   policy on the same grid; (b) quantile bins; (c) cell-averaged-Q labels
+   from K signals per cell. *Measure:* score share for bins ∈ {16, 32, 64,
+   128}, versus the network. *Cost:* small; no training, a few ns per lookup.
+2. **Seed-ensemble aggregation (E23).** *Hypothesis:* the cell-wise median
+   of N tables beats the mean seed and approaches the best seed, with
+   diminishing returns beyond N ≈ 5. *Implement:* median, plurality, and
+   mean-Q-then-argmax over the same members. *Measure:* score at N = 1, 3,
+   5, 8 with intervals over resampled subsets of seeds, plus per-cell
+   disagreement. *Cost:* the 8 trained networks already exist; evaluation
+   only.
+3. **Weight averaging vs ensemble.** *Hypothesis:* EMA or last-K-checkpoint
+   averaging raises the single-network mean but not above a seed ensemble.
+   *Implement:* an EMA copy of `NeuralQ` weights (one extra vector), SWA over
+   the last K checkpoints. *Measure:* 8-seed score and spread against
+   experiment 2. *Cost:* one extra training batch of 8 seeds.
+4. **Gap-weighted refinement of a table.** *Hypothesis:* spending bins by
+   Q-gap, as in VIPER, beats uniform bins at equal table size. *Implement:*
+   a non-uniform signal-bin edge list per t, refined where the network's
+   Q-gap times visit probability is largest. *Measure:* score versus table
+   bytes. *Cost:* moderate; needs a variable-bin lookup.
+5. **Cross-learner voting.** *Hypothesis:* rank voting over tile,
+   actor-critic and MLP tables (the Wiering-van Hasselt setup) beats the
+   best member only if errors are uncorrelated. *Implement:* rank vote
+   over three tables. *Measure:* score, and error correlation against DP.
+   *Cost:* low. Expect little because the members differ greatly in quality.
+
 ## References
 
 * [ABS17] Anschel, Baram, Shimkin. Averaged-DQN. 2017. https://arxiv.org/abs/1611.01929
 * [AC00] Almgren, Chriss. Optimal execution of portfolio transactions. 2000.
 * [Aga21] Agarwal et al. Deep RL at the edge of the statistical precipice. 2021. https://arxiv.org/abs/2108.13264
 * [AS08] Avellaneda, Stoikov. High-frequency trading in a limit order book. 2008. https://math.nyu.edu/~avellane/HighFrequencyTrading.pdf
+* [Bas18] Bastani, Pu, Solar-Lezama. Verifiable RL via policy extraction. NeurIPS 2018. https://arxiv.org/abs/1805.08328
 * [BDM17] Bellemare, Dabney, Munos. A distributional perspective on RL. 2017. https://arxiv.org/abs/1707.06887
 * [Bel16] Bellemare et al. Increasing the action gap. 2016. https://arxiv.org/abs/1512.04860
 * [BH18] Balles, Hennig. Dissecting Adam. 2018. https://proceedings.mlr.press/v80/balles18a.html
 * [BL98] Bertsimas, Lo. Optimal control of execution costs. 1998.
 * [Chen21] Chen, Wang, Zhou, Ross. REDQ. 2021. https://arxiv.org/abs/2101.05982
 * [Dab18] Dabney et al. Distributional RL with quantile regression. 2018. https://arxiv.org/abs/1710.10044
+* [CS19] Chourasia, Singla. Unifying ensemble methods for Q-learning via social choice theory. 2019. https://arxiv.org/abs/1902.10646
 * [DM17] Devraj, Meyn. Zap Q-learning. 2017. https://arxiv.org/abs/1707.03770
 * [DTC18] Dietterich, Trimponias, Chen. Discovering and removing exogenous state variables and rewards. 2018. https://arxiv.org/abs/1806.01584
 * [EDM03] Even-Dar, Mansour. Learning rates for Q-learning. 2003. https://jmlr.org/papers/v5/evendar03a.html
@@ -229,9 +356,12 @@ most†).
 * [GRLGW20] Ghiassian, Rafiee, Lo, Gao, White. Improving performance in RL by breaking generalization in neural networks. 2020. https://arxiv.org/abs/2003.07417
 * [GYRS18] Ghiassian, Yu, Rafiee, Sutton. Two geometric input transformation methods for fast online RL with neural nets. 2018. https://arxiv.org/abs/1805.07476
 * [Hes18] Hessel et al. Rainbow. 2018. https://arxiv.org/abs/1710.02298
+* [Hin15] Hinton, Vinyals, Dean. Distilling the knowledge in a neural network. 2015. https://arxiv.org/abs/1503.02531
 * [HW14] Hendricks, Wilcox. An RL extension to the Almgren–Chriss model. 2014. https://arxiv.org/abs/1403.2229
 * [HXY23] Hambly, Xu, Yang. Recent advances in RL in finance. 2023. https://arxiv.org/abs/2112.04553
+* [Izm18] Izmailov, Podoprikhin, Garipov, Vetrov, Wilson. Averaging weights leads to wider optima and better generalization. UAI 2018. https://arxiv.org/abs/1803.05407
 * [Jer22] Jerome, Sánchez-Betancourt, Savani, Herdegen. Model-based gym environments for LOB trading. 2022. https://arxiv.org/abs/2209.07823
+* [Jul19] Julian, Kochenderfer, Owen. Deep neural network compression for aircraft collision avoidance systems. J. Guidance, Control, and Dynamics, 2019. https://arxiv.org/abs/1810.04240
 * [KB15] Kingma, Ba. Adam. 2015. https://arxiv.org/abs/1412.6980
 * [Lan20] Lan, Pan, Fyshe, White. Maxmin Q-learning. 2020. https://arxiv.org/abs/2002.06487
 * [Lil16] Lillicrap et al. DDPG. 2016. https://arxiv.org/abs/1509.02971
@@ -253,6 +383,8 @@ most†).
 * [Rah19] Rahaman et al. On the spectral bias of neural networks. 2019. https://arxiv.org/abs/1806.08734
 * [SB18] Sutton, Barto. Reinforcement Learning: An Introduction, 2nd ed. 2018. http://incompleteideas.net/book/the-book-2nd.html
 * [Sch22] Schaul et al. The phenomenon of policy churn. 2022. https://arxiv.org/abs/2206.00730
+* [RGB11] Ross, Gordon, Bagnell. A reduction of imitation learning and structured prediction to no-regret online learning (DAgger). AISTATS 2011. https://arxiv.org/abs/1011.0686
+* [Rus16] Rusu et al. Policy distillation. ICLR 2016. https://arxiv.org/abs/1511.06295
 * [Sin23] Sinclair et al. Hindsight learning for MDPs with exogenous inputs. 2023. https://arxiv.org/abs/2207.06272
 * [Spo18] Spooner et al. Market making via RL. 2018. https://arxiv.org/abs/1804.04216
 * [Tang23] Tang, Munos, Rowland, Valko. VA-learning. 2023. https://arxiv.org/abs/2305.18161
@@ -264,4 +396,5 @@ most†).
 * [Wai19] Wainwright. Variance-reduced Q-learning is minimax optimal. 2019. https://arxiv.org/abs/1906.04697
 * [Wang16] Wang et al. Dueling network architectures. 2016. https://arxiv.org/abs/1511.06581
 * [Wie03] Wiewiora. Potential-based shaping and Q-value initialization are equivalent. 2003.
+* [WvH08] Wiering, van Hasselt. Ensemble algorithms in reinforcement learning. IEEE Trans. SMC-B 38(4), 2008. https://doi.org/10.1109/TSMCB.2008.920231
 * [ZYW21] Zhang, Yao, Whiteson. Breaking the deadly triad with a target network. 2021. https://arxiv.org/abs/2101.08862

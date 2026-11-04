@@ -1,7 +1,7 @@
 // E23: ensembles of compiled policies. Loads the tables e22_table saved
 // (seed1..8, one bin count), evaluates every subset of size 1, 3, 5, 7 and 8
 // with ExecutionPolicyTable::median, and prints CSV rows:
-//   bins,size,members,share
+//   bins,size,members,share_median,share_plurality
 // Usage: e23_vote TABLE_DIR BINS
 #include <cstdio>
 #include <cstdlib>
@@ -36,7 +36,16 @@ int main(int argc, char** argv) {
         names += std::to_string(s + 1);
       }
     const auto ens = ExecutionPolicyTable::median(members);
+    // Plurality vote for comparison: the most common action, ties to the lower one.
+    const ExecutionPolicyTable plural(p, [&](const ExecutionObs& o) {
+      unsigned count[ExecutionEnv::kNumActions] = {};
+      for (const auto& m : members) ++count[m.act(o)];
+      Action best = 0;
+      for (Action a = 1; a < ExecutionEnv::kNumActions; ++a) if (count[a] > count[best]) best = a;
+      return best;
+    }, {.signal_bins = all[0].signal_bins()});
     const double share = compare(env, [&](const ExecutionObs& o) { return ens.act(o); }, twap, 1000, 77'000'000).mean / opt;
-    std::printf("%s,%d,%s,%.6f\n", bins.c_str(), size, names.c_str(), share);
+    const double share_plural = compare(env, [&](const ExecutionObs& o) { return plural.act(o); }, twap, 1000, 77'000'000).mean / opt;
+    std::printf("%s,%d,%s,%.6f,%.6f\n", bins.c_str(), size, names.c_str(), share, share_plural);
   }
 }
