@@ -5,13 +5,16 @@
 // assume nothing about the world. This agent assumes the *form* of the model
 // ("grey box"), and only its numbers are unknown:
 //
-//   reward  = -cost(q) + alpha * I' * g - holding * I'^2 + I' * noise   (I' = inventory held after the trade)
-//   last    = -cost(q) - terminal_impact * rem^2
+//   reward  = -cost(q) + alpha * I' * g - holding * I'^2 - permanent * q * I' + I' * noise
+//             (I' = inventory held after the trade)
+//   last    = -cost(q) - permanent * q * rem - terminal_impact * rem^2
 //   g'      = rho * g + innovation
 //
 // `holding` is a per-step cost of carrying inventory: the risk penalty of a
 // risk-averse objective (ExecutionParams::risk_aversion, E4), 0 if
-// risk-neutral. All coefficients are estimated by weighted least squares over
+// risk-neutral. `permanent` is permanent price impact (each lot sold lowers
+// the price of everything still held), learned only with
+// learn_permanent_impact (E7). All coefficients are estimated by weighted least squares over
 // every non-terminal step (weights 1/max(1, I')^2: the noise term scales with
 // I'), from one normal-equations system solved by Gaussian elimination;
 // terminal_impact from last steps; (rho, signal sd) by regressing each signal
@@ -33,6 +36,14 @@
 // costs) the quadratic planner exploits its model's errors (53-83%); per-size
 // costs recover (100%) but are catastrophic on some seeds with little data;
 // Shrunk is never catastrophic.
+//
+// Outside its model class (E7: permanent impact with learn_permanent_impact
+// off) it falls to 22-55%, and *more data makes it worse*: its plan exploits
+// the model's errors, so the data it collects is increasingly one-sided.
+// check_model() detects this: the gain over TWAP the model predicts for its
+// own plan (exact, by policy evaluation) against the gain realized on real
+// scenarios, paired. |z| <= 2.5 when the model is right, 8.5-27 after 100
+// episodes when a term is missing (the model is optimistic).
 #pragma once
 
 #include <algorithm>
@@ -44,6 +55,7 @@
 #include <vector>
 
 #include "rag/agent/env.hpp"
+#include "rag/agent/evaluate.hpp"
 #include "rag/agent/execution_dp.hpp"
 #include "rag/agent/rng.hpp"
 
@@ -55,9 +67,18 @@ enum class CostModel : std::uint8_t {
   Shrunk,     // per-size costs shrunk toward the quadratic fit by data count (empirical Bayes)
 };
 
+// Result of ModelBasedExecutionAgent::check_model().
+struct ModelCheck {
+  double predicted_gain = 0;  // plan's gain over TWAP under the learned model (exact)
+  double realized_gain = 0;   // measured on real scenarios, paired with TWAP
+  double std_error = 0;       // of realized_gain
+  double z = 0;               // (predicted - realized) / std_error; > 4: the model is wrong
+};
+
 struct ModelEstimate {
   double impact = 0, terminal_impact = 0, alpha = 0, rho = 0, signal_sd = 0;
   double holding = 0;  // per-step cost of holding I' lots: holding * I'^2 (risk penalty)
+  double permanent = 0;  // permanent impact: price drop per lot sold
   std::uint64_t steps = 0;  // transitions the estimate is based on
 };
 
@@ -72,6 +93,7 @@ class ModelBasedExecutionAgent {
     CostModel cost_model = CostModel::Quadratic;
     double shrink_steps = 30;  // Shrunk: pseudo-observations given to the quadratic prior per size
     bool learn_holding_cost = true;  // estimate the -holding * I'^2 term (needed for risk-averse objectives)
+    bool learn_permanent_impact = true;  // estimate the -permanent * q * I' term (E7)
     std::uint64_t seed = 1;
   };
 
@@ -100,22 +122,24 @@ class ModelBasedExecutionAgent {
     const double dq = q;
     if (last) {
       const double rem = static_cast<double>(o.inventory - q);
-      if (rem > 0) {  // r = -impact q^2 - terminal_impact rem^2
+      if (rem > 0) {  // r = -impact q^2 - permanent q rem - terminal_impact rem^2
         t_rem4_ += rem * rem * rem * rem;
         t_rem2_r_ += rem * rem * r;
         t_rem2_q2_ += rem * rem * dq * dq;
+        t_rem3_q_ += rem * rem * rem * dq;
       }
       last_steps_.push_back({q, o.inventory - q, r});
       ++steps_;
       return;
     }
-    // r = alpha (I' g) + holding (-I'^2) + impact (-q^2) [or c_q (-1)] + I' noise
+    // r = alpha (I' g) + holding (-I'^2) + permanent (-q I') + impact (-q^2) [or c_q (-1)] + I' noise
     const double held = next.inventory;
     const double w = 1.0 / std::max(1.0, held * held);
-    std::array<std::pair<std::uint32_t, double>, 4> x{};
+    std::array<std::pair<std::uint32_t, double>, 5> x{};
     std::size_t nx = 0;
     x[nx++] = {kAlpha, held * o.signal};
     x[nx++] = {kHolding, -held * held};
+    x[nx++] = {kPermanent, -dq * held};
     x[nx++] = {kImpact, -dq * dq};
     if (q > 0) x[nx++] = {kCost0 + q - 1, -1.0};
     for (std::size_t i = 0; i < nx; ++i) {
@@ -160,6 +184,7 @@ class ModelBasedExecutionAgent {
     // holding_penalty(h) = risk_aversion * noise_sd^2 * h^2 = holding * h^2.
     p.risk_aversion = std::max(0.0, estimate_.holding);
     p.noise_sd = 1.0;
+    p.permanent_impact = std::max(0.0, estimate_.permanent);
     if (cfg_.cost_model != CostModel::Quadratic) {
       auto [trade, dump] = per_size_costs();
       if (cfg_.cost_model == CostModel::Shrunk) {
@@ -216,7 +241,8 @@ class ModelBasedExecutionAgent {
     double s44 = 0, s42 = 0, s22 = 0, s4y = 0, s2y = 0;
     for (const auto& ls : last_steps_) {
       if (ls.rem == 0) continue;
-      const double x = static_cast<double>(ls.rem) * ls.rem, y = -ls.r - c[ls.q];
+      const double x = static_cast<double>(ls.rem) * ls.rem;
+      const double y = -ls.r - c[ls.q] - estimate_.permanent * ls.q * static_cast<double>(ls.rem);
       s44 += x * x; s42 += x; s22 += 1; s4y += x * y; s2y += y;
     }
     double a = std::max(estimate_.terminal_impact, 1e-6), b = 0;
@@ -237,12 +263,14 @@ class ModelBasedExecutionAgent {
     m.impact = quad[kImpact];
     m.alpha = quad[kAlpha];
     m.holding = quad[kHolding];
-    if (cfg_.cost_model != CostModel::Quadratic) {  // alpha and holding with one free cost per size
+    m.permanent = quad[kPermanent];
+    if (cfg_.cost_model != CostModel::Quadratic) {  // alpha, holding, permanent with one free cost per size
       const auto per = solve_costs(/*per_size=*/true);
       m.alpha = per[kAlpha];
       m.holding = per[kHolding];
+      m.permanent = per[kPermanent];
     }
-    if (t_rem4_ > 0) m.terminal_impact = -(t_rem2_r_ + m.impact * t_rem2_q2_) / t_rem4_;
+    if (t_rem4_ > 0) m.terminal_impact = -(t_rem2_r_ + m.impact * t_rem2_q2_ + m.permanent * t_rem3_q_) / t_rem4_;
     if (g_gg_ > 0 && g_n_ > 1) {
       m.rho = g_gn_ / g_gg_;
       const double innov_var = std::max(0.0, (g_nn_ - m.rho * g_gn_) / static_cast<double>(g_n_));
@@ -255,12 +283,34 @@ class ModelBasedExecutionAgent {
   [[nodiscard]] const ModelEstimate& model() const noexcept { return estimate_; }
   [[nodiscard]] bool seen(std::uint32_t q) const noexcept { return q > 0 && q < per_n_.size() && per_n_[q] > 0; }
   [[nodiscard]] bool has_plan() const noexcept { return plan_ != nullptr; }
+  [[nodiscard]] const ExecutionDP* plan() const noexcept { return plan_.get(); }
+
+  // Check the learned model against reality: the gain over TWAP it predicts
+  // for its own greedy plan vs the gain measured on `episodes` scenarios of
+  // `market`, paired. A model that exploits its own errors is optimistic, so
+  // the test is one-sided: z > 4 means the model is wrong (E7: never above
+  // 2.2 for a correct model, 8.5-27 with a missing term at 100 episodes).
+  // Needs a plan (replan() first); costs 2 x `episodes` real episodes.
+  [[nodiscard]] ModelCheck check_model(const ExecutionEnv& market, std::uint32_t episodes, std::uint64_t seed) const {
+    ModelCheck c;
+    if (!plan_) return c;
+    const ExecutionDP& m = *plan_;
+    auto plan = [&](const ExecutionObs& o) { return m.act(o); };
+    auto twap = [](const ExecutionObs&) { return ExecutionEnv::kTwapAction; };
+    c.predicted_gain = m.policy_value(plan) - m.policy_value(twap);
+    const EvalStats real = compare(market, plan, twap, episodes, seed);
+    c.realized_gain = real.mean;
+    c.std_error = real.std_error;
+    c.z = real.std_error > 0 ? (c.predicted_gain - real.mean) / real.std_error : 0.0;
+    return c;
+  }
   [[nodiscard]] std::uint64_t episodes() const noexcept { return episodes_; }
   [[nodiscard]] std::uint32_t replans() const noexcept { return replans_; }
 
  private:
   // Parameter layout of the normal equations.
-  static constexpr std::uint32_t kAlpha = 0, kHolding = 1, kImpact = 2, kCost0 = 3;  // kCost0 + q - 1: cost of q lots
+  static constexpr std::uint32_t kAlpha = 0, kHolding = 1, kImpact = 2, kPermanent = 3;
+  static constexpr std::uint32_t kCost0 = 4;  // kCost0 + q - 1: cost of q lots
 
   // Weighted least squares over the chosen parameters: alpha, holding (if
   // learned) and either impact (quadratic) or one cost per seen size.
@@ -268,6 +318,7 @@ class ModelBasedExecutionAgent {
   [[nodiscard]] std::vector<double> solve_costs(bool per_size) const {
     std::vector<std::uint32_t> idx{kAlpha};
     if (cfg_.learn_holding_cost) idx.push_back(kHolding);
+    if (cfg_.learn_permanent_impact) idx.push_back(kPermanent);
     if (per_size) {
       for (std::uint32_t q = 1; q <= structure_.lots; ++q)
         if (seen(q)) idx.push_back(kCost0 + q - 1);
@@ -315,8 +366,8 @@ class ModelBasedExecutionAgent {
   // Weighted least squares sufficient statistics: X'WX (nparams x nparams) and X'Wy.
   std::uint32_t nparams_;
   std::vector<double> xtx_, xty_;
-  // Terminal dump: sum rem^4, rem^2 r, rem^2 q^2.
-  double t_rem4_ = 0, t_rem2_r_ = 0, t_rem2_q2_ = 0;
+  // Terminal dump: sum rem^4, rem^2 r, rem^2 q^2, rem^3 q.
+  double t_rem4_ = 0, t_rem2_r_ = 0, t_rem2_q2_ = 0, t_rem3_q_ = 0;
   std::vector<std::uint64_t> per_n_;  // non-terminal steps observed per size
   struct LastStep {
     std::uint32_t q, rem;

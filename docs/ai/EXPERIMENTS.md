@@ -22,6 +22,7 @@ and the conclusion; negative results stay in.
 | E5 | Policy gradient? | Actor-critic is the best model-free learner (86–89% at 200k), but needs a slow annealing schedule. |
 | E6 | Robustness across markets? | Model-based 100% everywhere; TileQ can deploy policies *worse than TWAP* in weak markets. |
 | E6b | Can deployment be made safe? | A baseline guard: never deploy a policy that hasn't beaten TWAP by 2 standard errors. Worst case −106% → 0%. |
+| E7 | What if the market is outside the model class? | Model-based drops to 22–55% (model-free: 70–91%) and gets *worse* with data. A paired model check flags it after 100 episodes (z > 8 vs < 2.5). Fixes: expand the model (100%), or distill + fine-tune + guard (never below the plan, 78–82%). |
 
 ---
 
@@ -399,3 +400,125 @@ The step-size schedule matters (library Trainer, seeds 1–3):
 * **It's conservative:** in the rho-0 market it held back three small gains
   (4–16%) that weren't statistically distinguishable from TWAP on 600
   held-out scenarios. More evaluation scenarios would release them sooner.
+
+## E7. Outside the model class: permanent impact
+
+* **Question:** E6 found the model-based agent at 100% everywhere, but every
+  market there was inside its model class. What happens when the market has
+  structure the model lacks, and can the agent tell?
+* **Code:**
+  * `ExecutionParams::permanent_impact` γ: each lot sold lowers the price for
+    the rest of the episode, so the inventory still held loses γ·q·I'. The DP
+    includes it.
+  * `ExecutionDP::policy_value(policy)`: exact expected value of any policy
+    under a model, by backward induction with the policy's action.
+  * `ModelBasedExecutionAgent::Config::learn_permanent_impact` (regressor
+    −q·I'), `check_model()`, `plan()`.
+  * `Agent::distill(sim, teacher_q, episodes, seed)`: a supervised warm start
+    of the tiles from a teacher's Q-values.
+  * `evaluate()`/`compare()` moved to `evaluate.hpp`, so the model-based
+    agent can use them without the trainer.
+* **Tests:**
+  * `ExecutionCosts.PermanentImpactKeepsTheAccountingIdentityAndTheDpIsExact`;
+  * `ModelBased.LearnsPermanentImpactAndAWrongModelGetsWorseWithData`;
+  * `ModelBased.CheckModelFlagsAMissingTerm`;
+  * `AgentWarmStart.DistilledModelPlusGuardIsBestOfBoth`.
+
+### E7a. A missing term reverses the ranking
+
+Model-based agent (Shrunk, 300 episodes) without the permanent term vs the
+model-free learners (40k episodes), seed 1 (probe `e7_probe.cpp`):
+
+| γ | DP gain over TWAP | Model-based, no term | TileQ | ActorCritic |
+|---|---|---|---|---|
+| 0 | +16.3 | 100% | 70% | 82% |
+| 0.005 | +17.9 | 47–55% (6 seeds) | 70% | 85% |
+| 0.01 | +19.7 | 22–27% (6 seeds) | 80% | 82% |
+| 0.02 | +23.9 | 22% | 83% | 91% |
+
+* **This is the bias–variance trade-off of model-based RL, measured.** The
+  model-free learners pay ~20–30 points of variance everywhere but no bias;
+  the model-based agent has no variance to speak of, but its bias is
+  unbounded once its model is wrong.
+* **The omitted term goes into the wrong coefficients:** a fitted holding
+  cost (0.0007–0.002 for a true 0) and an inflated alpha (1.18–1.28 for a
+  true 1.0).
+* **More data makes the wrong model worse** (5 seeds, γ = 0.01): 43% at 20
+  episodes, 37% at 50, 25% at 300. The plan exploits the model's error, so
+  the data it collects grows increasingly one-sided: a closed-loop
+  identification bias.
+* **A near-miss bug of the A11 kind:** the first version of this probe let
+  the true γ leak from `structure` into the planner (replan() didn't
+  override the new field). The leak regression test now scrambles every
+  market field the planner reads.
+
+### E7b. Expanding the model class fixes it, at almost no cost
+
+With `learn_permanent_impact` (5 seeds; probe `e7_cost.cpp`):
+
+| Market | Episodes | Without the term | With it | Fitted γ |
+|---|---|---|---|---|
+| γ = 0.01 | 20 | 43% | 93% | 0.0101 |
+| γ = 0.01 | 50 | 37% | 99.8% | 0.0102 |
+| γ = 0.01 | 300 | 25% | 99.9% | 0.0100 |
+| default | 20 / 50 / 300 | 96.0 / 100.0 / 100.1% | 96.4 / 100.0 / 100.0% | ~0.0001 |
+| λ = 0.2 | 20 / 50 / 300 | 99.0 / 99.7 / 100.0% | 99.0 / 99.4 / 99.9% | ~0.0001 |
+
+The extra parameter costs at most 0.3 points where it isn't needed, and is
+on by default. It does blur the holding-cost estimate on one test seed
+(0.00057 for a true 0.0005), because front-loading plans make q·I' and I'²
+correlated.
+
+### E7c. The agent can tell when its model is wrong
+
+`check_model(market, n, seed)` compares the gain over TWAP that the model
+predicts for its own plan (exact, `policy_value`) with the gain measured on
+n real scenarios, paired with TWAP. z = (predicted − realized) / standard
+error, 8 training seeds:
+
+| | n = 100 | n = 400 |
+|---|---|---|
+| Model right (γ = 0 or 0.005, term learned) | z ∈ [−2.4, +1.2] | z ∈ [−2.5, +1.6] |
+| Term missing, γ = 0.005 | **z ∈ [+8.5, +12.9]** | z ∈ [+20.8, +25.5] |
+| Term missing, γ = 0.01 | **z ∈ [+20.5, +27.4]** | z ∈ [+45.1, +55.2] |
+
+* **A one-sided threshold z > 4 separates every case:** at n = 100 that's
+  24 correct models (also γ = 0 without the term: z ≤ 1.1) and 16 wrong ones.
+* **The wrong model is always optimistic.** The planner chooses the actions
+  its errors make look best (the optimizer's curse), so "predicted >
+  realized" is the signature to test for.
+* **Pairing matters:** the unpaired version (predicted vs realized episode
+  value) needed ~1,500 episodes to reach z ≈ 5, because episode returns
+  have sd ≈ 55 against paired differences of ≈ 10.
+
+### E7d. Unknown unknowns: warm start, fine-tune, guard
+
+When the missing term isn't known, the model can still be useful as a
+starting point. The recipe: distill the model's Q-values into TileQ (in the
+model's own simulator, so no real episodes are spent), fine-tune on real
+rewards with ε 0.1, and guard the deployment with the model's plan as the
+baseline. Deployed share, seeds 1–3 (probe `e7_hybrid.cpp`):
+
+| | Start | 2,500 | 5,000 | 10,000 | 20,000 | 40,000 |
+|---|---|---|---|---|---|---|
+| **γ = 0 (model right, plan 100%)** | | | | | | |
+| TileQ from scratch | −3063% | 1–9% | 9–24% | 34–43% | 52–61% | 68–69% |
+| Warm start, fine-tuned | 99% | 35–41% | 37–45% | 50–52% | 53–64% | 69–74% |
+| Warm start + guard | 99% | 100% | 100% | 100% | 100% | 100% |
+| **γ = 0.01 (model wrong, plan 25–28%)** | | | | | | |
+| TileQ from scratch | −2286% | −69% to −167% | −24% to −100% | 16–45% | 68–73% | 76–79% |
+| Warm start + guard | 25–27% | 27–38% | 27–49% | 48–65% | 69–74% | 78–82% |
+
+* **RL fine-tuning destroys a correct model's policy.** 99% → 35–41% within
+  2,500 episodes, and smaller step sizes don't save it (α 0.03: 51%; α
+  0.01: 57%). A TD estimate's steady-state jitter is about √(α/2)·σ ≈ 2
+  return units (σ ≈ 30), while the action gaps are below 1, so no practical
+  step size holds a near-optimal policy against noisy targets. This is E2's
+  finding seen from the other side.
+* **Warm start + guard is best of both:** 100% when the model is right. When
+  it's wrong, the deployed policy is never below the model's plan and ends
+  where the model-free learner does (78–82%). Meanwhile TileQ from scratch
+  deploys policies far worse than TWAP for its first ~5,000 episodes.
+* **The production recipe:** learn a model; check it (`check_model`); if the
+  check passes, deploy its plan; if it fails, either expand the model class
+  (E7b) or fine-tune a distilled copy under the guard (E7d).

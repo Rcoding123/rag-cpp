@@ -23,10 +23,12 @@
   * an actor-critic learner (the best model-free one here) and risk-averse
     (mean-variance) objectives with an exact optimum;
   * an optional baseline guard: never deploy a policy that hasn't beaten
-    TWAP.
+    TWAP;
+  * a paired model check that flags a wrong model after 100 episodes, and
+    warm-starting a model-free learner from a model's plan.
 * **Testing:**
   * the CI matrix covers SIMD levels, sanitizers and fuzzing;
-  * 189 ctest cases: 178 in `rag_tests`, 9 PDF tests (Poppler), the
+  * 194 ctest cases: 183 in `rag_tests`, 9 PDF tests (Poppler), the
     stress run and a `rag_pdf` CLI smoke test.
   * The TSan CI job skips the single-threaded learning suites (`Agent*`,
     `ModelBased`, `ExecutionCosts`, `Reference`, `ApiExamples`), which ran

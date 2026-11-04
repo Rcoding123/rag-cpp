@@ -151,3 +151,28 @@ TEST(ApiExamples, ModelBasedAgent) {
   const Action c = mb.act(ExecutionObs{.t = 5, .inventory = 60, .signal = -0.1}, /*explore=*/false);
   EXPECT_LT(c, ExecutionEnv::kNumActions);
 }
+
+// docs/ai/API.md section 9.
+TEST(ApiExamples, CheckAModelAndWarmStartFromIt) {
+  using namespace rag::agent;
+  ExecutionEnv env{ExecutionParams{}};
+  ModelBasedExecutionAgent mb(ExecutionParams{}, {.cost_model = CostModel::Shrunk, .seed = 1});
+  Rng rng(42);
+  train_model_based(mb, env, 50, rng);
+  mb.replan();
+  const ModelCheck check = mb.check_model(env, /*episodes=*/100, /*seed=*/6'000'000);
+  const bool model_ok = check.z < 4.0;
+  EXPECT_TRUE(model_ok) << check.z;
+  const ExecutionDP& model = *mb.plan();
+  AgentConfig<3> warm_cfg;
+  warm_cfg.eps_start = 0.1;
+  Agent<ExecutionEnv> warm(env, warm_cfg);
+  EXPECT_TRUE(warm.distill(ExecutionEnv(model.params()),
+                           [&](const ExecutionObs& o, Action a) { return model.q_value(o.t, o.inventory, o.signal, a); },
+                           /*episodes=*/2000, /*seed=*/7));
+  Trainer<ExecutionEnv> fine(warm, env, {.eval_every = 500, .eval_episodes = 300, .detect_drift = false});
+  fine.set_baseline([&](const ExecutionObs& o) { return mb.act(o, false); });
+  fine.run(2000);
+  auto twap = [](const ExecutionObs&) { return ExecutionEnv::kTwapAction; };
+  EXPECT_GT(compare(env, [&](const ExecutionObs& o) { return fine.deployed_act(o); }, twap, 300, 1).mean, 5.0);
+}

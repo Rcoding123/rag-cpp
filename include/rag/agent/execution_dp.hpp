@@ -8,8 +8,9 @@
 //
 // The state is (t, inventory, signal). Rewards are mark-to-market, so the
 // price level never enters: the expected reward of selling q from inventory I
-// with signal g is  -impact*q^2 + (I - q) * alpha * g,  plus the terminal dump
-// cost on the last step. The next signal is rho*g + sqrt(1-rho^2)*sd*Z; the
+// with signal g is
+//   -cost(q) - permanent*q*(I - q) + (I - q) * alpha * g - holding_penalty(I - q),
+// plus the terminal dump cost on the last step. The next signal is rho*g + sqrt(1-rho^2)*sd*Z; the
 // expectation over Z uses a 31-point quadrature, and V is linearly
 // interpolated on a signal grid spanning +-4 standard deviations.
 #pragma once
@@ -67,26 +68,13 @@ class ExecutionDP {
 
   // Expected reward-to-go of action a, then acting optimally.
   [[nodiscard]] double q_value(std::uint32_t t, std::uint32_t inv, double g, Action a) const noexcept {
-    const std::uint32_t q = env_.lots_for(a, inv);
-    const std::uint32_t rem = inv - q;
-    const double dr = rem;
-    double r = -trade_cost_[q];
-    if (t + 1 >= p_.horizon) return r - dump_cost_[rem];
-    if (rem == 0) return r;  // flat: the episode ends
-    r += dr * p_.alpha * g - env_.holding_penalty(rem);
-    double future = 0;
-    for (int i = 0; i < kQuad; ++i) future += weights_[i] * value(t + 1, rem, p_.signal_rho * g + innov_ * nodes_[i]);
-    return r + future;
+    return q_from(v_, t, inv, g, a);
   }
 
   // Optimal expected reward-to-go from (t, inventory, signal).
-  [[nodiscard]] double value(std::uint32_t t, std::uint32_t inv, double g) const noexcept {
-    if (t >= p_.horizon || inv == 0) return 0.0;
-    const double x = std::clamp((g - lo_) / step_, 0.0, static_cast<double>(m_ - 1));
-    const auto j = std::min(static_cast<std::uint32_t>(x), m_ - 2);
-    const double f = x - j;
-    return (1 - f) * at(t, inv, j) + f * at(t, inv, j + 1);
-  }
+  [[nodiscard]] double value(std::uint32_t t, std::uint32_t inv, double g) const noexcept { return value_from(v_, t, inv, g); }
+
+  [[nodiscard]] const ExecutionParams& params() const noexcept { return p_; }
 
   // The optimal action (greedy on the exact Q-values, signal not rounded).
   [[nodiscard]] Action act(const ExecutionObs& o) const noexcept {
@@ -101,19 +89,60 @@ class ExecutionDP {
 
   // Expected total reward of the optimal policy from the start state,
   // averaged over the stationary distribution of the first signal.
-  [[nodiscard]] double expected_start_value() const noexcept {
-    double v = 0;
-    for (int i = 0; i < kQuad; ++i) v += weights_[i] * value(0, p_.lots, p_.signal_sd * nodes_[i]);
-    return v;
+  [[nodiscard]] double expected_start_value() const noexcept { return start_value_from(v_); }
+
+  // Expected total reward of an arbitrary policy (a function of the
+  // observation) under this model, from the start state: backward induction
+  // with the policy's action in place of the max. The policy is queried on
+  // the signal grid. A model's predicted gain of A over B is
+  // policy_value(A) - policy_value(B); comparing that with the gain measured
+  // in the real world, paired, checks the model (E7).
+  template <class Policy>
+  [[nodiscard]] double policy_value(Policy&& policy) const {
+    std::vector<double> w(v_.size(), 0.0);
+    for (std::uint32_t t = p_.horizon; t-- > 0;)
+      for (std::uint32_t inv = 1; inv <= p_.lots; ++inv)
+        for (std::uint32_t j = 0; j < m_; ++j) {
+          const double g = lo_ + j * step_;
+          w[index(t, inv, j)] = q_from(w, t, inv, g, policy(ExecutionObs{t, inv, g}));
+        }
+    return start_value_from(w);
   }
 
  private:
-  double& at(std::uint32_t t, std::uint32_t inv, std::uint32_t j) noexcept {
-    return v_[(std::size_t{t} * (p_.lots + 1) + inv) * m_ + j];
+  [[nodiscard]] std::size_t index(std::uint32_t t, std::uint32_t inv, std::uint32_t j) const noexcept {
+    return (std::size_t{t} * (p_.lots + 1) + inv) * m_ + j;
   }
-  double at(std::uint32_t t, std::uint32_t inv, std::uint32_t j) const noexcept {
-    return v_[(std::size_t{t} * (p_.lots + 1) + inv) * m_ + j];
+
+  // Q-value of action a, then following the values in table `v`.
+  [[nodiscard]] double q_from(const std::vector<double>& v, std::uint32_t t, std::uint32_t inv, double g, Action a) const noexcept {
+    const std::uint32_t q = env_.lots_for(a, inv);
+    const std::uint32_t rem = inv - q;
+    const double dr = rem;
+    double r = -trade_cost_[q] - p_.permanent_impact * static_cast<double>(q) * dr;
+    if (t + 1 >= p_.horizon) return r - dump_cost_[rem];
+    if (rem == 0) return r;  // flat: the episode ends
+    r += dr * p_.alpha * g - env_.holding_penalty(rem);
+    double future = 0;
+    for (int i = 0; i < kQuad; ++i) future += weights_[i] * value_from(v, t + 1, rem, p_.signal_rho * g + innov_ * nodes_[i]);
+    return r + future;
   }
+
+  [[nodiscard]] double value_from(const std::vector<double>& v, std::uint32_t t, std::uint32_t inv, double g) const noexcept {
+    if (t >= p_.horizon || inv == 0) return 0.0;
+    const double x = std::clamp((g - lo_) / step_, 0.0, static_cast<double>(m_ - 1));
+    const auto j = std::min(static_cast<std::uint32_t>(x), m_ - 2);
+    const double f = x - j;
+    return (1 - f) * v[index(t, inv, j)] + f * v[index(t, inv, j + 1)];
+  }
+
+  [[nodiscard]] double start_value_from(const std::vector<double>& v) const noexcept {
+    double s = 0;
+    for (int i = 0; i < kQuad; ++i) s += weights_[i] * value_from(v, 0, p_.lots, p_.signal_sd * nodes_[i]);
+    return s;
+  }
+
+  double& at(std::uint32_t t, std::uint32_t inv, std::uint32_t j) noexcept { return v_[index(t, inv, j)]; }
 
   static std::vector<double> cost_table(const ExecutionParams& p, bool dump) {
     const ExecutionEnv env(p);

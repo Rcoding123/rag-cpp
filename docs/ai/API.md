@@ -169,11 +169,14 @@ EvalStats best = compare(env, [&](const ExecutionObs& o) { return dp.act(o); }, 
 | `impact`, `impact_exponent`, `fixed_cost` | 0.01, 2.0, 0 | cost of selling q lots in a step: impact·q^exponent + fixed (if q > 0) |
 | `terminal_impact` | 0.05 | leftover inventory is dumped at terminal_impact·rem² (+ fixed) |
 | `risk_aversion` | 0 | λ: reward −= λ·noise_sd²·I² per step (mean-variance; E4) |
+| `permanent_impact` | 0 | γ: each lot sold lowers the price for the rest of the episode; held inventory loses γ·q·I' (E7) |
 | `alpha`, `signal_rho`, `signal_sd`, `noise_sd` | 1, 0.7, 0.1, 0.05 | price move = alpha·signal + noise; signal is AR(1) |
 | `sizes` | {0, 0.5, 1, 2, 3} | action k sells sizes[k] × the TWAP rate |
 
 `ExecutionDP{params}` is exact for every combination above;
 `ExecutionDP{params, trade_costs, dump_costs}` takes arbitrary cost tables.
+`dp.policy_value(policy)` is the exact expected value of any policy under
+that model (backward induction with the policy's action).
 
 ## 7. Deploy safely: a baseline guard
 
@@ -201,8 +204,33 @@ const Action c = mb.act(ExecutionObs{.t = 5, .inventory = 60, .signal = -0.1}, /
 `ModelBasedExecutionAgent::Config` fields, in order: `explore_episodes` 10,
 `eps` 0.05, `replan_every` 20, `replan_max_gap` 500, `dp_grid` 61,
 `cost_model` (`Quadratic`, `PerSize`, or `Shrunk`), `shrink_steps` 30,
-`learn_holding_cost` true, `seed` 1. Use `Shrunk` when the cost curve's
-shape is unknown (E1c).
+`learn_holding_cost` true, `learn_permanent_impact` true, `seed` 1. Use
+`Shrunk` when the cost curve's shape is unknown (E1c).
+
+## 9. Check a model, and warm-start a learner from it
+
+```cpp
+// Is the learned model right? Paired predicted vs realized gain over TWAP.
+const ModelCheck check = mb.check_model(env, /*episodes=*/100, /*seed=*/6'000'000);
+const bool model_ok = check.z < 4.0;       // a wrong model is optimistic: z >> 4
+
+// Distill the model's plan into a tile-coded learner (states visited in the
+// model's own simulator: no real episodes spent), then fine-tune it on real
+// rewards with the plan as the guard's baseline.
+const ExecutionDP& model = *mb.plan();
+AgentConfig<3> warm_cfg;
+warm_cfg.eps_start = 0.1;
+Agent<ExecutionEnv> warm(env, warm_cfg);
+warm.distill(ExecutionEnv(model.params()),
+             [&](const ExecutionObs& o, Action a) { return model.q_value(o.t, o.inventory, o.signal, a); },
+             /*episodes=*/2000, /*seed=*/7);
+Trainer<ExecutionEnv> fine(warm, env, {.eval_every = 500, .eval_episodes = 300, .detect_drift = false});
+fine.set_baseline([&](const ExecutionObs& o) { return mb.act(o, false); });
+fine.run(2000);                            // deployed: never worse than the plan
+```
+
+`evaluate()`, `compare()` and `EvalStats` are in `rag/agent/evaluate.hpp`
+(included by `trainer.hpp` and `model_based.hpp`).
 
 A new environment only needs to satisfy the `Environment` concept: an
 `Observation` type, `kNumActions`, `kStateDims`, `kLo`/`kHi`, and

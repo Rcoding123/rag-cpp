@@ -125,6 +125,11 @@ struct ExecutionParams {
   // final cash. 0 = risk-neutral. The penalty is part of the reward only;
   // cash and price accounting are unchanged.
   double risk_aversion = 0.0;
+  // Permanent impact: every lot sold lowers the price by this much for the
+  // rest of the episode (after the sale itself executes), so the inventory
+  // still held loses permanent_impact * q * I'. Agents that model only
+  // temporary impact don't have a term for it.
+  double permanent_impact = 0.0;
   double alpha = 1.0;             // E[next price move] = alpha * signal
   double signal_rho = 0.7;        // signal persistence per step
   double signal_sd = 0.1;         // stationary standard deviation of the signal
@@ -190,7 +195,9 @@ class ExecutionEnv {
     const double cost = trade_cost(q);
     cash_ += static_cast<double>(q) * price_ - cost;
     inventory_ -= q;
-    double reward = -cost;
+    const double drop = p_.permanent_impact * static_cast<double>(q);
+    price_ -= drop;
+    double reward = -cost - drop * static_cast<double>(inventory_);
     ++t_;
     if (t_ >= p_.horizon) {  // last step: dump whatever is left
       const double dump = dump_cost(inventory_);

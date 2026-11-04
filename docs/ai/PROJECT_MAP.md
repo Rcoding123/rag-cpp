@@ -38,11 +38,12 @@ rag-cpp/
 │       └── agent/
 │           ├── rng.hpp          xoshiro256** + splitmix seeding, Marsaglia normals
 │           ├── env.hpp          Environment concept, ChainEnv, ExecutionEnv (costs, risk aversion)
-│           ├── execution_dp.hpp exact optimal policy for ExecutionEnv (backward induction, cost tables)
+│           ├── execution_dp.hpp exact optimum for ExecutionEnv (cost tables, policy_value)
 │           ├── features.hpp     TileCoder, RandomFourierEncoder
 │           ├── learners.hpp     TileQ, ReplayBuffer, EpisodicMemory
-│           ├── agent.hpp        Agent<Env>: TileQ / Episodic / ActorCritic, n-step, schedules, snapshots
-│           ├── model_based.hpp  ModelBasedExecutionAgent: regression on the market + DP planning
+│           ├── agent.hpp        Agent<Env>: TileQ / Episodic / ActorCritic, n-step, distill, snapshots
+│           ├── evaluate.hpp     evaluate / compare on common random numbers (EvalStats)
+│           ├── model_based.hpp  ModelBasedExecutionAgent: regression + DP planning + check_model
 │           └── trainer.hpp      evaluate, compare, DriftDetector (CUSUM), Trainer (champion, bank, baseline guard)
 ├── tests/
 │   ├── rag_tests.cpp            engine unit/integration tests; global operator-new counter
@@ -50,7 +51,7 @@ rag-cpp/
 │   ├── reference_tests.cpp      differential tests vs a naive spec-level reference
 │   ├── text_clean_tests.cpp     PDF text cleanup + paged ingest
 │   ├── agent_tests.cpp          agent: components through learning outcomes
-│   ├── model_based_tests.cpp    generalized costs, model-based agent, risk aversion
+│   ├── model_based_tests.cpp    generalized costs, model-based agent, risk aversion, permanent impact
 │   ├── api_examples_tests.cpp   compiles and runs every snippet in docs/ai/API.md
 │   ├── pdf_tests.cpp            (Poppler) PDF extraction on generated PDFs
 │   ├── pdf_writer.hpp           minimal PDF writer for fixtures
@@ -78,7 +79,7 @@ L0  common.hpp  rng.hpp
 L1  arena  tokenizer  simd  topk  io  text_clean
 L2  chunker  embedder  vector_store  bm25  fusion  prompt  epoch  features
 L3  ivf_index                    learners      env
-L4  engine                       execution_dp  agent
+L4  engine                       execution_dp  agent  evaluate
 L5  pdf (Poppler)                trainer       model_based
 ```
 

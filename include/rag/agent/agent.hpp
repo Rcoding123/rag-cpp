@@ -281,6 +281,44 @@ class Agent {
     critic_ = s.critic;
   }
 
+  // Supervised warm start (TileQ only): regress the Q-function onto a
+  // teacher's action values, e.g. the plan of a learned model, on states
+  // visited in `sim` (a simulator, e.g. the model's own market, so no real
+  // experience is spent) by the teacher's greedy policy, with random actions
+  // at rate `eps` for coverage. Episode count, schedules and replay are
+  // untouched: RL fine-tuning then starts from the teacher's knowledge, and
+  // real rewards correct whatever the teacher got wrong (E7). Returns false
+  // (and does nothing) for other learners.
+  template <class TeacherQ>
+  bool distill(const Env& sim, TeacherQ&& teacher_q, std::uint32_t episodes, std::uint64_t seed, double eps = 0.2) {
+    if (cfg_.learner != LearnerKind::TileQ) return false;
+    Env env = sim;
+    Rng rng(seed), pick(seed ^ 0x9E3779B97F4A7C15ull);
+    const double saved = q_.alpha();
+    std::array<std::uint32_t, kMaxTilings> idx;
+    std::array<double, A> tq;
+    for (std::uint32_t ep = 0; ep < episodes; ++ep) {
+      q_.set_alpha(std::max(0.005, cfg_.alpha / (1.0 + static_cast<double>(ep) / 3000.0)));
+      auto o = env.reset(rng);
+      for (;;) {
+        coder_.encode(env_.features(o), idx.data());
+        Action best = 0;
+        for (Action a = 0; a < A; ++a) {
+          tq[a] = teacher_q(o, a);
+          q_.update(idx.data(), a, tq[a]);
+          if (tq[a] > tq[best]) best = a;
+        }
+        const Action act = pick.uniform() < eps ? static_cast<Action>(pick.below(static_cast<std::uint32_t>(A))) : best;
+        const auto st = env.step(act, rng);
+        if (st.done) break;
+        o = st.obs;
+      }
+    }
+    q_.set_alpha(saved);
+    if (cfg_.double_q) q2_ = q_;
+    return true;
+  }
+
   // Drop replayed experience. After the world changes, old transitions
   // describe dynamics that no longer hold, and replaying them keeps
   // teaching the agent the past.

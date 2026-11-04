@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "rag/agent/execution_dp.hpp"
+#include "rag/agent/model_based.hpp"
 #include "rag/agent/trainer.hpp"
 #include "test_util.hpp"
 
@@ -811,4 +812,55 @@ TEST(AgentSafety, NeverDeploysAPolicyWorseThanTheBaseline) {
   tr2.run(20000);
   EXPECT_TRUE(tr2.learned_policy_deployed());
   EXPECT_GT(compare(good, [&](const ExecutionObs& o) { return tr2.deployed_act(o); }, twap, 1000, 61'000'000).mean, 3.0);
+}
+
+// ======= Experiment E7 (warm start from a model, fine-tune, guard) ==========
+TEST(AgentWarmStart, DistilledModelPlusGuardIsBestOfBoth) {
+  // Measured (3 seeds): a model that is right gives a 99% policy when
+  // distilled into the tiles, but RL fine-tuning wrecks it (35-41% after
+  // 2,500 episodes: noisy targets swamp action gaps < 1). With the plan as
+  // the guard's baseline the deployed policy stays at 100%. When the model is
+  // wrong (permanent impact it lacks: 25-28%), fine-tuning improves on it
+  // (78-82% at 40k), and the deployed policy is never below the plan, while
+  // TileQ from scratch is at -24% to -167% for its first ~5,000 episodes.
+  for (double gamma : {0.0, 0.01}) {
+    ExecutionParams p;
+    p.permanent_impact = gamma;
+    ExecutionEnv env(p);
+    const ExecutionDP truth(p);
+    ModelBasedExecutionAgent mb(p, {.cost_model = CostModel::Shrunk, .learn_permanent_impact = false, .seed = 1});
+    {
+      Rng r(43);
+      ExecutionEnv e(p);
+      train_model_based(mb, e, 300, r);
+      mb.replan();
+    }
+    auto plan = [&](const ExecutionObs& o) { return mb.act(o, false); };
+    const ExecutionDP& model = *mb.plan();
+    AgentConfig<3> cfg;
+    cfg.eps_start = 0.1;
+    cfg.eps_decay_episodes = 10000;
+    Agent<ExecutionEnv> agent(env, cfg);
+    ASSERT_TRUE(agent.distill(ExecutionEnv(model.params()),
+                              [&](const ExecutionObs& o, Action a) { return model.q_value(o.t, o.inventory, o.signal, a); }, 10000, 777));
+    EXPECT_EQ(agent.episodes(), 0u);  // no real experience spent
+    const double plan_share = captured(env, truth, plan);
+    EXPECT_NEAR(captured(env, truth, [&](const ExecutionObs& o) { return agent.act(o, false); }), plan_share, 0.05);
+    Trainer<ExecutionEnv> tr(agent, env, {.eval_every = 1250, .eval_episodes = 600, .detect_drift = false});
+    tr.set_baseline(plan);
+    double worst = 1e9;
+    for (int chunk = 0; chunk < 8; ++chunk) {
+      tr.run(2500);
+      worst = std::min(worst, captured(env, truth, [&](const ExecutionObs& o) { return tr.deployed_act(o); }, 600));
+    }
+    const double final_share = captured(env, truth, [&](const ExecutionObs& o) { return tr.deployed_act(o); });
+    if (gamma == 0.0) {
+      EXPECT_GT(plan_share, 0.97);
+      EXPECT_GT(final_share, 0.97);  // the guard kept the model's plan deployed
+    } else {
+      EXPECT_LT(plan_share, 0.4);
+      EXPECT_GT(final_share, plan_share + 0.3);  // real rewards fixed what the model got wrong
+    }
+    EXPECT_GT(worst, plan_share - 0.1) << "gamma " << gamma;  // never much below the plan while learning
+  }
 }

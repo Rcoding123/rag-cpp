@@ -161,6 +161,7 @@ learn if the world changes.
 * **Model-based alternative:** an agent that learns the market's 5
   parameters and plans with the DP reaches 99–100% in 20–50 episodes
   (`model_based.hpp`, E1), as long as its assumed model form is right.
+  See "When the model is wrong" below for what happens when it isn't.
 * **Actor-critic (`LearnerKind::ActorCritic`) is the best model-free
   learner here.** It learns a softmax policy directly, with a tile-coded
   critic V(s) whose TD error is the advantage: 75–78% at 10,000 episodes,
@@ -172,6 +173,33 @@ learn if the world changes.
   episodes (64.8% with it, 64.5% without), and at 60,000 it was clearly worse
   (64% vs 72%): halving each estimator's updates cost more than the bias it
   removed. It's available as `double_q` but off by default.
+
+### When the model is wrong
+Add a market feature the model has no term for (permanent impact: every lot
+sold lowers the price of everything still held) and the ranking flips. The
+model-based agent falls to 22–55%, while TileQ and actor-critic stay at
+70–91%, because they assumed nothing. Worse, the wrong model degrades *with*
+data (43% → 25% from 20 to 300 episodes): its plan exploits the model's
+error, so the data it collects grows more one-sided. Three tools address
+this (`docs/ai/EXPERIMENTS.md` E7):
+
+1. **Check the model** (`check_model()`): the gain over TWAP the model
+   predicts for its plan (exact, by `ExecutionDP::policy_value`) against the
+   gain measured on real scenarios, paired. A wrong model is always
+   optimistic, because the planner picks the actions its errors flatter.
+   After 100 episodes a correct model scores |z| ≤ 2.5 and a model missing a
+   term scores z ≥ 8.5.
+2. **Expand the model class** when the missing term is known
+   (`learn_permanent_impact`): back to 99.9%, at a cost of ≤ 0.3 points
+   where the term isn't needed.
+3. **Warm start + guard** when it isn't known: `Agent::distill()` copies
+   the model's Q-values into the tiles (in the model's own simulator, so no
+   real episodes are spent), RL fine-tunes them on real rewards, and
+   `set_baseline(plan)` keeps the plan deployed until the learner beats it.
+   Fine-tuning alone wrecks a correct model's 99% policy (to 35–57%): TD
+   noise (≈ √(α/2)·σ ≈ 2) is larger than the action gaps (< 1). With the
+   guard, the result is 100% when the model is right, and 78–82% (never
+   below the plan) when it's wrong.
 
 ## 6. Exploration
 
@@ -304,7 +332,7 @@ The hard problems are the same in both:
   assumption, and that a backtest can't show the agent's own impact on the
   market.
 
-## 10. Tests (`tests/agent_tests.cpp` 35 cases, `tests/model_based_tests.cpp` 9)
+## 10. Tests (`tests/agent_tests.cpp` 36 cases, `tests/model_based_tests.cpp` 12)
 
 * **Components:**
   * the random number generator's moments;
@@ -324,6 +352,8 @@ The hard problems are the same in both:
     within 500 episodes, and recovery that beats the non-adaptive agent by
     more than 20 points;
   * a returning regime is recalled from the policy bank;
+  * a model's plan distilled into the tiles and fine-tuned under the guard
+    is best of both;
   * n-step targets are the exact sum of rewards plus a bootstrap;
   * actor-critic learns the corridor and beats Q-learning at equal budget;
   * a risk-averse agent front-loads its selling;
@@ -333,7 +363,10 @@ The hard problems are the same in both:
     tables equals the DP with formulas;
   * it recovers the market's parameters (including the risk penalty) and is
     near-optimal after 50 episodes;
-  * hidden market parameters don't leak into the plan;
+  * hidden market parameters (every field the planner reads) don't leak
+    into the plan;
+  * permanent impact is learned when modelled; without the term the model
+    gets worse with more data, and `check_model()` flags it;
   * a wrong model form is costly, a flexible one fixes it, and shrinkage
     makes the flexible one safe with little data.
 * **Engineering:**

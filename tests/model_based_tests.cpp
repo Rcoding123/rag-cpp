@@ -106,7 +106,9 @@ TEST(ModelBased, HiddenMarketParametersDoNotLeakIntoThePlan) {
   // The agent receives `structure` only for lots, horizon and action sizes.
   // Regression test for a bug: replan() once kept the structure's
   // impact_exponent and fixed_cost, planning with true information mixed
-  // with a coefficient fitted under the quadratic assumption.
+  // with a coefficient fitted under the quadratic assumption. Later the same
+  // bug class nearly recurred with permanent_impact (E7), so every market
+  // field the planner reads is scrambled here.
   const ExecutionParams market = hard_market();
   ExecutionParams garbage = market;
   garbage.impact = 123;
@@ -116,6 +118,9 @@ TEST(ModelBased, HiddenMarketParametersDoNotLeakIntoThePlan) {
   garbage.signal_sd = 3;
   garbage.impact_exponent = 1.1;
   garbage.fixed_cost = 99;
+  garbage.permanent_impact = 0.5;
+  garbage.risk_aversion = 3;
+  garbage.noise_sd = 2;
   ExecutionParams clean = market;
   clean.impact_exponent = 2.0;
   clean.fixed_cost = 0.0;
@@ -190,9 +195,12 @@ TEST(ModelBased, LearnsTheRiskPenalty) {
   p.risk_aversion = 0.2;
   auto a = trained(p, 300, CostModel::Quadratic);
   const double truth = p.risk_aversion * p.noise_sd * p.noise_sd;
-  EXPECT_NEAR(a.model().holding, truth, 0.1 * truth);
+  EXPECT_NEAR(a.model().holding, truth, 0.2 * truth);
   EXPECT_GT(share(p, [&](const ExecutionObs& o) { return a.act(o, false); }), 0.97);
   // In a risk-neutral market the fitted holding cost is ~0, and the plan is unaffected.
+  // (Tolerance: learning the permanent-impact term too, E7, widens this seed's
+  // error from 2% to 15%: front-loading plans make q*I' and I'^2 correlated.
+  // The share is unaffected: at most 0.3 points across seeds.)
   auto n = trained(ExecutionParams{}, 300, CostModel::Quadratic);
   EXPECT_NEAR(n.model().holding, 0.0, 2e-5);
 }
@@ -234,4 +242,92 @@ TEST(AgentRisk, FrontLoadsMoreWhenRiskAverse) {
   };
   const double rl_n = learn(neutral), rl_a = learn(averse);
   EXPECT_GT(rl_a, rl_n + 20) << "learned: neutral " << rl_n << ", averse " << rl_a;
+}
+
+// ============ Experiment E7 (outside the model class: permanent impact) ======
+TEST(ExecutionCosts, PermanentImpactKeepsTheAccountingIdentityAndTheDpIsExact) {
+  ExecutionParams p;
+  p.permanent_impact = 0.01;
+  p.risk_aversion = 0.2;
+  {  // Rewards (without the risk penalty) add up to the cash shortfall.
+    ExecutionParams q = p;
+    q.risk_aversion = 0;
+    ExecutionEnv env(q);
+    Rng rng(3);
+    for (int e = 0; e < 100; ++e) {
+      env.reset(rng);
+      double sum = 0;
+      for (;;) {
+        const auto st = env.step(rng.below(5), rng);
+        sum += st.reward;
+        if (st.done) break;
+      }
+      ASSERT_NEAR(sum, env.cash() - q.lots * q.start_price, 1e-9);
+    }
+  }
+  const ExecutionDP dp(p);
+  ExecutionEnv env(p);
+  // Exact policy evaluation of the optimal policy reproduces its value...
+  EXPECT_NEAR(dp.policy_value([&](const ExecutionObs& o) { return dp.act(o); }), dp.expected_start_value(), 1e-9);
+  // ...and of TWAP, a closed form: costs, permanent impact and risk penalty of the fixed schedule.
+  double twap_value = 0;
+  std::uint32_t inv = p.lots;
+  for (std::uint32_t t = 0; t < p.horizon; ++t) {
+    const std::uint32_t q = env.lots_for(ExecutionEnv::kTwapAction, inv);
+    inv -= q;
+    twap_value -= env.trade_cost(q) + p.permanent_impact * q * inv;
+    if (t + 1 < p.horizon) twap_value -= env.holding_penalty(inv);
+  }
+  twap_value -= env.dump_cost(inv);
+  EXPECT_NEAR(dp.policy_value(twap), twap_value, 1e-9);
+  // Simulation agrees with both (paired, so tight).
+  const auto gain = compare(env, [&](const ExecutionObs& o) { return dp.act(o); }, twap, 4000, 1);
+  EXPECT_NEAR(gain.mean, dp.expected_start_value() - twap_value, 4 * gain.std_error);
+}
+
+namespace {
+ModelBasedExecutionAgent fitted(const ExecutionParams& market, std::uint32_t episodes, bool permanent, std::uint64_t seed = 1) {
+  ModelBasedExecutionAgent a(market, {.cost_model = CostModel::Shrunk, .learn_permanent_impact = permanent, .seed = seed});
+  ExecutionEnv env(market);
+  Rng rng(42 + seed);
+  train_model_based(a, env, episodes, rng);
+  a.replan();
+  return a;
+}
+}  // namespace
+
+TEST(ModelBased, LearnsPermanentImpactAndAWrongModelGetsWorseWithData) {
+  // Measured (5 seeds): without the term, 43% at 20 episodes, 37% at 50, 25%
+  // at 300 (the plan exploits the model's error, so its data grows more
+  // one-sided). With it: 93% at 20, 99.8% at 50, 99.9% at 300.
+  ExecutionParams p;
+  p.permanent_impact = 0.01;
+  auto pol = [](ModelBasedExecutionAgent& a) { return [&a](const ExecutionObs& o) { return a.act(o, false); }; };
+  auto with = fitted(p, 300, true);
+  EXPECT_NEAR(with.model().permanent, 0.01, 0.0005);
+  EXPECT_GT(share(p, pol(with)), 0.97);
+  auto few = fitted(p, 20, false), many = fitted(p, 300, false);
+  const double s_few = share(p, pol(few)), s_many = share(p, pol(many));
+  EXPECT_LT(s_many, 0.5);
+  EXPECT_LT(s_many, s_few - 0.05) << "more data should make the misspecified model worse: " << s_few << " -> " << s_many;
+  // Where there is no permanent impact, learning the term costs nothing.
+  auto plain = fitted(ExecutionParams{}, 300, true);
+  EXPECT_NEAR(plain.model().permanent, 0.0, 0.0005);
+  EXPECT_GT(share(ExecutionParams{}, pol(plain)), 0.99);
+}
+
+TEST(ModelBased, CheckModelFlagsAMissingTerm) {
+  // Paired check of predicted vs realized gain over TWAP, 100 real episodes.
+  // Measured over 8 seeds: z in [-2.5, 2.2] for a correct model; 8.5-12.9
+  // with the permanent term missing (gamma 0.005), 20-27 at gamma 0.01.
+  ExecutionParams p;
+  p.permanent_impact = 0.005;
+  const ExecutionEnv market(p);
+  for (std::uint64_t seed = 1; seed <= 3; ++seed) {
+    const auto right = fitted(p, 300, true, seed).check_model(market, 100, 6'000'000 + 1000 * seed);
+    const auto wrong = fitted(p, 300, false, seed).check_model(market, 100, 6'000'000 + 1000 * seed);
+    EXPECT_LT(right.z, 4.0) << "seed " << seed;
+    EXPECT_GT(wrong.z, 4.0) << "seed " << seed;
+    EXPECT_GT(wrong.predicted_gain, wrong.realized_gain);  // a wrong model is optimistic about its plan
+  }
 }
