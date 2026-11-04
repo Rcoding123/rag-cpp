@@ -142,3 +142,81 @@ In the correct quadratic market, Shrunk matches the quadratic model
   of both. The general lesson for planning agents: a planner exploits
   whatever its model gets wrong, so uncertain parts of the model need to be
   pessimistic or pulled toward a prior.
+
+## E2. What limits model-free learning? (the ~72% plateau)
+
+* **Hypothesis:** the plateau comes from bootstrapping. Multi-step or Monte
+  Carlo targets should break it.
+* **Code:** `AgentConfig::n_step` (n-step returns through the replay buffer,
+  no off-policy correction) and `TileQ::blend`.
+* **Tests:**
+  * `AgentNStep.*`: the corridor is learned exactly with n = 1, 3 and 40,
+    and the 3-step target is checked by hand;
+  * `AgentRepresentation.TileCodingCanRepresentANearOptimalPolicy`.
+
+### E2a. n-step sweep (share of the optimal gain, seeds 1–3)
+
+| n | 10k episodes | 40k episodes |
+|---|---|---|
+| 1 | 36 / 41 / 45 | 66 / 71 / 62 |
+| 2 | 49 / 56 / 45 | 47 / 66 / 69 |
+| **3** | **50 / 48 / 47** | **70 / 69 / 69** |
+| 5 | 38 / 42 / 43 | 67 / 66 / 65 |
+| 10 | 46 / 47 / 45 | 62 / 61 / 65 |
+| 20 (Monte Carlo) | 46 / 42 / 42 | 65 / 66 / 65 |
+
+At 200k episodes, n = 3 reaches 75.8 / 76.8 / 74.9% (n = 1: 72%). **n = 3
+is now the default.** The hypothesis is rejected, though: Monte Carlo
+targets (no bootstrapping, no max-bias) plateau too.
+
+### E2b. The representation ceiling: fit the true Q* directly
+
+Fitting tile-coded Q to the DP's exact Q*(s, a) by plain regression, on
+states from an exploring policy (80% optimal, 20% random), all 5 actions per
+state, 100k episodes:
+
+| Tiles | Weights per action | Greedy share |
+|---|---|---|
+| 8×8×8 × 8 tilings (default) | 5,832 | **99.5%** |
+| 8×10×12 × 8 | 10,296 | 99.5% |
+| 12×12×12 × 8 | 17,576 | 99.7% |
+| 16×16×16 × 16 | 78,608 | 99.9% |
+
+**The representation is not the bottleneck.** The earlier finding that finer
+tiles do worse in RL is about learning (fewer samples per weight), not
+capacity.
+
+### E2c. Ablation: noise vs coverage (40k episodes)
+
+| Targets | Actions updated per visited state | Share |
+|---|---|---|
+| exact Q* | all 5 | 99.4% |
+| exact Q* | only the one taken | **−92.7%** |
+| one sampled return (then optimal) | all 5 | **65.7%** |
+| one sampled return | only the one taken | −51.9% |
+
+* **Noise alone reproduces the plateau.** Sampled returns have sd ≈ 20–50,
+  against action-value gaps that are often below 1.
+* **Uneven coverage is catastrophic on its own.** Actions rarely taken in a
+  region keep their initial value 0, which beats the true (negative) values,
+  so the greedy policy picks the least-known action. In RL, ε-exploration
+  partly repairs this.
+
+### E2d. Fixes tried for the noise
+
+| Idea | Result |
+|---|---|
+| Afterstates, Q = C[q] + W(t, I − q, g), sharing W across actions | 43–51% at 10k (better than n = 1), 61–67% at 40k (same plateau) |
+| Polyak tail-averaging of weights (second half of training) | worse at 40k (n = 1: 31–48% vs 46–66%; n = 3: 64–71% vs 67–73%), because the iterates are still improving. At 200k it protected against one late dip (64% → 78%); the champion mechanism already covers that. |
+| Lower step-size floor (0.001, 0.0003) | no effect up to 200k: the 1/(1 + ep/3000) schedule hadn't reached the floor |
+
+### Conclusions
+
+* **The gap is variance, not representation.** The model-free learner sees
+  each state-action value through one noisy sample at a time.
+* **Model-based learning (E1) closes the gap** because it estimates 5
+  numbers from all transitions jointly and plans exactly: 100% in 20–50
+  episodes.
+* **For model-free learning, the remaining levers** are variance reduction:
+  control variates, or counterfactual updates using the fact that the price
+  move doesn't depend on the action.

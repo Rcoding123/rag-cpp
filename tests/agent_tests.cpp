@@ -600,3 +600,77 @@ TEST(AgentDrift, NoticesThatTheWorldChangedAndRecovers) {
   EXPECT_GT(adaptive, 0.15) << "recovered only " << 100 * adaptive << "%";
   EXPECT_GT(adaptive, without + 0.2) << "with detection " << 100 * adaptive << "%, without " << 100 * without << "%";
 }
+
+// ======================= Experiment E2 (n-step, ceiling) ======================
+TEST(AgentNStep, LearnsTheCorridorWithMultiStepAndMonteCarloTargets) {
+  for (std::uint32_t n : {1u, 3u, 40u}) {  // 40 >= max_steps: pure Monte Carlo
+    ChainEnv env({.length = 8, .max_steps = 40});
+    AgentConfig<1> cfg;
+    cfg.eps_decay_episodes = 300;
+    cfg.bins = {14};
+    cfg.n_step = n;
+    Agent<ChainEnv> agent(env, cfg);
+    Trainer<ChainEnv> tr(agent, env, {.eval_every = 0, .detect_drift = false});
+    tr.run(600);
+    EXPECT_EQ(evaluate(env, [&](const auto& o) { return agent.act(o, false); }, 1, 1).mean, -7.0) << "n = " << n;
+  }
+}
+
+TEST(AgentNStep, ThreeStepTargetIsTheSumOfThreeRewardsPlusBootstrap) {
+  // One-tiling, one-bin coder over a 1-d state: every state shares one
+  // weight per action, so Q(s, a) = w[a] and targets are easy to compute.
+  ChainEnv env({.length = 50, .max_steps = 100});
+  AgentConfig<1> cfg;
+  cfg.tilings = 1;
+  cfg.bins = {1};
+  cfg.alpha = 1.0;  // Q jumps straight to each target
+  cfg.alpha_decay_episodes = 0;
+  cfg.replay_per_step = 0;
+  cfg.n_step = 3;
+  Agent<ChainEnv> agent(env, cfg);
+  ChainEnv::Observation s{0, 0};
+  double q[2];
+  agent.observe(s, 1, -1.0, {1, 1}, false);
+  agent.observe({1, 1}, 1, -2.0, {2, 2}, false);
+  agent.q_values(s, q);
+  EXPECT_EQ(q[1], 0.0);  // nothing emitted until 3 steps are pending
+  agent.observe({2, 2}, 1, -4.0, {3, 3}, false);
+  agent.q_values(s, q);
+  EXPECT_DOUBLE_EQ(q[1], -7.0);  // -1 - 2 - 4 + gamma^3 * max Q(s_3) = -7 + max(0, 0)
+  agent.observe({3, 3}, 1, -1.0, {4, 4}, true);  // episode ends: the 3 pending steps flush, no bootstrap
+  agent.q_values(s, q);
+  EXPECT_DOUBLE_EQ(q[1], -1.0);  // last flushed transition: just the final reward
+}
+
+TEST(AgentRepresentation, TileCodingCanRepresentANearOptimalPolicy) {
+  // E2's key finding: fitting the default 8x8x8 x 8-tiling coder to the TRUE
+  // optimal Q* (from the DP) by plain regression gives a greedy policy at
+  // 99.5% of optimal. The ~70% plateau of RL is therefore a learning problem
+  // (noisy targets, uneven action coverage), not a representation problem.
+  ExecutionParams p;
+  ExecutionEnv env(p);
+  const auto& dp = default_dp();
+  TileCoder<3> coder(ExecutionEnv::kLo, ExecutionEnv::kHi, {8, 8, 8}, 8);
+  TileQ q(coder.size(), 8, 5, 0.1);
+  Rng rng(1), pol(2);
+  for (int ep = 0; ep < 20000; ++ep) {
+    q.set_alpha(std::max(0.005, 0.1 / (1 + ep / 3000.0)));
+    auto o = env.reset(rng);
+    for (;;) {
+      std::array<std::uint32_t, kMaxTilings> idx;
+      coder.encode(env.features(o), idx.data());
+      for (Action a = 0; a < 5; ++a) q.update(idx.data(), a, dp.q_value(o.t, o.inventory, o.signal, a));
+      const auto st = env.step(pol.uniform() < 0.2 ? pol.below(5) : dp.act(o), rng);
+      o = st.obs;
+      if (st.done) break;
+    }
+  }
+  auto greedy = [&](const ExecutionObs& o) {
+    std::array<std::uint32_t, kMaxTilings> idx;
+    coder.encode(env.features(o), idx.data());
+    double v[5];
+    q.q_values(idx.data(), v);
+    return static_cast<Action>(std::max_element(v, v + 5) - v);
+  };
+  EXPECT_GT(captured(env, dp, greedy), 0.97);
+}

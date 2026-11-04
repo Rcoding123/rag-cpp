@@ -125,7 +125,7 @@ resolution.
 | | `TileQ` (parametric) | `EpisodicMemory` (instance-based) |
 |---|---|---|
 | Stores | one weight per tile per action | up to 4,096 remembered situations, each with a value per action |
-| Learns from | every step (TD target `r + max Q(s')`) plus replay | each episode's actual returns (Monte Carlo) |
+| Learns from | every step (3-step TD target `r + r' + r'' + max Q(s''')`) plus replay | each episode's actual returns (Monte Carlo) |
 | Estimates Q by | summing 8 weights | similarity-weighted mean of the 8 nearest memories |
 | Decision cost | **64 ns** | 19.8 µs (k-NN over 4,096 × 64 floats) |
 | After 1,000 episodes | 5.8% of optimal | **13.6%** |
@@ -146,8 +146,14 @@ and shrinking it averages the noise out. The floor keeps the agent able to
 learn if the world changes.
 
 *Lessons measured:*
-* **Plateau:** learning levels off around 72% even with 200,000 episodes.
-  The remaining gap is the function approximator's limit, not a lack of data.
+* **Plateau:** with 1-step targets, learning levels off around 72%; with the
+  default 3-step targets, 75–77% at 200,000 episodes. It is *not* the
+  representation's limit. The same tiles fitted to the true optimal values
+  give 99.5%. The gap is target noise: returns vary by ±20–50 while action
+  values differ by less than 1. See `docs/ai/EXPERIMENTS.md` E2.
+* **Model-based alternative:** an agent that learns the market's 5
+  parameters and plans with the DP reaches 99–100% in 20–50 episodes
+  (`model_based.hpp`, E1), as long as its assumed model form is right.
 * **Double Q-learning didn't help.** It removes the upward bias that
   `max()` puts into targets. Here, though, the two were level at 30,000
   episodes (64.8% with it, 64.5% without), and at 60,000 it was clearly worse

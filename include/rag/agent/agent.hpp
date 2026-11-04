@@ -64,6 +64,11 @@ struct AgentConfig {
   bool double_q = false;  // measured: on ExecutionEnv, halving each estimator's updates costs more than the bias it removes
   std::uint32_t replay_capacity = 100'000;
   std::uint32_t replay_per_step = 4;  // extra updates from replayed experience per real step
+  // n-step returns: targets sum n real rewards before bootstrapping from
+  // Q(s_{t+n}). n = 1 is plain Q-learning; n >= the horizon is Monte Carlo.
+  // (No off-policy correction: exploratory actions inside the n steps bias
+  // targets toward the behaviour policy.)
+  std::uint32_t n_step = 3;  // measured best of 1,2,3,5,10,20 (EXPERIMENTS.md E2)
 
   // Episodic learner.
   EpisodicParams memory{};
@@ -92,6 +97,7 @@ class Agent {
         mem_(cfg_.memory),
         rng_(cfg_.seed) {
     episode_.reserve(1024);
+    pending_.reserve(cfg_.n_step + 1);
   }
 
   // ------------------------------------------------------------- decide
@@ -141,15 +147,28 @@ class Agent {
       episode_.push_back({env_.features(o), a, r});
       return;
     }
-    Transition t;
-    coder_.encode(env_.features(o), t.s.data());
-    coder_.encode(env_.features(next), t.next.data());
-    t.reward = static_cast<float>(r);
-    t.action = static_cast<std::uint16_t>(a);
-    t.done = done;
-    td_update(t);
-    replay_.push(t);
-    for (std::uint32_t i = 0; i < cfg_.replay_per_step && replay_.size() > 1; ++i) td_update(replay_.sample(rng_));
+    if (cfg_.n_step <= 1) {
+      Transition t;
+      coder_.encode(env_.features(o), t.s.data());
+      coder_.encode(env_.features(next), t.next.data());
+      t.reward = static_cast<float>(r);
+      t.action = static_cast<std::uint16_t>(a);
+      t.done = done;
+      learn_from(t);
+      return;
+    }
+    // n-step: hold the last n steps; once n are pending (or the episode
+    // ends), the oldest becomes a transition to the state n steps later.
+    PendingStep ps;
+    coder_.encode(env_.features(o), ps.s.data());
+    ps.action = a;
+    ps.reward = r;
+    pending_.push_back(ps);
+    if (done) {
+      while (!pending_.empty()) emit_pending(next, true);
+    } else if (pending_.size() >= cfg_.n_step) {
+      emit_pending(next, false);
+    }
   }
 
   // Called once at the end of every training episode.
@@ -241,6 +260,36 @@ class Agent {
     Action action;
     double reward;
   };
+  struct PendingStep {
+    std::array<std::uint32_t, kMaxTilings> s;
+    Action action;
+    double reward;
+  };
+
+  void learn_from(const Transition& t) {
+    td_update(t);
+    replay_.push(t);
+    for (std::uint32_t i = 0; i < cfg_.replay_per_step && replay_.size() > 1; ++i) td_update(replay_.sample(rng_));
+  }
+
+  // Turn the oldest pending step into an n-step transition ending at `next`.
+  void emit_pending(const Obs& next, bool done) {
+    Transition t;
+    const PendingStep& first = pending_.front();
+    t.s = first.s;
+    t.action = static_cast<std::uint16_t>(first.action);
+    double g = 0, disc = 1;
+    for (const PendingStep& p : pending_) {
+      g += disc * p.reward;
+      disc *= cfg_.gamma;
+    }
+    t.reward = static_cast<float>(g);
+    t.steps = static_cast<std::uint8_t>(std::min<std::size_t>(pending_.size(), 255));
+    t.done = done;
+    coder_.encode(env_.features(next), t.next.data());
+    pending_.erase(pending_.begin());
+    learn_from(t);
+  }
 
   static Config defaults(Config c) {
     for (std::size_t d = 0; d < Dims; ++d) {
@@ -290,7 +339,8 @@ class Agent {
       std::array<double, A> qn;
       learn->q_values(t.next.data(), qn.data());
       const auto best = static_cast<Action>(std::max_element(qn.begin(), qn.end()) - qn.begin());
-      target += cfg_.gamma * judge->q(t.next.data(), best);
+      const double boot = cfg_.gamma == 1.0 ? 1.0 : std::pow(cfg_.gamma, t.steps);
+      target += boot * judge->q(t.next.data(), best);
     }
     learn->update(t.s.data(), t.action, target);
   }
@@ -303,6 +353,7 @@ class Agent {
   ReplayBuffer replay_;
   Memory mem_;
   std::vector<EpisodeStep> episode_;
+  std::vector<PendingStep> pending_;  // n-step window (n_step > 1)
   Rng rng_;
   std::uint64_t episodes_ = 0;
   std::uint64_t plastic_episodes_ = 0;  // episodes since the last reexplore() (step-size annealing clock)

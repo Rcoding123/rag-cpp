@@ -70,6 +70,11 @@ class TileQ {
     return err;
   }
 
+  // this = (1 - weight) * this + weight * other, for iterate (Polyak) averaging.
+  void blend(const TileQ& other, double weight) noexcept {
+    for (std::size_t i = 0; i < w_.size() && i < other.w_.size(); ++i) w_[i] += weight * (other.w_[i] - w_[i]);
+  }
+
   // Change the step size (the agent anneals it as experience accumulates).
   void set_alpha(double alpha) noexcept { step_ = alpha / tilings_; }
   [[nodiscard]] double alpha() const noexcept { return step_ * tilings_; }
@@ -86,10 +91,11 @@ class TileQ {
 // ------------------------------ ReplayBuffer ---------------------------------
 struct Transition {
   std::array<std::uint32_t, kMaxTilings> s;     // active tiles of the state
-  std::array<std::uint32_t, kMaxTilings> next;  // ... and of the next state
-  float reward;
+  std::array<std::uint32_t, kMaxTilings> next;  // ... and of the state `steps` steps later
+  float reward;                                 // discounted sum of the `steps` rewards in between
   std::uint16_t action;
-  bool done;
+  std::uint8_t steps = 1;                       // n of the n-step return (bootstrap discount gamma^steps)
+  bool done;                                    // the episode ended within those steps: no bootstrap
 };
 
 class ReplayBuffer {
