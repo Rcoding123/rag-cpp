@@ -181,3 +181,57 @@ TEST(ModelBased, FlexibleModelsNeedDataAndShrinkageMakesThemSafe) {
   EXPECT_GE(per_failures, 2) << "per-size was expected to fail on some seeds with this little data";
   EXPECT_GT(shrunk_worst, 0.75) << "shrinkage should never be catastrophic";
 }
+
+// ================= Experiment E4 (risk-averse execution) =====================
+TEST(ModelBased, LearnsTheRiskPenalty) {
+  // Measured: fitted holding cost 0.00049 for a true 0.0005 (lambda 0.2), and
+  // 100% of the risk-adjusted optimal gain after 300 episodes.
+  ExecutionParams p;
+  p.risk_aversion = 0.2;
+  auto a = trained(p, 300, CostModel::Quadratic);
+  const double truth = p.risk_aversion * p.noise_sd * p.noise_sd;
+  EXPECT_NEAR(a.model().holding, truth, 0.1 * truth);
+  EXPECT_GT(share(p, [&](const ExecutionObs& o) { return a.act(o, false); }), 0.97);
+  // In a risk-neutral market the fitted holding cost is ~0, and the plan is unaffected.
+  auto n = trained(ExecutionParams{}, 300, CostModel::Quadratic);
+  EXPECT_NEAR(n.model().holding, 0.0, 2e-5);
+}
+
+TEST(AgentRisk, FrontLoadsMoreWhenRiskAverse) {
+  // Lots sold in the first 5 steps, averaged over scenarios. Measured for the
+  // DP optimum: 26.5 at lambda 0, 72.9 at lambda 1.
+  auto early = [](const ExecutionParams& p, auto&& policy) {
+    double sold = 0;
+    for (int i = 0; i < 400; ++i) {
+      ExecutionEnv env(p);
+      Rng rng(800 + i);
+      auto o = env.reset(rng);
+      while (o.t < 5) {
+        const auto inv = o.inventory;
+        const auto st = env.step(policy(o), rng);
+        sold += inv - st.obs.inventory;
+        o = st.obs;
+        if (st.done) break;
+      }
+    }
+    return sold / 400;
+  };
+  ExecutionParams neutral, averse;
+  averse.risk_aversion = 1.0;
+  const ExecutionDP dpn(neutral), dpa(averse);
+  const double dp_n = early(neutral, [&](const ExecutionObs& o) { return dpn.act(o); });
+  const double dp_a = early(averse, [&](const ExecutionObs& o) { return dpa.act(o); });
+  EXPECT_GT(dp_a, dp_n + 30) << "DP: neutral " << dp_n << ", averse " << dp_a;
+  // A model-free learner, told nothing but the (risk-adjusted) rewards, follows.
+  auto learn = [&](const ExecutionParams& p) {
+    ExecutionEnv env(p);
+    AgentConfig<3> cfg;
+    cfg.learner = LearnerKind::ActorCritic;
+    auto agent = std::make_unique<Agent<ExecutionEnv>>(env, cfg);
+    Trainer<ExecutionEnv> tr(*agent, env, {.eval_every = 0, .detect_drift = false});
+    tr.run(8000);
+    return early(p, [&](const ExecutionObs& o) { return agent->act(o, false); });
+  };
+  const double rl_n = learn(neutral), rl_a = learn(averse);
+  EXPECT_GT(rl_a, rl_n + 20) << "learned: neutral " << rl_n << ", averse " << rl_a;
+}

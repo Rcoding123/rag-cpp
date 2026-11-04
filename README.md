@@ -163,19 +163,32 @@ execute a trade, with no model of the market, from rewards alone:
 ./build/agent_demo
 ```
 
-* **Result:** after 40,000 training episodes (0.5 s), it captures 67% of the
-  gain over TWAP that the mathematically optimal policy (solved by dynamic
-  programming) achieves on unseen scenarios. Its learned policy nearly
-  matches the optimal one.
+* **Result:** after 40,000 training episodes, tile-coded Q-learning captures
+  67% of the gain over TWAP that the mathematically optimal policy (solved
+  by dynamic programming) achieves on unseen scenarios.
 * **Adaptation:** when the market's behaviour flips, it detects the change
-  within 17 episodes and relearns. An agent without drift detection stays
-  stuck doing the wrong thing.
+  within 44 episodes and relearns. An agent without drift detection stays
+  stuck doing the wrong thing. Regimes seen before are recalled from a
+  policy bank within 20–131 episodes.
 * **Speed:** decisions take 64 ns.
 
+| Learner | Share of the optimal gain | Notes |
+|---|---|---|
+| `TileQ` (3-step Q-learning + replay) | 69–70% at 40k episodes, 75–77% at 200k | the default |
+| `ActorCritic` (softmax policy + TD critic) | 80–86% at 40k, 86–89% at 200k | best model-free learner |
+| `ModelBasedExecutionAgent` (regression + DP planning) | 99–100% after 20–50 episodes | needs a model class that fits |
+
+Production safeguards: champion/challenger deployment, two-stage drift
+detection, and an optional baseline guard that never deploys a policy that
+hasn't beaten TWAP by 2 standard errors. Every experiment, including the
+negative results, is logged in
+[docs/ai/EXPERIMENTS.md](docs/ai/EXPERIMENTS.md).
+
 **[docs/agent.md](docs/agent.md)** walks through the architecture:
-* environment, encoder, learners (TD learning vs episodic memory), replay,
-  exploration;
-* held-out evaluation, champion/challenger and two-stage drift detection;
+* environment, encoder, learners (TD learning, actor-critic, episodic
+  memory, model-based planning), replay, exploration, risk aversion;
+* held-out evaluation, champion/challenger, two-stage drift detection, the
+  policy bank and the baseline guard;
 * what each design choice measurably did;
 * how the same architecture maps onto LLM agents.
 

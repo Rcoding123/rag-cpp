@@ -10,6 +10,19 @@ scenarios (paired; `compare()`). The DP's gain is ≈ 15.2–16.1 depending on
 the evaluation set. Each entry records the hypothesis, the setup, the result
 and the conclusion; negative results stay in.
 
+## Summary so far
+
+| # | Question | Answer in one line |
+|---|---|---|
+| E0 | How good is tile-coded Q-learning? | ~65% at 30k episodes, ~72% at 60k. |
+| E1 | Learn a model and plan instead? | 99–100% after 20–50 episodes; robust to a misspecified form if per-size costs are shrunk (empirical Bayes). |
+| E2 | Why does model-free plateau? | Target noise and coverage, not representation (which holds 99.5%). 3-step returns help most. |
+| E3 | Recurring regimes? | A policy bank recalls a known regime within 20–131 episodes. |
+| E4 | Risk aversion? | DP shows the Almgren–Chriss trade-off; the model-based agent learns the penalty to ~2%. |
+| E5 | Policy gradient? | Actor-critic is the best model-free learner (86–89% at 200k), but needs a slow annealing schedule. |
+| E6 | Robustness across markets? | Model-based 100% everywhere; TileQ can deploy policies *worse than TWAP* in weak markets. |
+| E6b | Can deployment be made safe? | A baseline guard: never deploy a policy that hasn't beaten TWAP by 2 standard errors. Worst case −106% → 0%. |
+
 ---
 
 ## E0. Baseline: tile-coded Q-learning (pre-existing)
@@ -253,3 +266,136 @@ capacity.
   thousands of episodes. This only works because drift *confirmation*
   re-scores policies on fixed held-out scenarios; the same evaluation
   machinery answers "which known world is this?".
+
+## E4. Risk-averse execution (mean-variance)
+
+* **Hypothesis:** with a risk penalty, the optimal policy sells earlier;
+  learners should discover how much earlier. The model-based agent needs a
+  holding-cost term to stay optimal.
+* **Code:**
+  * `ExecutionParams::risk_aversion` λ: each step's reward is reduced by
+    λ·noise_sd²·I'², the variance the held inventory adds. The penalty is in
+    the reward only; cash accounting is unchanged. The DP includes it.
+  * The model-based agent now solves one weighted normal-equations system
+    (Gaussian elimination) over alpha, a holding cost κ (regressor −I'²), and
+    either the quadratic impact or one cost per order size.
+* **Tests:** `ModelBased.LearnsTheRiskPenalty`,
+  `AgentRisk.FrontLoadsMoreWhenRiskAverse`.
+
+| λ | DP optimum: mean cash / sd / lots sold in steps 0–4 | TileQ 40k: share, sd | Model-based 300 eps: share, fitted κ (true) |
+|---|---|---|---|
+| 0 | +9.3 / 58.7 / 26.5 | 70%, 52.1 | 100%, 0.00000 (0) |
+| 0.01 | +9.3 / 57.7 / 28.6 | 66%, 50.7 | 100%, 0.00002 (0.000025) |
+| 0.05 | +8.6 / 54.0 / 36.5 | 73%, 46.3 | 100%, 0.00011 (0.000125) |
+| 0.2 | +2.8 / 42.9 / 55.0 | 91%, 39.2 | 100%, 0.00049 (0.0005) |
+| 1.0 | −8.4 / 28.2 / 72.9 | 100%, 27.7 | 100%, 0.00249 (0.0025) |
+
+"Share" is the share of the risk-adjusted optimal gain over TWAP.
+
+* **The DP traces the classic Almgren–Chriss trade-off:** more risk aversion
+  means selling earlier (26 → 73 lots in the first 5 steps), lower variance
+  (sd 59 → 28) and a lower mean (+9.3 → −8.4).
+* **Both learners front-load as λ grows.**
+* **Strong risk aversion makes model-free learning easy.** The best policy
+  becomes "sell fast", which leaves less to gain from the noisy signal:
+  TileQ goes from 70% to 100%.
+* **The model-based agent recovers κ to within ~2%** at λ ≥ 0.2, and stays at
+  100%.
+
+## E5. Policy gradient: actor-critic
+
+* **Hypothesis:** learning a policy directly, with a critic's TD error as the
+  advantage, copes better with target noise than learning Q-values, because
+  the actor only needs relative preferences.
+* **Code:**
+  * `LearnerKind::ActorCritic`: a softmax policy over tile-coded logits plus
+    a tile-coded critic V(s), with 1-step TD error as the advantage and
+    `actor_alpha` / `critic_alpha` / `temperature` / `ac_decay_episodes`.
+  * On-policy: exploration is sampling from the policy (ε applies only
+    during re-exploration); no replay. `value()` is the critic, so drift
+    detection and champions work unchanged.
+* **Tests:** `AgentActorCritic.*`.
+
+Standalone probe (seeds 1–5 at 10k/40k, 1–3 at 200k):
+
+| Actor / critic step, temperature | 10k | 40k | 200k |
+|---|---|---|---|
+| 0.03 / 0.1, T = 1 | 55–76% (median 75) | 79–84% | **86–89%** |
+| 0.01 / 0.1, T = 1 | −884% to −374% (policy still near-random) | 59–63% | |
+| 0.003 / 0.1 | about −600% | about −600% | |
+| 0.05–0.1 / 0.1 | 69–72% | 74–84% | |
+| 0.03 / 0.03 (slow critic) | −427% to −310% | 73–77% | |
+
+The step-size schedule matters (library Trainer, seeds 1–3):
+
+| Annealing half-life | 10k | 40k |
+|---|---|---|
+| 3,000 episodes (the TileQ default) | −235%, 7%, −2% | −24%, 84%, 78% |
+| 5,000 | 57–77% | 79–83% |
+| **10,000 (default `ac_decay_episodes`)** | **75–78%** | **80–86%** |
+| 20,000 | 75–79% | 82–84% |
+
+* **Actor-critic is the best model-free learner here.** At 200k episodes it
+  reaches 86–89%, against 75–79% for 3-step Q-learning, and it's far ahead
+  early (75% vs 47–50% at 10k).
+* **It's fragile in a different way.** Too small an actor step, or annealing
+  too early, leaves the policy near-uniform, which in this task loses
+  heavily. A learner whose failure mode is "stays random" needs its
+  schedule chosen with care.
+
+## E6. Robustness: how each learner fares when the market changes shape
+
+* **Question:** are the defaults (tuned on one market) safe on others?
+* **Setup:** one parameter varied at a time, others at their defaults.
+  TileQ and ActorCritic train for 40k episodes (ε half-life 20k); the
+  model-based agent (MB) sees 300 episodes. Cells are the deployed policy's
+  share of that market's optimal gain over TWAP, on 1,500 shared held-out
+  scenarios (probe `sweep.cpp`, seed 1).
+
+| Market | DP gain over TWAP | TileQ | ActorCritic | Model-based |
+|---|---|---|---|---|
+| default (alpha 1, noise 0.05, rho 0.7, horizon 20) | +16.3 | 70% | 82% | 100% |
+| alpha 0.25 (weak signal) | +1.4 | **−35%** | 34% | 100% |
+| alpha 0.5 | | 43% | 76% | 100% |
+| alpha 2 | | 72% | 79% | 100% |
+| noise 0.025 | | 69% | 72% | 100% |
+| noise 0.1 | | 62% | 81% | 100% |
+| noise 0.2 | | 57% | 79% | 100% |
+| rho 0 (no signal persistence) | +3.6 | 32% | 71% | 100% |
+| rho 0.9 | | 68% | 78% | 100% |
+| horizon 10 | | 68% | 85% | 100% |
+| horizon 40 | | 61% | 76% | 100% |
+
+* **The model-based agent is at 100% everywhere,** because every market
+  here lies inside its model class.
+* **ActorCritic is the more robust model-free learner** (34–85%); TileQ
+  ranges from −35% to 72%.
+* **The dangerous cell is TileQ in a weak-signal market.** When the gain
+  available is small (+1.4 per episode against an episode sd of ~55), the
+  learner fits noise and deploys a policy *worse than the trivial
+  baseline*. A production system must never do that, which motivates E6b.
+
+## E6b. A baseline guard: never deploy below TWAP
+
+* **Code:** `Trainer::set_baseline(policy)`. With a baseline set,
+  `deployed_act()` uses the baseline until the champion beats it on the
+  held-out scenarios by more than 2 standard errors of the paired
+  difference. The check reruns at every champion evaluation and after every
+  confirmed drift, so a champion that stops working falls back to the
+  baseline. `learned_policy_deployed()` reports which one is live;
+  `EvalPoint::learned_deployed` logs it.
+* **Test:** `AgentSafety.NeverDeploysAPolicyWorseThanTheBaseline`.
+* **Measured** (TileQ, 20k episodes, seeds 1–5; deployed share of the
+  optimal gain; probe `guard_probe.cpp`):
+
+| Market | Unguarded | Guarded | Learned policy deployed |
+|---|---|---|---|
+| default | 52 / 61 / 59 / 60 / 58% | identical | 5 of 5 |
+| alpha 0.25 | −58 / −66 / −75 / −35 / −106% | **0% (TWAP) on every seed** | 0 of 5 |
+| rho 0 | −8 / 16 / 4 / 9 / 25% | 0 / 0 / 0 / 0 / 25% | 1 of 5 |
+
+* **The guard removes the downside** (worst case −106% → 0%) and costs
+  nothing where learning works.
+* **It's conservative:** in the rho-0 market it held back three small gains
+  (4–16%) that weren't statistically distinguishable from TWAP on 600
+  held-out scenarios. More evaluation scenarios would release them sooner.

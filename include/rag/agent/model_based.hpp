@@ -5,33 +5,38 @@
 // assume nothing about the world. This agent assumes the *form* of the model
 // ("grey box"), and only its numbers are unknown:
 //
-//   reward  = -impact * q^2 + I' * (alpha * g + noise)     (I' = inventory held after the trade)
-//   last    = -impact * q^2 - terminal_impact * rem^2
+//   reward  = -cost(q) + alpha * I' * g - holding * I'^2 + I' * noise   (I' = inventory held after the trade)
+//   last    = -cost(q) - terminal_impact * rem^2
 //   g'      = rho * g + innovation
 //
-// It estimates (impact, alpha) by weighted least squares over every
-// non-terminal step (weights 1/max(1, I')^2: the noise term scales with I'),
-// terminal_impact from last steps, and (rho, signal sd) by regressing each
-// signal on the previous one. Every `replan_every` episodes it re-solves
-// ExecutionDP with the current estimates and acts greedily on that plan,
-// exploring with probability eps.
+// `holding` is a per-step cost of carrying inventory: the risk penalty of a
+// risk-averse objective (ExecutionParams::risk_aversion, E4), 0 if
+// risk-neutral. All coefficients are estimated by weighted least squares over
+// every non-terminal step (weights 1/max(1, I')^2: the noise term scales with
+// I'), from one normal-equations system solved by Gaussian elimination;
+// terminal_impact from last steps; (rho, signal sd) by regressing each signal
+// on the previous one. Every `replan_every` episodes it re-solves ExecutionDP
+// with the current estimates and acts greedily on that plan, exploring with
+// probability eps.
 //
-// Two cost models:
-//   Quadratic  cost(q) = impact * q^2: 2 numbers, the textbook form.
-//   PerSize    one learned cost per order size actually traded (closed-form
-//              least squares); unseen sizes are interpolated. No assumption
-//              about the shape of the impact curve; the dump at the end is
-//              fitted as a * rem^2 + b.
+// Cost models (CostModel):
+//   Quadratic  cost(q) = impact * q^2: one number, the textbook form.
+//   PerSize    one learned cost per order size actually traded; unseen sizes
+//              are interpolated. No assumption about the shape of the impact
+//              curve; the dump at the end is fitted as a * rem^2 + b.
+//   Shrunk     per-size costs blended with the quadratic fit by trade count.
 //
 // What it demonstrates (docs/ai/EXPERIMENTS.md, E1): with the right form, a
 // few episodes pin down a handful of numbers and planning does the rest:
-// 99-100% of the optimal gain after 10-20 episodes, against 67% after 40,000
-// for the model-free learner. With a badly wrong form (impact ~ q^3) the
-// quadratic planner exploits its model's errors and loses money (-64%);
-// the per-size model, which assumes less, recovers.
+// 99-100% of the optimal gain after 20-50 episodes, against ~70% after 40,000
+// for the model-free learner. With a badly wrong form (impact ~ q^3, fixed
+// costs) the quadratic planner exploits its model's errors (53-83%); per-size
+// costs recover (100%) but are catastrophic on some seeds with little data;
+// Shrunk is never catastrophic.
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <memory>
@@ -52,6 +57,7 @@ enum class CostModel : std::uint8_t {
 
 struct ModelEstimate {
   double impact = 0, terminal_impact = 0, alpha = 0, rho = 0, signal_sd = 0;
+  double holding = 0;  // per-step cost of holding I' lots: holding * I'^2 (risk penalty)
   std::uint64_t steps = 0;  // transitions the estimate is based on
 };
 
@@ -65,6 +71,7 @@ class ModelBasedExecutionAgent {
     std::uint32_t dp_grid = 61;           // signal grid of the planner (121 = the benchmark's)
     CostModel cost_model = CostModel::Quadratic;
     double shrink_steps = 30;  // Shrunk: pseudo-observations given to the quadratic prior per size
+    bool learn_holding_cost = true;  // estimate the -holding * I'^2 term (needed for risk-averse objectives)
     std::uint64_t seed = 1;
   };
 
@@ -73,7 +80,7 @@ class ModelBasedExecutionAgent {
   // rho, signal_sd and terminal_impact are ignored; they are learned.
   ModelBasedExecutionAgent(const ExecutionParams& structure, Config cfg)
       : structure_(structure), cfg_(cfg), rng_(cfg.seed), env_(structure), gap_(cfg.replan_every),
-        per_w_(structure.lots + 1, 0.0), per_x2_(structure.lots + 1, 0.0), per_y_(structure.lots + 1, 0.0),
+        nparams_(kCost0 + structure.lots), xtx_(std::size_t{nparams_} * nparams_, 0.0), xty_(nparams_, 0.0),
         per_n_(structure.lots + 1, 0) {}
   explicit ModelBasedExecutionAgent(const ExecutionParams& structure) : ModelBasedExecutionAgent(structure, Config{}) {}
 
@@ -102,19 +109,20 @@ class ModelBasedExecutionAgent {
       ++steps_;
       return;
     }
-    // r = impact * (-q^2) + alpha * (I' g) + I' * noise
+    // r = alpha (I' g) + holding (-I'^2) + impact (-q^2) [or c_q (-1)] + I' noise
     const double held = next.inventory;
-    const double x1 = -dq * dq, x2 = held * o.signal;
     const double w = 1.0 / std::max(1.0, held * held);
-    s11_ += w * x1 * x1;
-    s12_ += w * x1 * x2;
-    s22_ += w * x2 * x2;
-    s1y_ += w * x1 * r;
-    s2y_ += w * x2 * r;
+    std::array<std::pair<std::uint32_t, double>, 4> x{};
+    std::size_t nx = 0;
+    x[nx++] = {kAlpha, held * o.signal};
+    x[nx++] = {kHolding, -held * held};
+    x[nx++] = {kImpact, -dq * dq};
+    if (q > 0) x[nx++] = {kCost0 + q - 1, -1.0};
+    for (std::size_t i = 0; i < nx; ++i) {
+      xty_[x[i].first] += w * x[i].second * r;
+      for (std::size_t j = 0; j < nx; ++j) xtx_[std::size_t{x[i].first} * nparams_ + x[j].first] += w * x[i].second * x[j].second;
+    }
     ++per_n_[q];
-    per_w_[q] += w;  // per-size model: r = -c[q] + alpha * x2
-    per_x2_[q] += w * x2;
-    per_y_[q] += w * r;
     if (!done) {  // signal transition g -> g'
       g_gg_ += o.signal * o.signal;
       g_gn_ += o.signal * next.signal;
@@ -149,8 +157,11 @@ class ModelBasedExecutionAgent {
     p.signal_sd = std::max(estimate_.signal_sd, 1e-6);
     p.impact_exponent = 2.0;
     p.fixed_cost = 0.0;
+    // holding_penalty(h) = risk_aversion * noise_sd^2 * h^2 = holding * h^2.
+    p.risk_aversion = std::max(0.0, estimate_.holding);
+    p.noise_sd = 1.0;
     if (cfg_.cost_model != CostModel::Quadratic) {
-      auto [trade, dump] = per_size_costs(p.alpha);
+      auto [trade, dump] = per_size_costs();
       if (cfg_.cost_model == CostModel::Shrunk) {
         // Blend each size's own estimate with the quadratic prediction,
         // weighted by how often that size was traded: unseen sizes fall back
@@ -158,7 +169,7 @@ class ModelBasedExecutionAgent {
         const double k = cfg_.shrink_steps;
         for (std::uint32_t q = 1; q <= structure_.lots; ++q) {
           const double prior = p.impact * q * q, n = static_cast<double>(per_n_[q]);
-          trade[q] = (n * (per_w_[q] > 0 ? trade[q] : prior) + k * prior) / (n + k);
+          trade[q] = (n * (seen(q) ? trade[q] : prior) + k * prior) / (n + k);
         }
         const double n_last = static_cast<double>(last_steps_.size());
         for (std::uint32_t rem = 1; rem <= structure_.lots; ++rem) {
@@ -177,20 +188,21 @@ class ModelBasedExecutionAgent {
   // Learned cost tables (PerSize): c[q] by closed-form least squares with
   // alpha profiled out; unseen sizes linearly interpolated (or extrapolated
   // along the last segment); dump cost fitted as a*rem^2 + b on last steps.
-  [[nodiscard]] std::pair<std::vector<double>, std::vector<double>> per_size_costs(double alpha) const {
+  [[nodiscard]] std::pair<std::vector<double>, std::vector<double>> per_size_costs() const {
     const std::uint32_t L = structure_.lots;
     std::vector<double> c(L + 1, 0.0);
-    std::vector<std::uint32_t> seen;
+    std::vector<std::uint32_t> seen_sizes;
+    const auto theta = solve_costs(/*per_size=*/true);
     for (std::uint32_t q = 1; q <= L; ++q)
-      if (per_w_[q] > 0) {
-        c[q] = (alpha * per_x2_[q] - per_y_[q]) / per_w_[q];
-        seen.push_back(q);
+      if (seen(q)) {
+        c[q] = theta[kCost0 + q - 1];
+        seen_sizes.push_back(q);
       }
     // c[0] = 0 by definition (no trade, no cost); fill the gaps.
     std::vector<std::uint32_t> knots{0};
-    knots.insert(knots.end(), seen.begin(), seen.end());
+    knots.insert(knots.end(), seen_sizes.begin(), seen_sizes.end());
     for (std::uint32_t q = 1; q <= L; ++q) {
-      if (per_w_[q] > 0) continue;
+      if (seen(q)) continue;
       auto hi = std::upper_bound(knots.begin(), knots.end(), q);
       if (hi == knots.end()) {  // beyond the largest seen size: extend the last segment
         const std::uint32_t b = knots.back(), a = knots.size() > 1 ? knots[knots.size() - 2] : 0;
@@ -218,24 +230,17 @@ class ModelBasedExecutionAgent {
     return {std::move(c), std::move(dump)};
   }
 
-  [[nodiscard]] ModelEstimate current_estimate() const noexcept {
+  [[nodiscard]] ModelEstimate current_estimate() const {
     ModelEstimate m;
     m.steps = steps_;
-    const double det = s11_ * s22_ - s12_ * s12_;
-    if (det > 1e-12) {
-      m.impact = (s22_ * s1y_ - s12_ * s2y_) / det;
-      m.alpha = (s11_ * s2y_ - s12_ * s1y_) / det;
-    }
-    if (cfg_.cost_model != CostModel::Quadratic) {
-      // alpha with one free cost per size: alpha = (S2y - sum Sy_q Sx2_q / W_q) / (S22 - sum Sx2_q^2 / W_q),
-      // where q = 0 (no trade, known zero cost) contributes to the S sums only.
-      double num = s2y_, den = s22_;
-      for (std::uint32_t q = 1; q <= structure_.lots; ++q)
-        if (per_w_[q] > 0) {
-          num -= per_y_[q] * per_x2_[q] / per_w_[q];
-          den -= per_x2_[q] * per_x2_[q] / per_w_[q];
-        }
-      if (den > 1e-12) m.alpha = num / den;
+    const auto quad = solve_costs(/*per_size=*/false);
+    m.impact = quad[kImpact];
+    m.alpha = quad[kAlpha];
+    m.holding = quad[kHolding];
+    if (cfg_.cost_model != CostModel::Quadratic) {  // alpha and holding with one free cost per size
+      const auto per = solve_costs(/*per_size=*/true);
+      m.alpha = per[kAlpha];
+      m.holding = per[kHolding];
     }
     if (t_rem4_ > 0) m.terminal_impact = -(t_rem2_r_ + m.impact * t_rem2_q2_) / t_rem4_;
     if (g_gg_ > 0 && g_n_ > 1) {
@@ -248,11 +253,57 @@ class ModelBasedExecutionAgent {
   }
 
   [[nodiscard]] const ModelEstimate& model() const noexcept { return estimate_; }
+  [[nodiscard]] bool seen(std::uint32_t q) const noexcept { return q > 0 && q < per_n_.size() && per_n_[q] > 0; }
   [[nodiscard]] bool has_plan() const noexcept { return plan_ != nullptr; }
   [[nodiscard]] std::uint64_t episodes() const noexcept { return episodes_; }
   [[nodiscard]] std::uint32_t replans() const noexcept { return replans_; }
 
  private:
+  // Parameter layout of the normal equations.
+  static constexpr std::uint32_t kAlpha = 0, kHolding = 1, kImpact = 2, kCost0 = 3;  // kCost0 + q - 1: cost of q lots
+
+  // Weighted least squares over the chosen parameters: alpha, holding (if
+  // learned) and either impact (quadratic) or one cost per seen size.
+  // Returns a full-length parameter vector; unused entries are 0.
+  [[nodiscard]] std::vector<double> solve_costs(bool per_size) const {
+    std::vector<std::uint32_t> idx{kAlpha};
+    if (cfg_.learn_holding_cost) idx.push_back(kHolding);
+    if (per_size) {
+      for (std::uint32_t q = 1; q <= structure_.lots; ++q)
+        if (seen(q)) idx.push_back(kCost0 + q - 1);
+    } else {
+      idx.push_back(kImpact);
+    }
+    const std::size_t n = idx.size();
+    std::vector<double> a(n * (n + 1));  // augmented [X'WX | X'Wy]
+    for (std::size_t i = 0; i < n; ++i) {
+      for (std::size_t j = 0; j < n; ++j) a[i * (n + 1) + j] = xtx_[std::size_t{idx[i]} * nparams_ + idx[j]];
+      a[i * (n + 1) + n] = xty_[idx[i]];
+      a[i * (n + 1) + i] += 1e-9 * (1.0 + a[i * (n + 1) + i]);  // tiny ridge: well-defined before data arrives
+    }
+    // Gaussian elimination with partial pivoting.
+    for (std::size_t c = 0; c < n; ++c) {
+      std::size_t piv = c;
+      for (std::size_t r = c + 1; r < n; ++r)
+        if (std::abs(a[r * (n + 1) + c]) > std::abs(a[piv * (n + 1) + c])) piv = r;
+      if (std::abs(a[piv * (n + 1) + c]) < 1e-15) continue;
+      if (piv != c)
+        for (std::size_t k = 0; k <= n; ++k) std::swap(a[c * (n + 1) + k], a[piv * (n + 1) + k]);
+      for (std::size_t r = 0; r < n; ++r) {
+        if (r == c) continue;
+        const double f = a[r * (n + 1) + c] / a[c * (n + 1) + c];
+        if (f != 0)
+          for (std::size_t k = c; k <= n; ++k) a[r * (n + 1) + k] -= f * a[c * (n + 1) + k];
+      }
+    }
+    std::vector<double> theta(nparams_, 0.0);
+    for (std::size_t i = 0; i < n; ++i) {
+      const double d = a[i * (n + 1) + i];
+      theta[idx[i]] = std::abs(d) < 1e-15 ? 0.0 : a[i * (n + 1) + n] / d;
+    }
+    return theta;
+  }
+
   ExecutionParams structure_;
   Config cfg_;
   Rng rng_;
@@ -261,13 +312,12 @@ class ModelBasedExecutionAgent {
   ModelEstimate estimate_{};
   std::uint64_t episodes_ = 0, last_plan_ = 0, steps_ = 0;
   std::uint32_t gap_, replans_ = 0, sold_ = 0;
-  // Weighted least squares sufficient statistics for (impact, alpha).
-  double s11_ = 0, s12_ = 0, s22_ = 0, s1y_ = 0, s2y_ = 0;
+  // Weighted least squares sufficient statistics: X'WX (nparams x nparams) and X'Wy.
+  std::uint32_t nparams_;
+  std::vector<double> xtx_, xty_;
   // Terminal dump: sum rem^4, rem^2 r, rem^2 q^2.
   double t_rem4_ = 0, t_rem2_r_ = 0, t_rem2_q2_ = 0;
-  // Per-size model: weighted sums per lot count q of w, w*x2, w*r.
-  std::vector<double> per_w_, per_x2_, per_y_;
-  std::vector<std::uint64_t> per_n_;  // steps observed per size
+  std::vector<std::uint64_t> per_n_;  // non-terminal steps observed per size
   struct LastStep {
     std::uint32_t q, rem;
     double r;

@@ -10,6 +10,7 @@
 
 #include "rag.hpp"
 #include "rag/agent/execution_dp.hpp"
+#include "rag/agent/model_based.hpp"
 #include "rag/agent/trainer.hpp"
 #include "rag/text_clean.hpp"
 
@@ -112,4 +113,41 @@ TEST(ApiExamples, TrainAnAgent) {
   const EvalStats best = compare(env, [&](const ExecutionObs& o) { return dp.act(o); }, twap, 500, 1);
   EXPECT_GT(best.mean, mine.mean - 1.0);  // the DP is (nearly) unbeatable
   EXPECT_FALSE(report.evals.empty());
+}
+
+// docs/ai/API.md section 7.
+TEST(ApiExamples, DeploySafelyWithABaselineGuard) {
+  using namespace rag::agent;
+  ExecutionEnv env{ExecutionParams{}};
+  AgentConfig<3> cfg;
+  cfg.eps_decay_episodes = 2000;
+  Agent<ExecutionEnv> agent(env, cfg);
+  auto twap = [](const ExecutionObs&) { return ExecutionEnv::kTwapAction; };
+  Trainer<ExecutionEnv> guarded(agent, env, {.eval_every = 500, .eval_episodes = 300});
+  guarded.set_baseline(twap);
+  EXPECT_FALSE(guarded.learned_policy_deployed());  // nothing has beaten the baseline yet
+  EXPECT_EQ(guarded.deployed_act(ExecutionObs{.t = 0, .inventory = 100, .signal = 0.05}), ExecutionEnv::kTwapAction);
+  guarded.run(4000);
+  const bool learned = guarded.learned_policy_deployed();
+  const Action b = guarded.deployed_act(ExecutionObs{.t = 0, .inventory = 100, .signal = 0.05});
+  EXPECT_LT(b, ExecutionEnv::kNumActions);
+  if (!learned) {
+    EXPECT_EQ(b, ExecutionEnv::kTwapAction);
+  }
+}
+
+// docs/ai/API.md section 8.
+TEST(ApiExamples, ModelBasedAgent) {
+  using namespace rag::agent;
+  ExecutionEnv env{ExecutionParams{}};
+  ExecutionParams structure;
+  ModelBasedExecutionAgent mb(structure, {.cost_model = CostModel::Shrunk, .seed = 1});
+  Rng rng(42);
+  train_model_based(mb, env, /*episodes=*/50, rng);
+  mb.replan();
+  const ModelEstimate est = mb.current_estimate();
+  EXPECT_NEAR(est.alpha, 1.0, 0.2);
+  EXPECT_NEAR(est.impact, 0.01, 0.003);
+  const Action c = mb.act(ExecutionObs{.t = 5, .inventory = 60, .signal = -0.1}, /*explore=*/false);
+  EXPECT_LT(c, ExecutionEnv::kNumActions);
 }

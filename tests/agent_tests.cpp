@@ -725,3 +725,90 @@ TEST(AgentPolicyBank, NoRecallWhenNothingBankedFitsTheNewWorld) {
   EXPECT_EQ(tr.bank_size(), 1u);
   EXPECT_GT(agent.epsilon(), 0.1);  // re-exploring, not exploiting a recalled policy
 }
+
+// ================= Experiment E5 (actor-critic learner) ======================
+TEST(AgentActorCritic, LearnsTheCorridor) {
+  ChainEnv env({.length = 8, .max_steps = 40});
+  AgentConfig<1> cfg;
+  cfg.learner = LearnerKind::ActorCritic;
+  cfg.bins = {14};
+  cfg.actor_alpha = 0.2;  // a tiny task: larger steps
+  cfg.ac_decay_episodes = 2000;
+  Agent<ChainEnv> agent(env, cfg);
+  Trainer<ChainEnv> tr(agent, env, {.eval_every = 0, .detect_drift = false});
+  tr.run(800);
+  EXPECT_EQ(evaluate(env, [&](const auto& o) { return agent.act(o, false); }, 1, 1).mean, -7.0);
+}
+
+TEST(AgentActorCritic, BeatsQLearningAtEqualBudget) {
+  // Measured at 10k episodes, seeds 1-3: actor-critic 75-78%, TileQ (n = 3)
+  // 47-50%. At 40k: 80-86% vs 69-70%; at 200k: 86-89% vs 75-79%.
+  ExecutionEnv env{ExecutionParams{}};
+  auto train = [&](LearnerKind kind) {
+    AgentConfig<3> cfg;
+    cfg.learner = kind;
+    cfg.eps_decay_episodes = 5000;
+    ExecutionEnv e = env;
+    auto agent = std::make_unique<Agent<ExecutionEnv>>(e, cfg);
+    Trainer<ExecutionEnv> tr(*agent, e, {.eval_every = 0, .detect_drift = false});
+    tr.run(10000);
+    return captured(env, default_dp(), [&](const ExecutionObs& o) { return agent->act(o, false); });
+  };
+  const double ac = train(LearnerKind::ActorCritic), q = train(LearnerKind::TileQ);
+  EXPECT_GT(ac, 0.65) << "actor-critic " << ac;
+  EXPECT_GT(ac, q + 0.1) << "actor-critic " << ac << " vs TileQ " << q;
+}
+
+TEST(AgentActorCritic, PolicyActingIsAllocationFreeAndSnapshotsIncludeTheCritic) {
+  ExecutionEnv env{ExecutionParams{}};
+  AgentConfig<3> cfg;
+  cfg.learner = LearnerKind::ActorCritic;
+  Agent<ExecutionEnv> agent(env, cfg);
+  Trainer<ExecutionEnv> tr(agent, env, {.eval_every = 0, .detect_drift = false});
+  tr.run(300);
+  const ExecutionObs o{4, 70, -0.08};
+  begin_alloc_count();
+  Action sink = 0;
+  for (int i = 0; i < 1000; ++i) sink ^= agent.act(o, i % 2 == 0);
+  EXPECT_EQ(end_alloc_count(), 0u);
+  (void)sink;
+  // Sampling covers more than one action while exploring; greedy is deterministic.
+  std::set<Action> sampled;
+  for (int i = 0; i < 200; ++i) sampled.insert(agent.act(o, true));
+  EXPECT_GT(sampled.size(), 1u);
+  EXPECT_EQ(agent.act(o, false), agent.act(o, false));
+  // The critic is part of the learned state: restoring a snapshot restores value().
+  const auto snap = agent.snapshot();
+  const double v = agent.value(o);
+  tr.run(300);
+  agent.restore(snap);
+  EXPECT_EQ(agent.value(o), v);
+  EXPECT_EQ(agent.act_as(snap, o), agent.act(o, false));
+}
+
+// ============ Experiment E6 (robustness: never deploy below baseline) =========
+TEST(AgentSafety, NeverDeploysAPolicyWorseThanTheBaseline) {
+  // Weak-signal market (alpha 0.25): there is little to gain and the
+  // Q-learner overfits noise. Measured: its champion scored -35% of the
+  // optimal gain, i.e. worse than TWAP. With TWAP as baseline, the deployed
+  // policy must not be significantly worse than TWAP.
+  ExecutionParams p;
+  p.alpha = 0.25;
+  ExecutionEnv env(p);
+  AgentConfig<3> cfg;
+  cfg.eps_decay_episodes = 10000;
+  Agent<ExecutionEnv> agent(env, cfg);
+  Trainer<ExecutionEnv> tr(agent, env, {.eval_every = 2500, .eval_episodes = 600, .detect_drift = false});
+  tr.set_baseline(twap);
+  tr.run(20000);
+  const auto deployed = compare(env, [&](const ExecutionObs& o) { return tr.deployed_act(o); }, twap, 1500, 61'000'000);
+  EXPECT_GT(deployed.mean, -2.0 * deployed.std_error - 1e-9) << "deployed is worse than the baseline: " << deployed.mean;
+  // In the default market the learned policy does beat TWAP and gets deployed.
+  ExecutionEnv good{ExecutionParams{}};
+  Agent<ExecutionEnv> agent2(good, execution_config());
+  Trainer<ExecutionEnv> tr2(agent2, good, {.eval_every = 2500, .eval_episodes = 600, .detect_drift = false});
+  tr2.set_baseline(twap);
+  tr2.run(20000);
+  EXPECT_TRUE(tr2.learned_policy_deployed());
+  EXPECT_GT(compare(good, [&](const ExecutionObs& o) { return tr2.deployed_act(o); }, twap, 1000, 61'000'000).mean, 3.0);
+}

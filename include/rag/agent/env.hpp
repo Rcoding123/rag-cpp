@@ -119,6 +119,12 @@ struct ExecutionParams {
   // don't follow it.
   double impact_exponent = 2.0;   // e.g. 1.5: "square-root" style impact per lot
   double fixed_cost = 0.0;        // charged for every step that sells anything (fees, spread)
+  // Risk aversion (Almgren-Chriss style mean-variance execution): every step
+  // the agent holds I' lots through a price move, its reward is reduced by
+  // risk_aversion * noise_sd^2 * I'^2, the variance that holding adds to the
+  // final cash. 0 = risk-neutral. The penalty is part of the reward only;
+  // cash and price accounting are unchanged.
+  double risk_aversion = 0.0;
   double alpha = 1.0;             // E[next price move] = alpha * signal
   double signal_rho = 0.7;        // signal persistence per step
   double signal_sd = 0.1;         // stationary standard deviation of the signal
@@ -168,6 +174,11 @@ class ExecutionEnv {
     const double impact = p_.impact_exponent == 2.0 ? dq * dq : std::pow(dq, p_.impact_exponent);
     return p_.impact * impact + p_.fixed_cost;
   }
+  // Risk penalty for holding `held` lots through one price move.
+  [[nodiscard]] double holding_penalty(std::uint32_t held) const noexcept {
+    const double h = static_cast<double>(held);
+    return p_.risk_aversion * p_.noise_sd * p_.noise_sd * h * h;
+  }
   [[nodiscard]] double dump_cost(std::uint32_t rem) const noexcept {
     if (rem == 0) return 0.0;
     const double dr = static_cast<double>(rem);
@@ -191,7 +202,7 @@ class ExecutionEnv {
     // The price moves while the remaining inventory is held.
     const double move = p_.alpha * signal_ + p_.noise_sd * rng.normal();
     price_ += move;
-    reward += static_cast<double>(inventory_) * move;
+    reward += static_cast<double>(inventory_) * move - holding_penalty(inventory_);
     signal_ = p_.signal_rho * signal_ + std::sqrt(1.0 - p_.signal_rho * p_.signal_rho) * p_.signal_sd * rng.normal();
     // Once flat, every later reward is exactly 0, so ending early changes nothing.
     return {obs(), reward, inventory_ == 0};

@@ -34,6 +34,12 @@ namespace rag::agent {
 enum class LearnerKind : std::uint8_t {
   TileQ,     // parametric: tile coding + Q-learning + experience replay
   Episodic,  // instance-based: k-NN over remembered situations (episodic control)
+  // Policy gradient: a softmax policy over tile-coded logits (the actor) and a
+  // tile-coded state value (the critic); the critic's TD error is the
+  // actor's advantage. On-policy: exploration comes from sampling the policy
+  // (epsilon only applies during reexplore()), no replay. Measured best
+  // model-free learner on ExecutionEnv (EXPERIMENTS.md E5).
+  ActorCritic,
 };
 
 template <std::size_t Dims>
@@ -70,6 +76,16 @@ struct AgentConfig {
   // targets toward the behaviour policy.)
   std::uint32_t n_step = 3;  // measured best of 1,2,3,5,10,20 (EXPERIMENTS.md E2)
 
+  // Actor-critic learner (annealed by the same schedule as alpha).
+  double actor_alpha = 0.03;
+  double critic_alpha = 0.1;
+  double temperature = 1.0;  // softmax temperature of the policy
+  // Actor-critic step sizes decay as 1 / (1 + episodes / ac_decay_episodes)
+  // (floor alpha_min / alpha). Measured: 3,000 (the TileQ default) shrinks the
+  // actor's steps before the policy forms (-235% to 7% at 10k episodes on
+  // some seeds); 10,000 gives 75-78% at 10k and 80-86% at 40k.
+  std::uint32_t ac_decay_episodes = 10000;
+
   // Episodic learner.
   EpisodicParams memory{};
   std::array<double, Dims> kernel_width{};  // similarity length scale per dimension; 0 => 10% of the range
@@ -93,11 +109,13 @@ class Agent {
         embed_(cfg_.kernel_width, cfg_.seed ^ 0xE5BEDull),
         q_(coder_.size(), cfg_.tilings, static_cast<std::uint32_t>(A), cfg_.alpha, cfg_.init_q),
         q2_(cfg_.double_q ? q_ : TileQ{}),
+        critic_(cfg_.learner == LearnerKind::ActorCritic ? TileQ(coder_.size(), cfg_.tilings, 1, cfg_.critic_alpha) : TileQ{}),
         replay_(cfg_.learner == LearnerKind::TileQ ? cfg_.replay_capacity : 0),
         mem_(cfg_.memory),
         rng_(cfg_.seed) {
     episode_.reserve(1024);
     pending_.reserve(cfg_.n_step + 1);
+    apply_step_sizes();  // actor-critic step sizes from the first episode on
   }
 
   // ------------------------------------------------------------- decide
@@ -105,6 +123,7 @@ class Agent {
   // explore = false: purely greedy, deterministic (evaluation / deployment).
   // Allocation-free.
   Action act(const Obs& o, bool explore) noexcept {
+    if (cfg_.learner == LearnerKind::ActorCritic) return act_policy(o, explore);
     if (explore && rng_.uniform() < epsilon()) return rng_.below(static_cast<std::uint32_t>(A));
     std::array<double, A> q;
     std::array<bool, A> known;
@@ -128,8 +147,13 @@ class Agent {
     estimate(o, out, known.data());
   }
 
-  // Predicted return from o under the greedy policy.
+  // Predicted return from o under the greedy policy (the critic, for ActorCritic).
   [[nodiscard]] double value(const Obs& o) const noexcept {
+    if (cfg_.learner == LearnerKind::ActorCritic) {
+      std::array<std::uint32_t, kMaxTilings> idx;
+      coder_.encode(env_.features(o), idx.data());
+      return critic_.q(idx.data(), 0);
+    }
     std::array<double, A> q;
     std::array<bool, A> known;
     estimate(o, q.data(), known.data());
@@ -143,6 +167,20 @@ class Agent {
   // -------------------------------------------------------------- learn
   // Called after every real step.
   void observe(const Obs& o, Action a, double r, const Obs& next, bool done) {
+    if (cfg_.learner == LearnerKind::ActorCritic) {
+      std::array<std::uint32_t, kMaxTilings> s, s2;
+      coder_.encode(env_.features(o), s.data());
+      coder_.encode(env_.features(next), s2.data());
+      const double target = r + (done ? 0.0 : cfg_.gamma * critic_.q(s2.data(), 0));
+      const double delta = target - critic_.q(s.data(), 0);  // TD error = advantage estimate
+      critic_.update(s.data(), 0, target);
+      std::array<double, A> pi;
+      policy(s.data(), q_, pi.data());
+      // grad log pi(a|s) wrt the logit of b = (1[b == a] - pi(b)) / temperature
+      for (Action b = 0; b < A; ++b)
+        q_.update(s.data(), b, q_.q(s.data(), b) + delta * ((b == a ? 1.0 : 0.0) - pi[b]) / cfg_.temperature);
+      return;
+    }
     if (cfg_.learner == LearnerKind::Episodic) {
       episode_.push_back({env_.features(o), a, r});
       return;
@@ -186,8 +224,7 @@ class Agent {
     ++episodes_;
     ++plastic_episodes_;
     if (boost_left_ > 0) --boost_left_;
-    q_.set_alpha(step_size());
-    if (cfg_.double_q) q2_.set_alpha(step_size());
+    apply_step_sizes();
   }
 
   // Current TD step size: annealed, and raised during re-exploration so the
@@ -213,18 +250,18 @@ class Agent {
     boost_eps_ = eps;
     boost_total_ = boost_left_ = std::max(1u, episodes);
     plastic_episodes_ = 0;
-    q_.set_alpha(step_size());
-    if (cfg_.double_q) q2_.set_alpha(step_size());
+    apply_step_sizes();
   }
 
   // ---------------------------------------------------------- snapshots
   // The learned state only (no replay buffer, no RNG): what a champion
   // policy needs. Restoring one makes the agent act exactly like it.
   struct Snapshot {
-    TileQ q, q2;
+    TileQ q, q2;  // q: Q-values, or the actor's logits for ActorCritic
     Memory mem;
+    TileQ critic;
   };
-  [[nodiscard]] Snapshot snapshot() const { return {q_, q2_, mem_}; }
+  [[nodiscard]] Snapshot snapshot() const { return {q_, q2_, mem_, critic_}; }
 
   // Act greedily as the snapshot would, without touching the learner: the
   // deployed (champion) policy and the still-learning one coexist.
@@ -241,6 +278,7 @@ class Agent {
     q_ = s.q;
     q2_ = s.q2;
     mem_ = s.mem;
+    critic_ = s.critic;
   }
 
   // Drop replayed experience. After the world changes, old transitions
@@ -265,6 +303,43 @@ class Agent {
     Action action;
     double reward;
   };
+
+  // Softmax policy of the logits in `actor` at tiles idx (numerically stable).
+  void policy(const std::uint32_t* idx, const TileQ& actor, double* pi) const noexcept {
+    std::array<double, A> h;
+    actor.q_values(idx, h.data());
+    const double m = *std::max_element(h.begin(), h.end());
+    double z = 0;
+    for (std::size_t a = 0; a < A; ++a) z += (pi[a] = std::exp((h[a] - m) / cfg_.temperature));
+    for (std::size_t a = 0; a < A; ++a) pi[a] /= z;
+  }
+
+  // ActorCritic acting: sample the policy while exploring, its mode otherwise.
+  Action act_policy(const Obs& o, bool explore) noexcept {
+    std::array<std::uint32_t, kMaxTilings> idx;
+    coder_.encode(env_.features(o), idx.data());
+    std::array<double, A> pi;
+    policy(idx.data(), q_, pi.data());
+    if (!explore) return static_cast<Action>(std::max_element(pi.begin(), pi.end()) - pi.begin());
+    if (boost_left_ > 0 && rng_.uniform() < epsilon()) return rng_.below(static_cast<std::uint32_t>(A));
+    double u = rng_.uniform();
+    for (Action a = 0; a + 1 < A; ++a)
+      if ((u -= pi[a]) <= 0) return a;
+    return static_cast<Action>(A - 1);
+  }
+
+  void apply_step_sizes() noexcept {
+    const double a = step_size();
+    if (cfg_.learner == LearnerKind::ActorCritic) {
+      const double f = std::max(cfg_.alpha_min / cfg_.alpha,
+                                1.0 / (1.0 + static_cast<double>(plastic_episodes_) / std::max(1u, cfg_.ac_decay_episodes)));
+      q_.set_alpha(cfg_.actor_alpha * f);
+      critic_.set_alpha(cfg_.critic_alpha * f);
+      return;
+    }
+    q_.set_alpha(a);
+    if (cfg_.double_q) q2_.set_alpha(a);
+  }
 
   void learn_from(const Transition& t) {
     td_update(t);
@@ -306,7 +381,7 @@ class Agent {
 
   void estimate_with(const TileQ& q1, const TileQ& q2, const Memory& mem, const Obs& o, double* out,
                      bool* known) const noexcept {
-    if (cfg_.learner == LearnerKind::TileQ) {
+    if (cfg_.learner != LearnerKind::Episodic) {  // TileQ values, or ActorCritic logits
       std::array<std::uint32_t, kMaxTilings> idx;
       coder_.encode(env_.features(o), idx.data());
       q1.q_values(idx.data(), out);
@@ -349,7 +424,8 @@ class Agent {
   Config cfg_;
   TileCoder<Dims> coder_;
   RandomFourierEncoder<Dims, kEmbed> embed_;
-  TileQ q_, q2_;  // q2_ is used only with double_q
+  TileQ q_, q2_;  // q2_ is used only with double_q; q_ holds the actor's logits for ActorCritic
+  TileQ critic_;  // ActorCritic only
   ReplayBuffer replay_;
   Memory mem_;
   std::vector<EpisodeStep> episode_;

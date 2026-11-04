@@ -73,7 +73,7 @@ class ExecutionDP {
     double r = -trade_cost_[q];
     if (t + 1 >= p_.horizon) return r - dump_cost_[rem];
     if (rem == 0) return r;  // flat: the episode ends
-    r += dr * p_.alpha * g;
+    r += dr * p_.alpha * g - env_.holding_penalty(rem);
     double future = 0;
     for (int i = 0; i < kQuad; ++i) future += weights_[i] * value(t + 1, rem, p_.signal_rho * g + innov_ * nodes_[i]);
     return r + future;

@@ -130,7 +130,7 @@ EvalStats best = compare(env, [&](const ExecutionObs& o) { return dp.act(o); }, 
 
 | Field | Default | Meaning |
 |---|---|---|
-| `learner` | `TileQ` | or `Episodic` |
+| `learner` | `TileQ` | or `Episodic`, `ActorCritic` |
 | `eps_start`, `eps_end`, `eps_decay_episodes` | 1.0, 0.02, 1500 | exploration schedule |
 | `bins` | 0 = 8 per dimension | tile grid |
 | `tilings` | 8 | number of offset grids |
@@ -140,6 +140,8 @@ EvalStats best = compare(env, [&](const ExecutionObs& o) { return dp.act(o); }, 
 | `double_q` | false | double Q-learning |
 | `replay_capacity`, `replay_per_step` | 100,000, 4 | experience replay |
 | `n_step` | 3 | n-step returns (1 = Q-learning, ≥ horizon = Monte Carlo) |
+| `actor_alpha`, `critic_alpha`, `temperature` | 0.03, 0.1, 1.0 | `ActorCritic` step sizes and softmax temperature |
+| `ac_decay_episodes` | 10,000 | `ActorCritic` annealing half-life (3,000 is too fast, E5) |
 | `memory` | | `EpisodicParams` |
 | `kernel_width` | 0 = 10% of each range | episodic similarity scale |
 | `seed` | 1 | RNG seed |
@@ -158,6 +160,49 @@ EvalStats best = compare(env, [&](const ExecutionObs& o) { return dp.act(o); }, 
 | `forget_on_drift` | true | clear replay on drift |
 | `policy_bank`, `bank_capacity` | true, 8 | bank past champions; recall one that fits a returning regime |
 | `recall_epsilon`, `recall_episodes` | 0.05, 500 | light exploration after a recall |
+
+`ExecutionParams` (the market) fields that change what is optimal:
+
+| Field | Default | Meaning |
+|---|---|---|
+| `lots`, `horizon` | 100, 20 | inventory to sell, steps to sell it in |
+| `impact`, `impact_exponent`, `fixed_cost` | 0.01, 2.0, 0 | cost of selling q lots in a step: impact·q^exponent + fixed (if q > 0) |
+| `terminal_impact` | 0.05 | leftover inventory is dumped at terminal_impact·rem² (+ fixed) |
+| `risk_aversion` | 0 | λ: reward −= λ·noise_sd²·I² per step (mean-variance; E4) |
+| `alpha`, `signal_rho`, `signal_sd`, `noise_sd` | 1, 0.7, 0.1, 0.05 | price move = alpha·signal + noise; signal is AR(1) |
+| `sizes` | {0, 0.5, 1, 2, 3} | action k sells sizes[k] × the TWAP rate |
+
+`ExecutionDP{params}` is exact for every combination above;
+`ExecutionDP{params, trade_costs, dump_costs}` takes arbitrary cost tables.
+
+## 7. Deploy safely: a baseline guard
+
+```cpp
+Trainer<ExecutionEnv> guarded(agent, env, {.eval_every = 500, .eval_episodes = 300});
+guarded.set_baseline(twap);              // deploy TWAP until the champion beats it by 2 standard errors
+guarded.run(4000);
+const bool learned = guarded.learned_policy_deployed();   // false = the baseline is live
+const Action b = guarded.deployed_act(ExecutionObs{.t = 0, .inventory = 100, .signal = 0.05});
+```
+
+## 8. Model-based agent (learn the market, then plan)
+
+```cpp
+#include "rag/agent/model_based.hpp"
+ExecutionParams structure;               // only lots, horizon and sizes are read; the rest is learned
+ModelBasedExecutionAgent mb(structure, {.cost_model = CostModel::Shrunk, .seed = 1});
+Rng rng(42);
+train_model_based(mb, env, /*episodes=*/50, rng);   // act, observe, end_episode, replan on a schedule
+mb.replan();
+const ModelEstimate est = mb.current_estimate();      // impact, terminal_impact, alpha, rho, signal_sd, holding
+const Action c = mb.act(ExecutionObs{.t = 5, .inventory = 60, .signal = -0.1}, /*explore=*/false);
+```
+
+`ModelBasedExecutionAgent::Config` fields, in order: `explore_episodes` 10,
+`eps` 0.05, `replan_every` 20, `replan_max_gap` 500, `dp_grid` 61,
+`cost_model` (`Quadratic`, `PerSize`, or `Shrunk`), `shrink_steps` 30,
+`learn_holding_cost` true, `seed` 1. Use `Shrunk` when the cost curve's
+shape is unknown (E1c).
 
 A new environment only needs to satisfy the `Environment` concept: an
 `Observation` type, `kNumActions`, `kStateDims`, `kLo`/`kHi`, and

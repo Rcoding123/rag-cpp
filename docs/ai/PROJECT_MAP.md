@@ -37,18 +37,21 @@ rag-cpp/
 │       ├── pdf.hpp              (optional, Poppler) PDF extraction + ingest_pdf()
 │       └── agent/
 │           ├── rng.hpp          xoshiro256** + splitmix seeding, Marsaglia normals
-│           ├── env.hpp          Environment concept, ChainEnv, ExecutionEnv
-│           ├── execution_dp.hpp exact optimal policy for ExecutionEnv (backward induction)
+│           ├── env.hpp          Environment concept, ChainEnv, ExecutionEnv (costs, risk aversion)
+│           ├── execution_dp.hpp exact optimal policy for ExecutionEnv (backward induction, cost tables)
 │           ├── features.hpp     TileCoder, RandomFourierEncoder
 │           ├── learners.hpp     TileQ, ReplayBuffer, EpisodicMemory
-│           ├── agent.hpp        Agent<Env>: act / observe / end_episode / schedules / snapshots
-│           └── trainer.hpp      evaluate, compare, DriftDetector (CUSUM), Trainer
+│           ├── agent.hpp        Agent<Env>: TileQ / Episodic / ActorCritic, n-step, schedules, snapshots
+│           ├── model_based.hpp  ModelBasedExecutionAgent: regression on the market + DP planning
+│           └── trainer.hpp      evaluate, compare, DriftDetector (CUSUM), Trainer (champion, bank, baseline guard)
 ├── tests/
 │   ├── rag_tests.cpp            engine unit/integration tests; global operator-new counter
 │   ├── forgery_tests.cpp        every loader check, against files with valid checksums
 │   ├── reference_tests.cpp      differential tests vs a naive spec-level reference
 │   ├── text_clean_tests.cpp     PDF text cleanup + paged ingest
 │   ├── agent_tests.cpp          agent: components through learning outcomes
+│   ├── model_based_tests.cpp    generalized costs, model-based agent, risk aversion
+│   ├── api_examples_tests.cpp   compiles and runs every snippet in docs/ai/API.md
 │   ├── pdf_tests.cpp            (Poppler) PDF extraction on generated PDFs
 │   ├── pdf_writer.hpp           minimal PDF writer for fixtures
 │   ├── stress.cpp               rag_stress: concurrent writer/readers with exact invariants
@@ -76,7 +79,7 @@ L1  arena  tokenizer  simd  topk  io  text_clean
 L2  chunker  embedder  vector_store  bm25  fusion  prompt  epoch  features
 L3  ivf_index                    learners      env
 L4  engine                       execution_dp  agent
-L5  pdf (Poppler)                trainer
+L5  pdf (Poppler)                trainer       model_based
 ```
 
 The agent reuses the engine's SIMD kernels (`simd.hpp`), top-K selection
@@ -87,7 +90,7 @@ The agent reuses the engine's SIMD kernels (`simd.hpp`), top-K selection
 
 | Target | What | Needs |
 |---|---|---|
-| `rag_tests` | main test binary (rag, forgery, reference, text_clean, agent) | GoogleTest |
+| `rag_tests` | main test binary (rag, forgery, reference, text_clean, agent, model_based, api_examples) | GoogleTest |
 | `rag_pdf_tests` | PDF tests | GoogleTest, poppler-cpp |
 | `rag_stress` | concurrency stress test (also registered with ctest, 2 s per mode) | threads |
 | `rag_bench` | microbenchmarks | Google Benchmark |

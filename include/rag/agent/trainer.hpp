@@ -197,6 +197,7 @@ struct EvalPoint {
   double champion;    // best policy so far, re-scored on the same scenarios
   bool promoted;
   double epsilon;
+  bool learned_deployed = true;  // false while a baseline (set_baseline) beats the champion
 };
 
 struct TrainReport {
@@ -246,10 +247,12 @@ class Trainer {
           rep.drift_alarms.push_back(agent_.episodes());
           if (cfg_.forget_on_drift) agent_.forget_experience();
           if (recall_from_bank()) {
+            check_baseline();
             rep.bank_recalls.push_back(agent_.episodes());
             agent_.reexplore(cfg_.recall_epsilon, cfg_.recall_episodes);
           } else {
             agent_.reexplore(cfg_.reexplore_epsilon, cfg_.reexplore_episodes);
+            check_baseline();  // the old champion just failed: fall back to the baseline if it's better
           }
         } else {
           rep.drift_rejected.push_back(agent_.episodes());
@@ -265,10 +268,24 @@ class Trainer {
   }
 
   // The policy to use in production: the champion, or the learner itself
-  // when no evaluation has happened yet (or keep_champion is off).
+  // when no evaluation has happened yet (or keep_champion is off). With a
+  // baseline set, the baseline until a learned policy has beaten it.
   [[nodiscard]] Action deployed_act(const typename Env::Observation& o) const noexcept {
+    if (baseline_ && !learned_beats_baseline_) return baseline_(o);
     return (cfg_.keep_champion && champion_) ? agent_.act_as(*champion_, o) : agent_.act(o, false);
   }
+
+  // A safe fallback policy (e.g. TWAP). The learned champion is deployed only
+  // once it beats the baseline on the held-out scenarios by more than 2
+  // standard errors of the paired difference; it's re-checked at every
+  // champion evaluation and after every confirmed drift. Measured: in a
+  // weak-signal market a Q-learner's champion was 35% *worse* than TWAP;
+  // with this guard the deployed policy stays at TWAP until learning pays.
+  void set_baseline(std::function<Action(const typename Env::Observation&)> baseline) {
+    baseline_ = std::move(baseline);
+    learned_beats_baseline_ = false;
+  }
+  [[nodiscard]] bool learned_policy_deployed() const noexcept { return !baseline_ || learned_beats_baseline_; }
   [[nodiscard]] double deployed_score() {
     return evaluate(env_, [&](const auto& o) { return deployed_act(o); }, cfg_.eval_episodes, cfg_.eval_seed).mean;
   }
@@ -324,7 +341,25 @@ class Trainer {
     return dropped;
   }
 
+  // Paired held-out comparison of the champion with the baseline.
+  void check_baseline() {
+    if (!baseline_ || !champion_) return;
+    const auto mine = agent_.snapshot();
+    agent_.restore(*champion_);
+    const EvalStats d = compare(env_, [&](const auto& o) { return agent_.act(o, false); }, baseline_, cfg_.eval_episodes,
+                                cfg_.eval_seed);
+    agent_.restore(mine);
+    learned_beats_baseline_ = d.mean > 2.0 * d.std_error;
+  }
+
   EvalPoint check_champion() {
+    EvalPoint p = check_champion_inner();
+    check_baseline();
+    p.learned_deployed = learned_policy_deployed();
+    return p;
+  }
+
+  EvalPoint check_champion_inner() {
     const EvalStats challenger = score_current_stats();
     EvalPoint p{agent_.episodes(), challenger.mean, 0.0, false, agent_.epsilon()};
     if (!champion_) {
@@ -353,6 +388,8 @@ class Trainer {
   std::optional<typename Agent<Env>::Snapshot> champion_;
   EvalStats champion_stats_{};
   std::vector<typename Agent<Env>::Snapshot> bank_;  // champions of past regimes
+  std::function<Action(const typename Env::Observation&)> baseline_;
+  bool learned_beats_baseline_ = false;
   double last_surprise_ = 0;
 };
 

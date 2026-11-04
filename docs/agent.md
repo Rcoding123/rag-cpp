@@ -99,6 +99,13 @@ use *common random numbers*. Every policy faces the same scenarios
 (`Rng(seed + i)`), and paired differences cancel the shared noise (see
 `compare()` in `trainer.hpp`).
 
+**Risk aversion.** With `ExecutionParams::risk_aversion` λ > 0, each step's
+reward also subtracts λ·σ²·I², the price variance the held inventory adds.
+The DP stays exact for this mean-variance objective, and it shows the classic
+trade-off: as λ goes from 0 to 1, the optimum sells 26 → 73 lots in its
+first 5 steps, the sd of its cash falls 59 → 28, and its mean falls
++9.3 → −8.4 (E4).
+
 ## 4. Encoders: deciding what "similar" means
 
 Learning generalizes only through the encoder. Two are provided:
@@ -154,6 +161,12 @@ learn if the world changes.
 * **Model-based alternative:** an agent that learns the market's 5
   parameters and plans with the DP reaches 99–100% in 20–50 episodes
   (`model_based.hpp`, E1), as long as its assumed model form is right.
+* **Actor-critic (`LearnerKind::ActorCritic`) is the best model-free
+  learner here.** It learns a softmax policy directly, with a tile-coded
+  critic V(s) whose TD error is the advantage: 75–78% at 10,000 episodes,
+  80–86% at 40,000 and 86–89% at 200,000. Its failure mode is different:
+  too small an actor step, or annealing too early (`ac_decay_episodes`
+  3,000), leaves the policy near-uniform, which loses money (E5).
 * **Double Q-learning didn't help.** It removes the upward bias that
   `max()` puts into targets. Here, though, the two were level at 30,000
   episodes (64.8% with it, 64.5% without), and at 60,000 it was clearly worse
@@ -231,6 +244,16 @@ within 20–131 episodes, and the deployed policy was back at its old level
 500 episodes after the switch. Without the bank it was still at −82% to
 −109% then (`docs/ai/EXPERIMENTS.md` E3).
 
+### Baseline guard: never ship worse than the simple thing
+`set_baseline(policy)` gives the trainer a safe fallback such as TWAP. The
+learned champion is deployed only once it beats the baseline on the
+held-out scenarios by 2 standard errors of the paired difference, and the
+check reruns after every evaluation and every confirmed drift. In a
+weak-signal market (alpha 0.25), unguarded Q-learning deployed policies at
+−35% to −106% of the optimal gain, i.e. worse than TWAP. With the guard,
+TWAP stayed deployed on every seed, and in the default market nothing
+changed (E6b).
+
 *Lessons measured:*
 * **Re-exploration length matters most.** A short boost (ε 0.3 for 600
   episodes) recovered only 10% of the new optimum after 20,000 episodes; the
@@ -242,10 +265,10 @@ within 20–131 episodes, and the deployed policy was back at its old level
 
 | Episodes after the flip | With drift detection | Without |
 |---|---|---|
-| 0 | −143% (old knowledge is harmful) | −143% |
-| 5,000 (drift detected after 17) | 12% | −89% |
-| 25,000 | 43% | −75% |
-| 40,000 | 50% | −75% |
+| 0 | −140% (old knowledge is harmful) | −140% |
+| 5,000 (drift detected after 44) | 18% | −89% |
+| 25,000 | 46% | −40% |
+| 40,000 | 51% | −34% |
 
 ---
 
@@ -274,14 +297,14 @@ The hard problems are the same in both:
 * **A new task:** implement the `Environment` concept: `reset`, `step`,
   `features`, `kNumActions`, `kStateDims` and `kLo`/`kHi`. Nothing else
   changes.
-* **A new learner:** follow `TileQ` / `EpisodicMemory` and add a
-  `LearnerKind`.
+* **A new learner:** follow `TileQ` / `EpisodicMemory` / the actor-critic
+  branch in `agent.hpp` and add a `LearnerKind`.
 * **Real market data:** replay historical signals and prices in an
   environment. Be aware that the price-impact model then becomes an
   assumption, and that a backtest can't show the agent's own impact on the
   market.
 
-## 10. Tests (`tests/agent_tests.cpp`, 26 cases)
+## 10. Tests (`tests/agent_tests.cpp` 35 cases, `tests/model_based_tests.cpp` 9)
 
 * **Components:**
   * the random number generator's moments;
@@ -299,7 +322,20 @@ The hard problems are the same in both:
   * the champion's score never decreases;
   * no false drift alarms in a stationary world, a real change detected
     within 500 episodes, and recovery that beats the non-adaptive agent by
-    more than 20 points.
+    more than 20 points;
+  * a returning regime is recalled from the policy bank;
+  * n-step targets are the exact sum of rewards plus a bootstrap;
+  * actor-critic learns the corridor and beats Q-learning at equal budget;
+  * a risk-averse agent front-loads its selling;
+  * the deployed policy is never significantly worse than the baseline.
+* **Model-based (`model_based_tests.cpp`):**
+  * generalized costs keep the accounting identity, and the DP with cost
+    tables equals the DP with formulas;
+  * it recovers the market's parameters (including the risk penalty) and is
+    near-optimal after 50 episodes;
+  * hidden market parameters don't leak into the plan;
+  * a wrong model form is costly, a flexible one fixes it, and shrinkage
+    makes the flexible one safe with little data.
 * **Engineering:**
   * deterministic runs, bit-identical across chunked training;
   * evaluation doesn't perturb learning;
