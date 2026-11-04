@@ -16,6 +16,20 @@ full test suite on Windows on every push (job `msvc-windows`).
 Nothing else is required: GoogleTest (for the tests) is downloaded
 automatically by CMake the first time you configure.
 
+**On Windows Server, or without the IDE:** install **Build Tools for Visual
+Studio 2022** instead (<https://visualstudio.microsoft.com/downloads/>,
+under "Tools for Visual Studio"), with the **"Desktop development with
+C++"** workload, or from an administrator PowerShell with `winget`:
+
+```powershell
+winget install --id Git.Git -e
+winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.CMake.Project --includeRecommended"
+```
+
+Build Tools also install the "Developer PowerShell for VS 2022" shortcut
+used below. (CI runs on Windows Server 2022 with Visual Studio
+preinstalled; the `winget` lines themselves aren't exercised by CI.)
+
 ## 2. Build
 
 Open **"Developer PowerShell for VS 2022"** from the Start menu (it puts
