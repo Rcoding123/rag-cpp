@@ -31,6 +31,7 @@ docs/ai/TASK_SPECS.md
 examples/agent_demo.cpp
 examples/demo.cpp
 examples/rag_pdf.cpp
+examples/train_ensemble.cpp
 examples/tune_agent.cpp
 experiments/README.md
 experiments/ablation.cpp
@@ -394,7 +395,7 @@ documents alone.
 
 ---
 
-## FILE: docs/ai/PROJECT_MAP.md  (9,630 bytes)
+## FILE: docs/ai/PROJECT_MAP.md  (9,751 bytes)
 
 # Project map
 
@@ -477,6 +478,7 @@ rag-cpp/
 │   ├── demo.cpp                 minimal RAG usage
 │   ├── rag_pdf.cpp              CLI: index PDFs, ask questions with page citations
 │   ├── tune_agent.cpp           (NLopt + Eigen) hyperparameter search, validation, sensitivity
+│   ├── train_ensemble.cpp       the recommended policy (E25, A48): N averaged networks in parallel, tables, median vote
 │   └── agent_demo.cpp           the self-learning agent end to end (model-free, drift, model-based + model check)
 ├── docs/
 │   ├── agent.md                 the agent's architecture, with every measured lesson
@@ -1651,7 +1653,7 @@ The hard problems are the same in both:
 
 ---
 
-## FILE: docs/WINDOWS.md  (6,487 bytes)
+## FILE: docs/WINDOWS.md  (9,645 bytes)
 
 # Building and running on Windows
 
@@ -1711,6 +1713,31 @@ cmake --build build --config Release --parallel
 container access; it is many times slower and is meant for stepping
 through code.
 
+### Which preset for your CPU
+
+| CPU | Preset (configure / build / test) | Kernels |
+|---|---|---|
+| AVX-512: AMD Zen 4 / Zen 5 (Ryzen 7000/9000, EPYC 9004/9005), Intel Xeon Skylake-SP or newer | `windows-msvc-avx512` / `windows-avx512-release` | AVX-512 (fastest) |
+| AVX2: almost any x64 CPU since 2013 | `windows-msvc` / `windows-release` | AVX2 + FMA |
+| older | `windows-msvc-scalar` / `windows-scalar-release` | scalar |
+
+For example, on an **AMD Ryzen 9 9900X** (Zen 5, AVX-512):
+
+```powershell
+cmake --preset windows-msvc-avx512
+cmake --build --preset windows-avx512-release --parallel
+ctest --preset windows-avx512-release
+```
+
+The AVX-512 build puts its programs in `build-avx512\Release\`. CI compiles
+it on Windows but can't run it (GitHub's Windows runners have no
+AVX-512); the AVX-512 kernels are tested on Linux. Verified on Windows:
+**285/285 tests on an AMD Ryzen 9 9900X (Zen 5, 12 cores, 128 GB) under
+Windows Server 2025 Standard with Build Tools for Visual Studio 2022
+17.14, in 13 s.** On a different CPU, run `ctest` once: if every test
+passes, use this build; if any fails, use `windows-msvc` and tell us. Not sure what your CPU supports? Run
+`Get-CimInstance Win32_Processor | Select-Object Name` and look it up.
+
 ## 3. Test
 
 ```powershell
@@ -1727,6 +1754,23 @@ All should pass.
 .\build\Release\agent_demo.exe        # the self-learning agent: trains, deploys, adapts to a regime change
 .\build\Release\rag_latency.exe 20000 # query latency percentiles (p50 / p99 / p99.9) per search mode
 ```
+
+### Train the best learned policy (`train_ensemble.exe`)
+
+```powershell
+.\build\Release\train_ensemble.exe 8 40000 8 ensemble.tbl
+```
+
+trains 8 neural networks (Double DQN with weight averaging, seeds 1–8)
+in parallel, one per thread, compiles each to a lookup table, and saves
+the cell-wise median vote to `ensemble.tbl`: the E25 recipe, 97.8% of the
+optimal gain in the experiments. It prints each network's score and the
+ensemble's. Arguments: networks, episodes per network, threads, output
+file. Use up to one network per physical core (12 on a Ryzen 9 9900X).
+Prefer 8 or an odd number: with an even count the median takes the lower
+of the two middle votes, which for 2 networks is just the smaller trade.
+With the AVX-512 build, run `.\build-avx512\Release\train_ensemble.exe` instead.
+Load the result in your code with `ExecutionPolicyTable::load("ensemble.tbl")`.
 
 To use the library in your own program, add `include\` to the include path
 and `#include "rag.hpp"` (engine) or the headers under `rag\agent\`
@@ -1793,6 +1837,29 @@ The exact mode streams the whole 92 MB embedding matrix per query
 from a different machine (a 4-vCPU Xeon with AVX-512), so the two tables
 don't compare directly. The "max" column on a shared CI VM is dominated by
 the scheduler (up to 78 ms), which is why it is left out here.
+
+### On an AMD Ryzen 9 9900X (Zen 5, AVX-512)
+
+Windows Server 2025 Standard, 128 GB, Build Tools for Visual Studio 2022
+17.14, preset `windows-msvc-avx512`:
+
+* **Tests:** 285/285 in 13 s.
+* **Query latency** (`rag_latency.exe 20000`):
+
+| Mode | p50 | p90 | p99 | p99.9 | Queries/s per core |
+|---|---|---|---|---|---|
+| exact | 1.72 ms | 2.43 ms | 3.91 ms | 9.30 ms | 526 |
+| int8 + rerank | 398 µs | 563 µs | 971 µs | 3.33 ms | 2,259 |
+| ivf | 119 µs | 151 µs | 239 µs | 1.64 ms | 7,840 |
+| ivf-sq8 | 72 µs | 92 µs | 146 µs | 747 µs | 12,761 |
+
+  The exact scan reads the 92 MB embedding matrix at ~54 GB/s, so it runs
+  at memory bandwidth: 3.3× the CI runner and 5.9× the README's Linux VM.
+* **`train_ensemble.exe 8 40000 8`:** 8 networks in parallel in **141 s**;
+  the median vote scores **97.8%** of the optimal gain. Every network's
+  score (93.0–95.5%) and the ensemble match E25, which was run on Linux
+  with GCC, to the printed precision: the training is reproducible across
+  operating systems, compilers and CPUs for these seeds.
 
 ## Alternative: WSL
 
@@ -4150,7 +4217,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (7,053 bytes)
+## FILE: docs/ai/STATUS.md  (7,237 bytes)
 
 # Status, limitations and next steps
 
@@ -4158,8 +4225,11 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 * **Platforms:** Linux (GCC 13, Clang 18; seven CI jobs including
   sanitizers and fuzzing) and Windows (Visual Studio 2022 / MSVC, AVX2;
-  CI job `msvc-windows`: 284/284 tests, demos, latency probe). Build
-  steps and measured latency for Windows: `docs/WINDOWS.md`.
+  CI job `msvc-windows`: the AVX2 build's full test suite, demos, latency
+  probe, and an AVX-512 compile; the AVX-512 build passed 285/285 on a
+  Ryzen 9 9900X under Windows Server 2025, where `train_ensemble`
+  reproduced E25's 97.8% in 141 s). Build steps and measured
+  latency for Windows: `docs/WINDOWS.md`.
 * **RAG engine:**
   * hybrid retrieval in four dense modes;
   * zero-allocation queries;
@@ -4281,7 +4351,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: README.md  (20,513 bytes)
+## FILE: README.md  (20,697 bytes)
 
 # rag-cpp — header-only, low-latency Retrieval-Augmented Generation in C++20
 
@@ -4344,6 +4414,10 @@ cmake --build --preset windows-release --parallel
 ctest --preset windows-release
 .\build\Release\agent_demo.exe
 ```
+
+The best learned policy (E25: 8 averaged networks trained in parallel,
+compiled to tables, median-voted): `train_ensemble 8 40000 8 ensemble.tbl`
+(`./build/train_ensemble` on Linux).
 
 Dependencies: the engine and the agent need only the C++20 standard library.
 Optional, each picked up automatically when installed: GoogleTest (tests),

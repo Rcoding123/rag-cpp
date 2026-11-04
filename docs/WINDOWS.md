@@ -181,6 +181,29 @@ from a different machine (a 4-vCPU Xeon with AVX-512), so the two tables
 don't compare directly. The "max" column on a shared CI VM is dominated by
 the scheduler (up to 78 ms), which is why it is left out here.
 
+### On an AMD Ryzen 9 9900X (Zen 5, AVX-512)
+
+Windows Server 2025 Standard, 128 GB, Build Tools for Visual Studio 2022
+17.14, preset `windows-msvc-avx512`:
+
+* **Tests:** 285/285 in 13 s.
+* **Query latency** (`rag_latency.exe 20000`):
+
+| Mode | p50 | p90 | p99 | p99.9 | Queries/s per core |
+|---|---|---|---|---|---|
+| exact | 1.72 ms | 2.43 ms | 3.91 ms | 9.30 ms | 526 |
+| int8 + rerank | 398 µs | 563 µs | 971 µs | 3.33 ms | 2,259 |
+| ivf | 119 µs | 151 µs | 239 µs | 1.64 ms | 7,840 |
+| ivf-sq8 | 72 µs | 92 µs | 146 µs | 747 µs | 12,761 |
+
+  The exact scan reads the 92 MB embedding matrix at ~54 GB/s, so it runs
+  at memory bandwidth: 3.3× the CI runner and 5.9× the README's Linux VM.
+* **`train_ensemble.exe 8 40000 8`:** 8 networks in parallel in **141 s**;
+  the median vote scores **97.8%** of the optimal gain. Every network's
+  score (93.0–95.5%) and the ensemble match E25, which was run on Linux
+  with GCC, to the printed precision: the training is reproducible across
+  operating systems, compilers and CPUs for these seeds.
+
 ## Alternative: WSL
 
 Under Windows Subsystem for Linux (`wsl --install`, then Ubuntu 24.04) the

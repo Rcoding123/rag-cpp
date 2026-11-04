@@ -31,6 +31,7 @@ docs/ai/TASK_SPECS.md
 examples/agent_demo.cpp
 examples/demo.cpp
 examples/rag_pdf.cpp
+examples/train_ensemble.cpp
 examples/tune_agent.cpp
 experiments/README.md
 experiments/ablation.cpp
@@ -242,36 +243,37 @@ tools/make_context_pack.py
 55. examples/agent_demo.cpp
 56. examples/demo.cpp
 57. examples/rag_pdf.cpp
-58. examples/tune_agent.cpp
-59. bench/latency.cpp
-60. bench/rag_bench.cpp
-61. bench/fixtures.hpp
-62. tests/agent_coverage_tests.cpp
-63. tests/agent_edge_case_tests.cpp
-64. tests/agent_tests.cpp
-65. tests/api_examples_tests.cpp
-66. tests/forgery_tests.cpp
-67. tests/market_making_tests.cpp
-68. tests/mlp_tests.cpp
-69. tests/model_based_tests.cpp
-70. tests/optional_libs_tests.cpp
-71. tests/pdf_tests.cpp
-72. tests/policy_table_tests.cpp
-73. tests/rag_property_tests.cpp
-74. tests/rag_tests.cpp
-75. tests/reference_tests.cpp
-76. tests/stress.cpp
-77. tests/text_clean_tests.cpp
-78. tests/pdf_writer.hpp
-79. tests/pid.hpp
-80. tests/synthetic.hpp
-81. tests/test_util.hpp
-82. tests/fuzz/fuzz_common.hpp
-83. tests/fuzz/fuzz_load.cpp
-84. tests/fuzz/fuzz_policy_table.cpp
-85. tests/fuzz/fuzz_text.cpp
-86. tests/fuzz/make_seeds.cpp
-87. tools/make_context_pack.py
+58. examples/train_ensemble.cpp
+59. examples/tune_agent.cpp
+60. bench/latency.cpp
+61. bench/rag_bench.cpp
+62. bench/fixtures.hpp
+63. tests/agent_coverage_tests.cpp
+64. tests/agent_edge_case_tests.cpp
+65. tests/agent_tests.cpp
+66. tests/api_examples_tests.cpp
+67. tests/forgery_tests.cpp
+68. tests/market_making_tests.cpp
+69. tests/mlp_tests.cpp
+70. tests/model_based_tests.cpp
+71. tests/optional_libs_tests.cpp
+72. tests/pdf_tests.cpp
+73. tests/policy_table_tests.cpp
+74. tests/rag_property_tests.cpp
+75. tests/rag_tests.cpp
+76. tests/reference_tests.cpp
+77. tests/stress.cpp
+78. tests/text_clean_tests.cpp
+79. tests/pdf_writer.hpp
+80. tests/pid.hpp
+81. tests/synthetic.hpp
+82. tests/test_util.hpp
+83. tests/fuzz/fuzz_common.hpp
+84. tests/fuzz/fuzz_load.cpp
+85. tests/fuzz/fuzz_policy_table.cpp
+86. tests/fuzz/fuzz_text.cpp
+87. tests/fuzz/make_seeds.cpp
+88. tools/make_context_pack.py
 
 
 ---
@@ -464,7 +466,7 @@ documents alone.
 
 ---
 
-## FILE: docs/ai/PROJECT_MAP.md  (9,630 bytes)
+## FILE: docs/ai/PROJECT_MAP.md  (9,751 bytes)
 
 # Project map
 
@@ -547,6 +549,7 @@ rag-cpp/
 │   ├── demo.cpp                 minimal RAG usage
 │   ├── rag_pdf.cpp              CLI: index PDFs, ask questions with page citations
 │   ├── tune_agent.cpp           (NLopt + Eigen) hyperparameter search, validation, sensitivity
+│   ├── train_ensemble.cpp       the recommended policy (E25, A48): N averaged networks in parallel, tables, median vote
 │   └── agent_demo.cpp           the self-learning agent end to end (model-free, drift, model-based + model check)
 ├── docs/
 │   ├── agent.md                 the agent's architecture, with every measured lesson
@@ -1721,7 +1724,7 @@ The hard problems are the same in both:
 
 ---
 
-## FILE: docs/WINDOWS.md  (6,487 bytes)
+## FILE: docs/WINDOWS.md  (9,645 bytes)
 
 # Building and running on Windows
 
@@ -1781,6 +1784,31 @@ cmake --build build --config Release --parallel
 container access; it is many times slower and is meant for stepping
 through code.
 
+### Which preset for your CPU
+
+| CPU | Preset (configure / build / test) | Kernels |
+|---|---|---|
+| AVX-512: AMD Zen 4 / Zen 5 (Ryzen 7000/9000, EPYC 9004/9005), Intel Xeon Skylake-SP or newer | `windows-msvc-avx512` / `windows-avx512-release` | AVX-512 (fastest) |
+| AVX2: almost any x64 CPU since 2013 | `windows-msvc` / `windows-release` | AVX2 + FMA |
+| older | `windows-msvc-scalar` / `windows-scalar-release` | scalar |
+
+For example, on an **AMD Ryzen 9 9900X** (Zen 5, AVX-512):
+
+```powershell
+cmake --preset windows-msvc-avx512
+cmake --build --preset windows-avx512-release --parallel
+ctest --preset windows-avx512-release
+```
+
+The AVX-512 build puts its programs in `build-avx512\Release\`. CI compiles
+it on Windows but can't run it (GitHub's Windows runners have no
+AVX-512); the AVX-512 kernels are tested on Linux. Verified on Windows:
+**285/285 tests on an AMD Ryzen 9 9900X (Zen 5, 12 cores, 128 GB) under
+Windows Server 2025 Standard with Build Tools for Visual Studio 2022
+17.14, in 13 s.** On a different CPU, run `ctest` once: if every test
+passes, use this build; if any fails, use `windows-msvc` and tell us. Not sure what your CPU supports? Run
+`Get-CimInstance Win32_Processor | Select-Object Name` and look it up.
+
 ## 3. Test
 
 ```powershell
@@ -1797,6 +1825,23 @@ All should pass.
 .\build\Release\agent_demo.exe        # the self-learning agent: trains, deploys, adapts to a regime change
 .\build\Release\rag_latency.exe 20000 # query latency percentiles (p50 / p99 / p99.9) per search mode
 ```
+
+### Train the best learned policy (`train_ensemble.exe`)
+
+```powershell
+.\build\Release\train_ensemble.exe 8 40000 8 ensemble.tbl
+```
+
+trains 8 neural networks (Double DQN with weight averaging, seeds 1–8)
+in parallel, one per thread, compiles each to a lookup table, and saves
+the cell-wise median vote to `ensemble.tbl`: the E25 recipe, 97.8% of the
+optimal gain in the experiments. It prints each network's score and the
+ensemble's. Arguments: networks, episodes per network, threads, output
+file. Use up to one network per physical core (12 on a Ryzen 9 9900X).
+Prefer 8 or an odd number: with an even count the median takes the lower
+of the two middle votes, which for 2 networks is just the smaller trade.
+With the AVX-512 build, run `.\build-avx512\Release\train_ensemble.exe` instead.
+Load the result in your code with `ExecutionPolicyTable::load("ensemble.tbl")`.
 
 To use the library in your own program, add `include\` to the include path
 and `#include "rag.hpp"` (engine) or the headers under `rag\agent\`
@@ -1863,6 +1908,29 @@ The exact mode streams the whole 92 MB embedding matrix per query
 from a different machine (a 4-vCPU Xeon with AVX-512), so the two tables
 don't compare directly. The "max" column on a shared CI VM is dominated by
 the scheduler (up to 78 ms), which is why it is left out here.
+
+### On an AMD Ryzen 9 9900X (Zen 5, AVX-512)
+
+Windows Server 2025 Standard, 128 GB, Build Tools for Visual Studio 2022
+17.14, preset `windows-msvc-avx512`:
+
+* **Tests:** 285/285 in 13 s.
+* **Query latency** (`rag_latency.exe 20000`):
+
+| Mode | p50 | p90 | p99 | p99.9 | Queries/s per core |
+|---|---|---|---|---|---|
+| exact | 1.72 ms | 2.43 ms | 3.91 ms | 9.30 ms | 526 |
+| int8 + rerank | 398 µs | 563 µs | 971 µs | 3.33 ms | 2,259 |
+| ivf | 119 µs | 151 µs | 239 µs | 1.64 ms | 7,840 |
+| ivf-sq8 | 72 µs | 92 µs | 146 µs | 747 µs | 12,761 |
+
+  The exact scan reads the 92 MB embedding matrix at ~54 GB/s, so it runs
+  at memory bandwidth: 3.3× the CI runner and 5.9× the README's Linux VM.
+* **`train_ensemble.exe 8 40000 8`:** 8 networks in parallel in **141 s**;
+  the median vote scores **97.8%** of the optimal gain. Every network's
+  score (93.0–95.5%) and the ensemble match E25, which was run on Linux
+  with GCC, to the printed precision: the training is reproducible across
+  operating systems, compilers and CPUs for these seeds.
 
 ## Alternative: WSL
 
@@ -4220,7 +4288,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (7,053 bytes)
+## FILE: docs/ai/STATUS.md  (7,237 bytes)
 
 # Status, limitations and next steps
 
@@ -4228,8 +4296,11 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 * **Platforms:** Linux (GCC 13, Clang 18; seven CI jobs including
   sanitizers and fuzzing) and Windows (Visual Studio 2022 / MSVC, AVX2;
-  CI job `msvc-windows`: 284/284 tests, demos, latency probe). Build
-  steps and measured latency for Windows: `docs/WINDOWS.md`.
+  CI job `msvc-windows`: the AVX2 build's full test suite, demos, latency
+  probe, and an AVX-512 compile; the AVX-512 build passed 285/285 on a
+  Ryzen 9 9900X under Windows Server 2025, where `train_ensemble`
+  reproduced E25's 97.8% in 141 s). Build steps and measured
+  latency for Windows: `docs/WINDOWS.md`.
 * **RAG engine:**
   * hybrid retrieval in four dense modes;
   * zero-allocation queries;
@@ -4351,7 +4422,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: README.md  (20,513 bytes)
+## FILE: README.md  (20,697 bytes)
 
 # rag-cpp — header-only, low-latency Retrieval-Augmented Generation in C++20
 
@@ -4414,6 +4485,10 @@ cmake --build --preset windows-release --parallel
 ctest --preset windows-release
 .\build\Release\agent_demo.exe
 ```
+
+The best learned policy (E25: 8 averaged networks trained in parallel,
+compiled to tables, median-voted): `train_ensemble 8 40000 8 ensemble.tbl`
+(`./build/train_ensemble` on Linux).
 
 Dependencies: the engine and the agent need only the C++20 standard library.
 Optional, each picked up automatically when installed: GoogleTest (tests),
@@ -4733,7 +4808,7 @@ jobs build with `-Werror`:
 
 ---
 
-## FILE: CMakeLists.txt  (7,629 bytes)
+## FILE: CMakeLists.txt  (8,315 bytes)
 
 ```cmake
 cmake_minimum_required(VERSION 3.20)
@@ -4809,6 +4884,10 @@ if(NOT GTest_FOUND)
   FetchContent_MakeAvailable(googletest)
 endif()
 enable_testing()
+# List each test binary's cases when ctest runs, not right after the build:
+# a binary built for a newer ISA than the build machine's (e.g. the AVX-512
+# preset on an AVX2 CI runner) then still builds.
+set(CMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
 add_executable(rag_tests tests/rag_tests.cpp tests/forgery_tests.cpp tests/reference_tests.cpp tests/text_clean_tests.cpp tests/agent_tests.cpp tests/api_examples_tests.cpp tests/model_based_tests.cpp tests/market_making_tests.cpp tests/mlp_tests.cpp tests/agent_edge_case_tests.cpp tests/agent_coverage_tests.cpp tests/rag_property_tests.cpp tests/policy_table_tests.cpp)
 target_link_libraries(rag_tests PRIVATE rag GTest::gtest_main Threads::Threads)
 include(GoogleTest)
@@ -4831,6 +4910,13 @@ target_link_libraries(rag_demo PRIVATE rag)
 
 add_executable(agent_demo examples/agent_demo.cpp)
 target_link_libraries(agent_demo PRIVATE rag)
+
+# The recommended learned policy (E25, A48): N averaged networks trained in
+# parallel, compiled to tables, median-voted. The smoke test also runs the
+# threads under the sanitizer jobs.
+add_executable(train_ensemble examples/train_ensemble.cpp)
+target_link_libraries(train_ensemble PRIVATE rag Threads::Threads)
+add_test(NAME train_ensemble_smoke COMMAND train_ensemble 2 300 2 ${CMAKE_CURRENT_BINARY_DIR}/smoke_ensemble.tbl)
 
 # libFuzzer targets (Clang only): cmake -DCMAKE_CXX_COMPILER=clang++ -DRAG_FUZZ=ON
 option(RAG_FUZZ "Build libFuzzer targets (requires Clang)" OFF)
@@ -4898,7 +4984,7 @@ endif()
 
 ---
 
-## FILE: .github/workflows/ci.yml  (5,840 bytes)
+## FILE: .github/workflows/ci.yml  (6,226 bytes)
 
 ```yaml
 name: CI
@@ -5009,6 +5095,13 @@ jobs:
 
       - name: Test
         run: ctest --preset windows-release
+
+      # The runner's CPU (Zen 3) has no AVX-512: compile the AVX-512 preset
+      # so MSVC accepts those kernels; they run on Linux CI and on AVX-512 PCs.
+      - name: Build the AVX-512 preset (compile only)
+        run: |
+          cmake --preset windows-msvc-avx512
+          cmake --build --preset windows-avx512-release --parallel 4 --target rag_tests rag_latency train_ensemble
 
       - name: Demos and latency smoke run
         shell: bash
@@ -12557,6 +12650,107 @@ int main(int argc, char** argv) {
     std::fprintf(stderr, "error: %s\n", e.what());
     return 1;
   }
+}
+
+```
+
+
+---
+
+## FILE: examples/train_ensemble.cpp  (4,386 bytes)
+
+```cpp
+// train_ensemble — the best learned execution policy (E25, DECISIONS A48),
+// trained in parallel: N NeuralQ networks (Double DQN, weight averaging
+// nn_polyak = 1e-4, seeds 1..N), one per thread; each deployed champion
+// compiled to an ExecutionPolicyTable; the cell-wise median of the tables
+// saved as the deployable policy. Scores every member and the ensemble
+// against the exact optimum on 1,000 held-out scenarios.
+//
+//   train_ensemble [networks=4] [episodes=40000] [threads=networks] [out=ensemble.tbl]
+//
+// Every network's result is independent of the thread count (each thread
+// owns its agent, environment and RNG streams).
+#include <algorithm>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <vector>
+
+#include "rag/agent/execution_dp.hpp"
+#include "rag/agent/policy_table.hpp"
+#include "rag/agent/trainer.hpp"
+
+using namespace rag::agent;
+
+int main(int argc, char** argv) {
+  const unsigned networks = argc > 1 ? static_cast<unsigned>(std::max(1, std::atoi(argv[1]))) : 4u;
+  const unsigned episodes = argc > 2 ? static_cast<unsigned>(std::max(1, std::atoi(argv[2]))) : 40000u;
+  const unsigned threads = argc > 3 ? static_cast<unsigned>(std::max(1, std::atoi(argv[3]))) : networks;
+  const std::string out = argc > 4 ? argv[4] : "ensemble.tbl";
+
+  const ExecutionParams p;
+  const ExecutionEnv env(p);
+  const ExecutionDP dp(p);
+  auto twap = [](const ExecutionObs&) { return ExecutionEnv::kTwapAction; };
+  constexpr std::uint32_t kScenarios = 1000;
+  constexpr std::uint64_t kEvalSeed = 77'000'000;  // the held-out scenarios of E21-E25
+  const double opt = compare(env, [&](const ExecutionObs& o) { return dp.act(o); }, twap, kScenarios, kEvalSeed).mean;
+
+  std::printf("Training %u networks x %u episodes on %u threads (hardware threads: %u)...\n", networks, episodes, threads,
+              std::thread::hardware_concurrency());
+  const auto t0 = std::chrono::steady_clock::now();
+  std::vector<std::unique_ptr<ExecutionPolicyTable>> tables(networks);
+  std::vector<double> network_share(networks);
+  std::vector<std::thread> pool;
+  unsigned next = 0;
+  std::mutex m;  // guards next
+  auto worker = [&] {
+    for (;;) {
+      unsigned i;
+      {
+        std::lock_guard lock(m);
+        if (next >= networks) return;
+        i = next++;
+      }
+      AgentConfig<3> c;
+      c.seed = i + 1;
+      c.eps_decay_episodes = std::min(10000u, std::max(1u, episodes / 4));
+      c.learner = LearnerKind::NeuralQ;
+      c.double_q = true;
+      c.nn_polyak = 1e-4;
+      ExecutionEnv e(p);
+      auto agent = std::make_unique<Agent<ExecutionEnv>>(e, c);
+      Trainer<ExecutionEnv> tr(*agent, e,
+                               {.eval_every = std::min(1000u, std::max(1u, episodes / 10)), .eval_episodes = 500, .train_seed = c.seed,
+                                .detect_drift = false});
+      tr.run(episodes);
+      auto deployed = [&](const ExecutionObs& o) { return tr.deployed_act(o); };
+      network_share[i] = compare(env, deployed, twap, kScenarios, kEvalSeed).mean / opt;
+      tables[i] = std::make_unique<ExecutionPolicyTable>(p, deployed, PolicyTableParams{.signal_bins = 256, .signal_range_sd = 4.0});
+    }
+  };
+  for (unsigned t = 0; t < std::min(threads, networks); ++t) pool.emplace_back(worker);
+  for (auto& t : pool) t.join();
+  const double secs = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+
+  std::vector<ExecutionPolicyTable> members;
+  for (unsigned i = 0; i < networks; ++i) {
+    const double table_share =
+        compare(env, [&](const ExecutionObs& o) { return tables[i]->act(o); }, twap, kScenarios, kEvalSeed).mean / opt;
+    std::printf("  network %2u: %5.1f%% of the optimal gain (its table: %5.1f%%)\n", i + 1, 100 * network_share[i], 100 * table_share);
+    members.push_back(*tables[i]);
+  }
+  const auto ensemble = ExecutionPolicyTable::median(members);
+  const double ens = compare(env, [&](const ExecutionObs& o) { return ensemble.act(o); }, twap, kScenarios, kEvalSeed).mean / opt;
+  ensemble.save(out);
+  std::printf("Median vote of %u: %.1f%% of the optimal gain. Saved %s (%zu KB). Training took %.0f s.\n", networks, 100 * ens,
+              out.c_str(), ensemble.bytes() / 1000, secs);
+  std::printf("Load it with ExecutionPolicyTable::load(\"%s\"); act() is a ~3 ns lookup.\n", out.c_str());
 }
 
 ```
