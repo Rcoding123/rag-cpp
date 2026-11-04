@@ -219,7 +219,17 @@ A fast detector can't tell "the world changed" from "my learning wobbled";
 the champion check can.
 
 A confirmed drift makes the agent explore again (ε = 0.5, decaying over
-5,000 episodes), restart its step size, and clear its replay buffer.
+5,000 episodes), restart its step size, and clear its replay buffer, unless
+the policy bank recognizes the new world.
+
+### Policy bank: worlds seen before
+On every confirmed drift the outgoing champion is banked, and older banked
+policies are scored on the new world. One that beats the champion by 2
+standard errors is redeployed at once, and the learner warm-starts from it.
+In a market alternating between two regimes, each return was recognized
+within 20–131 episodes, and the deployed policy was back at its old level
+500 episodes after the switch. Without the bank it was still at −82% to
+−109% then (`docs/ai/EXPERIMENTS.md` E3).
 
 *Lessons measured:*
 * **Re-exploration length matters most.** A short boost (ε 0.3 for 600

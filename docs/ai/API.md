@@ -115,7 +115,7 @@ AgentConfig<3> cfg;                 // 3 = ExecutionEnv::kStateDims
 cfg.eps_decay_episodes = 2000;
 Agent<ExecutionEnv> agent(env, cfg);
 Trainer<ExecutionEnv> trainer(agent, env, {.eval_every = 500, .eval_episodes = 200});
-const TrainReport report = trainer.run(4000);   // report.evals, .drift_alarms, .drift_rejected, .returns
+const TrainReport report = trainer.run(4000);   // report.evals, .drift_alarms, .drift_rejected, .bank_recalls, .returns
 const Action a = trainer.deployed_act(ExecutionObs{.t = 5, .inventory = 60, .signal = -0.1});
 
 // Measure against the exact optimum on unseen scenarios, paired vs TWAP:
@@ -139,6 +139,7 @@ EvalStats best = compare(env, [&](const ExecutionObs& o) { return dp.act(o); }, 
 | `init_q` | 0 | initial Q-values |
 | `double_q` | false | double Q-learning |
 | `replay_capacity`, `replay_per_step` | 100,000, 4 | experience replay |
+| `n_step` | 3 | n-step returns (1 = Q-learning, ≥ horizon = Monte Carlo) |
 | `memory` | | `EpisodicParams` |
 | `kernel_width` | 0 = 10% of each range | episodic similarity scale |
 | `seed` | 1 | RNG seed |
@@ -155,6 +156,8 @@ EvalStats best = compare(env, [&](const ExecutionObs& o) { return dp.act(o); }, 
 | `drift_after_episodes` | 0 = after the ε schedule | when drift checks start |
 | `reexplore_epsilon`, `reexplore_episodes` | 0.5, 5000 | response to drift |
 | `forget_on_drift` | true | clear replay on drift |
+| `policy_bank`, `bank_capacity` | true, 8 | bank past champions; recall one that fits a returning regime |
+| `recall_epsilon`, `recall_episodes` | 0.05, 500 | light exploration after a recall |
 
 A new environment only needs to satisfy the `Environment` concept: an
 `Observation` type, `kNumActions`, `kStateDims`, `kLo`/`kHi`, and

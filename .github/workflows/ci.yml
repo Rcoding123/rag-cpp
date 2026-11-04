@@ -31,7 +31,10 @@ jobs:
           - { name: gcc-asan-ubsan,    cxx: g++,     arch: native,    build: Debug,          flags: -DRAG_SANITIZE=ON }
           # Clang's UBSan also checks arithmetic on null pointers, which GCC's doesn't.
           - { name: clang-asan-ubsan,  cxx: clang++, arch: native,    build: Debug,          flags: -DRAG_SANITIZE=ON }
-          - { name: gcc-tsan,          cxx: g++,     arch: native,    build: RelWithDebInfo, flags: -DRAG_TSAN=ON }
+          # TSan only needs code that runs threads: the single-threaded agent and
+          # reference suites are excluded here (they run in every other job).
+          - { name: gcc-tsan,          cxx: g++,     arch: native,    build: RelWithDebInfo, flags: -DRAG_TSAN=ON,
+              ctest_args: '-E "^(Agent|ModelBased|ExecutionCosts|Reference|ApiExamples)"' }
     steps:
       - uses: actions/checkout@v4
 
@@ -68,7 +71,7 @@ jobs:
           ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
           UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
           TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
-        run: ctest --test-dir build --output-on-failure -j"$(nproc)"
+        run: ctest --test-dir build --output-on-failure -j"$(nproc)" ${{ matrix.ctest_args }}
 
       - name: Repeat concurrency tests
         if: contains(matrix.flags, 'RAG_TSAN')

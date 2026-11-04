@@ -180,6 +180,15 @@ struct TrainConfig {
   double reexplore_epsilon = 0.5;
   std::uint32_t reexplore_episodes = 5000;
   bool forget_on_drift = true;  // clear the replay buffer when drift is detected
+  // Policy bank: on a confirmed drift the outgoing champion is banked, and
+  // every banked policy is scored on the new world. If one clearly beats the
+  // current champion (by 2 standard errors), the world has returned to a
+  // regime seen before: that policy is redeployed, the learner warm-starts
+  // from it, and exploration stays light (recall_epsilon).
+  bool policy_bank = true;
+  std::uint32_t bank_capacity = 8;  // oldest entries are dropped beyond this
+  double recall_epsilon = 0.05;
+  std::uint32_t recall_episodes = 500;
 };
 
 struct EvalPoint {
@@ -194,6 +203,7 @@ struct TrainReport {
   std::vector<EvalPoint> evals;
   std::vector<std::uint64_t> drift_alarms;    // confirmed drifts (episode numbers)
   std::vector<std::uint64_t> drift_rejected;  // suspicions the champion check rejected
+  std::vector<std::uint64_t> bank_recalls;    // confirmed drifts answered by redeploying a banked policy
   std::vector<double> returns;              // every training episode's return
   double champion_score = 0;                // held-out score of the deployed policy
 };
@@ -234,8 +244,13 @@ class Trainer {
       if (cfg_.detect_drift && agent_.episodes() > drift_after && drift_.add(last_surprise_)) {
         if (confirm_drift()) {
           rep.drift_alarms.push_back(agent_.episodes());
-          agent_.reexplore(cfg_.reexplore_epsilon, cfg_.reexplore_episodes);
           if (cfg_.forget_on_drift) agent_.forget_experience();
+          if (recall_from_bank()) {
+            rep.bank_recalls.push_back(agent_.episodes());
+            agent_.reexplore(cfg_.recall_epsilon, cfg_.recall_episodes);
+          } else {
+            agent_.reexplore(cfg_.reexplore_epsilon, cfg_.reexplore_episodes);
+          }
         } else {
           rep.drift_rejected.push_back(agent_.episodes());
         }
@@ -258,6 +273,7 @@ class Trainer {
     return evaluate(env_, [&](const auto& o) { return deployed_act(o); }, cfg_.eval_episodes, cfg_.eval_seed).mean;
   }
   [[nodiscard]] bool has_champion() const noexcept { return champion_.has_value(); }
+  [[nodiscard]] std::size_t bank_size() const noexcept { return bank_.size(); }
 
   // Held-out greedy score of the agent as it is now.
   [[nodiscard]] double score_current() { return score_current_stats().mean; }
@@ -274,6 +290,28 @@ class Trainer {
     const EvalStats v = score_current_stats();
     agent_.restore(mine);
     return v;
+  }
+
+  // After a confirmed drift: bank the outgoing champion, then look for a
+  // banked policy that fits the new world better than the current champion.
+  bool recall_from_bank() {
+    if (!cfg_.policy_bank || !champion_) return false;
+    bank_.push_back(*champion_);
+    if (bank_.size() > cfg_.bank_capacity) bank_.erase(bank_.begin());
+    std::size_t best = bank_.size();
+    EvalStats best_stats = champion_stats_;  // the champion as re-scored on the new world
+    for (std::size_t i = 0; i + 1 < bank_.size(); ++i) {  // the newest entry is the champion itself
+      const EvalStats s = score_snapshot_stats(bank_[i]);
+      if (s.mean > best_stats.mean + 2.0 * champion_stats_.std_error) {
+        best = i;
+        best_stats = s;
+      }
+    }
+    if (best == bank_.size()) return false;
+    champion_ = bank_[best];
+    champion_stats_ = best_stats;
+    agent_.restore(*champion_);  // warm start: the learner continues from the recalled policy
+    return true;
   }
 
   // Stage 2 of drift detection: did the frozen champion's held-out score
@@ -314,6 +352,7 @@ class Trainer {
   DriftDetector drift_;
   std::optional<typename Agent<Env>::Snapshot> champion_;
   EvalStats champion_stats_{};
+  std::vector<typename Agent<Env>::Snapshot> bank_;  // champions of past regimes
   double last_surprise_ = 0;
 };
 

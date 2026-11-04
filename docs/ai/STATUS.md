@@ -12,14 +12,21 @@
     saves;
   * PDF ingestion with page citations.
 * **Self-learning agent:**
-  * two learners (tile-coded Q-learning, episodic memory);
-  * an exact DP yardstick;
+  * model-free learners: tile-coded Q-learning with 3-step returns, and
+    episodic memory;
+  * a model-based agent (grey-box regression plus DP planning) at 99–100%
+    of the optimum after 20–50 episodes;
+  * an exact DP yardstick, also for generalized cost tables;
   * held-out evaluation and champion/challenger deployment;
-  * two-stage drift detection with re-exploration.
+  * two-stage drift detection with re-exploration;
+  * a policy bank that recognizes returning regimes.
 * **Testing:**
   * the CI matrix covers SIMD levels, sanitizers and fuzzing;
-  * 168 ctest cases: 158 in `rag_tests`, 9 PDF tests (Poppler) and the
-    stress run.
+  * 181 ctest cases: 170 in `rag_tests`, 9 PDF tests (Poppler), the
+    stress run and a `rag_pdf` CLI smoke test.
+  * The TSan CI job skips the single-threaded learning suites (`Agent*`,
+    `ModelBased`, `ExecutionCosts`, `Reference`, `ApiExamples`), which ran
+    for over an hour under TSan and have no threads to check.
 
 ## Known limitations
 
@@ -35,8 +42,9 @@
   deletes or updates of chunks.
 * **PDF scope:** no OCR for scanned pages, and encrypted PDFs are rejected.
 * **Agent:**
-  * the tile-coded learner plateaus around 72% of the optimal gain;
-  * results vary across seeds (62–71% at 40k episodes);
+  * the tile-coded learner reaches 69–70% of the optimal gain at 40k
+    episodes and 75–77% at 200k. The gap is target noise and coverage, not
+    the representation, which can hold a 99.5% policy (E2);
   * `ExecutionEnv` is a stylized model: linear temporary impact, an AR(1)
     signal, no permanent impact, no order-book dynamics.
 * **Machine-specific numbers:** benchmarks come from one shared 4-vCPU VM.

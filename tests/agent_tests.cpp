@@ -674,3 +674,54 @@ TEST(AgentRepresentation, TileCodingCanRepresentANearOptimalPolicy) {
   };
   EXPECT_GT(captured(env, dp, greedy), 0.97);
 }
+
+// ===================== Experiment E3 (policy bank) ===========================
+TEST(AgentPolicyBank, RecognizesAReturningRegimeAndRedeploysItsPolicy) {
+  // Measured (EXPERIMENTS.md E3, 20k/10k schedule): returning to a known
+  // regime, the bank recalls its old champion within 20-131 episodes and is
+  // at the old level (59%) 500 episodes after the switch; without the bank
+  // the agent is at -82% to -109% then, relearning from scratch.
+  ExecutionParams pa;
+  ExecutionEnv ea(pa);
+  const auto& dpa = default_dp();
+  auto run = [&](bool bank, std::vector<std::uint64_t>* recalls) {
+    ExecutionEnv env(pa);
+    AgentConfig<3> cfg = execution_config();
+    cfg.eps_decay_episodes = 8000;
+    Agent<ExecutionEnv> agent(env, cfg);
+    Trainer<ExecutionEnv> tr(agent, env, {.eval_every = 1000, .eval_episodes = 300, .policy_bank = bank});
+    tr.run(16000);
+    const double before = captured(ea, dpa, [&](const ExecutionObs& o) { return tr.deployed_act(o); }, 600);
+    env.set_alpha(-1.0);  // regime B
+    tr.run(6000);
+    env.set_alpha(1.0);   // back to A
+    const auto rep = tr.run(500);
+    if (recalls) *recalls = rep.bank_recalls;
+    const double after = captured(ea, dpa, [&](const ExecutionObs& o) { return tr.deployed_act(o); }, 600);
+    return std::pair{before, after};
+  };
+  std::vector<std::uint64_t> recalls;
+  const auto [before, with_bank] = run(true, &recalls);
+  const auto [unused, without_bank] = run(false, nullptr);
+  (void)unused;
+  ASSERT_FALSE(recalls.empty()) << "the returning regime was not recognized";
+  EXPECT_GT(with_bank, 0.9 * before) << "before " << before << " after recall " << with_bank;
+  EXPECT_LT(without_bank, 0.0) << "without the bank the agent is still relearning: " << without_bank;
+}
+
+TEST(AgentPolicyBank, NoRecallWhenNothingBankedFitsTheNewWorld) {
+  // First change ever: the bank only holds the outgoing champion, which just
+  // failed, so the trainer must fall back to ordinary re-exploration.
+  ExecutionEnv env{ExecutionParams{}};
+  AgentConfig<3> cfg = execution_config();
+  cfg.eps_decay_episodes = 6000;
+  Agent<ExecutionEnv> agent(env, cfg);
+  Trainer<ExecutionEnv> tr(agent, env, {.eval_every = 1000, .eval_episodes = 200});
+  tr.run(12000);
+  env.set_alpha(-1.0);
+  const auto rep = tr.run(3000);
+  ASSERT_FALSE(rep.drift_alarms.empty());
+  EXPECT_TRUE(rep.bank_recalls.empty());
+  EXPECT_EQ(tr.bank_size(), 1u);
+  EXPECT_GT(agent.epsilon(), 0.1);  // re-exploring, not exploiting a recalled policy
+}

@@ -220,3 +220,36 @@ capacity.
 * **For model-free learning, the remaining levers** are variance reduction:
   control variates, or counterfactual updates using the fact that the price
   move doesn't depend on the action.
+
+## E3. Policy bank: recognizing a regime seen before
+
+* **Hypothesis:** markets alternate between regimes. Keeping past champions
+  and re-scoring them on a confirmed drift should let the agent redeploy a
+  matching policy at once, instead of relearning.
+* **Code:** `TrainConfig::policy_bank` (default on), `bank_capacity`,
+  `recall_epsilon`, `recall_episodes`; `Trainer::recall_from_bank()`.
+* **Mechanism:** on a confirmed drift,
+  1. the outgoing champion is banked;
+  2. every older banked policy is scored on the held-out scenarios;
+  3. if one beats the re-scored champion by 2 standard errors, it becomes
+     the champion, the learner warm-starts from it, and exploration is light
+     (ε 0.05 for 500 episodes);
+  4. otherwise, the agent re-explores normally (ε 0.5 for 5,000 episodes).
+* **Tests:** `AgentPolicyBank.*`.
+* **Setup:** 20k episodes in regime A (alpha +1), then the regime alternates
+  B (alpha −1) / A / B / A every 10k episodes. Each cell is the deployed
+  policy's share of the current regime's optimal gain:
+
+  | Switch to | Bank on: +500 | +2,000 | +10,000 | Bank off: +500 | +2,000 | +10,000 |
+  |---|---|---|---|---|---|---|
+  | B (first) | −126% | −6% | 25% | −126% | −6% | 25% |
+  | A | **59%** (recalled at +131) | 59% | 59% | −82% | 20% | 50% |
+  | B | **25%** (recalled at +20) | 26% | 36% | −109% | 6% | 30% |
+  | A | **59%** (recalled at +20) | 59% | 59% | −86% | 21% | 41% |
+
+* **Conclusion:** on its first visit to a regime the bank changes nothing.
+  On every return it's recognized within 20–131 episodes, and the deployed
+  policy is back at its previous level instead of losing money for
+  thousands of episodes. This only works because drift *confirmation*
+  re-scores policies on fixed held-out scenarios; the same evaluation
+  machinery answers "which known world is this?".

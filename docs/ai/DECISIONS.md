@@ -49,3 +49,4 @@ the code looks the way it does.
 | A12 | Cost model choice: Shrunk (empirical Bayes, k = 30) is the safe default under uncertainty about the form | Quadratic: 53% when wrong. Per-size: 100% eventually but −1,400% to −1,800% on 4 of 10 seeds at 10 episodes. Shrunk: never below 82% (E1c). |
 | A13 | `n_step = 3` by default | Best of n ∈ {1, 2, 3, 5, 10, 20}: faster early (47–50% vs 36–45% at 10k) and consistent at 40k (69–70% vs 62–71%); 75–77% at 200k (E2a). |
 | A14 | Don't re-tune the representation to fix the plateau | Fitting the default tiles to the true Q* gives 99.5% (E2b). The gap is target noise and coverage (E2c). |
+| A15 | Policy bank on by default: bank champions on confirmed drift, recall one that beats the champion by 2 standard errors | Returning regimes are recalled within 20–131 episodes, at their old level, vs −82% to −109% without the bank (E3). The first visit to a regime is unaffected. |
