@@ -114,6 +114,11 @@ struct AgentConfig {
   std::uint32_t nn_batch = 32;           // minibatch per update
   std::uint32_t nn_target_sync = 2000;   // updates between target-network copies (0 = no target network)
   std::uint32_t nn_warmup = 2000;        // transitions in replay before updates start
+  // Weight averaging (E24): > 0 keeps an exponential moving average of the
+  // network's weights, avg += nn_polyak * (net - avg) after every update.
+  // Exploring actions still use the online network (training is unchanged);
+  // greedy actions, snapshots and so the deployed policy use the average.
+  double nn_polyak = 0.0;
 
   std::uint64_t seed = 1;
 };
@@ -144,6 +149,7 @@ class Agent {
       Rng init(cfg_.seed ^ 0x4E4E4E4Eull);
       net_ = Mlp({static_cast<std::uint32_t>(Dims), cfg_.nn_hidden, cfg_.nn_hidden, static_cast<std::uint32_t>(A)}, init);
       target_ = net_;
+      avg_ = net_;
       nscratch_.resize(net_.scratch_size());
       nreplay_.reserve(std::min<std::size_t>(cfg_.replay_capacity, 1u << 16));
     }
@@ -159,7 +165,10 @@ class Agent {
     if (explore && rng_.uniform() < epsilon()) return rng_.below(static_cast<std::uint32_t>(A));
     std::array<double, A> q;
     std::array<bool, A> known;
-    estimate(o, q.data(), known.data());
+    if (!explore && averaging())
+      estimate_with(q_, q2_, mem_, avg_, o, q.data(), known.data());  // greedy: the averaged weights
+    else
+      estimate(o, q.data(), known.data());
     // Unknown actions (episodic memory only): optimistic while exploring, so
     // untried actions get tried; avoided when acting for real.
     for (std::size_t a = 0; a < A; ++a)
@@ -301,7 +310,7 @@ class Agent {
     TileQ critic;
     Mlp net;  // NeuralQ
   };
-  [[nodiscard]] Snapshot snapshot() const { return {q_, q2_, mem_, critic_, net_}; }
+  [[nodiscard]] Snapshot snapshot() const { return {q_, q2_, mem_, critic_, averaging() ? avg_ : net_}; }
 
   // Act greedily as the snapshot would, without touching the learner: the
   // deployed (champion) policy and the still-learning one coexist.
@@ -320,6 +329,7 @@ class Agent {
     mem_ = s.mem;
     critic_ = s.critic;
     net_ = s.net;  // the target network is training state, not policy: left alone
+    if (averaging()) avg_ = s.net;
   }
 
   // Supervised warm start (TileQ only): regress the Q-function onto a
@@ -466,6 +476,7 @@ class Agent {
     if (c.tilings == 0 || c.tilings > kMaxTilings) throw std::invalid_argument("AgentConfig: tilings in [1, 32]");
     if (!(c.alpha > 0) || !(c.gamma > 0) || c.gamma > 1) throw std::invalid_argument("AgentConfig: need alpha > 0, 0 < gamma <= 1");
     if (c.eps_start < c.eps_end || c.eps_end < 0 || c.eps_start > 1) throw std::invalid_argument("AgentConfig: need 0 <= eps_end <= eps_start <= 1");
+    if (!(c.nn_polyak >= 0 && c.nn_polyak <= 1)) throw std::invalid_argument("AgentConfig: nn_polyak in [0, 1]");
     return c;
   }
 
@@ -541,7 +552,8 @@ class Agent {
     double ret;         // discounted sum of up to n rewards
     double bootstrap;   // gamma^steps, or 0 if the episode ended within n steps
   };
-  Mlp net_, target_;
+  Mlp net_, target_, avg_;  // avg_: weight average (nn_polyak > 0)
+  [[nodiscard]] bool averaging() const noexcept { return cfg_.learner == LearnerKind::NeuralQ && cfg_.nn_polyak > 0; }
   std::vector<NeuralTransition> nreplay_;
   std::size_t nhead_ = 0;
   std::uint64_t nn_updates_ = 0;
@@ -600,6 +612,7 @@ class Agent {
         net_.accumulate(tr.s.data(), tr.action, y);
       }
       net_.step(cfg_.nn_lr);
+      if (averaging()) avg_.blend_toward(net_, cfg_.nn_polyak);
       if (cfg_.nn_target_sync && ++nn_updates_ % cfg_.nn_target_sync == 0) target_ = net_;
     }
   }

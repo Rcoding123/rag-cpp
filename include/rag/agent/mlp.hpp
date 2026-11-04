@@ -94,6 +94,16 @@ class Mlp {
     return err;
   }
 
+  // Move this network's weights a fraction tau of the way toward other's
+  // (Polyak / exponential moving average; E24). Shapes must match.
+  void blend_toward(const Mlp& other, double tau) {
+    if (tau >= 1) {  // exact copy (w + 1 * (o - w) can differ from o in the last bit)
+      w_ = other.w_;
+      return;
+    }
+    for (std::size_t i = 0; i < w_.size(); ++i) w_[i] += tau * (other.w_[i] - w_[i]);
+  }
+
   // Apply the averaged accumulated gradient with Adam, then clear it.
   void step(double lr, double beta1 = 0.9, double beta2 = 0.999, double eps = 1e-8) {
     if (pending_ == 0) return;

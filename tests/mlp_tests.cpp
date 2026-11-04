@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "rag/agent/mlp.hpp"
+#include "rag/agent/trainer.hpp"
 
 using namespace rag::agent;
 
@@ -62,4 +63,62 @@ TEST(Mlp, AdamFitsASmoothFunctionAndIsDeterministic) {
   }
   EXPECT_LT(mse, 0.02);
   EXPECT_EQ(train(5).weights(), f.weights());  // bit-identical rerun
+}
+
+TEST(Mlp, BlendTowardMovesWeightsLinearly) {
+  Rng r1(1), r2(2);
+  const Mlp a({3, 5, 2}, r1), b({3, 5, 2}, r2);
+  const std::array<double, 3> x = {0.4, -0.2, 0.9};
+  std::vector<double> scratch(a.scratch_size());
+  auto out = [&](const Mlp& m) {
+    std::array<double, 2> o{};
+    m.forward(x.data(), o.data(), scratch.data());
+    return o;
+  };
+  Mlp m = a;
+  m.blend_toward(b, 0.0);
+  EXPECT_EQ(out(m), out(a));
+  m.blend_toward(b, 1.0);
+  EXPECT_EQ(out(m), out(b));
+  ASSERT_THROW((void)Agent<ExecutionEnv>(*std::make_unique<ExecutionEnv>(ExecutionParams{}),
+                                         AgentConfig<3>{.learner = LearnerKind::NeuralQ, .nn_polyak = 1.5}),
+               std::invalid_argument);
+}
+
+namespace {
+// Train a small NeuralQ with a given averaging rate; return it.
+std::unique_ptr<Agent<ExecutionEnv>> small_neural(ExecutionEnv& env, double polyak) {
+  AgentConfig<3> c;
+  c.learner = LearnerKind::NeuralQ;
+  c.nn_hidden = 16;
+  c.nn_warmup = 200;
+  c.eps_decay_episodes = 200;
+  c.nn_polyak = polyak;
+  c.seed = 9;
+  auto agent = std::make_unique<Agent<ExecutionEnv>>(env, c);
+  Trainer<ExecutionEnv> tr(*agent, env, {.eval_every = 0, .train_seed = 9, .detect_drift = false});
+  tr.run(300);
+  return agent;
+}
+}  // namespace
+
+TEST(NeuralQ, WeightAveragingLeavesTrainingUnchangedAndOnlyAffectsGreedyActing) {
+  ExecutionEnv e0{ExecutionParams{}}, e1{ExecutionParams{}}, e2{ExecutionParams{}};
+  auto plain = small_neural(e0, 0.0), full = small_neural(e1, 1.0), avg = small_neural(e2, 0.01);
+  Rng r(4);
+  int differ = 0;
+  for (int i = 0; i < 200; ++i) {
+    const ExecutionObs o{static_cast<std::uint32_t>(r.below(20)), static_cast<std::uint32_t>(r.below(101)), 0.1 * r.normal()};
+    std::array<double, 5> q0{}, q2{};
+    plain->q_values(o, q0.data());
+    avg->q_values(o, q2.data());
+    EXPECT_EQ(q0, q2) << "averaging must not change the online network's training";
+    // nn_polyak = 1: the average is the online network after every update.
+    EXPECT_EQ(full->act(o, false), plain->act(o, false));
+    EXPECT_EQ(full->act_as(full->snapshot(), o), plain->act(o, false));
+    // The deployed policy (snapshot) is the averaged one.
+    EXPECT_EQ(avg->act_as(avg->snapshot(), o), avg->act(o, false));
+    differ += avg->act(o, false) != plain->act(o, false);
+  }
+  EXPECT_GT(differ, 0) << "a slow average should act differently from the online network somewhere";
 }
