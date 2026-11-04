@@ -1,0 +1,115 @@
+// api_examples_tests.cpp — every code example in docs/ai/API.md, compiled
+// and run. If an API changes, this file stops compiling and the docs get
+// fixed along with the code.
+#include <gtest/gtest.h>
+#include <unistd.h>
+
+#include <filesystem>
+#include <string>
+#include <vector>
+
+#include "rag.hpp"
+#include "rag/agent/execution_dp.hpp"
+#include "rag/agent/trainer.hpp"
+#include "rag/text_clean.hpp"
+
+namespace {
+std::filesystem::path tmp(const char* n) {
+  return std::filesystem::temp_directory_path() / (std::string(n) + "-" + std::to_string(::getpid()));
+}
+}  // namespace
+
+// --- API.md §1: index and query ----------------------------------------------
+TEST(ApiExamples, IndexAndQuery) {
+  using Engine = rag::RagEngine<rag::HashingEmbedder<384>>;
+  rag::EngineConfig cfg;
+  cfg.max_chunks = 100'000;                       // capacity; memory is committed lazily
+  cfg.chunker = {.window_tokens = 128, .overlap_tokens = 32};
+  cfg.dense_mode = rag::DenseMode::IvfInt8;       // Exact | Int8Rerank | Ivf | IvfInt8
+  Engine engine(cfg);
+
+  engine.ingest("Iceberg orders show a small visible size and refill from a hidden reserve.", /*doc_id=*/1);
+  engine.ingest("VWAP algorithms follow the intraday volume curve.", 2);
+  engine.commit();  // freeze BM25 (+ IVF) into a new snapshot; safe while queries run
+
+  auto ctx = engine.make_context();  // one per query thread; reuse it
+  const auto r = engine.query("how do iceberg orders work?", /*k=*/3, ctx);
+  ASSERT_FALSE(r.hits.empty());
+  const rag::ChunkView top = engine.chunk(r.hits[0].id);
+  EXPECT_EQ(top.doc_id, 1u);
+  EXPECT_NE(r.prompt.prompt.find("### Question"), std::string_view::npos);  // ready for an LLM
+}
+
+// --- API.md §2: page-aware ingestion and citations ---------------------------
+TEST(ApiExamples, PagesAndCitations) {
+  rag::RagEngine<rag::HashingEmbedder<384>> engine(rag::EngineConfig{.max_chunks = 1024});
+  const std::string text = "Page one talks about spreads.\n\nPage two talks about maker rebates.";
+  const std::uint32_t page_starts[] = {0, static_cast<std::uint32_t>(text.find("Page two"))};
+  engine.ingest(text, 7, rag::IngestOptions{.source = "fees.pdf", .page_starts = page_starts});
+  engine.commit();
+  auto ctx = engine.make_context();
+  const auto r = engine.query("maker rebates", 1, ctx);
+  EXPECT_NE(r.prompt.prompt.find("(fees.pdf, p"), std::string_view::npos);  // "(fees.pdf, p. 1)" or "pp. 1-2"
+}
+
+// --- API.md §3: save, inspect, load ------------------------------------------
+TEST(ApiExamples, Persistence) {
+  using Engine = rag::RagEngine<rag::HashingEmbedder<384>>;
+  const rag::EngineConfig cfg{.max_chunks = 1024};
+  Engine engine(cfg);
+  engine.ingest("Kill switches cancel all resting orders.", 1);
+  engine.commit();
+  const auto path = tmp("api-index");
+  engine.save(path);                                   // crash-safe: tmp file, fsync, rename
+  const rag::IndexInfo info = Engine::inspect(path);   // header only
+  Engine::LoadReport report;
+  auto loaded = Engine::load(path, cfg, {}, &report);  // throws on damage or mismatch
+  EXPECT_EQ(info.chunks, loaded->size());
+  EXPECT_TRUE(report.reused_indexes);                  // same parameters: saved indexes reused
+  std::filesystem::remove(path);
+}
+
+// --- API.md §4: batched queries ----------------------------------------------
+TEST(ApiExamples, BatchedQueries) {
+  using Engine = rag::RagEngine<rag::HashingEmbedder<384>>;
+  Engine engine(rag::EngineConfig{.max_chunks = 1024});
+  engine.ingest("alpha beta gamma", 1);
+  engine.ingest("delta epsilon zeta", 2);
+  engine.commit();
+  std::vector<std::string_view> queries = {"alpha", "zeta", "gamma delta"};
+  std::vector<Engine::QueryContext> ctxs;
+  for (std::size_t i = 0; i < queries.size(); ++i) ctxs.push_back(engine.make_context());
+  std::vector<Engine::QueryResult> out(queries.size());
+  engine.query_batch(queries, /*k=*/2, ctxs, out);  // identical to query(), one memory pass per 8
+  EXPECT_EQ(engine.chunk(out[1].hits[0].id).doc_id, 2u);
+}
+
+// --- API.md §5: text cleanup without Poppler ----------------------------------
+TEST(ApiExamples, TextCleanup) {
+  std::vector<std::string> pages = {"Header\nThe \xEF\xAC\x81rst page", "Header\nsecond page"};
+  const auto cleaned = rag::text::clean_pages(pages);  // ligatures, headers, hyphenation, reflow
+  EXPECT_EQ(cleaned[0], "The first page");
+  const auto joined = rag::text::join_pages(cleaned);  // text + page_starts for IngestOptions
+  EXPECT_EQ(joined.page_starts.size(), 2u);
+}
+
+// --- API.md §6: train an agent -----------------------------------------------
+TEST(ApiExamples, TrainAnAgent) {
+  using namespace rag::agent;
+  ExecutionEnv env{ExecutionParams{}};
+  AgentConfig<3> cfg;  // 3 = ExecutionEnv::kStateDims
+  cfg.eps_decay_episodes = 2000;
+  Agent<ExecutionEnv> agent(env, cfg);
+  Trainer<ExecutionEnv> trainer(agent, env, {.eval_every = 500, .eval_episodes = 200});
+  const TrainReport report = trainer.run(4000);
+  // Deploy the champion; the learner keeps learning separately.
+  const Action a = trainer.deployed_act(ExecutionObs{.t = 5, .inventory = 60, .signal = -0.1});
+  EXPECT_LT(a, ExecutionEnv::kNumActions);
+  // Measure against the exact optimum on unseen scenarios (paired vs TWAP).
+  const ExecutionDP dp{ExecutionParams{}};
+  auto twap = [](const ExecutionObs&) { return ExecutionEnv::kTwapAction; };
+  const EvalStats mine = compare(env, [&](const ExecutionObs& o) { return trainer.deployed_act(o); }, twap, 500, 1);
+  const EvalStats best = compare(env, [&](const ExecutionObs& o) { return dp.act(o); }, twap, 500, 1);
+  EXPECT_GT(best.mean, mine.mean - 1.0);  // the DP is (nearly) unbeatable
+  EXPECT_FALSE(report.evals.empty());
+}

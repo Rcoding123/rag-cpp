@@ -100,6 +100,7 @@ concept.
 
 ```bash
 ./build/rag_pdf index research.ragidx ~/papers/ handbook.pdf   # folders are searched recursively
+./build/rag_pdf index project.ragidx .                          # text and source files work too (.md .txt .hpp .py ...)
 ./build/rag_pdf ask research.ragidx "how does the kill switch work?" -k 3
 ./build/rag_pdf ask research.ragidx "maker rebates" --prompt     # also print the LLM prompt
 ```
@@ -140,6 +141,18 @@ auto r = rag::pdf::ingest_pdf(engine, "report.pdf", /*doc_id=*/7);
   password.
 * **Speed:** a 400-page PDF indexes in 0.42 s, about the same as `pdftotext`
   alone. Loading the index and answering a question takes 24 ms.
+
+## Hand-off pack for AI assistants
+
+[`llms.txt`](llms.txt) and [`docs/ai/`](docs/ai/README.md) describe the project
+for another language model:
+* a project map;
+* a compiled API cheat sheet;
+* engine internals, an experiment log and a decision log;
+* conventions and status.
+
+`python3 tools/make_context_pack.py [--with-source]` bundles it all into one
+file: about 17k tokens for the docs alone, about 120k with every source file.
 
 ## A self-learning agent
 

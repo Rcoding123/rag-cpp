@@ -1,0 +1,18 @@
+# rag-cpp
+
+> Header-only C++20 hybrid RAG engine (dense + BM25 + RRF, SIMD, zero-allocation queries, lock-free concurrent commits, crash-safe persistence, PDF ingestion with page citations) plus a self-learning RL agent with held-out evaluation, champion/challenger deployment and two-stage drift detection, benchmarked against an exact dynamic-programming optimum.
+
+## Docs
+- [Hand-off pack: start here](docs/ai/README.md): reading order and ground rules
+- [Project map](docs/ai/PROJECT_MAP.md): files, dependency layers, build targets, CI
+- [API cheat sheet](docs/ai/API.md): compiled examples for the engine, PDFs, persistence, batching, agent
+- [RAG engine internals](docs/ai/RAG_ENGINE.md): data flow, invariants, concurrency, file format, performance
+- [Agent architecture](docs/agent.md): environment, encoders, learners, supervision, lessons
+- [Experiment log](docs/ai/EXPERIMENTS.md): RL experiments with results, including failures
+- [Decision log](docs/ai/DECISIONS.md): design decisions with evidence
+- [Conventions](docs/ai/CONVENTIONS.md): coding, testing and verification rules
+- [Status](docs/ai/STATUS.md): limitations and next steps
+
+## Optional
+- [README](README.md): overview with benchmark tables
+- [Single-file bundle generator](tools/make_context_pack.py): writes dist/context_pack_*.md

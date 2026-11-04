@@ -1,4 +1,4 @@
-// rag_pdf — index a collection of PDFs and ask questions with page citations.
+// rag_pdf — index PDFs and text/source files, then ask questions with citations.
 //
 //   rag_pdf index <index-file> <pdf-or-directory>... [options]
 //   rag_pdf ask   <index-file> "<question>" [-k N] [--prompt] [options]
@@ -10,14 +10,21 @@
 //   -k N                            passages to show (default 5)
 //   --prompt                        also print the prompt an LLM would receive
 //
-// Directories are searched recursively for *.pdf. Files found in a directory
-// are cited by their path relative to it (e.g. "2024/q3.pdf"); files named
-// directly are cited by file name.
+// Directories are searched recursively for PDFs and text files (.md .txt .rst
+// .hpp .h .cpp .cc .c .py .rs .go .java .ts .js .json .yml .yaml .toml .csv
+// .cmake CMakeLists.txt), skipping hidden directories, build*, dist and
+// node_modules. PDFs are cited by page ("q3.pdf, p. 4"); text files by chunk
+// ("api.md, chunk 2"). Files found in a directory are cited by their path
+// relative to it; files named directly by file name. Text files are indexed
+// verbatim (characters normalized, no reflow, so code keeps its lines);
+// binary files (containing NUL bytes) and files over 8 MB are skipped.
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -90,15 +97,40 @@ rag::EngineConfig config_for(const Args& a, std::uint32_t max_chunks) {
   return cfg;
 }
 
+enum class Kind { Pdf, Text, Other };
+
 struct Input {
   fs::path path;
   std::string cite_as;
+  Kind kind;
 };
 
-bool is_pdf(const fs::path& p) {
+Kind kind_of(const fs::path& p) {
   std::string ext = p.extension().string();
   std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-  return ext == ".pdf";
+  if (ext == ".pdf") return Kind::Pdf;
+  static const char* text[] = {".md", ".txt", ".rst", ".hpp", ".h", ".cpp", ".cc", ".c", ".py", ".rs", ".go", ".java",
+                               ".ts", ".js", ".json", ".yml", ".yaml", ".toml", ".csv", ".cmake"};
+  for (const char* t : text)
+    if (ext == t) return Kind::Text;
+  return p.filename() == "CMakeLists.txt" ? Kind::Text : Kind::Other;
+}
+
+bool skip_dir(const fs::path& d) {
+  const std::string n = d.filename().string();
+  return (n.size() > 1 && n[0] == '.') || n.rfind("build", 0) == 0 || n == "dist" || n == "node_modules";
+}
+
+constexpr std::uintmax_t kMaxTextBytes = 8u << 20;
+
+// Reads a text file; empty optional-like result (ok=false) for binary or oversized files.
+bool read_text(const fs::path& p, std::string& out, std::string& why) {
+  if (fs::file_size(p) > kMaxTextBytes) { why = "larger than 8 MB"; return false; }
+  std::ifstream f(p, std::ios::binary);
+  out.assign(std::istreambuf_iterator<char>(f), {});
+  if (out.find('\0') != std::string::npos) { why = "binary (contains NUL bytes)"; return false; }
+  out = rag::text::normalize_chars(out);  // CRLF, odd spaces, ligatures; lines are kept
+  return true;
 }
 
 std::vector<Input> collect(const std::vector<std::string>& args) {
@@ -107,13 +139,18 @@ std::vector<Input> collect(const std::vector<std::string>& args) {
     const fs::path p = a;
     if (fs::is_directory(p)) {
       std::vector<Input> found;
-      for (const auto& entry : fs::recursive_directory_iterator(p, fs::directory_options::skip_permission_denied))
-        if (entry.is_regular_file() && is_pdf(entry.path()))
-          found.push_back({entry.path(), fs::relative(entry.path(), p).generic_string()});
+      for (auto it = fs::recursive_directory_iterator(p, fs::directory_options::skip_permission_denied);
+           it != fs::recursive_directory_iterator(); ++it) {
+        if (it->is_directory() && skip_dir(it->path())) { it.disable_recursion_pending(); continue; }
+        const Kind k = it->is_regular_file() ? kind_of(it->path()) : Kind::Other;
+        if (k != Kind::Other) found.push_back({it->path(), fs::relative(it->path(), p).generic_string(), k});
+      }
       std::sort(found.begin(), found.end(), [](const Input& x, const Input& y) { return x.cite_as < y.cite_as; });
       out.insert(out.end(), found.begin(), found.end());
     } else if (fs::is_regular_file(p)) {
-      out.push_back({p, p.filename().string()});
+      const Kind k = kind_of(p);
+      if (k == Kind::Other) std::fprintf(stderr, "warning: skipping %s (not a PDF or a known text type)\n", a.c_str());
+      else out.push_back({p, p.filename().string(), k});
     } else {
       std::fprintf(stderr, "warning: skipping %s (not a file or directory)\n", a.c_str());
     }
@@ -140,34 +177,44 @@ std::string snippet(std::string_view t, std::size_t max = 280) {
 
 std::string where(const rag::ChunkView& c) {
   std::string w = c.source.empty() ? "doc " + std::to_string(c.doc_id) : std::string(c.source);
-  if (c.page_first == 0) return w;
+  if (c.page_first == 0) return w + ", chunk " + std::to_string(c.ordinal);
   if (c.page_first == c.page_last) return w + ", p. " + std::to_string(c.page_first);
   return w + ", pp. " + std::to_string(c.page_first) + "-" + std::to_string(c.page_last);
 }
 
 int cmd_index(const Args& a) {
-  if (a.positional.size() < 2) usage("index needs an index file and at least one PDF or directory");
+  if (a.positional.size() < 2) usage("index needs an index file and at least one file or directory");
   const fs::path index = a.positional[0];
   const auto inputs = collect({a.positional.begin() + 1, a.positional.end()});
-  if (inputs.empty()) usage("no PDF files found");
+  if (inputs.empty()) usage("no PDF or text files found");
 
   // Extract everything first, so the engine can be sized exactly.
   struct Extracted {
     Input in;
-    rag::pdf::Document doc;
+    rag::pdf::Document doc;  // PDFs
+    std::string text;        // text files
   };
   std::vector<Extracted> docs;
   std::uint64_t words = 0;
   for (const auto& in : inputs) {
     try {
-      auto d = rag::pdf::extract(in.path);
-      for (const auto& p : d.pages) rag::for_each_token(p, [&](const rag::Token&) { ++words; });
-      docs.push_back({in, std::move(d)});
-    } catch (const rag::pdf::PdfError& e) {
+      Extracted x{in, {}, {}};
+      std::string why;
+      if (in.kind == Kind::Pdf) {
+        x.doc = rag::pdf::extract(in.path);
+        for (const auto& p : x.doc.pages) rag::for_each_token(p, [&](const rag::Token&) { ++words; });
+      } else if (read_text(in.path, x.text, why)) {
+        rag::for_each_token(x.text, [&](const rag::Token&) { ++words; });
+      } else {
+        std::fprintf(stderr, "warning: skipping %s: %s\n", in.cite_as.c_str(), why.c_str());
+        continue;
+      }
+      docs.push_back(std::move(x));
+    } catch (const std::exception& e) {
       std::fprintf(stderr, "warning: skipping %s: %s\n", in.cite_as.c_str(), e.what());
     }
   }
-  if (docs.empty()) { std::fprintf(stderr, "error: no PDF could be read\n"); return 1; }
+  if (docs.empty()) { std::fprintf(stderr, "error: no file could be read\n"); return 1; }
   // Chunks per document <= words / stride + 1.
   const std::uint64_t stride = a.window - a.overlap;
   const std::uint64_t estimate = words / stride + docs.size() + 16;
@@ -175,7 +222,14 @@ int cmd_index(const Args& a) {
 
   Engine e(config_for(a, static_cast<std::uint32_t>(estimate)));
   std::uint32_t total_pages = 0, total_empty = 0;
+  std::size_t n_pdf = 0;
   for (std::uint32_t i = 0; i < docs.size(); ++i) {
+    if (docs[i].in.kind == Kind::Text) {
+      const auto chunks = e.ingest(docs[i].text, i, rag::IngestOptions{.source = docs[i].in.cite_as});
+      std::printf("  %-40s   text %5u chunks\n", docs[i].in.cite_as.c_str(), chunks);
+      continue;
+    }
+    ++n_pdf;
     const auto r = rag::pdf::ingest(e, docs[i].doc, i, docs[i].in.cite_as);
     total_pages += r.pages;
     total_empty += r.empty_pages;
@@ -186,8 +240,8 @@ int cmd_index(const Args& a) {
   }
   e.commit();
   e.save(index);
-  std::printf("indexed %zu %s, %u pages, %u chunks -> %s (%.1f MB)\n", docs.size(), docs.size() == 1 ? "PDF" : "PDFs",
-              total_pages, e.size(),
+  std::printf("indexed %zu %s (%zu PDF, %u pages), %u chunks -> %s (%.1f MB)\n", docs.size(),
+              docs.size() == 1 ? "file" : "files", n_pdf, total_pages, e.size(),
               index.string().c_str(), static_cast<double>(fs::file_size(index)) / 1e6);
   if (total_empty)
     std::printf("note: %u %s no extractable text. Scanned pages need OCR before indexing.\n", total_empty,
