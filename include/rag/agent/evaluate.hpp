@@ -88,7 +88,10 @@ std::vector<double> episode_returns(const Env& proto, Policy&& policy, std::uint
 // outcome is always included.
 inline double cvar(std::vector<double> returns, double alpha) {
   if (returns.empty()) return 0;
-  const std::size_t k = std::max<std::size_t>(1, static_cast<std::size_t>(alpha * static_cast<double>(returns.size())));
+  // alpha * n rounded down, with a relative tolerance: 0.29 * 100 is
+  // 28.999999999999996 in floating point, and must count 29 outcomes.
+  const auto want = static_cast<std::size_t>(alpha * static_cast<double>(returns.size()) * (1 + 1e-12));
+  const std::size_t k = std::clamp<std::size_t>(want, 1, returns.size());
   std::nth_element(returns.begin(), returns.begin() + static_cast<std::ptrdiff_t>(k - 1), returns.end());
   std::sort(returns.begin(), returns.begin() + static_cast<std::ptrdiff_t>(k));
   double s = 0;

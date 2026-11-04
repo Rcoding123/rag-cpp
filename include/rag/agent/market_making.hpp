@@ -237,6 +237,9 @@ class ModelBasedMarketMaker {
       : objective_(objective), cfg_(cfg), rng_(cfg.seed), gap_(cfg.replan_every) {}
 
   Action act(const MarketMakingObs& o, bool explore) {
+    // Greedy without a plan yet: symmetric quotes, without touching the RNG
+    // (greedy evaluation must not change what training explores next).
+    if (!plan_ && !explore) return MarketMakingEnv::kSymmetricAction;
     if (!plan_ || (explore && (episodes_ < cfg_.explore_episodes || rng_.uniform() < cfg_.eps)))
       return rng_.below(static_cast<std::uint32_t>(MarketMakingEnv::kNumActions));
     return plan_->act(o);
@@ -262,9 +265,12 @@ class ModelBasedMarketMaker {
 
   void end_episode() {
     ++episodes_;
+    // The gap doubles after each *re*-plan, so the first re-plan comes
+    // replan_every episodes after the first plan (bug: it came 2x later).
     if (episodes_ >= cfg_.explore_episodes && (!plan_ || episodes_ - last_plan_ >= gap_)) {
+      const bool first = !plan_;
       replan();
-      gap_ = std::min(gap_ * 2, cfg_.replan_max_gap);
+      if (!first) gap_ = std::min(gap_ * 2, cfg_.replan_max_gap);
     }
   }
 

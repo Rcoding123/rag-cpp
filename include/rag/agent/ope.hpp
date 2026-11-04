@@ -57,7 +57,10 @@ template <class Obs, class Target, class QModel, class VModel>
 OpeEstimates off_policy_estimates(const std::vector<LoggedEpisode<Obs>>& logs, Target&& pi, QModel&& q, VModel&& v,
                                   std::uint32_t horizon) {
   OpeEstimates out;
-  if (logs.empty()) return out;
+  if (logs.empty()) {
+    out.uncovered_steps = horizon;  // nothing was logged, so nothing followed the target
+    return out;
+  }
   const double n = static_cast<double>(logs.size());
   std::vector<double> wsum(horizon, 0.0), w2sum(horizon, 0.0), wr(horizon, 0.0);
   double pdis = 0, dr = 0;

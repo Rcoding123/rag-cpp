@@ -132,18 +132,20 @@ class ModelBasedExecutionAgent {
   explicit ModelBasedExecutionAgent(const ExecutionParams& structure) : ModelBasedExecutionAgent(structure, Config{}) {}
 
   Action act(const ExecutionObs& o, bool explore) {
+    // Greedy without a plan yet: TWAP, without touching the RNG (greedy
+    // evaluation must not change what training explores next).
+    if (!plan_ && !explore) return ExecutionEnv::kTwapAction;
     if (!plan_ || (explore && (episodes_ < cfg_.explore_episodes || rng_.uniform() < cfg_.eps)))
       return static_cast<Action>(cfg_.explore_lo + rng_.below(static_cast<std::uint32_t>(cfg_.explore_hi - cfg_.explore_lo + 1)));
     return plan_->act(o);
   }
 
-  void observe(const ExecutionObs& o, Action /*a*/, double r, const ExecutionObs& next, bool done) {
+  void observe(const ExecutionObs& o, Action a, double r, const ExecutionObs& next, bool done) {
     const bool last = done && next.t >= structure_.horizon;
     // Lots sold this step, from the inventory change. On the last step the
     // env also dumps the remainder (next.inventory is then 0), so the sale is
-    // taken from the action's known size, recorded by note_action().
-    const std::uint32_t q = last ? sold_ : o.inventory - next.inventory;
-    sold_ = 0;
+    // taken from the action's known size, lots_for(a, inventory).
+    const std::uint32_t q = last ? env_.lots_for(a, o.inventory) : o.inventory - next.inventory;
     if (o.t == 0) {  // first step of an episode: what does the plan expect from here?
       has_prediction_ = plan_ != nullptr;
       predicted_ = has_prediction_ ? plan_->value(0, o.inventory, o.signal) : 0.0;
@@ -186,11 +188,11 @@ class ModelBasedExecutionAgent {
     ++steps_;
   }
 
-  // Must be called right before observe() on the env's last step, with the
-  // action taken there, so the agent can separate sale from dump. Trainers
-  // that only call observe() still work: then the split comes from
-  // lots_for(action, inventory) via note_action().
-  void note_action(const ExecutionObs& o, Action a) noexcept { sold_ = env_.lots_for(a, o.inventory); }
+  // Kept for existing trainers; no longer needed. observe() separates the
+  // last step's sale from the dump itself, from its action argument. (Bug:
+  // it used to rely on this call, so trainers that only called observe()
+  // fitted terminal_impact as if the whole last-step inventory was dumped.)
+  void note_action(const ExecutionObs& /*o*/, Action /*a*/) noexcept {}
 
   void end_episode() {
     ++episodes_;
@@ -210,9 +212,13 @@ class ModelBasedExecutionAgent {
     // The first plan comes as soon as exploration ends. (Bug fixed in E11:
     // it used to wait for replan_every episodes too, so the agent acted
     // randomly for max(explore_episodes, replan_every) = 20 episodes, not 10.)
+    // The gap doubles after each *re*-plan, so the first re-plan comes
+    // replan_every episodes after the first plan. (Bug: it doubled after the
+    // first plan too, giving plans at 10, 50, 130 instead of 10, 30, 70.)
     if (episodes_ >= cfg_.explore_episodes && (!plan_ || episodes_ - last_plan_ >= gap_)) {
+      const bool first = !plan_;
       replan();
-      gap_ = std::min(gap_ * 2, cfg_.replan_max_gap);
+      if (!first) gap_ = std::min(gap_ * 2, cfg_.replan_max_gap);
     }
   }
 
@@ -413,7 +419,7 @@ class ModelBasedExecutionAgent {
   std::unique_ptr<ExecutionDP> plan_;
   ModelEstimate estimate_{};
   std::uint64_t episodes_ = 0, last_plan_ = 0, steps_ = 0;
-  std::uint32_t gap_, replans_ = 0, sold_ = 0;
+  std::uint32_t gap_, replans_ = 0;
   // Weighted least squares sufficient statistics: X'WX (nparams x nparams) and X'Wy.
   std::uint32_t nparams_;
   std::vector<double> xtx_, xty_;

@@ -93,7 +93,8 @@ class DriftDetector {
   // Direction of the last alarm: true if returns rose above expectations.
   [[nodiscard]] bool last_alarm_was_upward() const noexcept { return last_up_; }
 
-  [[nodiscard]] double evidence() const noexcept { return -cusum_; }  // how close to an alarm (alarm at threshold)
+  // How close to an alarm (alarm at threshold), in either direction with two_sided.
+  [[nodiscard]] double evidence() const noexcept { return std::max(-cusum_, up_); }
 
  private:
   // Exponential moving mean and variance; exact running moments while young.

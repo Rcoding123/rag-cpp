@@ -50,10 +50,14 @@ class ExecutionDP {
   // 0..lots). A model-based agent passes the costs it has learned.
   ExecutionDP(const ExecutionParams& p, std::vector<double> trade_costs, std::vector<double> dump_costs,
               std::uint32_t grid = 121, double grid_sds = 4.0)
-      : env_(p), p_(p), m_(grid), lo_(-grid_sds * p.signal_sd), step_(2.0 * grid_sds * p.signal_sd / (grid - 1)),
+      // The grid needs a positive width even without a signal (signal_sd 0):
+      // a zero step made every lookup 0/0 and the whole table NaN.
+      : env_(p), p_(p), m_(grid), lo_(-grid_sds * std::max(p.signal_sd, 1e-12)),
+        step_(2.0 * grid_sds * std::max(p.signal_sd, 1e-12) / (grid - 1)),
         trade_cost_(std::move(trade_costs)), dump_cost_(std::move(dump_costs)) {
     if (trade_cost_.size() != p.lots + 1u || dump_cost_.size() != p.lots + 1u)
       throw std::invalid_argument("ExecutionDP: cost tables need lots + 1 entries");
+    if (grid < 2) throw std::invalid_argument("ExecutionDP: the signal grid needs at least 2 points");
     // Quadrature for E[f(Z)], Z ~ N(0,1): evenly spaced nodes on [-4, 4],
     // weights proportional to the density, normalised to sum to 1.
     double total = 0;
