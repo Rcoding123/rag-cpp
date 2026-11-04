@@ -45,7 +45,7 @@
   E11 and E15 slightly; those were measured before the fixes.
 * **Testing:**
   * the CI matrix covers SIMD levels, sanitizers and fuzzing;
-  * 286 ctest cases: 271 in `rag_tests`, 4 in `rag_optlib_tests`, 9 PDF tests (Poppler), the
+  * 287 ctest cases: 272 in `rag_tests`, 4 in `rag_optlib_tests`, 9 PDF tests (Poppler), the
     stress run and a `rag_pdf` CLI smoke test.
   * The TSan CI job skips the single-threaded learning suites (`Agent*`,
     `ModelBased`, `ExecutionCosts`, `OffPolicy`, `MarketMaking`, `Reference`, `ApiExamples`), which ran
@@ -68,7 +68,7 @@
   * model-free learning on execution is slow because returns are noisy
     relative to the gain (0.27 return-sds per episode): default TileQ
     reaches 65–69% at 40k episodes; coarse tiles + advantage learning
-    76–80%; the neural `NeuralQ` 84–89% (deployed 86–92%); the model-based
+    76–80%; the neural `NeuralQ` 84–89% (deployed 86–92%), and 87–94% deployed at 20k with Double DQN (E20); the model-based
     agent 99–100% in 20–50 episodes (E1, E16, E19);
   * `ExecutionEnv` and `MarketMakingEnv` are stylized on purpose (exact DP
     optima): no order-book dynamics, queue position or real data;

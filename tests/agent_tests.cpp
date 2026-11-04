@@ -1158,3 +1158,27 @@ TEST(AgentLearning, AdvantageLearningTargetByHand) {
     EXPECT_NEAR(q[1], k > 0 ? -0.875 : -0.75, 1e-12) << "k = " << k;
   }
 }
+
+// ======= Experiment E20 (Double DQN and advantage learning for NeuralQ) =====
+TEST(AgentNeural, DoubleAndAdvantageTargetsStillLearn) {
+  // E20 (full-size network, 20k episodes, seeds 1-2): deployed 87-94% with
+  // Double DQN and 83-91% with advantage learning, vs 81-87% plain. Here a
+  // small network, 3,000 episodes: each variant must still learn.
+  ExecutionParams p;
+  ExecutionEnv env(p);
+  const auto& dp = default_dp();
+  for (int variant = 0; variant < 2; ++variant) {
+    AgentConfig<3> cfg = execution_config();
+    cfg.learner = LearnerKind::NeuralQ;
+    cfg.eps_decay_episodes = 3000;
+    cfg.nn_hidden = 32;
+    cfg.nn_batch = 8;
+    if (variant == 0) cfg.double_q = true;
+    if (variant == 1) cfg.advantage_learning = 0.5;
+    ExecutionEnv e(p);
+    Agent<ExecutionEnv> agent(e, cfg);
+    Trainer<ExecutionEnv> tr(agent, e, {.eval_every = 0, .detect_drift = false});
+    tr.run(3000);
+    EXPECT_GT(captured(env, dp, [&](const ExecutionObs& o) { return agent.act(o, false); }), 0.2) << "variant " << variant;
+  }
+}

@@ -77,7 +77,9 @@ struct AgentConfig {
   bool double_q = false;  // measured: on ExecutionEnv, halving each estimator's updates costs more than the bias it removes
   // Advantage learning (Baird 1999; Bellemare et al. 2016): subtract k times
   // the action's advantage deficit from its target, widening action gaps
-  // while keeping the optimal policy. 0 = plain Q-learning. TileQ only. E19.
+  // while keeping the optimal policy. 0 = plain Q-learning. TileQ (E19) and
+  // NeuralQ (E20; there double_q means Double DQN: the online network picks
+  // the next action, the target network values it).
   double advantage_learning = 0.0;
   std::uint32_t replay_capacity = 100'000;
   std::uint32_t replay_per_step = 4;  // extra updates from replayed experience per real step
@@ -579,9 +581,21 @@ class Agent {
       for (std::uint32_t b = 0; b < cfg_.nn_batch; ++b) {
         const NeuralTransition& tr = nreplay_[rng_.below(static_cast<std::uint32_t>(nreplay_.size()))];
         double y = tr.ret;
+        const Mlp& judge = cfg_.nn_target_sync ? target_ : net_;
         if (tr.bootstrap > 0) {
-          (cfg_.nn_target_sync ? target_ : net_).forward(tr.next.data(), qn.data(), nscratch_.data());
-          y += tr.bootstrap * *std::max_element(qn.begin(), qn.end());
+          judge.forward(tr.next.data(), qn.data(), nscratch_.data());
+          if (cfg_.double_q) {  // Double DQN: the online network picks, the target network values
+            std::array<double, A> qo;
+            net_.forward(tr.next.data(), qo.data(), nscratch_.data());
+            y += tr.bootstrap * qn[static_cast<std::size_t>(std::max_element(qo.begin(), qo.end()) - qo.begin())];
+          } else {
+            y += tr.bootstrap * *std::max_element(qn.begin(), qn.end());
+          }
+        }
+        if (cfg_.advantage_learning > 0) {  // gap-increasing target (E19), with the online network
+          std::array<double, A> qs;
+          net_.forward(tr.s.data(), qs.data(), nscratch_.data());
+          y -= cfg_.advantage_learning * (*std::max_element(qs.begin(), qs.end()) - qs[tr.action]);
         }
         net_.accumulate(tr.s.data(), tr.action, y);
       }

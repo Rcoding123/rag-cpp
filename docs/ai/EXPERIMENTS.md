@@ -34,6 +34,7 @@ and the conclusion; negative results stay in.
 | E16 | Would a neural network (PyTorch-style) do better? | Yes: a from-scratch MLP (DQN-style, no library) reaches 84–89% at 40k (deployed 86–92%) vs 65–69% for TileQ. Not the target network, not Adam: generalization. Coarser tiles alone reach 76–77%. |
 | E17 | Does a control variate for the price noise help? | Not by default: the innovation is ~5% of the return variance (the signal path dominates). In a noisy market (noise_sd 0.2) it lifts TileQ from 49–61% to 67–71%. Decompose before reducing. |
 | E18 | Can a proper optimizer tune the learner? | NLopt (CRS2 global + Subplex) lifts TileQ at 10k episodes from 37% [33, 41] to 59% [52, 66] on held-out seeds; the Eigen response surface rediscovers E8 and E16. Local search alone was start-dependent; winners were 0.3–18.5 points optimistic on their own seeds. |
+| E20 | Do Double DQN and advantage learning help the neural learner? | Yes, mostly through stability: deployed 87–94% at 20k episodes vs 81–87% plain; the learner's own greedy policy 87–91% vs 70%. |
 | E19 | Do gap-increasing targets help? | Advantage learning (k = 0.5) lifts TileQ from 65–69% to 70–75% at 40k, and to 76–80% with coarse tiles: the best tile-coded result, still below the neural learner. |
 
 ---
@@ -1168,3 +1169,32 @@ R² = 0.56; effect of +1 standard deviation of each parameter):
   seed at −123% at 5k), so the champion mechanism matters.
 * Not made the default: the gain is moderate and other tasks' tests are
   tuned on k = 0.
+
+
+## E20. Double DQN and advantage learning for the neural learner
+
+* **Question:** the two target corrections that helped or should help
+  (RESEARCH.md §2): does `NeuralQ` improve with Double DQN (the online
+  network picks the next action, the target network values it, removing the
+  upward bias of a max over noisy estimates) and with advantage learning?
+* **Code:** in `NeuralQ`, `double_q` now means Double DQN and
+  `advantage_learning` applies the E19 correction with the online network.
+* **Test:** `AgentNeural.DoubleAndAdvantageTargetsStillLearn`.
+* **Results** (library `NeuralQ` through the `Trainer`, champion evaluated
+  every 1,000 episodes; seeds 1 / 2 at 20,000 episodes; probe `e20_nq.cpp`):
+
+| Variant | Learner's greedy policy | Deployed champion |
+|---|---|---|
+| plain (E16) | 70% / 70% | 87% / 81% |
+| Double DQN | 87% / 91% | **87% / 94%** |
+| advantage learning 0.5 | 87% / 83% | 91% / 83% |
+| both | 90% / 88% | 90% / 90% |
+
+* **Both corrections help, and they mostly help stability.** The plain
+  learner's greedy policy sat at 70% at 20k (its champion held 81–87%);
+  with Double DQN or both corrections the learner itself is at 87–91%,
+  and the deployed policy at 87–94%: the best model-free results on
+  execution so far, at half the episodes E16 used.
+* Two seeds only (each run is ~2.5 minutes): treat the ranking between the
+  three corrected variants as unresolved; the gain over plain is
+  consistent.
