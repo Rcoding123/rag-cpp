@@ -44,6 +44,13 @@
 // own plan (exact, by policy evaluation) against the gain realized on real
 // scenarios, paired. |z| <= 2.5 when the model is right, 8.5-27 after 100
 // episodes when a term is missing (the model is optimistic).
+//
+// In a market that changes (E9), statistics that never forget average the
+// old and new regimes: -166% of the new optimum 20 episodes after a flip.
+// Constant forgetting (`forget`) tracks but plans on less data (54-93% in a
+// noisy stable market at 0.95). Change detection (`detect_drift`: CUSUM on
+// the plan's surprise, reset on an alarm) recovers to 95-100% within 20
+// episodes and costs nothing while the market is stable.
 #pragma once
 
 #include <algorithm>
@@ -54,6 +61,7 @@
 #include <utility>
 #include <vector>
 
+#include "rag/agent/drift.hpp"
 #include "rag/agent/env.hpp"
 #include "rag/agent/evaluate.hpp"
 #include "rag/agent/execution_dp.hpp"
@@ -94,6 +102,19 @@ class ModelBasedExecutionAgent {
     double shrink_steps = 30;  // Shrunk: pseudo-observations given to the quadratic prior per size
     bool learn_holding_cost = true;  // estimate the -holding * I'^2 term (needed for risk-averse objectives)
     bool learn_permanent_impact = true;  // estimate the -permanent * q * I' term (E7)
+    // Per-episode decay of every sufficient statistic: 1 keeps all data
+    // (stationary markets); 0.99 gives old data a half-life of ~70 episodes,
+    // so the estimates track a market that changes (E9). Pair it with a small
+    // replan_max_gap, or the plan won't follow the estimates.
+    double forget = 1.0;
+    // Change detection: a one-sided CUSUM test on surprise (episode return
+    // minus the plan's predicted value from the start state). On an alarm
+    // the agent multiplies its statistics by drift_forget (0 = start over)
+    // and replans after replan_every new episodes. Unlike constant
+    // forgetting, it costs nothing while the market is stable (E9).
+    bool detect_drift = false;
+    DriftParams drift{.lag = 10, .allowance = 0.3, .threshold = 10.0, .baseline_rate = 0.01, .warmup = 50};
+    double drift_forget = 0.0;
     std::uint64_t seed = 1;
   };
 
@@ -103,7 +124,7 @@ class ModelBasedExecutionAgent {
   ModelBasedExecutionAgent(const ExecutionParams& structure, Config cfg)
       : structure_(structure), cfg_(cfg), rng_(cfg.seed), env_(structure), gap_(cfg.replan_every),
         nparams_(kCost0 + structure.lots), xtx_(std::size_t{nparams_} * nparams_, 0.0), xty_(nparams_, 0.0),
-        per_n_(structure.lots + 1, 0) {}
+        per_n_(structure.lots + 1, 0.0), detector_(cfg.drift) {}
   explicit ModelBasedExecutionAgent(const ExecutionParams& structure) : ModelBasedExecutionAgent(structure, Config{}) {}
 
   Action act(const ExecutionObs& o, bool explore) {
@@ -119,6 +140,11 @@ class ModelBasedExecutionAgent {
     // taken from the action's known size, recorded by note_action().
     const std::uint32_t q = last ? sold_ : o.inventory - next.inventory;
     sold_ = 0;
+    if (o.t == 0) {  // first step of an episode: what does the plan expect from here?
+      has_prediction_ = plan_ != nullptr;
+      predicted_ = has_prediction_ ? plan_->value(0, o.inventory, o.signal) : 0.0;
+    }
+    episode_return_ += r;
     const double dq = q;
     if (last) {
       const double rem = static_cast<double>(o.inventory - q);
@@ -128,7 +154,7 @@ class ModelBasedExecutionAgent {
         t_rem2_q2_ += rem * rem * dq * dq;
         t_rem3_q_ += rem * rem * rem * dq;
       }
-      last_steps_.push_back({q, o.inventory - q, r});
+      last_steps_.push_back({q, o.inventory - q, r, 1.0});
       ++steps_;
       return;
     }
@@ -146,12 +172,12 @@ class ModelBasedExecutionAgent {
       xty_[x[i].first] += w * x[i].second * r;
       for (std::size_t j = 0; j < nx; ++j) xtx_[std::size_t{x[i].first} * nparams_ + x[j].first] += w * x[i].second * x[j].second;
     }
-    ++per_n_[q];
+    per_n_[q] += 1.0;
     if (!done) {  // signal transition g -> g'
       g_gg_ += o.signal * o.signal;
       g_gn_ += o.signal * next.signal;
       g_nn_ += next.signal * next.signal;
-      ++g_n_;
+      g_n_ += 1.0;
     }
     ++steps_;
   }
@@ -164,6 +190,18 @@ class ModelBasedExecutionAgent {
 
   void end_episode() {
     ++episodes_;
+    if (cfg_.forget < 1.0) decay(cfg_.forget);
+    const double surprise = episode_return_ - predicted_;
+    const bool planned = has_prediction_;
+    episode_return_ = predicted_ = 0.0;
+    has_prediction_ = false;
+    if (cfg_.detect_drift && planned && detector_.add(surprise)) {
+      decay(cfg_.drift_forget);
+      drift_alarms_.push_back(episodes_);
+      last_plan_ = episodes_;
+      gap_ = cfg_.replan_every;
+      return;
+    }
     if (episodes_ >= cfg_.explore_episodes && episodes_ - last_plan_ >= gap_) {
       replan();
       gap_ = std::min(gap_ * 2, cfg_.replan_max_gap);
@@ -193,10 +231,11 @@ class ModelBasedExecutionAgent {
         // to the quadratic fit instead of being extrapolated.
         const double k = cfg_.shrink_steps;
         for (std::uint32_t q = 1; q <= structure_.lots; ++q) {
-          const double prior = p.impact * q * q, n = static_cast<double>(per_n_[q]);
+          const double prior = p.impact * q * q, n = per_n_[q];
           trade[q] = (n * (seen(q) ? trade[q] : prior) + k * prior) / (n + k);
         }
-        const double n_last = static_cast<double>(last_steps_.size());
+        double n_last = 0;
+        for (const auto& ls : last_steps_) n_last += ls.w;
         for (std::uint32_t rem = 1; rem <= structure_.lots; ++rem) {
           const double prior = p.terminal_impact * rem * rem;
           dump[rem] = (n_last * dump[rem] + k * prior) / (n_last + k);
@@ -243,7 +282,7 @@ class ModelBasedExecutionAgent {
       if (ls.rem == 0) continue;
       const double x = static_cast<double>(ls.rem) * ls.rem;
       const double y = -ls.r - c[ls.q] - estimate_.permanent * ls.q * static_cast<double>(ls.rem);
-      s44 += x * x; s42 += x; s22 += 1; s4y += x * y; s2y += y;
+      s44 += ls.w * x * x; s42 += ls.w * x; s22 += ls.w; s4y += ls.w * x * y; s2y += ls.w * y;
     }
     double a = std::max(estimate_.terminal_impact, 1e-6), b = 0;
     const double det = s44 * s22 - s42 * s42;
@@ -273,7 +312,7 @@ class ModelBasedExecutionAgent {
     if (t_rem4_ > 0) m.terminal_impact = -(t_rem2_r_ + m.impact * t_rem2_q2_ + m.permanent * t_rem3_q_) / t_rem4_;
     if (g_gg_ > 0 && g_n_ > 1) {
       m.rho = g_gn_ / g_gg_;
-      const double innov_var = std::max(0.0, (g_nn_ - m.rho * g_gn_) / static_cast<double>(g_n_));
+      const double innov_var = std::max(0.0, (g_nn_ - m.rho * g_gn_) / g_n_);
       const double r2 = std::min(m.rho * m.rho, 0.9999);
       m.signal_sd = std::sqrt(innov_var / (1.0 - r2));
     }
@@ -281,7 +320,7 @@ class ModelBasedExecutionAgent {
   }
 
   [[nodiscard]] const ModelEstimate& model() const noexcept { return estimate_; }
-  [[nodiscard]] bool seen(std::uint32_t q) const noexcept { return q > 0 && q < per_n_.size() && per_n_[q] > 0; }
+  [[nodiscard]] bool seen(std::uint32_t q) const noexcept { return q > 0 && q < per_n_.size() && per_n_[q] > 1e-6; }
   [[nodiscard]] bool has_plan() const noexcept { return plan_ != nullptr; }
   [[nodiscard]] const ExecutionDP* plan() const noexcept { return plan_.get(); }
 
@@ -306,6 +345,8 @@ class ModelBasedExecutionAgent {
   }
   [[nodiscard]] std::uint64_t episodes() const noexcept { return episodes_; }
   [[nodiscard]] std::uint32_t replans() const noexcept { return replans_; }
+  // Episodes at which change detection fired (detect_drift).
+  [[nodiscard]] const std::vector<std::uint64_t>& drift_alarms() const noexcept { return drift_alarms_; }
 
  private:
   // Parameter layout of the normal equations.
@@ -368,15 +409,32 @@ class ModelBasedExecutionAgent {
   std::vector<double> xtx_, xty_;
   // Terminal dump: sum rem^4, rem^2 r, rem^2 q^2, rem^3 q.
   double t_rem4_ = 0, t_rem2_r_ = 0, t_rem2_q2_ = 0, t_rem3_q_ = 0;
-  std::vector<std::uint64_t> per_n_;  // non-terminal steps observed per size
+  std::vector<double> per_n_;  // non-terminal steps observed per size (decayed by `forget`)
   struct LastStep {
     std::uint32_t q, rem;
     double r;
+    double w;  // weight (decayed by `forget`)
   };
   std::vector<LastStep> last_steps_;
   // Signal AR(1): sum g^2, g g', g'^2, count.
   double g_gg_ = 0, g_gn_ = 0, g_nn_ = 0;
-  std::uint64_t g_n_ = 0;
+  double g_n_ = 0;
+  // Change detection.
+  DriftDetector detector_;
+  double predicted_ = 0, episode_return_ = 0;
+  bool has_prediction_ = false;
+  std::vector<std::uint64_t> drift_alarms_;
+
+  // Multiply every sufficient statistic by f (exponential forgetting).
+  void decay(double f) {
+    for (double& x : xtx_) x *= f;
+    for (double& x : xty_) x *= f;
+    t_rem4_ *= f; t_rem2_r_ *= f; t_rem2_q2_ *= f; t_rem3_q_ *= f;
+    g_gg_ *= f; g_gn_ *= f; g_nn_ *= f; g_n_ *= f;
+    for (double& n : per_n_) n *= f;
+    for (auto& ls : last_steps_) ls.w *= f;
+    std::erase_if(last_steps_, [](const LastStep& ls) { return ls.w < 1e-4; });
+  }
 };
 
 // Train a model-based agent for `episodes` episodes on `env` (own RNG stream).

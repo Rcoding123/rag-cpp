@@ -201,6 +201,17 @@ this (`docs/ai/EXPERIMENTS.md` E7):
    guard, the result is 100% when the model is right, and 78–82% (never
    below the plan) when it's wrong.
 
+### When the world changes, for a model
+A model that never forgets averages the old and new worlds: 20 episodes
+after the signal flips it's at −166% of the new optimum, and still −123%
+after 100. Constant forgetting tracks the change but always plans on little
+data (54–93% in a noisy, stable market). The model-based agent therefore
+uses the same idea as the trainer: a CUSUM test on surprise (episode return
+minus what its plan predicted), and on an alarm it starts its statistics
+over. It recovers to 95–100% within 20 episodes, against 5,000 episodes
+for the model-free agent to reach 18%, and costs nothing while the market
+is stable (E9).
+
 ## 6. Exploration
 
 A fraction ε of decisions is random. ε falls linearly from 1 to 0.02, and
@@ -343,7 +354,7 @@ The hard problems are the same in both:
   assumption, and that a backtest can't show the agent's own impact on the
   market.
 
-## 10. Tests (`tests/agent_tests.cpp` 36 cases, `tests/model_based_tests.cpp` 12)
+## 10. Tests (`tests/agent_tests.cpp` 37 cases, `tests/model_based_tests.cpp` 14)
 
 * **Components:**
   * the random number generator's moments;
@@ -378,6 +389,9 @@ The hard problems are the same in both:
     into the plan;
   * permanent impact is learned when modelled; without the term the model
     gets worse with more data, and `check_model()` flags it;
+  * change detection catches a market flip and recovers within 30
+    episodes, and is free in a stable market, where constant forgetting
+    isn't;
   * a wrong model form is costly, a flexible one fixes it, and shrinkage
     makes the flexible one safe with little data.
 * **Engineering:**

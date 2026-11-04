@@ -331,3 +331,84 @@ TEST(ModelBased, CheckModelFlagsAMissingTerm) {
     EXPECT_GT(wrong.predicted_gain, wrong.realized_gain);  // a wrong model is optimistic about its plan
   }
 }
+
+// ======== Experiment E9 (a changing market: forgetting vs detection) =========
+namespace {
+// Run n episodes of the model-based agent on env, learning online.
+void online(ModelBasedExecutionAgent& a, ExecutionEnv& env, Rng& rng, int n) {
+  for (int i = 0; i < n; ++i) {
+    auto o = env.reset(rng);
+    for (;;) {
+      const Action act = a.act(o, true);
+      a.note_action(o, act);
+      const auto st = env.step(act, rng);
+      a.observe(o, act, st.reward, st.obs, st.done);
+      o = st.obs;
+      if (st.done) break;
+    }
+    a.end_episode();
+  }
+}
+}  // namespace
+
+TEST(ModelBased, DetectsAMarketFlipAndRecoversWithinThirtyEpisodes) {
+  // Measured (replanning every 5 episodes, seeds 1-3): alarms 7-13 episodes
+  // after the signal's meaning flips, 95-100% of the new optimum at +20.
+  // Without forgetting the estimates average both regimes: -166% at +20,
+  // still -123% at +100. Here replanning is every 10 episodes on a coarser
+  // grid (test speed).
+  ExecutionParams flipped;
+  flipped.alpha = -1.0;
+  for (bool detect : {true, false}) {
+    ModelBasedExecutionAgent a(ExecutionParams{}, {.replan_every = 10,
+                                                   .replan_max_gap = 10,
+                                                   .dp_grid = 31,  // coarser planner: 4x faster replans for the test
+                                                   .cost_model = CostModel::Shrunk,
+                                                   .detect_drift = detect,
+                                                   .seed = 1});
+    ExecutionEnv env{ExecutionParams{}};
+    Rng rng(101);
+    online(a, env, rng, 300);
+    EXPECT_TRUE(a.drift_alarms().empty()) << "false alarm in a stable market";
+    env.set_alpha(-1.0);
+    online(a, env, rng, 30);
+    const double s = share(flipped, [&](const ExecutionObs& o) { return a.act(o, false); }, 600);
+    if (detect) {
+      ASSERT_EQ(a.drift_alarms().size(), 1u);
+      EXPECT_GT(a.drift_alarms()[0], 300u);
+      EXPECT_LE(a.drift_alarms()[0], 320u);
+      EXPECT_GT(s, 0.9);
+    } else {
+      EXPECT_LT(s, 0.0) << "without forgetting the old regime dominates the estimates";
+    }
+  }
+}
+
+TEST(ModelBased, ChangeDetectionIsFreeInAStableMarketButConstantForgettingIsNot) {
+  // Measured over 3,000 episodes, noise 0.2: detection gave 0-1 false
+  // alarms and 99.9-100.3% of optimal (seeds 1-3); constant forgetting 0.95
+  // (half-life ~14 episodes) gave 66-98% (seeds 1-6, mean ~89%), because it
+  // plans on ~20 episodes' worth of data. The mechanism, checked cheaply
+  // (no replanning): with forgetting, the estimates stay as noisy as after
+  // ~20 episodes, however long the agent runs.
+  ExecutionParams noisy;
+  noisy.noise_sd = 0.2;
+  ModelBasedExecutionAgent detect(noisy, {.cost_model = CostModel::Shrunk, .detect_drift = true, .seed = 1});
+  ExecutionEnv e1(noisy);
+  Rng r1(301);
+  online(detect, e1, r1, 1000);
+  EXPECT_LE(detect.drift_alarms().size(), 1u);
+  EXPECT_GT(share(noisy, [&](const ExecutionObs& o) { return detect.act(o, false); }), 0.97);
+  double err_forget = 0, err_full = 0;
+  for (std::uint64_t seed = 1; seed <= 4; ++seed) {
+    for (double f : {0.95, 1.0}) {
+      ModelBasedExecutionAgent a(noisy, {.replan_every = 100000, .forget = f, .seed = seed});
+      ExecutionEnv e(noisy);
+      Rng r(400 + seed);
+      online(a, e, r, 300);
+      const double d = a.current_estimate().alpha - noisy.alpha;
+      (f < 1 ? err_forget : err_full) += d * d;
+    }
+  }
+  EXPECT_GT(err_forget, 4 * err_full) << err_forget << " vs " << err_full;
+}

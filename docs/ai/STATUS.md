@@ -25,10 +25,12 @@
   * an optional baseline guard: never deploy a policy that hasn't beaten
     TWAP;
   * a paired model check that flags a wrong model after 100 episodes, and
-    warm-starting a model-free learner from a model's plan.
+    warm-starting a model-free learner from a model's plan;
+  * change detection for the model-based agent: recovery within 20
+    episodes of a market flip, free while the market is stable.
 * **Testing:**
   * the CI matrix covers SIMD levels, sanitizers and fuzzing;
-  * 195 ctest cases: 184 in `rag_tests`, 9 PDF tests (Poppler), the
+  * 197 ctest cases: 186 in `rag_tests`, 9 PDF tests (Poppler), the
     stress run and a `rag_pdf` CLI smoke test.
   * The TSan CI job skips the single-threaded learning suites (`Agent*`,
     `ModelBased`, `ExecutionCosts`, `Reference`, `ApiExamples`), which ran

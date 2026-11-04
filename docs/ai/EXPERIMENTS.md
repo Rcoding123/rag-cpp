@@ -24,6 +24,7 @@ and the conclusion; negative results stay in.
 | E6b | Can deployment be made safe? | A baseline guard: never deploy a policy that hasn't beaten TWAP by 2 standard errors. Worst case −106% → 0%. |
 | E7 | What if the market is outside the model class? | Model-based drops to 22–55% (model-free: 70–91%) and gets *worse* with data. A paired model check flags it after 100 episodes (z > 8 vs < 2.5). Fixes: expand the model (100%), or distill + fine-tune + guard (never below the plan, 78–82%). |
 | E8 | What does learning cost online, with every episode real? | ε from 1 loses >1,000 optimal-episodes and breaks even at ~12k; ε 0.1 breaks even at ~2k and learns as well. Model-based earns 88–95% of the optimum while learning. |
+| E9 | How fast can the model-based agent adapt? | Without forgetting: −166% 20 episodes after a flip. Constant forgetting tracks but costs up to 46 points when stable. Change detection + reset: 95–100% within 20 episodes, free when stable. |
 
 ---
 
@@ -580,3 +581,55 @@ Final quality at longer horizons (deployed share, seeds 1–3; probe
 * **The library default stays ε 1 → 0.02** (A24): sparse-reward tasks
   such as the corridor have no optimistic values to explore with. For
   online learning on cost-like rewards, start at 0.1.
+
+## E9. A changing market: forgetting vs change detection (model-based)
+
+* **Question:** the model-free agent needed 5,000 episodes to get back to
+  18% after the signal's meaning flipped (E0b). The model-based agent has
+  only ~6 numbers to re-estimate. How fast can it adapt, and at what cost
+  when nothing changes?
+* **Code:**
+  * `ModelBasedExecutionAgent::Config::forget`: per-episode decay of every
+    sufficient statistic (exponential forgetting).
+  * `detect_drift`, `drift` (`DriftParams`: lag 10, allowance 0.3,
+    threshold 10, baseline rate 0.01, warmup 50) and `drift_forget` (0):
+    a one-sided CUSUM test on surprise (episode return minus the plan's
+    predicted value from the start state). On an alarm the statistics are
+    reset and the plan is re-solved after `replan_every` new episodes.
+  * `drift_alarms()`. `DriftDetector` moved to `drift.hpp` so both the
+    trainer and the model-based agent use it.
+* **Tests:** `ModelBased.DetectsAMarketFlipAndRecoversWithinThirtyEpisodes`,
+  `ModelBased.ChangeDetectionIsFreeInAStableMarketButConstantForgettingIsNot`.
+* **Setup:** 300 episodes with alpha = +1, then alpha = −1; replanning
+  every 5 episodes. Share of the new regime's optimum (seeds 1–3; probes
+  `e9_probe.cpp`, `e9b_probe.cpp`):
+
+| Variant | +10 | +20 | +50 | +100 | +300 | Online gain over the 300 episodes after the flip (of 300) |
+|---|---|---|---|---|---|---|
+| No forgetting | −169% to −171% | −165% to −167% | −154% to −159% | −123% to −129% | 80–82% | −186 to −237 |
+| Forget 0.99 (half-life ~70) | −160% to −162% | −142% to −146% | 0–5% | 94–97% | 99–100% | +114 to +200 |
+| Forget 0.95 (half-life ~14) | −35% to −115% | 79–100% | 99% | 100% | 98–100% | +204 to +290 |
+| **Detect + reset** | −169% to −171% | **95–100%** | 99–100% | 99–100% | 99–100% | +178 to +292 |
+
+Alarms fired 7–13 episodes after the flip. In stable markets (3,000
+episodes, seeds 1–3; share of the optimum at the end):
+
+| Market | No forgetting | Forget 0.99 | Forget 0.95 | Detect + reset |
+|---|---|---|---|---|
+| default | 100.0–100.1% | 99.9–100.2% | 97.5–99.4% | 100.1–100.2% (1 false alarm in 9,000 episodes) |
+| noise 0.2 | 99.8–100.2% | 98.1–99.9% | **54.4–93.0%** | 99.9–100.2% (2 in 9,000) |
+| q³ impact + fixed cost | 99.8–100.0% | 96.6–97.4% | 89.9–93.0% | 99.8–100.0% (0) |
+
+* **A model that never forgets is slow to adapt:** its estimates average
+  both regimes, so alpha only changes sign after as many new episodes as
+  old ones (−123% after 100 episodes).
+* **Constant forgetting trades accuracy for tracking.** At 0.95 it recovers
+  in ~20 episodes but always plans on ~20 episodes' worth of data, which
+  costs up to 46 points in a noisy market. With 0.99 the cost is small but
+  recovery takes ~100 episodes.
+* **Change detection gives both:** full memory while the market is stable,
+  a reset when it isn't. It recovered to 95–100% within 20 episodes, 250×
+  faster than the model-free agent reached 18%, because a handful of
+  parameters re-estimate from a few episodes while tile weights need
+  thousands of noisy updates. A false alarm costs little: the agent
+  relearns a stable market in ~20 episodes.

@@ -43,6 +43,7 @@ rag-cpp/
 │           ├── learners.hpp     TileQ, ReplayBuffer, EpisodicMemory
 │           ├── agent.hpp        Agent<Env>: TileQ / Episodic / ActorCritic, n-step, distill, snapshots
 │           ├── evaluate.hpp     evaluate / compare on common random numbers (EvalStats)
+│           ├── drift.hpp        DriftDetector: one-sided CUSUM on surprise (DriftParams)
 │           ├── model_based.hpp  ModelBasedExecutionAgent: regression + DP planning + check_model
 │           └── trainer.hpp      evaluate, compare, DriftDetector (CUSUM), Trainer (champion, bank, baseline guard)
 ├── tests/
@@ -79,7 +80,7 @@ L0  common.hpp  rng.hpp
 L1  arena  tokenizer  simd  topk  io  text_clean
 L2  chunker  embedder  vector_store  bm25  fusion  prompt  epoch  features
 L3  ivf_index                    learners      env
-L4  engine                       execution_dp  agent  evaluate
+L4  engine                       execution_dp  agent  evaluate  drift
 L5  pdf (Poppler)                trainer       model_based
 ```
 
