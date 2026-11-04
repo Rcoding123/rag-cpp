@@ -79,6 +79,10 @@ struct EvalPoint {
   bool promoted;
   double epsilon;
   bool learned_deployed = true;  // false while a baseline (set_baseline) beats the champion
+  // The champion's re-score moved by more than 2 standard errors. In an
+  // unchanged world it reproduces exactly (frozen policy, fixed scenarios),
+  // so this is a confirmed change, in either direction (E13).
+  bool world_changed = false;
 };
 
 struct TrainReport {
@@ -125,22 +129,15 @@ class Trainer {
           cfg_.drift_after_episodes ? cfg_.drift_after_episodes : agent_.config().eps_decay_episodes;
       if (cfg_.detect_drift && agent_.episodes() > drift_after && drift_.add(last_surprise_)) {
         if (confirm_drift()) {
-          rep.drift_alarms.push_back(agent_.episodes());
-          if (cfg_.forget_on_drift) agent_.forget_experience();
-          if (recall_from_bank()) {
-            check_baseline();
-            rep.bank_recalls.push_back(agent_.episodes());
-            agent_.reexplore(cfg_.recall_epsilon, cfg_.recall_episodes);
-          } else {
-            agent_.reexplore(cfg_.reexplore_epsilon, cfg_.reexplore_episodes);
-            check_baseline();  // the old champion just failed: fall back to the baseline if it's better
-          }
+          handle_drift(rep);
         } else {
+          drift_.rebase();  // a false alarm: stay armed
           rep.drift_rejected.push_back(agent_.episodes());
         }
       }
       if (cfg_.eval_every && agent_.episodes() % cfg_.eval_every == 0) {
         rep.evals.push_back(check_champion());
+        if (rep.evals.back().world_changed) handle_drift(rep);
         if (on_eval) on_eval(rep.evals.back());
       }
     }
@@ -214,12 +211,30 @@ class Trainer {
 
   // Stage 2 of drift detection: did the frozen champion's held-out score
   // drop? (Exactly reproducible in an unchanged world.)
+  // A confirmed change: rebuild the detector's baseline, bank the outgoing
+  // champion, and either recall a banked policy or re-explore.
+  void handle_drift(TrainReport& rep) {
+    drift_.reset();
+    rep.drift_alarms.push_back(agent_.episodes());
+    if (cfg_.forget_on_drift) agent_.forget_experience();
+    if (recall_from_bank()) {
+      check_baseline();
+      rep.bank_recalls.push_back(agent_.episodes());
+      agent_.reexplore(cfg_.recall_epsilon, cfg_.recall_episodes);
+    } else {
+      agent_.reexplore(cfg_.reexplore_epsilon, cfg_.reexplore_episodes);
+      check_baseline();  // the old champion just failed: fall back to the baseline if it's better
+    }
+  }
+
   bool confirm_drift() {
     if (!champion_) return true;
     const EvalStats now = score_snapshot_stats(*champion_);
     const bool dropped = now.mean < champion_stats_.mean - 2.0 * champion_stats_.std_error;
-    if (dropped) champion_stats_ = now;
-    return dropped;
+    // With a two-sided detector, a significant rise is a changed world too.
+    const bool rose = cfg_.drift.two_sided && now.mean > champion_stats_.mean + 2.0 * champion_stats_.std_error;
+    if (dropped || rose) champion_stats_ = now;
+    return dropped || rose;
   }
 
   // Paired held-out comparison of the champion with the baseline.
@@ -250,8 +265,13 @@ class Trainer {
       p.promoted = true;
       return p;
     }
+    const EvalStats before = champion_stats_;
     champion_stats_ = score_snapshot_stats(*champion_);  // re-scored: the world may have changed
     p.champion = champion_stats_.mean;
+    if (cfg_.detect_drift && std::abs(champion_stats_.mean - before.mean) > 2.0 * before.std_error) {
+      p.world_changed = true;  // keep the old champion this time, so the drift handler banks it
+      return p;
+    }
     if (p.challenger >= p.champion) {
       champion_ = agent_.snapshot();
       champion_stats_ = challenger;

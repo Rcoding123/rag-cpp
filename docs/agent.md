@@ -306,6 +306,17 @@ A confirmed drift makes the agent explore again (ε = 0.5, decaying over
 5,000 episodes), restart its step size, and clear its replay buffer, unless
 the policy bank recognizes the new world.
 
+**Good news is a change too (E13).** On the market-making task, a deeper
+book made *every* policy earn more, so a test that only looked for falling
+returns stayed quiet while the agent captured just 66% of the new optimum.
+Two fixes: every evaluation now compares the champion's re-score with its
+previous score (identical in an unchanged world, so a shift of more than 2
+standard errors is a confirmed change, in either direction, with no false
+alarms); and `DriftParams::two_sided` adds a mirror-image CUSUM for rises.
+A bug surfaced on the way: every alarm, even one the re-score rejected,
+reset the detector, which was then blind for 1,550 episodes. Now a false
+alarm only re-centres it (`rebase()`).
+
 ### Policy bank: worlds seen before
 On every confirmed drift the outgoing champion is banked, and older banked
 policies are scored on the new world. One that beats the champion by 2
@@ -382,7 +393,7 @@ The hard problems are the same in both:
   assumption, and that a backtest can't show the agent's own impact on the
   market.
 
-## 10. Tests (`tests/agent_tests.cpp` 40 cases, `tests/model_based_tests.cpp` 16, `tests/market_making_tests.cpp` 3)
+## 10. Tests (`tests/agent_tests.cpp` 41 cases, `tests/model_based_tests.cpp` 16, `tests/market_making_tests.cpp` 4)
 
 * **Components:**
   * the random number generator's moments;

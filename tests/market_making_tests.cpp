@@ -88,3 +88,34 @@ TEST(MarketMaking, TheSameAgentDiscoversTheSkew) {
     EXPECT_LT(env.bid_distance(shortq), env.ask_distance(shortq)) << q;
   }
 }
+
+TEST(MarketMaking, AnImprovedMarketIsNoticedAndAReturningOneRecalled) {
+  // E13: when the book deepens (fill decay 1 -> 0.3), every policy earns
+  // more, so a detector that only looks for drops stays quiet while the old
+  // quotes capture just 66% of the new optimum. The champion's held-out
+  // re-score is exactly reproducible in an unchanged world, so the next
+  // evaluation flags the change (measured: at +500 = eval_every, 3 seeds).
+  // Back in the old regime the banked policy is recalled (measured: 99-100%
+  // at +200, against 88-90% without the bank).
+  MarketMakingParams pa;
+  MarketMakingParams pb = pa;
+  pb.decay = 0.3;
+  const MarketMakingEnv ea(pa);
+  const MarketMakingDP da(pa);
+  AgentConfig<2> cfg;
+  cfg.learner = LearnerKind::ActorCritic;
+  cfg.eps_decay_episodes = 5000;
+  MarketMakingEnv env(pa);
+  Agent<MarketMakingEnv> agent(env, cfg);
+  Trainer<MarketMakingEnv> tr(agent, env, {.eval_every = 500, .eval_episodes = 500});
+  tr.run(10000);
+  env.set_decay(pb.decay);
+  const auto to_b = tr.run(1000);
+  ASSERT_FALSE(to_b.drift_alarms.empty()) << "an improved market went unnoticed";
+  EXPECT_LE(to_b.drift_alarms.front(), 10500u);
+  tr.run(4000);
+  env.set_decay(pa.decay);
+  const auto back = tr.run(200);
+  EXPECT_FALSE(back.bank_recalls.empty());
+  EXPECT_GT(mm_share(ea, da, [&](const MarketMakingObs& o) { return tr.deployed_act(o); }), 0.95);
+}

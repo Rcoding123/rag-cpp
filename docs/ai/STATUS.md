@@ -18,7 +18,8 @@
     of the optimum after 20–50 episodes;
   * an exact DP yardstick, also for generalized cost tables;
   * held-out evaluation and champion/challenger deployment;
-  * two-stage drift detection with re-exploration;
+  * two-stage drift detection with re-exploration, plus a change check at
+    every evaluation that also catches markets that got better;
   * a policy bank that recognizes returning regimes;
   * an actor-critic learner (the best model-free one here) and risk-averse
     (mean-variance) objectives with an exact optimum;
@@ -34,7 +35,7 @@
     learns the optimal inventory skew.
 * **Testing:**
   * the CI matrix covers SIMD levels, sanitizers and fuzzing;
-  * 207 ctest cases: 196 in `rag_tests`, 9 PDF tests (Poppler), the
+  * 209 ctest cases: 198 in `rag_tests`, 9 PDF tests (Poppler), the
     stress run and a `rag_pdf` CLI smoke test.
   * The TSan CI job skips the single-threaded learning suites (`Agent*`,
     `ModelBased`, `ExecutionCosts`, `OffPolicy`, `MarketMaking`, `Reference`, `ApiExamples`), which ran

@@ -124,6 +124,11 @@ class MarketMakingEnv {
   [[nodiscard]] std::int32_t inventory() const noexcept { return q_; }
   [[nodiscard]] const MarketMakingParams& params() const noexcept { return p_; }
 
+  // Change the market mid-life (a volatility regime switch), to test whether
+  // a learning agent notices and adapts (E13).
+  void set_volatility(double v) noexcept { p_.volatility = v; }
+  void set_decay(double d) noexcept { p_.decay = d; }  // book depth: how fast fills fall off with distance
+
  private:
   MarketMakingParams p_;
   std::uint32_t t_ = 0;

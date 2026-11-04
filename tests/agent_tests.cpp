@@ -570,7 +570,39 @@ TEST(AgentDrift, DetectorIsQuietOnNoiseAndFiresOnAShift) {
     if (d.add(-30.0 + 50.0 * r.normal())) fired_after = i;
   EXPECT_GE(fired_after, 0);
   EXPECT_LT(fired_after, 200);
-  for (int i = 0; i < 1500; ++i) ASSERT_FALSE(d.add(-500.0)) << "warmup after an alarm";  // rebuilding a baseline
+  d.reset();  // the caller confirmed the change: rebuild the baseline
+  for (int i = 0; i < 1500; ++i) ASSERT_FALSE(d.add(-500.0)) << "warmup after a reset";
+}
+
+TEST(AgentDrift, RebaseAfterAFalseAlarmStaysArmed) {
+  // E13: after a rejected alarm the detector must not go blind for `warmup`
+  // samples; rebase() re-centres it and it keeps watching.
+  DriftDetector d;
+  Rng r(5);
+  for (int i = 0; i < 3000; ++i) d.add(10.0 * r.normal());
+  int alarm = -1;
+  for (int i = 0; i < 200 && alarm < 0; ++i)
+    if (d.add(-8.0 + 10.0 * r.normal())) alarm = i;  // a modest dip, judged false by the caller
+  ASSERT_GE(alarm, 0);
+  d.rebase();
+  int quiet = 0;
+  for (int i = 0; i < 300; ++i) quiet += !d.add(-8.0 + 10.0 * r.normal());
+  EXPECT_GE(quiet, 298) << "re-centred on the new level (measured: 0-1 alarms over 10 seeds)";
+  int fired = -1;
+  for (int i = 0; i < 100 && fired < 0; ++i)
+    if (d.add(-60.0 + 10.0 * r.normal())) fired = i;  // a real change right after: caught at once
+  EXPECT_GE(fired, 0);
+  EXPECT_LT(fired, 20);
+  // Two-sided: an improvement is a change too.
+  DriftParams two;
+  two.two_sided = true;
+  DriftDetector u(two);
+  for (int i = 0; i < 3000; ++i) u.add(10.0 * r.normal());
+  int up = -1;
+  for (int i = 0; i < 100 && up < 0; ++i)
+    if (u.add(30.0 + 10.0 * r.normal())) up = i;
+  EXPECT_GE(up, 0);
+  EXPECT_TRUE(u.last_alarm_was_upward());
 }
 
 TEST(AgentDrift, NoticesThatTheWorldChangedAndRecovers) {

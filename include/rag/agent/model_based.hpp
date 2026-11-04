@@ -200,6 +200,7 @@ class ModelBasedExecutionAgent {
     episode_return_ = predicted_ = 0.0;
     has_prediction_ = false;
     if (cfg_.detect_drift && planned && detector_.add(surprise)) {
+      detector_.reset();  // the model starts over, so does the detector's baseline
       decay(cfg_.drift_forget);
       drift_alarms_.push_back(episodes_);
       last_plan_ = episodes_;

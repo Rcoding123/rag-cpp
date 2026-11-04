@@ -28,6 +28,7 @@ and the conclusion; negative results stay in.
 | E10 | Can a policy be scored from logs before deployment? | Not by importance sampling at horizon 20 (errors 45–2,968%, ESS ≈ 0). A model can (2–4% when its class is right), but its bias under a wrong model doesn't shrink with data; doubly robust repairs it only near the logged policy. |
 | E11 | Can system identification be cheaper? | How the agent explores at the start barely matters; ongoing ε 0.05 cost 6–10% of the online gain, so the default is now 0.01. Also fixed: the first plan came after 20 episodes, not 10. |
 | E12 | Does the same agent work on another task? | Market making, unchanged agent: actor-critic 99–100% after 5,000 episodes, TileQ 97–99% at 50k; both discover the inventory skew. The task is 15× less noisy per unit of gain than execution (4.07 vs 0.27), which explains the execution plateau. |
+| E13 | Does drift handling carry over to the second task? | Not at first: a market that got *better* went unnoticed (CUSUM watched only for drops, and a rejected alarm had blinded it: bug). Fixed with evaluation-time detection from the champion's exactly reproducible re-score, `rebase()`, and an optional two-sided test; the bank then recalls returning regimes at 99–100%. |
 
 ---
 
@@ -785,3 +786,69 @@ episodes on the q³ market).
   instead of 200,000 to reach its best.
 * **Generality, checked:** `Agent`, `Trainer`, the champion, the baseline
   guard and `compare()` worked on the new task without a single change.
+
+## E13. Regime switches on the second task: when the market gets *better*
+
+* **Question:** do drift detection and the policy bank (E0b, E3) carry over
+  to market making unchanged?
+* **First attempt, a null result:** doubling volatility doesn't change the
+  optimal quotes at this action granularity (each regime's optimum scores
+  100% in the other), so there's nothing to adapt to. The regimes used
+  instead differ in book depth: fill decay 1 (A) vs 0.3 (B, deep book).
+  A's optimum gets 66% of B's optimal gain; B's gets 79% of A's.
+* **What went wrong, and why:** switching to B was never detected, so the
+  agent sat at 66% of the new optimum for 1,000+ episodes. Two causes:
+  1. **An improvement isn't a "drop".** In the deep book *every* policy
+     earns more (A's optimal policy: 27.4 → 63.8 per episode), and the CUSUM
+     test only looked for falling returns.
+  2. **Blindness after rejected alarms (a bug).** Every alarm, including
+     one the champion re-score rejected, reset the detector, which then
+     needed lag + warmup = 1,550 samples before it could fire again. A false
+     alarm at episode 9,030 left it blind until ~10,580; the switch came at
+     10,000. When it finally fired (at +1,337), the champion had already been
+     re-scored in the new world at regular evaluations, so confirmation saw
+     "no change" and rejected it too.
+* **Fixes:**
+  * `DriftParams::two_sided` (off by default): a mirror-image CUSUM flags
+    sustained *rises* in surprise; confirmation then accepts a significant
+    rise as well as a drop.
+  * **Evaluation-time detection (always on with `detect_drift`):** at every
+    evaluation the champion's re-score is compared with its previous score.
+    The champion is frozen and the scenarios are fixed, so in an unchanged
+    world the two are identical; a shift of more than 2 standard errors is
+    a confirmed change in either direction, with latency ≤ `eval_every` and
+    no false alarms. The old champion is kept for that evaluation so it can
+    be banked. `EvalPoint::world_changed` records it.
+  * **No blindness:** an alarm now only clears the accumulated evidence. The
+    caller resets the baseline after a confirmed change, and calls
+    `rebase()` after a false one, which re-centres on recent samples and
+    stays armed (0–1 false alarms in 300 samples after a rebase, real changes
+    caught within 1–3 samples; 10 seeds).
+* **Tests:** `AgentDrift.RebaseAfterAFalseAlarmStaysArmed`,
+  `MarketMaking.AnImprovedMarketIsNoticedAndAReturningOneRecalled`.
+* **Results** (actor-critic, 10k episodes in A, then B/A/B/A every 5,000;
+  deployed share of the current regime's optimum, seeds 1–3; probe
+  `e13_probe.cpp`):
+
+| Switch | Detection | One-sided + eval-time, bank on: +200 / +1,000 / +5,000 | Two-sided, bank on | One-sided, bank off |
+|---|---|---|---|---|
+| → B (first) | one-sided: +500 (evaluation); two-sided: +4–5 | 66–68 / 66–69 / 87–90% | 66–68 / 74–76 / 87–91% | as bank on |
+| → A | +4–6 (CUSUM) | **99–100** / 100 / 99–100% (recalled) | 99–100 / 100 / 100% (recalled) | 89–90 / 89–90 / 89–90% |
+| → B | one-sided +500; two-sided +4–8 | 65–68 / 88–90 / 89–92% (recalled at +500) | **87–91** / 87–91 / 88–93% (recalled) | 87–90% throughout |
+| → A | +3–5 | 99–100 / 100 / 100% (recalled) | 99–100 / 100 / 100% (recalled) | 88–90% throughout |
+
+* **A changed world can be good news,** and an agent that only watches for
+  bad news misses it. The cheapest reliable detector here is the one the
+  trainer already had: the champion's exactly reproducible held-out score.
+* **The bank does the heavy lifting on returns:** with it, every return to
+  A is back at 99–100% within 200 episodes; without it actor-critic stays
+  at 88–90%.
+* **Actor-critic re-exploration, a mixed result** (`ac_reexplore_temperature`,
+  default off). Re-exploring with ε-uniform actions is off-policy for the
+  actor's update: on market making, without the bank, it stalled at 88–92%
+  even 10,000 episodes after a switch. Sampling the policy itself at triple
+  temperature, decaying with the boost, reached 95–99%. On execution's
+  signal flip, though, where the old policy is actively harmful (−140%),
+  the flattened softmax didn't explore enough: 29–30% at +40,000 against
+  37–52% for ε-uniform (probe `e13d_exec.cpp`). Neither is the default for
+  every task; ε-uniform stays the default.

@@ -85,6 +85,11 @@ struct AgentConfig {
   // actor's steps before the policy forms (-235% to 7% at 10k episodes on
   // some seeds); 10,000 gives 75-78% at 10k and 80-86% at 40k.
   std::uint32_t ac_decay_episodes = 10000;
+  // How ActorCritic re-explores after a drift: 0 = epsilon-uniform actions
+  // (off-policy for the actor's update), > 0 = sample the policy itself at a
+  // temperature raised by this factor, decaying with the boost (stays
+  // on-policy). E13.
+  double ac_reexplore_temperature = 0.0;
 
   // Episodic learner.
   EpisodicParams memory{};
@@ -175,10 +180,10 @@ class Agent {
       const double delta = target - critic_.q(s.data(), 0);  // TD error = advantage estimate
       critic_.update(s.data(), 0, target);
       std::array<double, A> pi;
-      policy(s.data(), q_, pi.data());
+      const double temp = sampling_temperature();
+      policy(s.data(), q_, pi.data(), temp);
       // grad log pi(a|s) wrt the logit of b = (1[b == a] - pi(b)) / temperature
-      for (Action b = 0; b < A; ++b)
-        q_.update(s.data(), b, q_.q(s.data(), b) + delta * ((b == a ? 1.0 : 0.0) - pi[b]) / cfg_.temperature);
+      for (Action b = 0; b < A; ++b) q_.update(s.data(), b, q_.q(s.data(), b) + delta * ((b == a ? 1.0 : 0.0) - pi[b]) / temp);
       return;
     }
     if (cfg_.learner == LearnerKind::Episodic) {
@@ -343,13 +348,21 @@ class Agent {
   };
 
   // Softmax policy of the logits in `actor` at tiles idx (numerically stable).
-  void policy(const std::uint32_t* idx, const TileQ& actor, double* pi) const noexcept {
+  void policy(const std::uint32_t* idx, const TileQ& actor, double* pi, double temperature = 0) const noexcept {
+    if (temperature <= 0) temperature = cfg_.temperature;
     std::array<double, A> h;
     actor.q_values(idx, h.data());
     const double m = *std::max_element(h.begin(), h.end());
     double z = 0;
-    for (std::size_t a = 0; a < A; ++a) z += (pi[a] = std::exp((h[a] - m) / cfg_.temperature));
+    for (std::size_t a = 0; a < A; ++a) z += (pi[a] = std::exp((h[a] - m) / temperature));
     for (std::size_t a = 0; a < A; ++a) pi[a] /= z;
+  }
+
+  // ActorCritic's sampling temperature: raised during a re-exploration boost
+  // when ac_reexplore_temperature > 0.
+  [[nodiscard]] double sampling_temperature() const noexcept {
+    if (cfg_.ac_reexplore_temperature <= 0 || boost_left_ == 0) return cfg_.temperature;
+    return cfg_.temperature * (1.0 + cfg_.ac_reexplore_temperature * boost_left_ / boost_total_);
   }
 
   // ActorCritic acting: sample the policy while exploring, its mode otherwise.
@@ -357,9 +370,10 @@ class Agent {
     std::array<std::uint32_t, kMaxTilings> idx;
     coder_.encode(env_.features(o), idx.data());
     std::array<double, A> pi;
-    policy(idx.data(), q_, pi.data());
+    policy(idx.data(), q_, pi.data(), explore ? sampling_temperature() : 0.0);
     if (!explore) return static_cast<Action>(std::max_element(pi.begin(), pi.end()) - pi.begin());
-    if (boost_left_ > 0 && rng_.uniform() < epsilon()) return rng_.below(static_cast<std::uint32_t>(A));
+    if (cfg_.ac_reexplore_temperature <= 0 && boost_left_ > 0 && rng_.uniform() < epsilon())
+      return rng_.below(static_cast<std::uint32_t>(A));
     double u = rng_.uniform();
     for (Action a = 0; a + 1 < A; ++a)
       if ((u -= pi[a]) <= 0) return a;

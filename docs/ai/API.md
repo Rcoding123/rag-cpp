@@ -142,6 +142,7 @@ EvalStats best = compare(env, [&](const ExecutionObs& o) { return dp.act(o); }, 
 | `n_step` | 3 | n-step returns (1 = Q-learning, ≥ horizon = Monte Carlo) |
 | `actor_alpha`, `critic_alpha`, `temperature` | 0.03, 0.1, 1.0 | `ActorCritic` step sizes and softmax temperature |
 | `ac_decay_episodes` | 10,000 | `ActorCritic` annealing half-life (3,000 is too fast, E5) |
+| `ac_reexplore_temperature` | 0 | `ActorCritic` re-exploration: 0 = ε-uniform actions; > 0 = sample the policy at a raised temperature (task-dependent, E13) |
 | `memory` | | `EpisodicParams` |
 | `kernel_width` | 0 = 10% of each range | episodic similarity scale |
 | `seed` | 1 | RNG seed |
@@ -154,7 +155,7 @@ EvalStats best = compare(env, [&](const ExecutionObs& o) { return dp.act(o); }, 
 | `train_seed` | 1 | training scenario stream |
 | `keep_champion` | true | deploy the best policy seen |
 | `detect_drift` | true | drift detection on/off |
-| `drift` | | `DriftParams`: lag 50, allowance 0.3, threshold 16, baseline_rate 0.001, warmup 1500 |
+| `drift` | | `DriftParams`: lag 50, allowance 0.3, threshold 16, baseline_rate 0.001, warmup 1500, two_sided false |
 | `drift_after_episodes` | 0 = after the ε schedule | when drift checks start |
 | `reexplore_epsilon`, `reexplore_episodes` | 0.5, 5000 | response to drift |
 | `forget_on_drift` | true | clear replay on drift |
