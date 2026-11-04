@@ -37,7 +37,7 @@ and the conclusion; negative results stay in.
 | E20 | Do Double DQN and advantage learning help the neural learner? | Yes, mostly through stability: deployed 87–94% at 20k episodes vs 81–87% plain; the learner's own greedy policy 87–91% vs 70%. |
 | E21 | How do all learners rank under one protocol (8 seeds, CIs)? | At 40k episodes: NeuralQ + Double DQN 91.5% [90.1, 92.7], ActorCritic 81.9%, TileQ coarse + AL 78.7%, tuned TileQ 73.4%, default TileQ 66.7%; model-based 99.5% after 50 episodes. |
 | E22 | Can a lookup table replace the neural policy? | From 32 signal bins the table keeps the network's gain (within 0.25 points; never worse than 0.8) at ~3 ns per decision instead of ~1.7–3 µs; the exact DP policy compiled the same way keeps 99.6–100%. |
-| E23 | Does a vote across seeds' tables beat one network? | Yes: the median of 8 seeds' tables keeps 97.5% (fresh scenarios: 97.9%, better than every member by 4.4–10.2 points), vs 91.4% for the average seed and 94.1% for the best; 3 members already beat the best seed. |
+| E23 | Does a vote across seeds' tables beat one network? | Yes: the median of 8 seeds' tables keeps 97.5% (fresh scenarios: 97.9%, better than every member by 4.4–10.2 points), vs 91.4% for the average seed and 94.1% for the best; 3 members already beat the best seed; at equal compute, 4 × 40k voted (96.7%) beats 1 × 160k (93.5%). |
 | E19 | Do gap-increasing targets help? | Advantage learning (k = 0.5) lifts TileQ from 65–69% to 70–75% at 40k, and to 76–80% with coarse tiles: the best tile-coded result, still below the neural learner. |
 
 ---
@@ -1331,5 +1331,11 @@ R² = 0.56; effect of +1 standard deviation of each parameter):
   size (4 members 96.7% vs 5 members 96.4%; 6 vs 7: 97.4% vs 96.7%), and
   for two members it beats their mean in 22 of 28 pairs. That suggests the
   networks err toward trading too much; untested.
+* **Not just more training (compute-matched):** one network trained 4×
+  as long (160,000 episodes, seeds 1–4, same protocol) reaches 93.5%
+  (93.0–94.0%); a median vote of 4 networks trained 40,000 episodes each
+  reaches 96.7% on average over all 70 groups of 4 (95.4–97.9%; seeds 1–4:
+  97.0%). The worst 4-member vote beats the best long-trained network:
+  for the same compute, independent seeds are worth more than longer runs.
 * **The cost is training, not deployment:** N members need N× the
   training compute; a decision stays one 3 ns lookup.
