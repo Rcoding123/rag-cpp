@@ -1134,7 +1134,7 @@ nanosecond-scale kernels.
 
 ---
 
-## FILE: docs/agent.md  (25,281 bytes)
+## FILE: docs/agent.md  (25,481 bytes)
 
 # A self-learning agent, piece by piece
 
@@ -1328,6 +1328,9 @@ learn if the world changes.
   generalizes: coarser tiles, which average the noisy targets over more
   states, already reach 76–77%, and the network goes further. The cost:
   ~75× the training compute and 1.7 µs per decision instead of 39 ns.
+  With Double DQN targets it is the best model-free learner on the
+  E21 leaderboard: 91.5% [90.1, 92.7] at 40,000 episodes over 8 seeds,
+  against 81.9% for actor-critic and 66.7% for default TileQ.
 * **Double Q-learning didn't help.** It removes the upward bias that
   `max()` puts into targets. Here, though, the two were level at 30,000
   episodes (64.8% with it, 64.5% without), and at 60,000 it was clearly worse
@@ -1796,7 +1799,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (6,798 bytes)
+## FILE: docs/ai/LESSONS.md  (7,199 bytes)
 
 # Lessons, distilled
 
@@ -1921,6 +1924,12 @@ building learning systems in general, not just this task.
     a config value and through a forged index file, a bit-exactness
     violation in IVF, and an RL schedule off by one doubling (A40, A41,
     R13–R17). One bug was found independently by two of them.
+28. **Rank learners under one protocol, with intervals.** Numbers gathered
+    by different probes (seeds, evaluation sets, deployed vs final policy)
+    don't compare. One protocol (8 seeds, deployed champion, the same
+    held-out scenarios, bootstrap intervals) separated the top three
+    learners cleanly and showed that a configuration tuned for 10k episodes
+    has a wide spread at 40k (E21).
 
 
 
@@ -3625,7 +3634,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (6,317 bytes)
+## FILE: docs/ai/STATUS.md  (6,383 bytes)
 
 # Status, limitations and next steps
 
@@ -3663,7 +3672,8 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
   * a second task (market making, exact DP) on which the unchanged agent
     learns the optimal inventory skew, and a model-based market maker;
   * a from-scratch neural Q-learner (`NeuralQ`, no ML library) that breaks
-    the tile-coding plateau on execution (84–89% at 40k episodes);
+    the tile-coding plateau on execution (91.5% [90.1, 92.7] at 40k
+    episodes with Double DQN, 8 seeds; E21 ranks every learner);
   * optional NLopt/Eigen tooling: hyperparameter search validated on
     held-out seeds, sensitivity analysis, rank-revealing least squares.
 * **Reviews:** three review agents (adversarial bug hunt, coverage, RAG

@@ -190,6 +190,9 @@ learn if the world changes.
   generalizes: coarser tiles, which average the noisy targets over more
   states, already reach 76–77%, and the network goes further. The cost:
   ~75× the training compute and 1.7 µs per decision instead of 39 ns.
+  With Double DQN targets it is the best model-free learner on the
+  E21 leaderboard: 91.5% [90.1, 92.7] at 40,000 episodes over 8 seeds,
+  against 81.9% for actor-critic and 66.7% for default TileQ.
 * **Double Q-learning didn't help.** It removes the upward bias that
   `max()` puts into targets. Here, though, the two were level at 30,000
   episodes (64.8% with it, 64.5% without), and at 60,000 it was clearly worse

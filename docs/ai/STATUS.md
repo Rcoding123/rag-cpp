@@ -34,7 +34,8 @@
   * a second task (market making, exact DP) on which the unchanged agent
     learns the optimal inventory skew, and a model-based market maker;
   * a from-scratch neural Q-learner (`NeuralQ`, no ML library) that breaks
-    the tile-coding plateau on execution (84–89% at 40k episodes);
+    the tile-coding plateau on execution (91.5% [90.1, 92.7] at 40k
+    episodes with Double DQN, 8 seeds; E21 ranks every learner);
   * optional NLopt/Eigen tooling: hyperparameter search validated on
     held-out seeds, sensitivity analysis, rank-revealing least squares.
 * **Reviews:** three review agents (adversarial bug hunt, coverage, RAG

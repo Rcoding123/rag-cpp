@@ -121,3 +121,9 @@ building learning systems in general, not just this task.
     a config value and through a forged index file, a bit-exactness
     violation in IVF, and an RL schedule off by one doubling (A40, A41,
     R13–R17). One bug was found independently by two of them.
+28. **Rank learners under one protocol, with intervals.** Numbers gathered
+    by different probes (seeds, evaluation sets, deployed vs final policy)
+    don't compare. One protocol (8 seeds, deployed champion, the same
+    held-out scenarios, bootstrap intervals) separated the top three
+    learners cleanly and showed that a configuration tuned for 10k episodes
+    has a wide spread at 40k (E21).
