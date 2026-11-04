@@ -27,6 +27,7 @@
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
+#include <limits>
 #include <stdexcept>
 #include <vector>
 
@@ -50,13 +51,18 @@ class ExecutionPolicyTable {
       throw std::invalid_argument("ExecutionPolicyTable: horizon, bins, range and signal_sd must be positive");
     lo_ = -tp.signal_range_sd * p.signal_sd;
     width_ = 2 * tp.signal_range_sd * p.signal_sd / static_cast<double>(bins_);
+    if (!valid_grid(lo_, width_))
+      throw std::invalid_argument("ExecutionPolicyTable: signal_range_sd * signal_sd gives a zero, infinite or subnormal bin width");
     inv_width_ = 1.0 / width_;
-    table_.resize(static_cast<std::size_t>(horizon_) * (static_cast<std::size_t>(lots_) + 1) * bins_);
+    const std::size_t cells = cell_count(horizon_, lots_, bins_);
+    if (cells == 0 || cells > table_.max_size())
+      throw std::invalid_argument("ExecutionPolicyTable: horizon x (lots + 1) x signal_bins is too large");
+    table_.resize(cells);
     std::size_t k = 0;
     for (std::uint32_t t = 0; t < horizon_; ++t)
-      for (std::uint32_t inv = 0; inv <= lots_; ++inv)
+      for (std::uint64_t inv = 0; inv <= lots_; ++inv)  // 64-bit: lots_ may be UINT32_MAX
         for (std::uint32_t b = 0; b < bins_; ++b) {
-          const Action a = policy(ExecutionObs{t, inv, bin_centre(b)});
+          const Action a = policy(ExecutionObs{t, static_cast<std::uint32_t>(inv), bin_centre(b)});
           if (a >= ExecutionEnv::kNumActions) throw std::out_of_range("ExecutionPolicyTable: policy returned an invalid action");
           table_[k++] = static_cast<std::uint8_t>(a);
         }
@@ -113,8 +119,7 @@ class ExecutionPolicyTable {
     t.table_ = r.vec<std::uint8_t>();
     r.finish();
     const double cells = static_cast<double>(t.horizon_) * (static_cast<double>(t.lots_) + 1) * static_cast<double>(t.bins_);
-    if (t.horizon_ == 0 || t.bins_ == 0 || !std::isfinite(t.lo_) || !(t.width_ > 0) || !std::isfinite(t.width_) ||
-        cells != static_cast<double>(t.table_.size()))
+    if (t.horizon_ == 0 || t.bins_ == 0 || !valid_grid(t.lo_, t.width_) || cells != static_cast<double>(t.table_.size()))
       throw io::FormatError("ExecutionPolicyTable: inconsistent grid");
     for (auto a : t.table_)
       if (a >= ExecutionEnv::kNumActions) throw io::FormatError("ExecutionPolicyTable: invalid action");
@@ -129,6 +134,19 @@ class ExecutionPolicyTable {
  private:
   static constexpr char kMagic[8] = {'R', 'A', 'G', 'P', 'T', 'B', 'L', '1'};
   ExecutionPolicyTable() = default;
+
+  // A finite origin and a normal (finite, non-zero, non-subnormal) bin width:
+  // then 1 / width is finite too and act()'s multiply bins what bin_centre()
+  // describes.
+  [[nodiscard]] static bool valid_grid(double lo, double width) noexcept {
+    return std::isfinite(lo) && width > 0 && std::isnormal(width);
+  }
+  // horizon x (lots + 1) x bins, or 0 if that does not fit in a size_t.
+  [[nodiscard]] static std::size_t cell_count(std::uint32_t horizon, std::uint32_t lots, std::uint32_t bins) noexcept {
+    const std::uint64_t rows = std::uint64_t{horizon} * (std::uint64_t{lots} + 1);  // < 2^64
+    if (bins == 0 || rows > std::numeric_limits<std::size_t>::max() / bins) return 0;
+    return static_cast<std::size_t>(rows * bins);
+  }
 
   std::uint32_t horizon_ = 1, lots_ = 0, bins_ = 1;
   double lo_ = 0, width_ = 1, inv_width_ = 1;

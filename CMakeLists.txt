@@ -58,7 +58,7 @@ target_link_libraries(agent_demo PRIVATE rag)
 # libFuzzer targets (Clang only): cmake -DCMAKE_CXX_COMPILER=clang++ -DRAG_FUZZ=ON
 option(RAG_FUZZ "Build libFuzzer targets (requires Clang)" OFF)
 if(RAG_FUZZ)
-  foreach(t fuzz_load fuzz_text)
+  foreach(t fuzz_load fuzz_text fuzz_policy_table)
     add_executable(${t} tests/fuzz/${t}.cpp)
     target_link_libraries(${t} PRIVATE rag)
     target_compile_options(${t} PRIVATE -fsanitize=fuzzer,address,undefined -fno-sanitize-recover=undefined -g)

@@ -6,11 +6,13 @@
 #include <fstream>
 #include <iterator>
 #include <limits>
+#include <optional>
 #include <vector>
 
 #include "rag/agent/evaluate.hpp"
 #include "rag/agent/execution_dp.hpp"
 #include "rag/agent/policy_table.hpp"
+#include "test_util.hpp"
 
 using namespace rag::agent;
 
@@ -49,6 +51,92 @@ TEST(PolicyTable, RejectsBadParametersAndInvalidActions) {
   zero.horizon = 0;
   EXPECT_THROW(ExecutionPolicyTable(zero, twap), std::invalid_argument);
   EXPECT_THROW(ExecutionPolicyTable(p, [](const ExecutionObs&) { return Action{5}; }), std::out_of_range);
+}
+
+TEST(PolicyTable, RejectsAGridWhoseCellCountOverflows) {
+  // horizon x (lots + 1) x bins = 2^64 wraps to 0 in size_t: the table must be
+  // rejected before anything is allocated or sampled, not resized to nothing
+  // and then written past its end.
+  std::size_t calls = 0;
+  auto counting = [&](const ExecutionObs&) {
+    ++calls;
+    return ExecutionEnv::kTwapAction;
+  };
+  ExecutionParams p;
+  p.horizon = 1u << 16;
+  p.lots = std::numeric_limits<std::uint32_t>::max();  // 2^32 inventory values
+  EXPECT_THROW(ExecutionPolicyTable(p, counting, {.signal_bins = 1u << 16}), std::invalid_argument);
+  p.horizon = 1u << 31;
+  p.lots = (1u << 31) - 1;
+  EXPECT_THROW(ExecutionPolicyTable(p, counting, {.signal_bins = 4}), std::invalid_argument);
+  EXPECT_EQ(calls, 0u);
+}
+
+TEST(PolicyTable, EveryAcceptedSignalGridReproducesThePolicyAndRoundTrips) {
+  // Individually valid, jointly extreme scales: signal_range_sd * signal_sd
+  // can underflow to 0, overflow once doubled, or give a subnormal bin width
+  // whose reciprocal is infinite. The constructor must reject such a grid or
+  // build one that act() bins correctly and that load() reads back.
+  struct Case {
+    double range, sd;
+    bool must_accept;
+  };
+  const Case cases[] = {{4.0, 0.1, true},       {4.0, 1e-300, true}, {1e300, 1e7, true},
+                        {1e-300, 1e-300, false}, {1e308, 1.0, false}, {1e-150, 1e-160, false}};
+  auto by_sign = [](const ExecutionObs& o) -> Action { return o.signal < 0 ? 0u : o.signal > 0 ? 4u : 2u; };
+  const auto path = rag::testutil::temp_index("grid");
+  for (const Case& c : cases) {
+    SCOPED_TRACE(::testing::Message() << "range " << c.range << " sd " << c.sd);
+    ExecutionParams p;
+    p.lots = 2;
+    p.horizon = 2;
+    p.signal_sd = c.sd;
+    std::optional<ExecutionPolicyTable> table;
+    try {
+      table.emplace(p, by_sign, PolicyTableParams{.signal_bins = 8, .signal_range_sd = c.range});
+    } catch (const std::invalid_argument&) {
+      EXPECT_FALSE(c.must_accept);
+      continue;
+    }
+    for (std::uint32_t b = 0; b < 8; ++b) {
+      const ExecutionObs o{1, 1, table->bin_centre(b)};
+      EXPECT_EQ(table->act(o), by_sign(o)) << "bin " << b;
+    }
+    table->save(path);
+    EXPECT_NO_THROW((void)ExecutionPolicyTable::load(path));
+  }
+}
+
+TEST(PolicyTable, LoadValidatesTheStructureBehindTheChecksum) {
+  // Edited files with a recomputed checksum reach the structural checks.
+  ExecutionParams p;
+  p.lots = 3;
+  p.horizon = 2;
+  const ExecutionPolicyTable table(p, [](const ExecutionObs& o) { return Action{o.inventory % 5}; }, {.signal_bins = 4});
+  const auto path = rag::testutil::temp_index("structure");
+  table.save(path);
+  const auto good = rag::testutil::read_file(path);
+  // Layout: magic[8], horizon@8, lots@12, bins@16, lo@20, width@28, length@36, cells@44, checksum.
+  ASSERT_EQ(good.size(), 44u + 2u * 4u * 4u + 8u);
+  auto expect_rejected = [&](auto edit, const char* what) {
+    auto b = good;
+    edit(b);
+    rag::testutil::fix_checksum(b);
+    rag::testutil::write_file(path, b);
+    EXPECT_THROW((void)ExecutionPolicyTable::load(path), rag::io::FormatError) << what;
+  };
+  using rag::testutil::poke;
+  const double inf = std::numeric_limits<double>::infinity(), nan = std::numeric_limits<double>::quiet_NaN();
+  expect_rejected([&](auto& b) { poke<std::uint32_t>(b, 8, 0); }, "zero horizon");
+  expect_rejected([&](auto& b) { poke<std::uint32_t>(b, 16, 0); }, "zero bins");
+  expect_rejected([&](auto& b) { poke<std::uint32_t>(b, 12, 4); }, "lots disagree with the cell count");
+  expect_rejected([&](auto& b) { poke<std::uint32_t>(b, 8, 1); }, "horizon disagrees with the cell count");
+  expect_rejected([&](auto& b) { b[44 + 7] = 5; }, "invalid action");
+  for (double lo : {inf, -inf, nan}) expect_rejected([&](auto& b) { poke<double>(b, 20, lo); }, "non-finite lo");
+  for (double w : {0.0, -0.1, inf, nan, 1e-310})  // 1e-310 is subnormal: 1 / width is infinite
+    expect_rejected([&](auto& b) { poke<double>(b, 28, w); }, "bad width");
+  rag::testutil::write_file(path, good);
+  EXPECT_NO_THROW((void)ExecutionPolicyTable::load(path));
 }
 
 TEST(PolicyTable, ACompiledOptimalPolicyKeepsNearlyAllOfItsGain) {
