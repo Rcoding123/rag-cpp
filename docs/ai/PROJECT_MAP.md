@@ -46,7 +46,7 @@ rag-cpp/
 │           ├── drift.hpp        DriftDetector: one-sided CUSUM on surprise (DriftParams)
 │           ├── ope.hpp          off-policy evaluation: PDIS, WPDIS, doubly robust, ESS diagnostics
 │           ├── model_based.hpp  ModelBasedExecutionAgent: regression + DP planning + check_model
-│           ├── market_making.hpp a second task: MarketMakingEnv + exact MarketMakingDP
+│           ├── market_making.hpp a second task: MarketMakingEnv, exact MarketMakingDP, ModelBasedMarketMaker
 │           └── trainer.hpp      evaluate, compare, DriftDetector (CUSUM), Trainer (champion, bank, baseline guard)
 ├── tests/
 │   ├── rag_tests.cpp            engine unit/integration tests; global operator-new counter

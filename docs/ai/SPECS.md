@@ -64,6 +64,39 @@ neural-network runtime. The embedder is a concept; `HashingEmbedder` is a
 dependency-free stand-in (feature-hashed unigrams and bigrams). An ONNX or
 llama.cpp encoder can be plugged in behind the same concept (STATUS.md).
 
+### No RL library
+
+The reinforcement-learning stack is written from scratch in
+`include/rag/agent/`; no Gymnasium, Stable-Baselines3, RLlib, PyTorch or
+other framework is used. What each piece corresponds to:
+
+| Piece | Header | Closest off-the-shelf equivalent |
+|---|---|---|
+| `Environment` concept (`reset`, `step`, `features`, action count, feature ranges) | `env.hpp` | Gymnasium `Env` |
+| Tile coding, random Fourier features | `features.hpp` | Sutton's tile coder; scikit-learn `RBFSampler` |
+| Q-learning (n-step, replay, annealed step size), episodic k-NN memory | `learners.hpp`, `agent.hpp` | SB3 DQN (with a linear model instead of a network) |
+| Actor-critic (softmax policy, TD critic) | `agent.hpp` | SB3 A2C |
+| Model-based agent (regression + DP planning) | `model_based.hpp` | none standard |
+| Exact optima by dynamic programming | `execution_dp.hpp`, `market_making.hpp` | none (task-specific) |
+| Training loop, held-out evaluation, champion, drift detection, policy bank, baseline guard | `trainer.hpp`, `drift.hpp` | partly RLlib / SB3 callbacks |
+| Paired evaluation, CVaR | `evaluate.hpp` | none standard |
+| Off-policy evaluation (PDIS, WPDIS, DR, ESS) | `ope.hpp` | SCOPE-RL, d3rlpy OPE |
+
+Why from scratch:
+* **Latency:** a greedy decision costs 64 ns (TileQ) with zero heap
+  allocations, which a Python framework can't approach.
+* **Transparency:** each update rule is a few lines (TASK_SPECS.md §5),
+  which matters because the agent is meant for learning the architecture.
+* **Reproducibility:** every random draw comes from seeded generators, so
+  experiments reproduce bit for bit, and paired comparisons (common random
+  numbers) are exact.
+* **Exact yardsticks:** the tasks are built so a DP can compute the optimum;
+  that integration is simplest when everything shares one codebase.
+
+The trade-off: no neural-network function approximation (linear models on
+tile features only), no vectorized or GPU environments, and no
+distributed training.
+
 ## Measurement machine
 
 All performance numbers in these docs come from one shared cloud VM:

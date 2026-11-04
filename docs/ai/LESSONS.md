@@ -32,7 +32,9 @@ building learning systems in general, not just this task.
    fitted to the true optimum score 99.5% (E2b). Multi-step returns helped
    most (n = 3; E2a).
 8. **A model that's right beats any model-free learner by orders of
-   magnitude:** 99–100% after 20–50 episodes vs ~70% after 40,000 (E1).
+   magnitude:** 99–100% after 20–50 episodes vs ~70% after 40,000 (E1);
+   even on the task model-free learning finds easy, 3 episodes vs 5,000
+   (E15).
 9. **A model that's wrong is worse than no model,** and gets worse with
    more data, because its plan exploits its own error (25% after 300
    episodes vs 43% after 20; E7a). Shrinkage toward a simple prior makes

@@ -30,6 +30,7 @@ and the conclusion; negative results stay in.
 | E12 | Does the same agent work on another task? | Market making, unchanged agent: actor-critic 99–100% after 5,000 episodes, TileQ 97–99% at 50k; both discover the inventory skew. The task is 15× less noisy per unit of gain than execution (4.07 vs 0.27), which explains the execution plateau. |
 | E13 | Does drift handling carry over to the second task? | Not at first: a market that got *better* went unnoticed (CUSUM watched only for drops, and a rejected alarm had blinded it: bug). Fixed with evaluation-time detection from the champion's exactly reproducible re-score, `rebase()`, and an optional two-sided test; the bank then recalls returning regimes at 99–100%. |
 | E14 | What about the bad days? | Volatility isn't tail risk: the risk-neutral execution optimum is more volatile than TWAP but its worst 5% is −66 vs −117. A variance penalty halves execution's sd but barely moves its tail; in market making it lifts the worst 5% from −5.7 to +13.7. |
+| E15 | Does a model pay on the easy task too? | Yes: a model-based market maker that counts fills reaches 98–100% after 3 episodes and earns 99–100% of the optimal gain online, against 65–79% for actor-critic. |
 
 ---
 
@@ -906,3 +907,39 @@ Market making (default risk penalty 0.05 unless noted):
 * **Practical rule:** check the tail you care about directly (CVaR on cash
   outcomes); whether a variance penalty helps depends on where the tail
   comes from.
+
+## E15. A model-based market maker
+
+* **Question:** on execution, learning a model beat model-free learning by
+  orders of magnitude (E1). Market making is the *easy* task for model-free
+  learners (E12). Does a model still pay?
+* **Code** (`market_making.hpp`):
+  * `MarketMakingParams::fill_probs`: an optional fill probability per quote
+    distance, so a market can have a fill curve that isn't exponential.
+  * `MarketMakingEnv::last_bought()`, `last_sold()`, `last_mid_move()`: the
+    agent's own fills and the mid move, which a real market maker sees as
+    execution reports and market data.
+  * `ModelBasedMarketMaker`: knows its objective (risk penalty, liquidation
+    penalty, inventory cap, distances) but not the market. It estimates each
+    distance's fill probability by counting (Beta(1, 1) prior, pooling bid
+    and ask) and the volatility from observed moves, then plans with
+    `MarketMakingDP`. The fill model is non-parametric over the three
+    distances. Three random episodes first, then ε 0.01; re-plans after 5
+    episodes, doubling. `train_model_based()` runs it online.
+* **Test:** `MarketMaking.AModelBasedMarketMakerNeedsAFewEpisodes`.
+* **Results** (seeds 1–3; probe `e15_probe.cpp`):
+
+| Fill curve (distances 0.5 / 1 / 2) | Model-based after 3 / 10 / 50 episodes | Online gain over 1,000 episodes (of 1,000) | ActorCritic after 1,000 | ActorCritic online |
+|---|---|---|---|---|
+| exponential (0.55 / 0.33 / 0.12) | 100 / 100 / 99–100% | +986 to +1,009 | 94–96% | +655 to +678 |
+| steep (0.85 / 0.15 / 0.10) | 98–100 / 98–99 / 99–100% | +989 to +995 | 99–100% | +770 to +788 |
+
+  After 1,000 episodes the estimated fill probabilities match the truth to
+  two decimals (one is 0.17 for 0.15) and the volatility to 1.00.
+
+* **A model pays even on the easy task:** 3 episodes instead of 5,000, and
+  99–100% of the optimal gain earned *while* learning instead of 65–79%.
+* **Why it's so fast here:** the unknowns are four numbers, each observed
+  directly (fills are counted, moves are seen), and the planner is exact.
+  The expensive part of model-based RL is getting the model *class* right;
+  here it's non-parametric over the three distances, so any fill curve fits.

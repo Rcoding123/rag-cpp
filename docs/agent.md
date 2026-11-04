@@ -393,7 +393,9 @@ The hard problems are the same in both:
   execution because its optimal gain is 4 return standard deviations per
   episode, against 0.27 for execution: the ratio of gain to return noise,
   not the size of the state space, sets how hard model-free learning is
-  (E12).
+  (E12). A model-based market maker that counts its fills per quote
+  distance gets to 98–100% after 3 episodes (`ModelBasedMarketMaker`,
+  E15).
 * **A new learner:** follow `TileQ` / `EpisodicMemory` / the actor-critic
   branch in `agent.hpp` and add a `LearnerKind`.
 * **Real market data:** replay historical signals and prices in an
@@ -401,7 +403,7 @@ The hard problems are the same in both:
   assumption, and that a backtest can't show the agent's own impact on the
   market.
 
-## 10. Tests (`tests/agent_tests.cpp` 41 cases, `tests/model_based_tests.cpp` 18, `tests/market_making_tests.cpp` 5)
+## 10. Tests (`tests/agent_tests.cpp` 41 cases, `tests/model_based_tests.cpp` 18, `tests/market_making_tests.cpp` 6)
 
 * **Components:**
   * the random number generator's moments;

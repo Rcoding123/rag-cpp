@@ -139,3 +139,26 @@ TEST(MarketMaking, TheInventoryPenaltyCutsTheTail) {
   EXPECT_GT(ma, mn - 3.5);
   EXPECT_GT(cvar(ra, 0.05), cvar(rn, 0.05) + 10.0);  // ...for a much better tail
 }
+
+TEST(MarketMaking, AModelBasedMarketMakerNeedsAFewEpisodes) {
+  // E15: counting fills per quote distance (and measuring volatility from
+  // the mid) pins the market down almost at once. Measured (seeds 1-3):
+  // 98-100% of the optimal gain after 3 episodes, on the exponential fill
+  // curve and on a steep one it never assumed; 99-100% of the optimal gain
+  // earned online over 1,000 episodes, against 65-79% for actor-critic.
+  MarketMakingParams expo, steep;
+  steep.fill_probs = {0.85, 0.15, 0.10};
+  for (const MarketMakingParams& p : {expo, steep}) {
+    const MarketMakingEnv env(p);
+    const MarketMakingDP dp(p);
+    ModelBasedMarketMaker mb(p, {.seed = 1});
+    MarketMakingEnv e(p);
+    Rng rng(1);
+    train_model_based(mb, e, 5, rng);
+    ASSERT_TRUE(mb.has_plan());
+    EXPECT_GT(mm_share(env, dp, [&](const MarketMakingObs& o) { return mb.act(o, false); }), 0.95);
+    train_model_based(mb, e, 195, rng);
+    for (std::uint32_t k = 0; k < 3; ++k) EXPECT_NEAR(mb.estimated_fill(k), env.fill_probability_at(k), 0.03) << k;
+    EXPECT_NEAR(mb.estimated_volatility(), p.volatility, 0.03);
+  }
+}
