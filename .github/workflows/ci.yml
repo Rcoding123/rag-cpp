@@ -98,7 +98,7 @@ jobs:
         run: Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors | Format-List
 
       # Exactly the commands in docs/WINDOWS.md.
-      - name: Configure (preset windows-msvc: Visual Studio 2022, x64, AVX2)
+      - name: "Configure (preset windows-msvc - Visual Studio 2022, x64, AVX2)"
         run: cmake --preset windows-msvc
 
       - name: Build

@@ -771,9 +771,11 @@ TEST(Engine, ConcurrentIngestAndQuery) {
   e.commit();
   std::atomic<bool> done{false}, bad{false};
   std::atomic<std::uint64_t> queries{0};
+  std::atomic<int> running{0};  // readers that have completed a query
   auto reader = [&](int seed) {
     auto ctx = e.make_context();
     std::mt19937 rng(static_cast<unsigned>(seed));
+    bool first = true;
     while (!done.load(std::memory_order_acquire)) {
       const auto& words = corpus.topic_words[rng() % 30];
       const std::string q = words[rng() % 40] + " " + words[rng() % 40];
@@ -783,10 +785,18 @@ TEST(Engine, ConcurrentIngestAndQuery) {
         if (h.id >= n || e.chunk(h.id).text.empty()) bad = true;
       }
       queries.fetch_add(1, std::memory_order_relaxed);
+      if (first) {
+        first = false;
+        running.fetch_add(1, std::memory_order_release);
+      }
     }
   };
   std::vector<std::thread> ts;
   for (int t = 0; t < 3; ++t) ts.emplace_back(reader, t);
+  // Start writing only once every reader is querying, so ingestion and
+  // queries really overlap (thread start-up is slow on some systems: on the
+  // Windows CI runner the writer used to finish before any reader ran).
+  while (running.load(std::memory_order_acquire) < 3) std::this_thread::yield();
   for (std::uint32_t d = 1; d < corpus.docs.size(); ++d) e.ingest(corpus.docs[d], d);
   done = true;
   for (auto& t : ts) t.join();
