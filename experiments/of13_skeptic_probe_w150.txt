@@ -1,0 +1,398 @@
+OF10 price-discovery diagnostics: seeds 34 35 36, long windows: 16 full sessions per seed (0 .. 23,400 s; block statistics weighted by ScalpEnv's
+  time-of-day coverage, per-window rows unweighted)
+Episode regime: 400 windows per seed built as ScalpEnv builds them (ScalpEnv::make_market, Rng(1,000,000 * seed + 800,000 + i)),
+  150 s warm-up (ScalpEnv's), 600 s measured + 60 s look-ahead; blocks = episodes
+Columns: pooled value +- jackknife SE (blocks); seed mean +- sd/sqrt(n) [min, max]; pooled check; per-seed check.
+
+=== market discovery_v4 (reprice_band 0.50, reprice_snipe 0.00, reprice_cancel 50.00, reprice_take 0.25, value_impact 0.0000,
+    impact_forecast_tau 10.0, impact_forecast_weight 0.30, maker_info 0.00, informed_meta_rate 0.00, uninformed_meta_rate 0.00,
+    momentum_rate 0.00, noise_rate 7.00, cancel_rate 0.50, fade 0.00, activity_excite 0.05, value_vol 1.05)
+    activity_model 1, activity_news_excite 0.80, activity_vol 0.045, activity_tau 600, activity_min -3.0, activity_max 3.0, warm start on; stationary log A: m0 -0.4152, sd 0.8761, skew +0.203
+--- LONG WINDOWS: 16 full sessions x 3 seeds, every step weighted by ScalpEnv's time-of-day coverage
+(a) hidden gap g = fair value - mid (ideal: the 1-tick grid floor(value) + 0.5 on the same value path)
+  sd(g), ticks                                     +0.293 +- 0.001  seeds   +0.293 +- 0.001 [ +0.292,  +0.295]  <= 0.40                  PASS
+  ideal sd(g)                                      +0.281 +- 0.000  seeds   +0.281 +- 0.000 [ +0.281,  +0.281]
+  corr(g, r 30 s)                                  +0.051 +- 0.001  seeds   +0.051 +- 0.000 [ +0.051,  +0.051]  <= 0.12 (or floor+0.02)  PASS
+  ideal floor corr(V - ref, ref 30 s)              +0.048 +- 0.001  seeds   +0.048 +- 0.000 [ +0.048,  +0.048]
+  corr(g, r 30 s) - ideal floor                    +0.003 +- 0.000  seeds   +0.003 +- 0.000 [ +0.002,  +0.003]  <= 0.02                  PASS  seeds <= 0.03 PASS
+  tail corr(g, mid(t+30) - mid(t+2 s))             +0.000 +- 0.000  seeds   +0.000 +- 0.001 [ -0.001,  +0.001]
+  ideal tail (2 s -> 30 s)                         +0.000 +- 0.000  seeds   +0.000 +- 0.000 [ -0.000,  +0.000]
+  tail2(g) - ideal tail2                           +0.000 +- 0.000  seeds   +0.000 +- 0.000 [ -0.000,  +0.001]  <= 0.02                  PASS
+  slope B_g(2 s) / B_g(30 s)                       +0.999 +- 0.007  seeds   +0.999 +- 0.011 [ +0.981,  +1.017]  >= 0.8                   PASS
+  corr(g, r h) by horizon h (s), pooled: 0.1:+0.435 0.2:+0.405 0.5:+0.316 1:+0.245 2:+0.183 5:+0.121 10:+0.087 30:+0.051 60:+0.037
+  gap autocorrelation 1 s                          +0.002 +- 0.000  seeds   +0.002 +- 0.000 [ +0.002,  +0.003]
+  ideal gap autocorrelation 1 s                    +0.002 +- 0.000  seeds   +0.002 +- 0.000 [ +0.002,  +0.003]
+  gap autocorrelation 10 s                         -0.000 +- 0.000  seeds   -0.000 +- 0.000 [ -0.000,  -0.000]
+  share of steps with |g| <= 1                     +1.000          seeds +- 0.000 [ +1.000,  +1.000]
+  max |g|                                         +14.345          seeds +- 0.584 [+13.418, +15.425]
+  value jumps > 2 ticks (count)                  +243.333          seeds +- 22.043 [+218.688, +287.312]
+  jump catch-up (|g| <= 1) median, s               +0.000          seeds +- 0.000 [ +0.000,  +0.000]  every seed <= 1           PASS
+  jump catch-up p95, s                             +0.067          seeds +- 0.033 [ +0.000,  +0.100]  every seed <= 3           PASS
+  races (|g| > band) per minute                    +7.038          seeds +- 0.031 [ +6.979,  +7.081]
+  share of races ending in a tick                  +0.786          seeds +- 0.002 [ +0.782,  +0.788]
+  stale episodes (simulator) per minute          +128.024          seeds +- 0.572 [+127.394, +129.166]
+  share of time in a race                          +0.012          seeds +- 0.000 [ +0.012,  +0.012]
+  race to the tick, median s (0.2 s = floor)       +0.200          seeds +- 0.000 [ +0.200,  +0.200]  every seed <= 1.0         PASS
+  share of races ticked at the 0.2 s floor         +0.999          seeds +- 0.000 [ +0.999,  +0.999]
+  race to the tick, p95 s                          +0.200          seeds +- 0.000 [ +0.200,  +0.200]
+  stale lots: cancelled share (rest sniped)        +0.755          seeds +- 0.000 [ +0.755,  +0.755]
+  mid changes per minute                         +160.445          seeds +- 1.596 [+158.004, +163.448]
+  ideal-grid mid changes per minute              +163.316          seeds +- 1.581 [+160.860, +166.269]
+  re-pricing ticks per minute                    +166.662          seeds +- 1.687 [+163.666, +169.504]
+  re-pricing jumps per mid change                  +1.039          seeds +- 0.002 [ +1.036,  +1.043]
+  after a mid change: drift 1 s                    -0.318          seeds +- 0.000 [ -0.319,  -0.318]
+  after a mid change: drift 30 s                   -0.324          seeds +- 0.000 [ -0.325,  -0.324]
+  share of mid changes reversing the last one      +0.698          seeds +- 0.001 [ +0.696,  +0.699]
+  ideal grid: share reversing                      +0.703          seeds +- 0.001 [ +0.700,  +0.704]
+(b) book imbalance and features
+  event corr(I1, next mid change)                  +0.235 +- 0.002  seeds   +0.235 +- 0.003 [ +0.229,  +0.239]  0.20 .. 0.6              PASS  seeds >= 0.15 PASS
+  event corr(I1, mid j changes later), pooled: j=1:+0.235 j=2:+0.199 j=5:+0.150 j=10:+0.112
+  event corr(I1, mid(c5) - mid(c1))                -0.008 +- 0.001  seeds   -0.008 +- 0.001 [ -0.010,  -0.007]  |.| <= 0.03              PASS
+  event corr(I1, mid(c10) - mid(c2))               +0.008 +- 0.001  seeds   +0.008 +- 0.001 [ +0.006,  +0.010]  |.| <= 0.03              PASS
+  corr(I1, r 1 s)                                  +0.185 +- 0.001  seeds   +0.185 +- 0.002 [ +0.181,  +0.187]  >= 0.15                  PASS
+  corr(I1, r 30 s)                                 +0.040 +- 0.001  seeds   +0.040 +- 0.001 [ +0.038,  +0.041]  |.| <= 0.05              PASS
+  tail corr(I1, mid(t+30) - mid(t+2 s))            -0.000 +- 0.001  seeds   -0.000 +- 0.000 [ -0.001,  +0.000]  |.| <= 0.03              PASS
+  leak corr(I1, g)                                 +0.253 +- 0.001  seeds   +0.253 +- 0.001 [ +0.252,  +0.254]  <= 0.40                  PASS
+  event corr(I5, next mid change)                  +0.120 +- 0.001  seeds   +0.120 +- 0.003 [ +0.115,  +0.123]  0.15 .. 0.6              FAIL
+  event corr(I5, mid j changes later), pooled: j=1:+0.120 j=2:+0.106 j=5:+0.091 j=10:+0.073
+  event corr(I5, mid(c5) - mid(c1))                +0.011 +- 0.001  seeds   +0.011 +- 0.001 [ +0.009,  +0.012]  |.| <= 0.03              PASS
+  event corr(I5, mid(c10) - mid(c2))               +0.019 +- 0.001  seeds   +0.019 +- 0.002 [ +0.016,  +0.021]  |.| <= 0.03              PASS
+  corr(I5, r 1 s)                                  +0.105 +- 0.001  seeds   +0.105 +- 0.002 [ +0.102,  +0.107]
+  corr(I5, r 30 s)                                 +0.027 +- 0.001  seeds   +0.027 +- 0.001 [ +0.026,  +0.028]  |.| <= 0.05              PASS
+  tail corr(I5, mid(t+30) - mid(t+2 s))            +0.003 +- 0.001  seeds   +0.003 +- 0.000 [ +0.003,  +0.003]  |.| <= 0.03              PASS
+  leak corr(I5, g)                                 +0.142 +- 0.001  seeds   +0.142 +- 0.000 [ +0.142,  +0.143]  <= 0.40                  PASS
+  event corr(I1, next change) when |g| <= band     +0.217 +- 0.002  seeds   +0.217 +- 0.003 [ +0.211,  +0.221]
+  event corr(g, next mid change)                   +0.401 +- 0.002  seeds   +0.401 +- 0.000 [ +0.400,  +0.402]
+  feature       C 1 s   C 30 s    tail1    tail2     +-SE     leak   flag: |tail2| > 0.03 by > 2 SE
+  delta5       -0.013   -0.007   -0.004   -0.004    0.002   -0.040   ok
+  delta30      -0.007   -0.004   -0.003   -0.002    0.004   -0.016   ok
+  delta120     -0.003   +0.002   +0.003   +0.003    0.005   -0.009   ok
+  ofi5         -0.043   -0.011   -0.002   -0.002    0.002   -0.108   ok
+  ofi30        -0.018   -0.001   +0.003   +0.003    0.004   -0.045   ok
+  vol30        +0.001   +0.006   +0.006   +0.006    0.006   -0.001   ok
+  imbL1        +0.185   +0.040   +0.001   -0.000    0.001   +0.253   ok
+  imbL5        +0.105   +0.027   +0.005   +0.003    0.001   +0.142   ok
+  ret5         -0.057   -0.014   -0.002   -0.001    0.002   -0.117   ok
+  ret30        -0.025   -0.003   +0.002   +0.003    0.005   -0.049   ok
+  ret120       -0.011   +0.008   +0.011   +0.011    0.005   -0.026   ok
+  vwap         -0.003   +0.004   +0.005   +0.005    0.005   -0.008   ok
+  absorb       -0.019   -0.004   -0.000   -0.000    0.001   -0.000   ok
+  30 s return autocorrelation (overlapping)        -0.005 +- 0.005  seeds   -0.005 +- 0.003 [ -0.010,  +0.000]  |.| <= 0.03              PASS
+  ideal grid: 30 s return autocorrelation          -0.005 +- 0.005  seeds   -0.005 +- 0.003 [ -0.011,  +0.000]
+  value change 10 s vs next 10 s (martingale: 0)   -0.014 +- 0.003  seeds   -0.014 +- 0.002 [ -0.016,  -0.010]
+  flow impact 10 s vs next 10 s                    +0.000 +- 0.000  seeds   +0.000 +- 0.000 [ +0.000,  +0.000]
+  corr(delta 30 s, next 30 s), overlapping         -0.007 +- 0.005  seeds   -0.008 +- 0.004 [ -0.015,  -0.004]
+  corr(OFI 30 s, next 30 s), overlapping           -0.003 +- 0.005  seeds   -0.003 +- 0.001 [ -0.004,  -0.001]
+(c) markouts after aggressive prints, ticks
+  horizon (s)                            0.1       1       2       5      10      30      60
+  prevailing mid, per print           +0.236  +0.215  +0.214  +0.213  +0.211  +0.211  +0.211
+  prevailing, non-sniper prints       +0.059  +0.061  +0.061  +0.060  +0.060  +0.056  +0.056
+  prevailing, sniper prints           +0.753  +0.663  +0.659  +0.656  +0.653  +0.661  +0.662
+  prevailing, per lot                 +0.236  +0.221  +0.220  +0.219  +0.217  +0.215  +0.215
+  StylizedMeter (end of bucket)       -0.089  -0.127  -0.129  -0.131  -0.133  -0.134  -0.133
+  prevailing markout 1 s, all prints               +0.215 +- 0.003  seeds   +0.215 +- 0.001 [ +0.213,  +0.218]  > 0 by 2 SE              PASS
+  prevailing markout 1 s, non-sniper prints        +0.061 +- 0.001  seeds   +0.061 +- 0.001 [ +0.060,  +0.063]  > 0 by 2 SE              PASS
+  prevailing markout 5 s - 1 s                     -0.002 +- 0.001  seeds   -0.002 +- 0.001 [ -0.003,  -0.001]  >= -SE                   FAIL
+  prevailing markout 30 s - 5 s                    -0.002 +- 0.002  seeds   -0.002 +- 0.001 [ -0.003,  -0.000]  |.| <= 0.10              PASS
+  mk30 - mk5 within 2 SE of 0                      -0.002 +- 0.002  PASS
+  prevailing markout 60 s - 5 s                    -0.001 +- 0.002  seeds   -0.001 +- 0.002 [ -0.005,  +0.002]  |.| <= 0.15              PASS
+  StylizedMeter markout 1 s                        -0.127 +- 0.001  seeds   -0.127 +- 0.001 [ -0.128,  -0.126]  >= -0.05                 FAIL
+(d) stylized facts and health
+  R^2(10 s mid change ~ 10 s delta), all prints    +0.332 +- 0.005  seeds   +0.332 +- 0.004 [ +0.325,  +0.336]  >= 0.30                  PASS
+  R^2 on non-sniper delta (incl. informed)         +0.075 +- 0.003  seeds   +0.075 +- 0.003 [ +0.070,  +0.081]  >= 0.25                  FAIL
+  R^2 on sniper delta                              +0.482 +- 0.006  seeds   +0.482 +- 0.005 [ +0.473,  +0.489]
+  delta predictability (30 s delta, next 30 s)     -0.010 +- 0.007  seeds   -0.010 +- 0.003 [ -0.015,  -0.006]  |.| <= 0.04              PASS
+  flow-impact share of 10 s value change (slope)   +0.000 +- 0.000  seeds   +0.000 +- 0.000 [ +0.000,  +0.000]
+  sniper share of prints                           +0.256 +- 0.006  seeds   +0.256 +- 0.003 [ +0.250,  +0.261]
+  volume share: sniper                             +0.210          seeds +- 0.003 [ +0.204,  +0.216]  every seed <= 0.15        FAIL
+  volume share: noise                              +0.790          seeds +- 0.003 [ +0.784,  +0.796]
+  volume share: informed_meta                      +0.000          seeds +- 0.000 [ +0.000,  +0.000]
+  volume share: uninformed_meta                    +0.000          seeds +- 0.000 [ +0.000,  +0.000]
+  volume share: momentum                           +0.000          seeds +- 0.000 [ +0.000,  +0.000]
+  activity mean                                    +1.168          seeds +- 0.020 [ +1.130,  +1.200]
+  share of time at the UPPER activity clamp        +0.000          seeds +- 0.000 [ +0.000,  +0.000]  every seed < 0.05         PASS
+  share of time at the LOWER activity clamp        +0.000          seeds +- 0.000 [ +0.000,  +0.000]  every seed < 0.05         PASS
+  informed meta-order starts per minute            +0.000          seeds +- 0.000 [ +0.000,  +0.000]
+  uninformed meta-order starts per minute          +0.000          seeds +- 0.000 [ +0.000,  +0.000]
+(d) pooled facts (moments over every window; checks on the pooled value +- SE)
+  trades per second                               +21.849 +- 0.519  seeds  +21.849 +- 0.297 [+21.332, +22.362]  15 .. 22                 PASS
+  lots per trade                                   +1.968 +- 0.002  seeds   +1.968 +- 0.001 [ +1.967,  +1.970]  3.4 .. 4.4               FAIL
+  spread = 1 tick share                            +1.000 +- 0.000  seeds   +1.000 +- 0.000 [ +1.000,  +1.000]  >= 0.95                  PASS
+  mean L1 size                                    +21.198 +- 0.055  seeds  +21.198 +- 0.037 [+21.126, +21.251]  <= 190                   PASS
+  1-min return sd                                  +7.955 +- 0.102  seeds   +7.955 +- 0.052 [ +7.886,  +8.057]  3.0 .. 4.5               FAIL
+  1-min excess kurtosis                            +1.795 +- 0.198  seeds   +1.796 +- 0.212 [ +1.564,  +2.219]  5 .. 10                  FAIL
+  1-min return ac1 (pairs within a window)         +0.012 +- 0.009  seeds   +0.012 +- 0.005 [ +0.002,  +0.018]  |.| <= 0.1               PASS
+  |1-min return| ac1 (pairs within a window)       +0.159 +- 0.012  seeds   +0.159 +- 0.013 [ +0.141,  +0.185]  >= 0.1                   PASS
+  trade-sign ac lag 1                              +0.167 +- 0.003  seeds   +0.167 +- 0.002 [ +0.164,  +0.170]  >= 0.2                   FAIL
+  trade-sign ac lag 10                             +0.007 +- 0.000  seeds   +0.007 +- 0.000 [ +0.006,  +0.007]
+  trade-sign ac lag 100                            +0.000 +- 0.000  seeds   +0.000 +- 0.000 [ +0.000,  +0.001]  >= 0.05                  FAIL
+  win_trades_per_sec                             10%  +18.431  50%  +21.865  90%  +26.495  (48 windows)
+  win_ret1m_sd                                   10%   +7.257  50%   +7.998  90%   +8.621  (48 windows)
+  win_activity                                   10%   +0.908  50%   +1.153  90%   +1.434  (48 windows)
+(d) activity health (model 1, news kick 0.80, vol 0.045, tau 600 s, clamps [-3.0, 3.0], warm start on)
+  share of steps at the LOWER clamp                +0.000 +- 0.000  seeds   +0.000 +- 0.000 [ +0.000,  +0.000]  < 0.001                  PASS
+  share within 0.05 of the LOWER clamp             +0.000 +- 0.000  seeds   +0.000 +- 0.000 [ +0.000,  +0.000]
+  share of steps at the UPPER clamp                +0.000 +- 0.000  seeds   +0.000 +- 0.000 [ +0.000,  +0.000]  < 0.001                  PASS
+  log activity mean                                -0.408 +- 0.025  seeds   -0.408 +- 0.015 [ -0.431,  -0.381]
+  log activity sd                                  +0.860 +- 0.014  seeds   +0.860 +- 0.006 [ +0.849,  +0.868]
+  log activity skew                                +0.151 +- 0.045  seeds   +0.152 +- 0.040 [ +0.099,  +0.230]
+  stationary law (analytic): m0 -0.4152, sd 0.8761, skew +0.203
+  mean(activity) / mean(intraday) (model 1: 1)     +0.981 +- 0.029  seeds   +0.981 +- 0.017 [ +0.951,  +1.011]
+  active meta-orders (mean)                        +0.000 +- 0.000  seeds   +0.000 +- 0.000 [ +0.000,  +0.000]
+  active icebergs (mean)                           +0.997 +- 0.028  seeds   +0.997 +- 0.019 [ +0.959,  +1.024]
+  log A, first 2 h of the window: mean             -0.414 +- 0.044  seeds   -0.414 +- 0.040 [ -0.477,  -0.338]
+  log A, last 2 h of the window: mean              -0.389 +- 0.042  seeds   -0.389 +- 0.004 [ -0.395,  -0.380]
+--- EPISODE REGIME: 400 windows x 3 seeds (ScalpEnv-built, 10 min after the warm-up)
+(a) hidden gap g = fair value - mid (ideal: the 1-tick grid floor(value) + 0.5 on the same value path)
+  sd(g), ticks                                     +0.293 +- 0.001  seeds   +0.293 +- 0.000 [ +0.292,  +0.293]  <= 0.40                  PASS
+  ideal sd(g)                                      +0.281 +- 0.000  seeds   +0.281 +- 0.000 [ +0.281,  +0.281]
+  corr(g, r 30 s)                                  +0.052 +- 0.001  seeds   +0.052 +- 0.001 [ +0.051,  +0.053]  <= 0.12 (or floor+0.02)  PASS
+  ideal floor corr(V - ref, ref 30 s)              +0.049 +- 0.001  seeds   +0.049 +- 0.001 [ +0.047,  +0.050]
+  corr(g, r 30 s) - ideal floor                    +0.003 +- 0.000  seeds   +0.003 +- 0.000 [ +0.002,  +0.004]  <= 0.02                  PASS  seeds <= 0.03 PASS
+  tail corr(g, mid(t+30) - mid(t+2 s))             +0.001 +- 0.001  seeds   +0.001 +- 0.001 [ -0.000,  +0.002]
+  ideal tail (2 s -> 30 s)                         -0.000 +- 0.000  seeds   -0.000 +- 0.000 [ -0.001,  +0.001]
+  tail2(g) - ideal tail2                           +0.001 +- 0.000  seeds   +0.001 +- 0.000 [ -0.000,  +0.001]  <= 0.02                  PASS
+  slope B_g(2 s) / B_g(30 s)                       +0.990 +- 0.009  seeds   +0.991 +- 0.010 [ +0.970,  +1.003]  >= 0.8                   PASS
+  corr(g, r h) by horizon h (s), pooled: 0.1:+0.437 0.2:+0.409 0.5:+0.320 1:+0.248 2:+0.185 5:+0.123 10:+0.089 30:+0.052 60:+0.037
+  gap autocorrelation 1 s                          +0.002 +- 0.000  seeds   +0.002 +- 0.001 [ +0.001,  +0.003]
+  ideal gap autocorrelation 1 s                    +0.002 +- 0.000  seeds   +0.002 +- 0.000 [ +0.001,  +0.003]
+  gap autocorrelation 10 s                         +0.000 +- 0.000  seeds   +0.000 +- 0.000 [ -0.000,  +0.001]
+  share of steps with |g| <= 1                     +1.000          seeds +- 0.000 [ +1.000,  +1.000]
+  max |g|                                          +2.291          seeds +- 0.034 [ +2.222,  +2.328]
+  value jumps > 2 ticks (count)                    +5.277          seeds +- 0.681 [ +4.255,  +6.567]
+  jump catch-up (|g| <= 1) median, s               +0.000          seeds +- 0.000 [ +0.000,  +0.000]  every seed <= 1           PASS
+  jump catch-up p95, s                             +0.067          seeds +- 0.033 [ +0.000,  +0.100]  every seed <= 3           PASS
+  races (|g| > band) per minute                    +7.067          seeds +- 0.007 [ +7.059,  +7.081]
+  share of races ending in a tick                  +0.785          seeds +- 0.000 [ +0.784,  +0.785]
+  stale episodes (simulator) per minute          +126.611          seeds +- 0.255 [+126.235, +127.097]
+  share of time in a race                          +0.012          seeds +- 0.000 [ +0.012,  +0.012]
+  race to the tick, median s (0.2 s = floor)       +0.200          seeds +- 0.000 [ +0.200,  +0.200]  every seed <= 1.0         PASS
+  share of races ticked at the 0.2 s floor         +0.999          seeds +- 0.000 [ +0.999,  +0.999]
+  race to the tick, p95 s                          +0.200          seeds +- 0.000 [ +0.200,  +0.200]
+  stale lots: cancelled share (rest sniped)        +0.754          seeds +- 0.000 [ +0.754,  +0.755]
+  mid changes per minute                         +156.790          seeds +- 0.543 [+156.238, +157.876]
+  ideal-grid mid changes per minute              +159.719          seeds +- 0.533 [+159.171, +160.786]
+  re-pricing ticks per minute                    +162.241          seeds +- 0.630 [+161.012, +163.092]
+  re-pricing jumps per mid change                  +1.035          seeds +- 0.003 [ +1.031,  +1.041]
+  after a mid change: drift 1 s                    -0.327          seeds +- 0.000 [ -0.327,  -0.326]
+  after a mid change: drift 30 s                   -0.332          seeds +- 0.004 [ -0.339,  -0.327]
+  share of mid changes reversing the last one      +0.719          seeds +- 0.000 [ +0.719,  +0.720]
+  ideal grid: share reversing                      +0.724          seeds +- 0.000 [ +0.724,  +0.725]
+(b) book imbalance and features
+  event corr(I1, next mid change)                  +0.235 +- 0.002  seeds   +0.235 +- 0.001 [ +0.233,  +0.237]  0.20 .. 0.6              PASS  seeds >= 0.15 PASS
+  event corr(I1, mid j changes later), pooled: j=1:+0.235 j=2:+0.197 j=5:+0.149 j=10:+0.110
+  event corr(I1, mid(c5) - mid(c1))                -0.009 +- 0.001  seeds   -0.009 +- 0.001 [ -0.011,  -0.008]  |.| <= 0.03              PASS
+  event corr(I1, mid(c10) - mid(c2))               +0.007 +- 0.001  seeds   +0.007 +- 0.000 [ +0.006,  +0.007]  |.| <= 0.03              PASS
+  corr(I1, r 1 s)                                  +0.185 +- 0.001  seeds   +0.185 +- 0.002 [ +0.182,  +0.187]  >= 0.15                  PASS
+  corr(I1, r 30 s)                                 +0.040 +- 0.001  seeds   +0.040 +- 0.002 [ +0.037,  +0.043]  |.| <= 0.05              PASS
+  tail corr(I1, mid(t+30) - mid(t+2 s))            -0.000 +- 0.001  seeds   +0.000 +- 0.001 [ -0.002,  +0.002]  |.| <= 0.03              PASS
+  leak corr(I1, g)                                 +0.256 +- 0.001  seeds   +0.256 +- 0.000 [ +0.255,  +0.256]  <= 0.40                  PASS
+  event corr(I5, next mid change)                  +0.121 +- 0.001  seeds   +0.121 +- 0.001 [ +0.119,  +0.123]  0.15 .. 0.6              FAIL
+  event corr(I5, mid j changes later), pooled: j=1:+0.121 j=2:+0.106 j=5:+0.090 j=10:+0.071
+  event corr(I5, mid(c5) - mid(c1))                +0.009 +- 0.001  seeds   +0.009 +- 0.001 [ +0.007,  +0.011]  |.| <= 0.03              PASS
+  event corr(I5, mid(c10) - mid(c2))               +0.017 +- 0.001  seeds   +0.017 +- 0.001 [ +0.016,  +0.019]  |.| <= 0.03              PASS
+  corr(I5, r 1 s)                                  +0.105 +- 0.001  seeds   +0.105 +- 0.001 [ +0.104,  +0.107]
+  corr(I5, r 30 s)                                 +0.025 +- 0.002  seeds   +0.025 +- 0.000 [ +0.024,  +0.025]  |.| <= 0.05              PASS
+  tail corr(I5, mid(t+30) - mid(t+2 s))            +0.000 +- 0.002  seeds   +0.000 +- 0.000 [ -0.000,  +0.001]  |.| <= 0.03              PASS
+  leak corr(I5, g)                                 +0.144 +- 0.001  seeds   +0.144 +- 0.000 [ +0.143,  +0.144]  <= 0.40                  PASS
+  event corr(I1, next change) when |g| <= band     +0.217 +- 0.002  seeds   +0.217 +- 0.001 [ +0.215,  +0.219]
+  event corr(g, next mid change)                   +0.403 +- 0.002  seeds   +0.403 +- 0.000 [ +0.403,  +0.403]
+  feature       C 1 s   C 30 s    tail1    tail2     +-SE     leak   flag: |tail2| > 0.03 by > 2 SE
+  delta5       -0.013   -0.001   +0.002   +0.003    0.003   -0.043   ok
+  delta30      -0.005   +0.003   +0.004   +0.004    0.005   -0.018   ok
+  delta120     -0.001   +0.015   +0.016   +0.016    0.006   -0.009   ok
+  ofi5         -0.043   -0.008   +0.001   +0.001    0.003   -0.113   ok
+  ofi30        -0.018   -0.003   +0.001   +0.001    0.006   -0.048   ok
+  vol30        -0.000   +0.001   +0.001   +0.001    0.006   +0.000   ok
+  imbL1        +0.185   +0.040   +0.001   -0.000    0.001   +0.256   ok
+  imbL5        +0.105   +0.025   +0.003   +0.000    0.002   +0.144   ok
+  ret5         -0.058   -0.014   -0.002   -0.001    0.003   -0.122   ok
+  ret30        -0.025   -0.006   -0.000   -0.000    0.006   -0.053   ok
+  ret120       -0.012   +0.010   +0.013   +0.013    0.006   -0.028   ok
+  vwap         -0.014   +0.006   +0.009   +0.010    0.006   -0.032   ok
+  absorb       -0.019   -0.003   +0.001   +0.001    0.001   +0.000   ok
+  30 s return autocorrelation (overlapping)        -0.010 +- 0.007  seeds   -0.010 +- 0.010 [ -0.028,  +0.006]  |.| <= 0.03              PASS
+  ideal grid: 30 s return autocorrelation          -0.010 +- 0.007  seeds   -0.010 +- 0.010 [ -0.029,  +0.006]
+  value change 10 s vs next 10 s (martingale: 0)   -0.016 +- 0.004  seeds   -0.017 +- 0.003 [ -0.022,  -0.012]
+  flow impact 10 s vs next 10 s                    +0.000 +- 0.000  seeds   +0.000 +- 0.000 [ +0.000,  +0.000]
+  corr(delta 30 s, next 30 s), overlapping         +0.004 +- 0.007  seeds   +0.003 +- 0.008 [ -0.012,  +0.014]
+  corr(OFI 30 s, next 30 s), overlapping           -0.003 +- 0.007  seeds   -0.003 +- 0.007 [ -0.017,  +0.005]
+(c) markouts after aggressive prints, ticks
+  horizon (s)                            0.1       1       2       5      10      30      60
+  prevailing mid, per print           +0.238  +0.217  +0.216  +0.215  +0.215  +0.217  +0.215
+  prevailing, non-sniper prints       +0.058  +0.061  +0.061  +0.060  +0.060  +0.062  +0.062
+  prevailing, sniper prints           +0.751  +0.662  +0.658  +0.657  +0.657  +0.657  +0.651
+  prevailing, per lot                 +0.237  +0.223  +0.222  +0.220  +0.221  +0.222  +0.222
+  StylizedMeter (end of bucket)       -0.089  -0.126  -0.128  -0.130  -0.130  -0.127  -0.130
+  prevailing markout 1 s, all prints               +0.217 +- 0.003  seeds   +0.217 +- 0.002 [ +0.215,  +0.220]  > 0 by 2 SE              PASS
+  prevailing markout 1 s, non-sniper prints        +0.061 +- 0.001  seeds   +0.061 +- 0.001 [ +0.060,  +0.063]  > 0 by 2 SE              PASS
+  prevailing markout 5 s - 1 s                     -0.002 +- 0.001  seeds   -0.002 +- 0.001 [ -0.004,  -0.001]  >= -SE                   FAIL
+  prevailing markout 30 s - 5 s                    +0.002 +- 0.002  seeds   +0.002 +- 0.003 [ -0.004,  +0.007]  |.| <= 0.10              PASS
+  mk30 - mk5 within 2 SE of 0                      +0.002 +- 0.002  PASS
+  prevailing markout 60 s - 5 s                    +0.000 +- 0.003  seeds   +0.000 +- 0.005 [ -0.008,  +0.007]  |.| <= 0.15              PASS
+  StylizedMeter markout 1 s                        -0.126 +- 0.001  seeds   -0.126 +- 0.001 [ -0.128,  -0.125]  >= -0.05                 FAIL
+(d) stylized facts and health
+  R^2(10 s mid change ~ 10 s delta), all prints    +0.344 +- 0.005  seeds   +0.344 +- 0.004 [ +0.336,  +0.351]  >= 0.30                  PASS
+  R^2 on non-sniper delta (incl. informed)         +0.078 +- 0.003  seeds   +0.078 +- 0.003 [ +0.074,  +0.083]  >= 0.25                  FAIL
+  R^2 on sniper delta                              +0.493 +- 0.006  seeds   +0.493 +- 0.002 [ +0.490,  +0.497]
+  delta predictability (30 s delta, next 30 s)     +0.006 +- 0.008  seeds   +0.006 +- 0.008 [ -0.008,  +0.018]  |.| <= 0.04              PASS
+  flow-impact share of 10 s value change (slope)   +0.000 +- 0.000  seeds   +0.000 +- 0.000 [ +0.000,  +0.000]
+  sniper share of prints                           +0.259 +- 0.005  seeds   +0.259 +- 0.001 [ +0.257,  +0.262]
+  volume share: sniper                             +0.284          seeds +- 0.000 [ +0.283,  +0.285]  every seed <= 0.15        FAIL
+  volume share: noise                              +0.716          seeds +- 0.000 [ +0.715,  +0.717]
+  volume share: informed_meta                      +0.000          seeds +- 0.000 [ +0.000,  +0.000]
+  volume share: uninformed_meta                    +0.000          seeds +- 0.000 [ +0.000,  +0.000]
+  volume share: momentum                           +0.000          seeds +- 0.000 [ +0.000,  +0.000]
+  activity mean                                    +1.114          seeds +- 0.009 [ +1.096,  +1.124]
+  share of time at the UPPER activity clamp        +0.000          seeds +- 0.000 [ +0.000,  +0.000]  every seed < 0.05         PASS
+  share of time at the LOWER activity clamp        +0.000          seeds +- 0.000 [ +0.000,  +0.000]  every seed < 0.05         PASS
+  informed meta-order starts per minute            +0.000          seeds +- 0.000 [ +0.000,  +0.000]
+  uninformed meta-order starts per minute          +0.000          seeds +- 0.000 [ +0.000,  +0.000]
+(d) pooled facts (moments over every window; checks on the pooled value +- SE)
+  trades per second                               +21.467 +- 0.454  seeds  +21.467 +- 0.131 [+21.205, +21.599]  15 .. 22                 PASS
+  lots per trade                                   +1.967 +- 0.001  seeds   +1.967 +- 0.001 [ +1.966,  +1.968]  3.4 .. 4.4               FAIL
+  spread = 1 tick share                            +1.000 +- 0.000  seeds   +1.000 +- 0.000 [ +1.000,  +1.000]  >= 0.95                  PASS
+  mean L1 size                                    +21.219 +- 0.046  seeds  +21.219 +- 0.008 [+21.202, +21.227]  <= 190                   PASS
+  1-min return sd                                  +7.844 +- 0.095  seeds   +7.842 +- 0.095 [ +7.669,  +7.997]  3.0 .. 4.5               FAIL
+  1-min excess kurtosis                            +1.933 +- 0.221  seeds   +1.898 +- 0.297 [ +1.446,  +2.459]  5 .. 10                  FAIL
+  1-min return ac1 (pairs within a window)         +0.011 +- 0.012  seeds   +0.011 +- 0.005 [ +0.002,  +0.020]  |.| <= 0.1               PASS
+  |1-min return| ac1 (pairs within a window)       +0.156 +- 0.011  seeds   +0.156 +- 0.004 [ +0.149,  +0.163]  >= 0.1                   PASS
+  trade-sign ac lag 1                              +0.169 +- 0.003  seeds   +0.169 +- 0.001 [ +0.168,  +0.171]  >= 0.2                   FAIL
+  trade-sign ac lag 10                             +0.007 +- 0.000  seeds   +0.007 +- 0.000 [ +0.006,  +0.007]
+  trade-sign ac lag 100                            +0.000 +- 0.000  seeds   +0.000 +- 0.000 [ -0.000,  +0.001]  >= 0.05                  FAIL
+  win_trades_per_sec                             10%   +8.903  50%  +17.142  90%  +38.077  (1200 windows)
+  win_ret1m_sd                                   10%   +3.921  50%   +6.763  90%  +11.333  (1200 windows)
+  win_activity                                   10%   +0.319  50%   +0.789  90%   +2.212  (1200 windows)
+(d) activity health (model 1, news kick 0.80, vol 0.045, tau 600 s, clamps [-3.0, 3.0], warm start on)
+  share of steps at the LOWER clamp                +0.000 +- 0.000  seeds   +0.000 +- 0.000 [ +0.000,  +0.000]  < 0.001                  PASS
+  share within 0.05 of the LOWER clamp             +0.000 +- 0.000  seeds   +0.000 +- 0.000 [ +0.000,  +0.001]
+  share of steps at the UPPER clamp                +0.000 +- 0.000  seeds   +0.000 +- 0.000 [ +0.000,  +0.000]  < 0.001                  PASS
+  log activity mean                                -0.423 +- 0.021  seeds   -0.423 +- 0.004 [ -0.431,  -0.417]
+  log activity sd                                  +0.855 +- 0.013  seeds   +0.855 +- 0.001 [ +0.853,  +0.856]
+  log activity skew                                +0.152 +- 0.047  seeds   +0.152 +- 0.013 [ +0.132,  +0.177]
+  stationary law (analytic): m0 -0.4152, sd 0.8761, skew +0.203
+  mean(activity) / mean(intraday) (model 1: 1)     +0.960 +- 0.026  seeds   +0.960 +- 0.010 [ +0.941,  +0.977]
+  active meta-orders (mean)                        +0.000 +- 0.000  seeds   +0.000 +- 0.000 [ +0.000,  +0.000]
+  active icebergs (mean)                           +0.922 +- 0.024  seeds   +0.922 +- 0.021 [ +0.881,  +0.949]
+  log A, first measured step: mean                 -0.418 +- 0.025  seeds   -0.418 +- 0.028 [ -0.467,  -0.369]
+  log A, first measured step: sd                   +0.863 +- 0.017  seeds   +0.862 +- 0.012 [ +0.838,  +0.876]
+  log A, minute 0-1 of the window: mean            -0.410 +- 0.025  seeds   -0.410 +- 0.026 [ -0.452,  -0.363]
+  log A, minute 9-10 of the window: mean           -0.435 +- 0.025  seeds   -0.435 +- 0.002 [ -0.439,  -0.433]
+  drift: minute 9-10 - minute 0-1                  -0.025 +- 0.027  seeds   -0.025 +- 0.025 [ -0.070,  +0.018]
+--- AGREE: episode regime vs long windows; d = episode - long, SE = sqrt(SE_e^2 + SE_l^2); AGREE when |d| <= max(tol, 2 SE)
+  statistic (* core)                                 episode      long         d      SE     tol   
+  * trades per second                               +21.4669  +21.8495   -0.3826  0.6898  2.1849   AGREE
+  * lots per trade                                   +1.9674   +1.9682   -0.0008  0.0021  0.0984   AGREE
+    spread = 1 tick share                            +1.0000   +1.0000   -0.0000  0.0000  0.0200   AGREE
+    mean L1 size                                    +21.2187  +21.1977   +0.0210  0.0716  2.1198   AGREE
+  * 1-min return sd                                  +7.8439   +7.9555   -0.1115  0.1389  0.7955   AGREE
+  * 1-min excess kurtosis                            +1.9333   +1.7952   +0.1381  0.2964  2.0000   AGREE
+    1-min return ac1                                 +0.0111   +0.0117   -0.0007  0.0146  0.0300   AGREE
+    |1-min return| ac1                               +0.1560   +0.1593   -0.0033  0.0165  0.0300   AGREE
+    trade-sign ac lag 1                              +0.1690   +0.1671   +0.0018  0.0041  0.0300   AGREE
+    trade-sign ac lag 100                            +0.0002   +0.0003   -0.0001  0.0003  0.0300   AGREE
+    R^2(10 s mid ~ delta)                            +0.3439   +0.3322   +0.0117  0.0074  0.0300   AGREE
+    delta predictability                             +0.0061   -0.0099   +0.0159  0.0108  0.0300   AGREE
+    corr(g, r 30 s) - floor                          +0.0032   +0.0027   +0.0005  0.0005  0.0300   AGREE
+    event corr(I1, next change)                      +0.2351   +0.2347   +0.0004  0.0024  0.0300   AGREE
+    event corr(I1, c5 - c1)                          -0.0093   -0.0082   -0.0011  0.0012  0.0300   AGREE
+    tail corr(I1, 2 -> 30 s)                         -0.0000   -0.0003   +0.0002  0.0010  0.0300   AGREE
+    leak corr(I1, g)                                 +0.2557   +0.2533   +0.0024  0.0015  0.0300   AGREE
+    markout 1 s                                      +0.2171   +0.2148   +0.0023  0.0039  0.0000   AGREE
+    markout 30 s - 5 s                               +0.0017   -0.0019   +0.0036  0.0026  0.0000   AGREE
+    markout 60 s - 5 s                               +0.0003   -0.0014   +0.0017  0.0036  0.0000   AGREE
+    activity / intraday                              +0.9596   +0.9809   -0.0213  0.0387  0.0490   AGREE
+  * log A mean                                       -0.4229   -0.4084   -0.0146  0.0328  0.0500   AGREE
+  * log A sd                                         +0.8547   +0.8598   -0.0052  0.0193  0.0430   AGREE
+    log A at the first measured step vs long: mean   -0.4176   -0.4084   -0.0092  0.0354  0.0500   AGREE
+    log A at the first measured step vs long: sd     +0.8634   +0.8598   +0.0036  0.0219  0.0430   AGREE
+  * LOWER clamp share                                +0.0001   +0.0000   +0.0000  0.0000  0.0200   AGREE
+  * UPPER clamp share                                +0.0000   +0.0000   +0.0000  0.0000  0.0200   AGREE
+  * active meta-orders                               +0.0000   +0.0000   +0.0000  0.0000  0.0000   AGREE
+  * active icebergs                                  +0.9218   +0.9968   -0.0750  0.0369  0.0000   DISAGREE
+  core rows (activity, facts, meta-order / iceberg counts) AGREE: FAIL (1 disagree)
+  AGREE on every row: FAIL (1 of 29 disagree; at 2 SE alone ~1.3 would by chance)
+  (c) judged in BOTH regimes, mk30 - mk5 within 2 SE of 0: long -0.002 +- 0.002 PASS, episode +0.002 +- 0.002 PASS: (c) PASS
+  (c) pooled over both regimes (extra evidence only, not the gate): mk30 - mk5 -0.000 +- 0.001, within 2 SE of 0: yes
+(e, f) rules on ScalpEnv: 100 episodes x 3 seeds (episode seeds 1,000,000 * seed + i; EMO oracles: the first 40), net ticks/episode after costs
+  lots: fees / $1.50 per lot (a flip is 2 lots); gross/lot before fees; edge/lot = gross/lot + 0.5 (the half spread: ~0 without
+  information); SEs: episodes (net), episode jackknife (edge). Clairvoyants run on the same preset with separate streams.
+  strategy                         net/ep      t   lots gross/lt  edge/lt    +-SE   per-seed means
+  flat                              +0.00  +0.00    0.0     +nan     +nan   0.000    +0.00  +0.00  +0.00
+  delta 30 s > 1.5                  -9.91  -6.73   16.3   -0.489   +0.011   0.084   -10.97  -7.45 -11.30   ok; |edge| <= 0.15
+  delta 30 s > 2.5                  -3.82  -2.62    7.9   -0.366   +0.134   0.181    -4.90  -3.53  -3.05   ok; |edge| <= 0.15
+  delta 120 s > 2                   -2.54  -1.76    5.5   -0.343   +0.157   0.259    -4.89  -3.11  +0.38   ok; |edge| > 0.15 (<2SE)
+  OFI 30 s > 2                      -6.47  -4.16   11.7   -0.435   +0.065   0.126    -4.73  -8.10  -6.58   ok; |edge| <= 0.15
+  imbalance L1 > 0.6               -24.52 -15.22   54.9   -0.326   +0.174   0.028   -24.61 -25.74 -23.21   ok; |edge| > 0.15 (<2SE)
+  imbalance L1-5 > 0.6              +0.00  +0.00    0.0     +nan     +nan   0.000    +0.00  +0.00  +0.00   ok; |edge| <= 0.15
+  absorption > 2                    -5.41  -3.51    7.6   -0.591   -0.091   0.204    -4.28  -6.65  -5.30   ok; |edge| <= 0.15
+  fade return 30 s > 2              -7.61  -5.39   10.9   -0.578   -0.078   0.141   -10.23  -7.48  -5.11   ok; |edge| <= 0.15
+  delta 5 s > 1.5                  -40.53 -23.29   63.9   -0.514   -0.014   0.024   -40.89 -41.49 -39.21   ok; |edge| <= 0.15
+  fade delta 5 s > 1.5             -36.35 -23.92   62.5   -0.462   +0.038   0.025   -36.09 -35.27 -37.70   ok; |edge| <= 0.15
+  fade OFI 5 s > 1.5               -37.44 -29.13   68.4   -0.427   +0.073   0.021   -36.96 -37.47 -37.88   ok; |edge| <= 0.15
+  fade return 5 s > 1              -48.16 -35.05   92.2   -0.402   +0.098   0.017   -47.92 -52.16 -44.38   ok; |edge| <= 0.15
+  fade imbalance L1 > 0.6          -46.97 -26.71   55.5   -0.726   -0.226   0.028   -49.61 -45.19 -46.11   ok; |edge| > 0.15 FLAG
+  oracle gap > 0.50                 -4.33  -3.31    7.9   -0.429   +0.071   0.167    -1.87  -5.92  -5.21
+  oracle gap > 0.55                 -4.60  -3.46    5.7   -0.692   -0.192   0.232    +0.86  -8.01  -6.65
+  oracle gap > 0.60                 -3.81  -3.02    3.6   -0.936   -0.436   0.346    -2.05  -4.19  -5.19
+  oracle gap > 0.70                 -0.84  -0.84    1.8   -0.346   +0.154   0.558    +0.03  -2.15  -0.40
+  oracle gap > 0.80                 -0.50  -0.62    0.8   -0.484   +0.016   0.968    -0.87  -2.15  +1.51   vacuous (< 1 lot/episode)
+  oracle gap > 1.00                 +0.15  +0.26    0.2   +0.736   +1.236   2.422    +0.76  +0.46  -0.78   vacuous (< 1 lot/episode)
+  oracle gap > 0.55, lat 0          -4.52  -3.66    5.5   -0.698   -0.198   0.223    -2.40  -5.87  -5.28
+  oracle gap > 0.70, lat 0          -1.65  -1.60    1.8   -0.773   -0.273   0.556    -2.21  -1.19  -1.55
+  clairvoyant 1 s (sep.)          +133.70 +21.07  410.0   +0.446   +0.946   0.013   +117.50 +139.48 +144.12
+  clairvoyant 2 s (sep.)          +164.15 +29.55  297.5   +0.672   +1.172   0.016   +150.54 +170.91 +171.01
+  clairvoyant 5 s (sep.)          +116.70 +32.61  183.6   +0.755   +1.255   0.017   +108.96 +120.27 +120.86
+  clairvoyant 30 s (sep.)          +51.59 +22.19   72.5   +0.831   +1.331   0.033   +46.51 +51.20 +57.05
+  O1 gap > 0.62, lat 0, 0.1 s      -11.11  -7.69   23.2   -0.359   +0.141   0.061   -10.20  -9.34 -13.78
+  O2 EMO 10 s K32 > 1.24           -18.82  -6.08   42.1   -0.327   +0.173   0.068   -10.28 -23.34 -22.84
+  EMO 2 s K32 > 1.24 (loose)        -0.88  -0.46    5.8   -0.033   +0.467   0.359    -0.61  +1.34  -3.38
+  theta* = 0.70 (best of this run: pre-register it for held-out runs): oracle net -0.84 +- 1.00, 1.8 lots/episode, edge/lot +0.154
+  not meaningful (VACUOUS: < 2 lots/episode): imbalance L1-5 > 0.6 beats the oracle at theta* by > 2 SE (rule 0.0, oracle 1.8 lots/episode)
+  (f) every rule <= oracle(theta*) + 2 SE: FAIL
+  (f) PRE-REGISTERED oracles (fixed in code before any v3 RL run; thresholds from costs, fee 0.12 tick/lot/side):
+      O1 = zero-latency fair-value taker, |g| > 0.62 (half spread + one fee), latency 0, decide 0.1 s
+      O2 = EMO(H 10 s, K 32, theta 1.24 = spread + 2 fees), decide 1 s, latency 100 ms: a reference, not an upper bound
+      O1: net -11.11 +- 1.44 ticks/episode (t -7.69), 23.2 lots/episode, edge/lot +0.141
+      O2: net -18.82 +- 3.10 ticks/episode (t -6.08), 42.1 lots/episode, edge/lot +0.173
+  (f1) O1 and O2 trade >= 2 lots/episode and O2 > 0 by 2 SE: FAIL
+  leak audit: delta 30 s > 1.5 above O2 by > 2 SE (unpaired: O2 ran on fewer episodes)
+  leak audit: delta 30 s > 2.5 above O2 by > 2 SE (unpaired: O2 ran on fewer episodes)
+  leak audit: delta 120 s > 2 above O2 by > 2 SE (unpaired: O2 ran on fewer episodes)
+  leak audit: OFI 30 s > 2 above O2 by > 2 SE (unpaired: O2 ran on fewer episodes)
+  leak audit: imbalance L1-5 > 0.6 above O2 by > 2 SE (unpaired: O2 ran on fewer episodes)
+  leak audit: absorption > 2 above O2 by > 2 SE (unpaired: O2 ran on fewer episodes)
+  leak audit: fade return 30 s > 2 above O2 by > 2 SE (unpaired: O2 ran on fewer episodes)
+  (e) no naive rule net > 0 by 2 SE (per rule): PASS
+  Later RL checks: RL net > 0 by 2 SE needs a fresh-seed confirmation; compare RL with O2 PAIRED on the same episodes
+  (O2 ran on the first 40 of each seed): RL > O2 + 2 SE triggers a leak audit (O2 is one fixed rule, not an upper bound),
+  as does RL > O1 (O1 reads only the current gap: not a bound either); neither proves a bug by itself.
+(e, f) tick rules on TickScalpEnv: 100 episodes x 3 seeds (episode seeds 1,000,000 * seed + 850,000 + i), net ticks/episode
+  adverse: mean signed (mid ~1 s after the fill's decision step - fill price) per passive fill
+  (+0.5 at a 1-tick spread and an unchanged mid: below +0.5 is adverse selection, < 0: picked off past the half spread)
+  strategy                         net/ep      t  fills  gross/fl  adverse   per-seed means
+  no quotes                         +0.00  +0.00    0.0    +0.000   +0.000    +0.00  +0.00  +0.00
+  quote both sides                -203.84 -27.81  460.3    -0.323   -0.336   -203.29 -203.39 -204.83   ok, outside [-4, 0] FAIL, adverse in [0, 0.5] FAIL
+    quote both, by cause: stale sweeps (value past the quote at the fill) 312.4/episode, 1 s markout -0.458; flow fills 145.8/episode, 1 s markout -0.075
+  both, stop at -2 ticks          -217.48 -29.86  456.8    -0.356   -0.342   -212.32 -226.58 -213.53   ok
+  skew on imbalance L1 0.3        -116.95 -27.47  259.5    -0.331   -0.369   -124.73 -114.70 -111.44   ok
+  skew on imbalance L1 0.6        -145.74 -24.00  326.6    -0.326   -0.352   -138.89 -142.71 -155.63   ok
+  skew on delta 5 s > 1           -120.09 -29.53  267.6    -0.329   -0.347   -123.39 -118.01 -118.88   ok
+  fade-quote ret 5 s 0.5           -54.86 -25.88  120.9    -0.334   -0.371   -57.14 -53.85 -53.59   ok
+  fade-quote ret 5 s 1             -97.40 -32.45  213.6    -0.336   -0.357   -100.46 -99.12 -92.60   ok
+  fair-value quoter d 0.00        -149.62 -25.77  342.9    -0.316   -0.343   -148.10 -152.14 -148.64
+  fair-value quoter d 0.15        -136.50 -25.12  310.9    -0.319   -0.363   -144.27 -130.27 -134.97
+  fair-value quoter d 0.30        -114.26 -28.38  260.5    -0.319   -0.385   -118.98 -110.45 -113.35
+  fair-value quoter 0.15, 0.1 s    -36.30  -6.98   89.5    -0.286   -0.349   -47.50 -31.53 -29.86
+  clairvoyant quoter 2 s (sep.)    +67.57 +27.75  198.4    +0.461   +0.126   +70.07 +70.18 +62.47
+  RED FLAG: fade-quote ret 5 s 0.5 beats the 0.5 s fair-value quoter
+  RED FLAG: fade-quote ret 5 s 1 beats the 0.5 s fair-value quoter
+  (f) best 0.5 s fair-value quoter -114.26 >= every tick rule: FAIL
+(impact) paired TWAP buy over 300 s by market orders (separate streams), 30 pairs x 3 seeds, mid difference in ticks
+  300 lots: +2.62 +- 0.98; 1,200 lots: +15.82 +- 1.08; exponent log(I1200 / I300) / log 4 = 1.30
+  1,200 lots, 60 s after the end: +15.87 +- 1.13; 300 s after: +17.51 +- 1.44 (remaining share 1.11)
+  round trip: buy N lots in one market order, sell N 10 s later, net ticks/lot after fees (raw; paired = minus the twin's mid change)
+    N  1: raw -1.818 +- 0.364, paired -1.184 +- 0.081 (90 round trips)
+    N 10: raw -1.711 +- 0.373, paired -1.078 +- 0.176 (90 round trips)
+    N 30: raw -2.086 +- 0.385, paired -1.452 +- 0.170 (90 round trips)
+    N 60: raw -2.281 +- 0.385, paired -1.648 +- 0.230 (90 round trips)

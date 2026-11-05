@@ -75,9 +75,10 @@
 //          [--sessions 3] [--episodes 0] [--episode-warmup 150] [--scalp-warmup 150] [--rules 0]
 //          [--emo 0] [--tick 0] [--impact 0] [--theta [market=]X,...]
 //          [--csv FILE] [--out FILE] [--set name=value,...]
-// --set overrides fields of the discovery preset (tuning), e.g.
-// --set reprice_cancel=8,reprice_take=0.1 (names: see kTunable; activity_model
-// and activity_warm_start take 0 / 1).
+// --set overrides fields of the discovery and discovery_v4 presets (tuning), e.g.
+// --set reprice_cancel=8,reprice_take=0.1 (names: see kTunable; activity_model,
+// activity_warm_start and stale_binomial take 0 / 1; max_stale_levels and
+// max_step_ticks take counts).
 // --theta fixes the hysteresis gap-oracle threshold per market (legacy v1 / v2
 // tables); a market without one uses the best theta of this run, marked so.
 // --out also writes the summary to FILE; --out / --csv that can't be opened exit 2.
@@ -163,11 +164,13 @@ const std::map<std::string, double SimParams::*> kTunable = {
     {"activity_news_excite", &SimParams::activity_news_excite}, {"jump_sd", &SimParams::jump_sd},
     {"join_ahead_mean", &SimParams::join_ahead_mean}, {"cancel_back_bias", &SimParams::cancel_back_bias},
     {"maker_size_mean", &SimParams::maker_size_mean}, {"iceberg_rate", &SimParams::iceberg_rate},
-    {"taker_size_logsd", &SimParams::taker_size_logsd}, {"momentum_scale", &SimParams::momentum_scale}};
+    {"taker_size_logsd", &SimParams::taker_size_logsd}, {"momentum_scale", &SimParams::momentum_scale},
+    {"touch_cancel_mult", &SimParams::touch_cancel_mult}, {"cancel_activity", &SimParams::cancel_activity},
+    {"sweep_follow", &SimParams::sweep_follow}};
 
 SimParams market(const Options& o, const std::string& name) {
   SimParams p = market_preset(name);
-  if (name == "discovery")
+  if (name == "discovery" || name == "discovery_v4")
     for (const auto& [k, v] : o.set) {
       if (k == "activity_model") {
         p.activity_model = static_cast<int>(std::lround(v));
@@ -175,6 +178,15 @@ SimParams market(const Options& o, const std::string& name) {
       }
       if (k == "activity_warm_start") {
         p.activity_warm_start = v != 0;
+        continue;
+      }
+      if (k == "stale_binomial") {
+        p.stale_binomial = v != 0;
+        continue;
+      }
+      if (k == "max_stale_levels" || k == "max_step_ticks") {
+        if (!(v >= 0 && v <= 1e9)) throw std::invalid_argument("--set: " + k + " wants a count >= 0");
+        (k == "max_stale_levels" ? p.max_stale_levels : p.max_step_ticks) = static_cast<std::uint32_t>(std::lround(v));
         continue;
       }
       const auto it = kTunable.find(k);
@@ -892,6 +904,7 @@ TickRun run_tick(const SimParams& sim, std::uint64_t seed, const TickStrategy& s
   p.sim = sim;
   p.sim.separate_streams = p.sim.separate_streams || s.separate_streams;
   p.decide_seconds = s.decide;
+  p.allow_sweep_follow = true;  // diagnostics (discovery_v4): TickScalpEnv refuses it otherwise
   TickRun tr;
   struct Pending {
     double sign, price;
@@ -1748,7 +1761,7 @@ int main(int argc, char** argv) {
         o.scalp_warmup, o.scalp_warmup, o.scalp_warmup, o.scalp_warmup);
   say("Columns: pooled value +- jackknife SE (blocks); seed mean +- sd/sqrt(n) [min, max]; pooled check; per-seed check.\n");
   if (!o.set.empty()) {  // tuned runs must say so
-    say("--set overrides of the discovery preset:");
+    say("--set overrides of the discovery / discovery_v4 presets:");
     for (const auto& [k, x] : o.set) say(" %s=%g", k.c_str(), x);
     say("\n");
   }

@@ -1,0 +1,45 @@
+warm-up 150 s before each episode (--warmup; ScalpEnv's default 150 s)
+episodes Rng(960013000000 + i) (--seed0; default: the sealed test episodes 900000000 + i)
+strategy                     ticks/ep      $/ep       t   Sharpe   orders   win%
+flat                            +0.00      +0.0    -nan     -nan      0.0   0.0%
+random (1/s)                  -244.72   -3059.0 -216.23  -12.484    400.0   0.0%
+delta 30 s > 1.5               -11.11    -138.9   -6.68   -0.386      9.1  37.0%
+delta 30 s > 2.5                -5.93     -74.1   -4.13   -0.238      4.9  43.0%
+delta 120 s > 2                 -2.67     -33.3   -1.70   -0.098      3.7  45.3%
+OFI 30 s > 2                    -7.55     -94.4   -5.06   -0.292      6.9  40.3%
+imbalance L1 > 0.6             -19.07    -238.3  -12.17   -0.703     27.1  21.0%
+absorption > 2                  -2.06     -25.8   -1.70   -0.098      4.9  44.0%
+fade return 30 s > 2            -7.74     -96.7   -5.88   -0.339      6.5  32.7%
+oracle (sees fair value)        -0.04      -0.5   -0.19   -0.011      0.0   1.0%
+oracle (gap > 0.5)              -5.70     -71.2   -4.34   -0.251      5.2  39.3%
+oracle (gap > 0.75)             -1.63     -20.3   -2.00   -0.115      1.0  20.3%
+oracle (gap > 1)                -0.29      -3.6   -0.69   -0.040      0.2   4.0%
+fade delta 5 s > 1.5           -37.68    -471.1  -27.26   -1.574     32.2   5.7%
+fade OFI 5 s > 1.5             -38.27    -478.4  -27.55   -1.590     35.9   4.3%
+fade return 5 s > 1            -48.86    -610.8  -39.10   -2.258     46.4   1.0%
+fade imbalance L1 > 0.6        -43.22    -540.2  -25.95   -1.498     27.8   4.7%
+delta 5 s > 1.5                -39.87    -498.3  -22.38   -1.292     33.0  10.0%
+imbalance L1-5 > 0.6            +0.00      +0.0    -nan     -nan      0.0   0.0%
+oracle (gap > 0.55)             -2.82     -35.3   -2.38   -0.137      3.7  45.7%
+
+per lot                     lots/ep gross/lot  edge/lot
+flat                            0.0      -nan      -nan
+random (1/s)                  400.0    -0.492    +0.008
+delta 30 s > 1.5               16.2    -0.566    -0.066
+delta 30 s > 2.5                7.7    -0.645    -0.145
+delta 120 s > 2                 5.3    -0.382    +0.118
+OFI 30 s > 2                   11.8    -0.521    -0.021
+imbalance L1 > 0.6             52.2    -0.246    +0.254
+absorption > 2                  7.7    -0.146    +0.354
+fade return 30 s > 2           11.0    -0.585    -0.085
+oracle (sees fair value)        0.0    -0.714    -0.214
+oracle (gap > 0.5)              8.4    -0.555    -0.055
+oracle (gap > 0.75)             1.1    -1.299    -0.799
+oracle (gap > 1)                0.2    -1.538    -1.038
+fade delta 5 s > 1.5           62.5    -0.483    +0.017
+fade OFI 5 s > 1.5             69.7    -0.429    +0.071
+fade return 5 s > 1            90.9    -0.418    +0.082
+fade imbalance L1 > 0.6        53.6    -0.686    -0.186
+delta 5 s > 1.5                63.9    -0.504    -0.004
+imbalance L1-5 > 0.6            0.0      -nan      -nan
+oracle (gap > 0.55)             5.3    -0.409    +0.091

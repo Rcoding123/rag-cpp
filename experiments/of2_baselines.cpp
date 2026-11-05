@@ -9,11 +9,14 @@
 // Rows appended in OF10 v2 (fade and short-horizon rules, a per-lot table)
 // leave the earlier rows byte-identical.
 // Usage: of2_baselines [episodes=300] [market: default | default_warm | efficient | discovery | discovery_v1 | discovery_v2]
-//                      [--warmup S]
+//                      [--warmup S] [--seed0 N]
 // --warmup S (after the market; default 150 s, ScalpEnv's): the episodes'
 // warm-up (ScalpParams::warmup_seconds; OF10 v3 RL on discovery uses 1050).
 // Episodes then start >= S s into the session (ScalpEnv::draw_market). When
 // given, a line before the table says so; without it the output is unchanged.
+// --seed0 N (OF13): episode i uses Rng(N + i) instead of the sealed test
+// episodes 900,000,000 + i (to re-check a simulator on fresh episodes); when
+// given, a line before the table says so.
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -37,19 +40,36 @@ int main(int argc, char** argv) {
     std::fprintf(stderr, "%s\n", e.what());
     return 2;
   }
-  if (argc > 3) {
-    const auto w = argc == 5 && std::string(argv[3]) == "--warmup" ? parse_warmup(argv[4]) : std::nullopt;
-    if (!w) {
-      std::fprintf(stderr, "usage: of2_baselines [episodes] [market] [--warmup S], S a number of seconds >= 0\n");
-      return 2;
+  std::uint64_t seed0 = 900'000'000ull;  // sealed test episodes
+  bool warmup_given = false, seed0_given = false;
+  for (int a = 3; a < argc; a += 2) {
+    const std::string k = argv[a];
+    if (a + 1 < argc && k == "--warmup" && !warmup_given) {
+      if (const auto w = parse_warmup(argv[a + 1])) {
+        p.warmup_seconds = *w;
+        warmup_given = true;
+        continue;
+      }
+    } else if (a + 1 < argc && k == "--seed0" && !seed0_given) {
+      char* end = nullptr;
+      seed0 = std::strtoull(argv[a + 1], &end, 10);
+      if (end != argv[a + 1] && *end == '\0') {
+        seed0_given = true;
+        continue;
+      }
     }
-    p.warmup_seconds = *w;
+    std::fprintf(stderr, "usage: of2_baselines [episodes] [market] [--warmup S] [--seed0 N], S a number of seconds >= 0\n");
+    return 2;
+  }
+  if (warmup_given) {
     if (const std::string why = warmup_error(p); !why.empty()) {
       std::fprintf(stderr, "--warmup: %s\n", why.c_str());
       return 2;
     }
     std::printf("warm-up %g s before each episode (--warmup; ScalpEnv's default %g s)\n", p.warmup_seconds, kDefaultWarmup);
   }
+  if (seed0_given)
+    std::printf("episodes Rng(%llu + i) (--seed0; default: the sealed test episodes 900000000 + i)\n", static_cast<unsigned long long>(seed0));
   auto hold = [](const ScalpObs& o) { return static_cast<Action>(o.position + 1); };
   auto signal_rule = [&](std::size_t k, double th, bool reverse) {
     return [=](const ScalpObs& o, const ScalpEnv&) -> Action {
@@ -104,7 +124,7 @@ int main(int argc, char** argv) {
     double orders = 0, fees = 0;
     for (unsigned i = 0; i < episodes; ++i) {
       ScalpEnv env(p);
-      rag::agent::Rng r(900'000'000ull + i);  // sealed test episodes
+      rag::agent::Rng r(seed0 + i);  // default: the sealed test episodes
       auto o = env.reset(r);
       for (;;) {
         const auto st = env.step(policy(o, env), r);

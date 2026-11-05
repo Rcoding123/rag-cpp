@@ -29,6 +29,7 @@
 #include <cmath>
 #include <cstdint>
 #include <optional>
+#include <stdexcept>
 #include <vector>
 
 #include "rag/agent/env.hpp"
@@ -45,6 +46,10 @@ struct TickParams {
   double start_second = -1;  // session time of the warm-up start; < 0: random each episode
   int max_position = 1;
   double fee_dollars = 1.5;  // per contract per side, passive or aggressive
+  // OF13: sweep_follow (discovery_v4) is refused unless set: a resting own quote changes
+  // which side the takers sweep, and each sweep moves fair value (+0.77 tick mid shift 5 s
+  // after a bid-only quote, OF13 review). Diagnostics only (of10_discovery's tick rows).
+  bool allow_sweep_follow = false;
 };
 
 struct TickObs {
@@ -75,7 +80,10 @@ class TickScalpEnv {
     return a;
   }();
 
-  explicit TickScalpEnv(const TickParams& p = {}) : p_(p) {}
+  explicit TickScalpEnv(const TickParams& p = {}) : p_(p) {
+    if (p_.sim.sweep_follow > 0 && !p_.allow_sweep_follow)
+      throw std::invalid_argument("TickScalpEnv: sweep_follow > 0 (own quotes move fair value; allow_sweep_follow is for diagnostics only)");
+  }
 
   // An episode's market before its warm-up: a fresh simulator seeded from
   // `rng` at a random time of day (or start_second). reset() and the

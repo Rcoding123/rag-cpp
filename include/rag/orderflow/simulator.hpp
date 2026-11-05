@@ -237,6 +237,35 @@ struct SimParams {
   int activity_model = 0;
   double activity_news_excite = 0.0;
   bool activity_warm_start = false;
+  // OF13 v4, book-first (every default = off: earlier presets are byte-identical).
+  // touch_cancel_mult: the per-lot cancel rate at the best level is cancel_rate x this
+  //   (short-lived quotes at the touch: L1 thinner than the levels behind it).
+  // cancel_activity: per-lot cancel rate x activity^cancel_activity, applied as a per-lot
+  //   hazard 1 - exp(-rate dt) (never more than every lot in a step); 1 = book depth
+  //   independent of activity (arrivals and cancels both scale with it).
+  // sweep_follow (phi): when market takers empty a best level (one side only; filled exactly
+  //   or traded through) the market learns from it: fair value moves phi of the way to the
+  //   mid the book has once the other side follows into the gap (new ask - 0.5 after a buy
+  //   sweep), never against the sweep. The v2 spread fill then re-prices the other side
+  //   (translate): the price moves within the step and the move is permanent (phi = 1) or
+  //   partly reverts (phi < 1). The strategy's own market orders never count (no own
+  //   impact on value: a touch it empties is re-posted like any spread gap).
+  // stale_binomial: stale-side depletion draws each departing lot independently
+  //   (Binomial(lots, h)); the legacy Poisson(h * lots) leaves ~sqrt(lots) lots half the
+  //   time even at h = 1, so the stale queue stays visible (book imbalance leaks the gap).
+  // max_stale_levels: depletion touches at most this many stale levels, and ticks at most
+  //   this many times, per step (0 = all kLevels): news moves the mid <= this per 100 ms.
+  // max_step_ticks: within a step no taker moves a best price more than this many ticks from
+  //   where the step began (it prints at most max_step_ticks - 1 ticks through that best; the
+  //   rest of its order is dropped, its full size still counts as flow; 0 = off): no sweep of
+  //   an emptied book (OF12: 146 ticks of one-lot prints in one step on discovery). Nor do
+  //   cancels move a best price further than that within a step: an emptied best level there
+  //   is re-posted by one maker order. With depletion's max_stale_levels ticks on top, the mid
+  //   moves at most max_step_ticks + max_stale_levels (+ half a wider starting spread) per step.
+  //   Never applied to the strategy's own orders, nor between steps.
+  double touch_cancel_mult = 1.0, cancel_activity = 0.0, sweep_follow = 0.0;
+  bool stale_binomial = false;
+  std::uint32_t max_stale_levels = 0, max_step_ticks = 0;
 };
 
 // Model 1's stationary law of x = log activity (SimParams::activity_model = 1,
@@ -414,6 +443,47 @@ inline SimParams default_warm() {
   return p;
 }
 
+// OF13 v4 (book-first; v3 = discovery_market() is unchanged): real-ES book shape and
+// same-second impact. Thin, fast-turnover touch (touch_cancel_mult), flat depth behind it
+// (maker_decay 1e6, ~1.2-lot orders), depth independent of activity (cancel_activity); flow
+// is memoryless noise (no meta-orders, no momentum) whose sweeps move price and value at
+// once (sweep_follow 1, value_impact 0); exogenous value news is cleared within ~a step
+// (reprice_cancel 50, stale_binomial) with a quarter sniped; bounded per-step moves
+// (max_stale_levels 3, max_step_ticks 3); v3's activity process unchanged.
+// Judged against real ES by experiments/of13_regen.sh (of13_real_vs_v4.txt, Table 4: the
+// pre-registered gates G1-G8) and in the RL episode regime by of10_discovery at the RL
+// warm-up pre-registered for v4, 1050 s (at 150 s one AGREE core row, log A sd, misses by
+// chance after the OF13 review fixes; the activity law is v3's). join_ahead_mean rescaled with the touch (v3's 120 of
+// a ~140-lot L1 -> 17 of a ~20-lot L1). Own orders never move value here (sweep_follow counts
+// market takers only), but ScalpEnv still refuses contracts > 1, and TickScalpEnv refuses the
+// preset outside diagnostics (a resting own quote shifts which side gets swept: OF13 review).
+// RL on v4 keeps decide_seconds >= 1 s: news is released max_stale_levels ticks per step, so
+// a big step continues over the next steps (harmless at 1 s decisions with 100 ms latency).
+inline SimParams discovery_market_v4() {
+  SimParams p = discovery_market();
+  p.maker_size_mean = 1.2;
+  p.maker_rate = 11;
+  p.maker_decay = 1e6;
+  p.cancel_rate = 0.5;
+  p.touch_cancel_mult = 2;
+  p.cancel_activity = 1;
+  p.noise_rate = 7;
+  p.taker_size_mean = 2;
+  p.uninformed_meta_rate = 0;
+  p.informed_meta_rate = 0;
+  p.momentum_rate = 0;
+  p.value_vol = 1.05;
+  p.value_impact = 0;
+  p.sweep_follow = 1;
+  p.reprice_cancel = 50;
+  p.reprice_take = 0.25;
+  p.stale_binomial = true;
+  p.max_stale_levels = 3;
+  p.max_step_ticks = 3;
+  p.join_ahead_mean = 17;
+  return p;
+}
+
 // The market presets by name, for the command-line tools.
 inline SimParams market_preset(const std::string& name) {
   if (name == "default") return SimParams{};
@@ -421,8 +491,9 @@ inline SimParams market_preset(const std::string& name) {
   if (name == "discovery") return discovery_market();
   if (name == "discovery_v1") return discovery_market_v1();
   if (name == "discovery_v2") return discovery_market_v2();
+  if (name == "discovery_v4") return discovery_market_v4();
   if (name == "default_warm") return default_warm();
-  throw std::invalid_argument("unknown market '" + name + "' (default, default_warm, efficient, discovery, discovery_v1 or discovery_v2)");
+  throw std::invalid_argument("unknown market '" + name + "' (default, default_warm, efficient, discovery, discovery_v1, discovery_v2 or discovery_v4)");
 }
 
 struct Fill {
@@ -444,6 +515,10 @@ class EsSimulator {
       throw std::invalid_argument("SimParams: activity_warm_start needs activity_model 1 (the legacy loop has no interior stationary law)");
     if (p_.activity_model == 1 && (!(p_.activity_tau > p_.dt) || !(p_.activity_vol >= 0) || !(p_.activity_news_excite >= 0) || !(p_.activity_min < p_.activity_max)))
       throw std::invalid_argument("SimParams: activity_model 1 needs activity_tau > dt, activity_vol, activity_news_excite >= 0, activity_min < activity_max");
+    if (!(p_.touch_cancel_mult > 0) || !std::isfinite(p_.touch_cancel_mult) || !std::isfinite(p_.cancel_activity) || !(p_.sweep_follow >= 0 && p_.sweep_follow <= 1))
+      throw std::invalid_argument("SimParams: touch_cancel_mult must be positive, cancel_activity finite and sweep_follow in [0, 1]");
+    if (p_.max_step_ticks > static_cast<std::uint32_t>(INT32_MAX))  // compared as int32 tick distances
+      throw std::invalid_argument("SimParams: max_step_ticks must be <= INT32_MAX");
     seed_ = seed;
     if (p_.separate_streams)
       for (std::uint64_t k = 0; k < kStreams; ++k) streams_.emplace_back(stream_seed(k, 0));
@@ -491,6 +566,9 @@ class EsSimulator {
     t_ns_ += static_cast<std::int64_t>(std::llround(dt * 1e9));
     clock_ += dt;
     const double mid0 = mid();
+    step_bid0_ = bid_;
+    step_ask0_ = ask();
+    in_step_ = true;
     // 1. Activity.
     use(kValue);
     if (p_.activity_model == 1)  // centred on m0 (E[activity] = intraday)
@@ -557,6 +635,19 @@ class EsSimulator {
       signed_volume += sign(o.side) * o.size;
       (o.kind == kUninformedMeta ? meta_surprise : surprise) += sign(o.side) * filled * o.weight;
     }
+    if (p_.sweep_follow > 0 && (swept_ == 1u || swept_ == 2u)) {  // v4: the market learns from a level taken out
+      // The mid once the other side follows: an exactly filled best level is still on the
+      // book with 0 lots (normalize_book removes it below, unless the step bound re-posts it).
+      const bool buy = swept_ == 2u;
+      const bool gone = (buy ? ask_q_[0] : bid_q_[0]) == 0 && !iceberg_at(buy ? Side::Sell : Side::Buy, buy ? ask() : bid_) &&
+                        !step_bound_hit(buy ? Side::Buy : Side::Sell);
+      const double target = buy ? ask() + (gone ? 1 : 0) - 0.5 : bid_ - (gone ? 1 : 0) + 0.5;
+      if (buy ? target > value_ : target < value_) {
+        const double d = p_.sweep_follow * (target - value_);
+        value_ += d;
+        sweep_shift_ += d;
+      }
+    }
     if (p_.value_impact > 0) {  // opt-in: no draws, no state change when off
       const double impact = p_.value_impact * (surprise + own_flow_ + meta_surprise - p_.impact_forecast_weight * fhat_ * dt);
       own_flow_ = 0;
@@ -569,6 +660,11 @@ class EsSimulator {
     use(kMaker);
     const double lean = std::min(p_.fade_max, std::exp(p_.fade * std::abs(flow_) / p_.fade_norm));
     double bid_cancel = p_.cancel_rate * (flow_ < 0 ? lean : 1.0), ask_cancel = p_.cancel_rate * (flow_ > 0 ? lean : 1.0);
+    if (p_.cancel_activity != 0) {  // v4: makers cancel faster when the market is busy
+      const double ca = std::pow(a, p_.cancel_activity);
+      bid_cancel *= ca;
+      ask_cancel *= ca;
+    }
     double bid_add = flow_ > 0 ? lean : 1.0, ask_add = flow_ < 0 ? lean : 1.0;
     if (p_.maker_info > 0) {
       const double g = value_ - mid();
@@ -588,8 +684,14 @@ class EsSimulator {
       const double rate = p_.maker_rate * std::exp(-static_cast<double>(i) / p_.maker_decay) * a * dt;
       if (i >= stale_bids) bid_q_[i] += maker_lots(rate * bid_add);
       if (i >= stale_asks) ask_q_[i] += maker_lots(rate * ask_add);
-      cancel_level(Side::Buy, i, poisson(bid_cancel * others(Side::Buy, i) * dt));
-      cancel_level(Side::Sell, i, poisson(ask_cancel * others(Side::Sell, i) * dt));
+      const double cm = i == 0 ? p_.touch_cancel_mult : 1.0;
+      if (p_.cancel_activity != 0) {  // v4: a per-lot hazard (at most every lot in a step, however busy the market)
+        cancel_level(Side::Buy, i, poisson(others(Side::Buy, i) * -std::expm1(-bid_cancel * cm * dt)));
+        cancel_level(Side::Sell, i, poisson(others(Side::Sell, i) * -std::expm1(-ask_cancel * cm * dt)));
+      } else {
+        cancel_level(Side::Buy, i, poisson(bid_cancel * cm * others(Side::Buy, i) * dt));
+        cancel_level(Side::Sell, i, poisson(ask_cancel * cm * others(Side::Sell, i) * dt));
+      }
     }
     // 5. Icebergs.
     use(kIceberg);
@@ -653,6 +755,8 @@ class EsSimulator {
       move_avg_ += (moved - move_avg_) * std::min(1.0, dt / 1800);
       log_activity_ = std::clamp(log_activity_ + p_.activity_excite * (moved - move_avg_), p_.activity_min, p_.activity_max);
     }
+    swept_ = 0;
+    in_step_ = false;
     history_.push_back(mid());
     const auto keep = static_cast<std::size_t>(std::ceil(p_.momentum_lookback / dt)) + 1;
     while (history_.size() > keep) history_.pop_front();
@@ -762,6 +866,10 @@ class EsSimulator {
   [[nodiscard]] double flow_impact() const noexcept { return flow_impact_; }
   [[nodiscard]] std::uint64_t races() const noexcept { return races_; }
   [[nodiscard]] std::uint64_t stale_cancelled_lots() const noexcept { return stale_cancelled_; }
+  // v4 diagnostics: fair-value change from sweep_follow since the start (ticks,
+  // signed); emptied best levels re-posted because of the max_step_ticks bound.
+  [[nodiscard]] double sweep_shift() const noexcept { return sweep_shift_; }
+  [[nodiscard]] std::uint64_t step_refills() const noexcept { return step_refills_; }
 
  private:
   struct Order {
@@ -789,7 +897,8 @@ class EsSimulator {
     return 1 + p_.open_boost * std::exp(-sec / m) + p_.close_boost * std::exp(-to_close / m);
   }
   [[nodiscard]] std::uint32_t stationary_depth(std::size_t i) const {
-    const double lots = p_.maker_rate * std::exp(-static_cast<double>(i) / p_.maker_decay) * p_.maker_size_mean / std::max(1e-9, p_.cancel_rate);
+    double lots = p_.maker_rate * std::exp(-static_cast<double>(i) / p_.maker_decay) * p_.maker_size_mean / std::max(1e-9, p_.cancel_rate);
+    if (i == 0 && p_.touch_cancel_mult != 1.0) lots /= std::max(1e-9, p_.touch_cancel_mult);
     return static_cast<std::uint32_t>(std::min(1e6, lots));
   }
   [[nodiscard]] std::size_t level_index(Side side, std::int32_t price) const noexcept {
@@ -820,6 +929,17 @@ class EsSimulator {
   std::uint32_t lognormal_size(double mean, double logsd) {
     const double mu = std::log(mean) - 0.5 * logsd * logsd;
     return static_cast<std::uint32_t>(std::clamp(std::round(std::exp(mu + logsd * r().normal())), 1.0, static_cast<double>(p_.max_order)));
+  }
+  std::uint32_t binomial(std::uint32_t n, double h) {  // v4 (stale_binomial)
+    if (n == 0 || !(h > 0)) return 0;
+    if (h >= 1) return n;
+    if (n <= 64) {
+      std::uint32_t k = 0;
+      for (std::uint32_t i = 0; i < n; ++i) k += r().uniform() < h ? 1u : 0u;
+      return k;
+    }
+    const double m = n * h, sd = std::sqrt(m * (1 - h));
+    return static_cast<std::uint32_t>(std::clamp(std::round(m + sd * r().normal()), 0.0, static_cast<double>(n)));
   }
   std::uint32_t taker_size() { return lognormal_size(p_.taker_size_mean, p_.taker_size_logsd); }
   std::uint32_t meta_size() {
@@ -932,6 +1052,7 @@ class EsSimulator {
     // Snipers take a fixed clip per level (reprice_snipe x the stationary
     // best-level size; their size is set by their risk limits, not by the
     // queue), so their prints scale with the jump, not with the book.
+    // (v4: stationary_depth(0) includes / touch_cancel_mult; only reprice_cancel == 0 gets here.)
     const auto clip = static_cast<std::uint32_t>(std::llround(p_.reprice_snipe * static_cast<double>(stationary_depth(0))));
     for (std::size_t j = 0; j < crossed; ++j) {
       const auto off = static_cast<std::int32_t>(j);
@@ -1001,7 +1122,7 @@ class EsSimulator {
   // Stale-side depletion and value-side re-pricing (v2): see SimParams.
   void deplete() {
     const Side stale = value_ > mid() ? Side::Sell : Side::Buy, up = stale == Side::Sell ? Side::Buy : Side::Sell;
-    const std::size_t nst = stale_levels();
+    std::size_t nst = stale_levels();
     if (nst == 0) {
       in_race_ = false;
       return;
@@ -1014,6 +1135,7 @@ class EsSimulator {
     std::erase_if(icebergs_, [&](const Iceberg& ib) { return ib.side == stale && stale_price(stale, ib.price); });
     clamp_ahead();
     auto& sq = stale == Side::Sell ? ask_q_ : bid_q_;
+    if (p_.max_stale_levels > 0) nst = std::min<std::size_t>(nst, p_.max_stale_levels);
     for (std::size_t j = 0; j < nst; ++j) {
       // Per-lot departure probability this step: the further value has passed
       // the quote (`over` ticks beyond the threshold), the faster it goes.
@@ -1021,6 +1143,24 @@ class EsSimulator {
       const double over = (stale == Side::Sell ? value_ - (ask() + off) : (bid_ - off) - value_) - (p_.reprice_band - 0.5);
       const double h = 1 - std::exp(-p_.reprice_cancel * (1 + over) * p_.dt);
       const std::uint32_t oth = others(stale, j);
+      if (p_.stale_binomial) {  // v4: exact per-lot departures; a share reprice_take of those at the best is sniped
+        const std::uint32_t own = sq[j] - std::min(sq[j], oth);
+        const std::uint32_t leave = binomial(oth, h), snipe = j == 0 ? binomial(leave, p_.reprice_take) + (oth == 0 ? binomial(own, h) : 0) : 0;
+        stale_cancelled_ += cancel_level(stale, j, leave - std::min(leave, snipe));
+        if (snipe > 0) {
+          const std::int32_t px = stale == Side::Sell ? ask() : bid_;
+          std::uint32_t take = std::min(sq[0], snipe);
+          while (take > 0) {
+            const std::uint32_t c = std::min(take, taker_size());
+            consume_at(stale, 0, px, c);
+            trades_.push_back({t_ns_, px, c, up, false});
+            taker_volume_[kSniper] += c;
+            ++snipes_;
+            take -= c;
+          }
+        }
+        continue;
+      }
       if (j == 0) {  // snipers take at the stale best only (no trade-throughs), FIFO
         const std::int32_t px = stale == Side::Sell ? ask() : bid_;
         const std::uint32_t own = sq[0] - std::min(sq[0], oth);
@@ -1039,7 +1179,8 @@ class EsSimulator {
       stale_cancelled_ += cancel_level(stale, j, poisson(h * cancel_share * static_cast<double>(oth)));
     }
     // An empty stale best: the price ticks, and the value side re-prices with it.
-    for (std::size_t guard = 0; guard < kLevels; ++guard) {
+    const std::size_t max_ticks = p_.max_stale_levels > 0 ? std::min<std::size_t>(kLevels, p_.max_stale_levels) : kLevels;
+    for (std::size_t guard = 0; guard < max_ticks; ++guard) {
       const std::int32_t best = stale == Side::Sell ? ask() : bid_;
       if (sq[0] > 0 || iceberg_at(stale, best) || !stale_price(stale, best)) break;
       shift_out(up);  // the stale best is gone: the next stale level becomes best
@@ -1101,6 +1242,9 @@ class EsSimulator {
     const Side passive = side == Side::Buy ? Side::Sell : Side::Buy;
     for (int guard = 0; left > 0 && guard < 1000; ++guard) {
       const std::int32_t price = side == Side::Buy ? ask() : bid_;
+      if (p_.max_step_ticks > 0 && in_step_ && !own &&
+          (side == Side::Buy ? price - step_ask0_ : step_bid0_ - price) >= static_cast<std::int32_t>(p_.max_step_ticks))
+        break;  // v4: no taker walks the book further than max_step_ticks within a step
       if (q[0] == 0) {
         if (Iceberg* ib = iceberg_at(passive, price)) {  // hidden reserve refills the displayed queue
           const auto refill = std::min<std::uint32_t>(static_cast<std::uint32_t>(p_.iceberg_peak), ib->reserve);
@@ -1113,6 +1257,7 @@ class EsSimulator {
         continue;
       }
       const std::uint32_t take = std::min(left, q[0]);
+      if (p_.sweep_follow > 0 && !own && take == q[0] && !iceberg_at(passive, price)) swept_ |= side == Side::Buy ? 2u : 1u;  // v4: market takers only
       consume_best(passive, take);
       left -= take;
       f.filled += take;
@@ -1143,15 +1288,35 @@ class EsSimulator {
   }
 
   // Cancellations can empty the best level; the price then moves to the next.
+  // v4 (max_step_ticks): within a step a best price never moves more than
+  // max_step_ticks from where the step began; an emptied best level there is
+  // re-posted by a single maker order instead (book refill).
   void normalize_book() {
     for (int g = 0; g < 4 && bid_q_[0] == 0 && !iceberg_at(Side::Buy, bid_); ++g) {
+      if (step_bound_hit(Side::Sell)) {
+        bid_q_[0] = lognormal_size(p_.maker_size_mean, 0.8);
+        ++step_refills_;
+        break;
+      }
       shift_out(Side::Sell);
       cleared_ |= 1u;
     }
     for (int g = 0; g < 4 && ask_q_[0] == 0 && !iceberg_at(Side::Sell, ask()); ++g) {
+      if (step_bound_hit(Side::Buy)) {
+        ask_q_[0] = lognormal_size(p_.maker_size_mean, 0.8);
+        ++step_refills_;
+        break;
+      }
       shift_out(Side::Buy);
       cleared_ |= 2u;
     }
+  }
+  // v4: one more shift_out(taker) would move that best price more than
+  // max_step_ticks from the start of this step (never between steps, never when off).
+  [[nodiscard]] bool step_bound_hit(Side taker) const noexcept {
+    if (p_.max_step_ticks == 0 || !in_step_) return false;
+    const std::int32_t moved = taker == Side::Buy ? ask() + 1 - step_ask0_ : step_bid0_ - (bid_ - 1);
+    return moved > static_cast<std::int32_t>(p_.max_step_ticks);
   }
 
   // Own orders pushed beyond the simulated depth are cancelled.
@@ -1227,6 +1392,11 @@ class EsSimulator {
   std::uint64_t races_ = 0, stale_cancelled_ = 0;    // deplete()
   bool in_race_ = false;
   std::uint32_t cleared_ = 0;  // this step a best level vanished (taken or cancelled): bid (1), ask (2)
+  std::uint32_t swept_ = 0;                     // v4: a best level emptied by takers since the last step's end: bid (1), ask (2)
+  std::int32_t step_bid0_ = 0, step_ask0_ = 0;  // v4: the best prices when the step began
+  bool in_step_ = false;
+  double sweep_shift_ = 0;                      // v4 diagnostics: value moved by sweep_follow
+  std::uint64_t step_refills_ = 0;              // v4 diagnostics: emptied best levels re-posted by the step bound
   Side race_side_ = Side::Buy;
 };
 

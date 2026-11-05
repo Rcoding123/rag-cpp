@@ -74,6 +74,10 @@ class ScalpEnv {
   explicit ScalpEnv(const ScalpParams& p = {}) : p_(p) {
     if (p_.contracts > 1 && p_.sim.value_impact > 0)
       throw std::invalid_argument("ScalpEnv: contracts > 1 with value_impact > 0 lets block round trips profit from their own impact");
+    // OF13 v4: own orders never move value (sweep_follow counts market takers only), but a
+    // multi-lot own order walks the thin touch with no step bound and has not been probed.
+    if (p_.contracts > 1 && p_.sim.sweep_follow > 0)
+      throw std::invalid_argument("ScalpEnv: contracts > 1 with sweep_follow > 0 (multi-lot own orders on the thin v4 book are not validated)");
   }
 
   // An episode's market before its warm-up: a fresh simulator seeded from

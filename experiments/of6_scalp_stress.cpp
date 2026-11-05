@@ -18,6 +18,9 @@
 //     thinner book x0.5 (maker_rate), session open. (Legacy quote fading x2
 //     is a no-op there, fade = 0; volatility x1.5 and informed flow x0.5
 //     barely move it; informed x2, measured, was too weak.)
+//   --market discovery_v4 is refused (exit 2) until a v4 stress list is
+//   pre-registered: the legacy list's flow scenarios are no-ops there
+//   (informed and uninformed meta-order rates are 0).
 // --warmup S (default 150 s): the episodes' warm-up (ScalpParams::
 // warmup_seconds), so networks trained with of_train --warmup S are stressed
 // on the episodes they learned on; random episodes then start >= S s into the
@@ -53,6 +56,7 @@ int main(int argc, char** argv) {
       try {
         market = market_preset(nets[1]);
         market_name = nets[1];
+        if (market_name == "discovery_v4") throw std::invalid_argument("--market discovery_v4: no pre-registered v4 stress list yet");
       } catch (const std::invalid_argument& e) {
         std::fprintf(stderr, "%s\n", e.what());
         return 2;

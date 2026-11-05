@@ -476,6 +476,337 @@ TEST(PriceDiscovery, GoldenRunOfDiscoveryV2IsUnchanged) {
   EXPECT_EQ(market_preset("discovery_v2").maker_info, discovery_market_v2().maker_info);
 }
 
+TEST(PriceDiscovery, GoldenRunOfDiscoveryV3IsUnchanged) {
+  // Recorded at 708b1c8 (OF12), MSVC x64, before OF13 added the v4 fields; with
+  // EsSimulatorActivity.GoldenRunsOfTheIteration3Presets (seed 7) it pins v3.
+  const std::uint64_t d = run_fingerprint(discovery_market(), 5);
+#if defined(_MSC_VER) && !defined(__clang__)
+  EXPECT_EQ(d, 16749299937159089722ull) << d;
+#else
+  EXPECT_NE(d, run_fingerprint(SimParams{}, 5));
+#endif
+}
+
+// --- OF13 v4 (book-first): discovery_market_v4() and its opt-in fields ------
+
+TEST(PriceDiscoveryV4, TheV4FieldsAreOffByDefaultAndInertWhereTheyCannotBind) {
+  const SimParams d;
+  EXPECT_EQ(d.touch_cancel_mult, 1.0);
+  EXPECT_EQ(d.cancel_activity, 0.0);
+  EXPECT_EQ(d.sweep_follow, 0.0);
+  EXPECT_FALSE(d.stale_binomial);
+  EXPECT_EQ(d.max_stale_levels, 0u);
+  EXPECT_EQ(d.max_step_ticks, 0u);
+  // Bounds wider than the simulated book never bind: v3's run is unchanged.
+  SimParams wide = discovery_market();
+  wide.max_stale_levels = static_cast<std::uint32_t>(kLevels);
+  EXPECT_EQ(run_fingerprint(wide, 5, 5'000), run_fingerprint(discovery_market(), 5, 5'000));
+  wide.max_step_ticks = 1'000'000;
+  EXPECT_EQ(run_fingerprint(wide, 5, 5'000), run_fingerprint(discovery_market(), 5, 5'000));
+  // Each mechanism, switched on alone, changes the run.
+  for (int k = 0; k < 4; ++k) {
+    SimParams on = discovery_market();
+    if (k == 0) on.touch_cancel_mult = 2;
+    if (k == 1) on.cancel_activity = 1;
+    if (k == 2) on.sweep_follow = 1;
+    if (k == 3) on.stale_binomial = true;
+    EXPECT_NE(run_fingerprint(on, 5, 5'000), run_fingerprint(discovery_market(), 5, 5'000)) << k;
+  }
+  EXPECT_THROW(EsSimulator(SimParams{.touch_cancel_mult = 0}), std::invalid_argument);
+  EXPECT_THROW(EsSimulator(SimParams{.touch_cancel_mult = std::nan("")}), std::invalid_argument);
+  EXPECT_THROW(EsSimulator(SimParams{.cancel_activity = INFINITY}), std::invalid_argument);
+  EXPECT_THROW(EsSimulator(SimParams{.sweep_follow = 1.5}), std::invalid_argument);
+  EXPECT_THROW(EsSimulator(SimParams{.sweep_follow = -0.1}), std::invalid_argument);
+  EXPECT_NO_THROW(EsSimulator(SimParams{.touch_cancel_mult = 0.5, .cancel_activity = -1, .sweep_follow = 0.5}));
+}
+
+TEST(PriceDiscoveryV4, GoldenRunOfDiscoveryV4) {
+  // Recorded with the OF13 code (MSVC x64): every v4 number depends on it.
+  const std::uint64_t d = run_fingerprint(discovery_market_v4(), 5);
+#if defined(_MSC_VER) && !defined(__clang__)
+  EXPECT_EQ(d, 8194920656928043571ull) << d;  // after the OF13 review (exact fills follow; was 8940020322986933354)
+#else
+  EXPECT_NE(d, run_fingerprint(discovery_market(), 5));
+#endif
+  const SimParams m = market_preset("discovery_v4"), v4 = discovery_market_v4();
+  EXPECT_EQ(m.sweep_follow, v4.sweep_follow);
+  EXPECT_EQ(m.max_step_ticks, v4.max_step_ticks);
+  EXPECT_EQ(m.maker_rate, v4.maker_rate);
+  EXPECT_EQ(m.activity_tau, discovery_market().activity_tau);  // v3's activity process
+}
+
+// Mean L1 and L2..L5 (lots per level and side) over `steps` steps.
+static std::pair<double, double> mean_depth(const SimParams& p, std::uint64_t seed, int steps, double start = 0) {
+  EsSimulator sim(p, seed, start);
+  double l1 = 0, deep = 0;
+  for (int s = 0; s < steps; ++s) {
+    sim.step();
+    const Quote q = sim.quote();
+    l1 += 0.5 * (q.bid_size[0] + q.ask_size[0]);
+    for (std::size_t i = 1; i < kDepth; ++i) deep += 0.5 * (q.bid_size[i] + q.ask_size[i]) / (kDepth - 1);
+  }
+  return {l1 / steps, deep / steps};
+}
+
+TEST(PriceDiscoveryV4, TheTouchIsThinnerThanTheFlatBookBehindIt) {
+  // OF12: real ES L1 ~17 lots rising to ~35 at L5; v3 L1 ~140 falling with distance.
+  const auto [l1, deep] = mean_depth(discovery_market_v4(), 3, 20'000);
+  EXPECT_GT(l1, 10);
+  EXPECT_LT(l1, 28);
+  EXPECT_GT(deep / l1, 1.2) << l1 << " " << deep;
+  SimParams one = discovery_market_v4();  // touch_cancel_mult 1: the touch as deep as the rest
+  one.touch_cancel_mult = 1;
+  const auto [l1b, deepb] = mean_depth(one, 3, 20'000);
+  EXPECT_GT(l1b, 1.05 * l1) << l1b << " " << l1;
+  // The starting book has the same shape (stationary_depth(0) / touch_cancel_mult).
+  const Quote q0 = EsSimulator(discovery_market_v4(), 3).quote();
+  EXPECT_LT(q0.bid_size[0], q0.bid_size[1]);
+  EXPECT_LT(q0.ask_size[0], q0.ask_size[1]);
+}
+
+TEST(PriceDiscoveryV4, DepthNoLongerScalesWithActivity) {
+  // Activity without noise: the open (intraday boost ~2.5x) against midday.
+  auto quiet = [](double cancel_activity) {
+    SimParams p = discovery_market_v4();
+    p.activity_vol = 0;
+    p.activity_news_excite = 0;
+    p.cancel_activity = cancel_activity;
+    return p;
+  };
+  for (const double ca : {0.0, 1.0}) {
+    const SimParams p = quiet(ca);
+    const double open = mean_depth(p, 4, 3'000, 0).second, midday = mean_depth(p, 4, 3'000, 12'000).second;
+    if (ca == 0) EXPECT_GT(open / midday, 1.5) << open << " " << midday;  // cancel_rate fixed: depth ~ activity
+    else EXPECT_NEAR(open / midday, 1.0, 0.15) << open << " " << midday;
+  }
+  SimParams busy = quiet(1);  // the per-lot hazard: however busy, cancels never exceed the level
+  busy.cancel_rate = 1e6;
+  EsSimulator sim(busy, 4);
+  for (int s = 0; s < 2'000; ++s) {
+    sim.step();
+    ASSERT_GT(sim.quote().ask, sim.quote().bid);
+  }
+}
+
+TEST(PriceDiscoveryV4, ASweptLevelMovesValueAndPriceInTheSameStep) {
+  // sweep_follow 1: when takers empty one side's best, fair value moves to the
+  // mid the book has once the other side follows: the step's mid move has the
+  // sweep's sign, and it is not undone by value lagging behind.
+  EsSimulator sim(discovery_market_v4(), 6);
+  int moves = 0, agree = 0;
+  for (int s = 0; s < 20'000; ++s) {
+    const double shift0 = sim.sweep_shift(), mid0 = sim.mid();
+    sim.step();
+    const double d = sim.sweep_shift() - shift0, dm = sim.mid() - mid0;
+    if (d == 0) continue;
+    ++moves;
+    agree += (d > 0) == (dm > 0) && dm != 0;
+  }
+  EXPECT_GT(moves, 1'000);
+  EXPECT_GT(agree, 0.8 * moves) << agree << " of " << moves;  // measured 88%
+  SimParams off = discovery_market();  // v3: sweep_follow off, no shift ever
+  EsSimulator v3(off, 6);
+  for (int s = 0; s < 5'000; ++s) v3.step();
+  EXPECT_EQ(v3.sweep_shift(), 0.0);
+}
+
+// v4 without takers, diffusion or icebergs, with news jumps: the book moves by depletion only.
+static SimParams v4_jumps_only(double jump_sd) {
+  SimParams p = discovery_market_v4();
+  p.noise_rate = p.informed_meta_rate = p.uninformed_meta_rate = p.momentum_rate = 0;
+  p.value_vol = 0;
+  p.iceberg_rate = 0;
+  p.jump_rate = 0.3;
+  p.jump_sd = jump_sd;
+  return p;
+}
+
+TEST(PriceDiscoveryV4, BinomialDepletionClearsTheStaleQueueWhereThePoissonDrawLeftResidue) {
+  // h = 1 (reprice_cancel huge), every stale level in reach: binomial depletion
+  // takes every lot, so after each step value is inside the quote; the legacy
+  // Poisson(h * lots) draw leaves ~sqrt(lots) lots about half the time.
+  auto run = [](bool binomial) {
+    SimParams p = v4_jumps_only(4);
+    p.reprice_cancel = 1e9;
+    p.max_stale_levels = 0;
+    p.max_step_ticks = 0;
+    p.stale_binomial = binomial;
+    EsSimulator sim(p, 8);
+    int outside = 0;
+    for (int s = 0; s < 20'000; ++s) {
+      sim.step();
+      const Quote q = sim.quote();
+      outside += sim.fair_value() > q.ask + 1e-9 || sim.fair_value() < q.bid - 1e-9;
+    }
+    return outside;
+  };
+  EXPECT_EQ(run(true), 0);
+  EXPECT_GT(run(false), 50);
+}
+
+TEST(PriceDiscoveryV4, NewsMovesTheMidAtMostMaxStaleLevelsPerStep) {
+  auto max_step = [](std::uint32_t max_stale_levels) {
+    SimParams p = v4_jumps_only(20);
+    p.max_stale_levels = max_stale_levels;
+    EsSimulator sim(p, 9);
+    double mx = 0, mid = sim.mid();
+    for (int s = 0; s < 20'000; ++s) {
+      sim.step();
+      mx = std::max(mx, std::abs(sim.mid() - mid));
+      mid = sim.mid();
+    }
+    return mx;
+  };
+  EXPECT_LE(max_step(3), 3 + 3 + 0.5);  // + max_step_ticks for cancel-emptied levels
+  EXPECT_GT(max_step(0), 8);  // unbounded: a 20-tick jump clears up to kLevels levels in one step
+}
+
+TEST(PriceDiscoveryV4, NoTakerWalksTheBookFurtherThanMaxStepTicksButOwnOrdersDo) {
+  // Huge market orders on the thin v4 book (OF12's pathology: a news jump
+  // emptied the ask and takers printed on 146 ticks in one step on v3).
+  auto run = [](std::uint32_t max_step_ticks, double* max_mid, std::int32_t* max_print) {
+    SimParams p = discovery_market_v4();
+    p.taker_size_mean = 300;
+    p.taker_size_logsd = 0.3;
+    p.max_order = 1000;
+    p.max_step_ticks = max_step_ticks;
+    EsSimulator sim(p, 10);
+    Quote q = sim.quote();
+    double mid = sim.mid();
+    *max_mid = 0;
+    *max_print = 0;
+    for (int s = 0; s < 5'000; ++s) {
+      sim.step();
+      for (const auto& t : sim.trades())
+        *max_print = std::max(*max_print, t.aggressor == Side::Buy ? t.price - q.ask : q.bid - t.price);
+      *max_mid = std::max(*max_mid, std::abs(sim.mid() - mid));
+      q = sim.quote();
+      mid = sim.mid();
+    }
+    return sim.step_refills();
+  };
+  double mm = 0;
+  std::int32_t mp = 0;
+  run(3, &mm, &mp);
+  EXPECT_LE(mp, 3);  // takers print <= max_step_ticks - 1 through the step's starting best; snipers at the stale best <= max_step_ticks
+  EXPECT_LE(mm, 3 + 3 + 0.5) << mm;
+  double mm0 = 0;
+  std::int32_t mp0 = 0;
+  run(0, &mm0, &mp0);
+  EXPECT_GT(mp0, 3);  // off: the same orders walk the book
+  // Between steps the strategy's own market orders are never cut short.
+  EsSimulator sim(discovery_market_v4(), 11);
+  for (int s = 0; s < 100; ++s) sim.step();
+  const std::int32_t ask0 = sim.quote().ask;
+  const Fill f = sim.market_order(Side::Buy, 200);
+  EXPECT_EQ(f.filled, 200u);
+  EXPECT_GT(sim.quote().ask - ask0, 3);
+}
+
+TEST(PriceDiscoveryV4, AnExactlyFilledBestLevelMovesValueLikeATradeThrough) {
+  // One-lot takers only ever empty a level exactly (the order ends as the
+  // level does): sweep_follow must still move value a full tick toward the
+  // book's next price, as when an order trades through (OF13 review).
+  SimParams p = discovery_market_v4();
+  p.taker_size_mean = 1;
+  p.taker_size_logsd = 0;
+  EsSimulator sim(p, 13);
+  int moves = 0, full = 0, agree = 0;
+  for (int s = 0; s < 20'000; ++s) {
+    const double shift0 = sim.sweep_shift(), mid0 = sim.mid();
+    sim.step();
+    const double d = sim.sweep_shift() - shift0, dm = sim.mid() - mid0;
+    if (d == 0) continue;
+    ++moves;
+    full += std::abs(d) >= 0.5;
+    agree += (d > 0) == (dm > 0) && dm != 0;
+  }
+  EXPECT_GT(moves, 100);  // measured 211: one-lot takers rarely empty a ~20-lot touch
+  EXPECT_GT(full, 0.5 * moves) << full << " of " << moves;
+  EXPECT_GT(agree, 0.8 * moves) << agree << " of " << moves;
+}
+
+TEST(PriceDiscoveryV4, OwnMarketOrdersNeverMoveFairValue) {
+  // No takers, no diffusion, no news, no icebergs: only the strategy trades.
+  SimParams p = discovery_market_v4();
+  p.noise_rate = 0;
+  p.value_vol = 0;
+  p.jump_rate = 0;
+  p.iceberg_rate = 0;
+  EsSimulator sim(p, 14);
+  for (int s = 0; s < 50; ++s) sim.step();
+  const double v0 = sim.fair_value();
+  for (int k = 0; k < 200; ++k) {
+    const Quote q = sim.quote();
+    const Side side = k % 2 ? Side::Sell : Side::Buy;
+    sim.market_order(side, (side == Side::Buy ? q.ask_size[0] : q.bid_size[0]) + 1);  // clears the touch
+    sim.step();
+  }
+  EXPECT_EQ(sim.sweep_shift(), 0.0);
+  EXPECT_EQ(sim.fair_value(), v0);
+}
+
+// FNV-1a over a v4 run with scripted own orders (market orders that sweep a
+// thin touch, joins and cancels): pins the own-order paths (sweep_follow
+// ignores them, join_ahead_mean, no step bound for own orders).
+static std::uint64_t own_fingerprint(const SimParams& p, std::uint64_t seed, int steps) {
+  EsSimulator sim(p, seed);
+  std::uint64_t h = 14695981039346656037ull;
+  auto mix = [&h](std::uint64_t v) {
+    for (int b = 0; b < 8; ++b) {
+      h ^= (v >> (8 * b)) & 0xffu;
+      h *= 1099511628211ull;
+    }
+  };
+  std::uint64_t id = 0;
+  for (int s = 0; s < steps; ++s) {
+    const Quote q = sim.quote();
+    if (s % 37 == 0) {
+      const Side side = (s / 37) % 2 ? Side::Sell : Side::Buy;
+      const Fill f = sim.market_order(side, 1 + static_cast<std::uint32_t>(s % 3));
+      mix(f.filled);
+      mix(static_cast<std::uint64_t>(std::llround(f.avg_price * 4)));
+    }
+    if (s % 53 == 0) {
+      if (id) mix(sim.cancel(id));
+      id = sim.submit_limit((s / 53) % 2 ? Side::Sell : Side::Buy, (s / 53) % 2 ? q.ask : q.bid, 1);
+    }
+    sim.step();
+    for (const auto& t : sim.trades()) {
+      mix(static_cast<std::uint64_t>(static_cast<std::int64_t>(t.price)));
+      mix(t.size);
+      mix(t.own ? 1u : 0u);
+    }
+    mix(sim.own_fills().size());
+    const Quote q1 = sim.quote();
+    mix(static_cast<std::uint64_t>(static_cast<std::int64_t>(q1.bid)));
+    mix(static_cast<std::uint64_t>(static_cast<std::int64_t>(q1.ask)));
+    mix(q1.bid_size[0]);
+    mix(q1.ask_size[0]);
+    mix(static_cast<std::uint64_t>(std::llround(sim.fair_value() * 1e6)));
+  }
+  return h;
+}
+
+TEST(PriceDiscoveryV4, GoldenRunOfDiscoveryV4WithOwnOrders) {
+  // Recorded with the OF13 code after review (MSVC x64).
+  const std::uint64_t d = own_fingerprint(discovery_market_v4(), 15, 20'000);
+#if defined(_MSC_VER) && !defined(__clang__)
+  EXPECT_EQ(d, 209874786915369222ull) << d;
+#else
+  EXPECT_EQ(d, own_fingerprint(discovery_market_v4(), 15, 20'000));
+#endif
+}
+
+TEST(PriceDiscoveryV4, TickScalpEnvRefusesSweepFollowOutsideDiagnostics) {
+  TickParams p;
+  p.sim = discovery_market_v4();
+  EXPECT_THROW(TickScalpEnv{p}, std::invalid_argument);
+  p.allow_sweep_follow = true;
+  EXPECT_NO_THROW(TickScalpEnv{p});
+  EXPECT_THROW(EsSimulator(SimParams{.max_step_ticks = 3'000'000'000u}), std::invalid_argument);
+}
+
 // --- stale-side depletion (v2: SimParams::reprice_cancel, value_impact) -----
 
 TEST(PriceDiscovery, TheV2FieldsAreInertUnlessSwitchedOn) {
@@ -905,6 +1236,8 @@ TEST(EsSimulatorActivity, MultiLotScalpingIsRefusedWhereOwnImpactPays) {
   sp.sim = discovery_market();
   EXPECT_THROW(ScalpEnv{sp}, std::invalid_argument);
   sp.sim = discovery_market_v2();
+  EXPECT_THROW(ScalpEnv{sp}, std::invalid_argument);
+  sp.sim = discovery_market_v4();  // OF13: own orders never move value, but multi-lot ones are not validated
   EXPECT_THROW(ScalpEnv{sp}, std::invalid_argument);
   sp.contracts = 1;
   EXPECT_NO_THROW(ScalpEnv{sp});

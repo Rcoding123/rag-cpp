@@ -8,6 +8,9 @@ usage (Python 3.12, standard library only; -I keeps the run isolated):
       --sim discovery=build-avx512/tune/of12/discovery_*.csv --sim default_warm=... --sim default=...
       [--jobs 16] [--out experiments/of12_real_vs_sim.txt]
 The first --sim market is the one the verdict column judges. experiments/of12_regen.sh runs it all.
+--of13 (experiments/of13_regen.sh): adds the 100 ms step rows (largest |mid change| in one step, steps
+moving the mid > 8 ticks) and Table 4, OF13's pre-registered v4 gates G1-G8 per simulator market;
+without it the output is OF12's, byte for byte.
 
 The real data is only read (opened read-only; a Sierra file still being written is read as a
 snapshot of its current size). The output holds aggregate statistics only.
@@ -387,6 +390,7 @@ def book_stats(samples, keys, t0, bundles):
         if prev is not None and prev[1][0] == k[0]:
             p = prev[0]
             addv(a, "k.pairs", 1)
+            addv(a, ("mstep2", abs(bid + ask - p[0] - p[1])), 1)  # 2 x |mid change| over one 100 ms step (OF13 G7)
             if p[0] + p[1] != bid + ask:
                 addv(a, "k.midchg", 1)
                 if p[1] - p[0] == 1 and ask - bid == 1:
@@ -486,6 +490,27 @@ BOOK_ROWS = [
     ("corr(1-s delta, next 1 s mid move)", f_corr("mkc1"), "%+.3f", 0.03),
     ("corr(1-s delta, next 5 s mid move)", f_corr("mkc5"), "%+.3f", 0.03),
     ("corr(1-s delta, next 30 s mid move)", f_corr("mkc30"), "%+.3f", 0.03),
+]
+
+
+def f_hmax(name, scale=1.0):
+    """Largest value of a histogram (x scale)."""
+    def f(a):
+        vs = [k[1] for k, c in a.items() if type(k) is tuple and k[0] == name and c > 0.5]
+        return max(vs) * scale if vs else NAN
+    return f
+
+
+def f_hcount(name, above):
+    """Count of histogram entries above a value (a total over the blocks, not a rate)."""
+    return lambda a: sum(c for k, c in a.items() if type(k) is tuple and k[0] == name and k[1] > above)
+
+
+# OF13 (--of13 only, so OF12's tables are unchanged): G7's per-step bound. Book samples 100 ms
+# apart (the simulator's step); real gaps in the sampled stream are skipped like every other pair.
+BOOK_STEP_ROWS = [
+    ("max |mid change| in one 100 ms step (ticks)", f_hmax("mstep2", 0.5), "%.1f", 1),
+    ("100 ms steps moving the mid > 8 ticks (total)", f_hcount("mstep2", 16), "%.0f", 1),
 ]
 BOOK_REAL_ONLY = [
     ("orders at L1, per side", f_ratio("k.o1", "k.on", 0.5), "%.1f", 1),
@@ -844,7 +869,7 @@ for _r in SHAPE_ROWS:
     DRIVERS[_r[0]] = _SHAPE
 
 
-def ranked(lines, judged, n=10):
+def ranked(lines, judged, n=10, label="v3", drivers=True):
     best = {}
     for name, (ref, sim, floor, f, v) in judged.items():
         r, s = ref[0], sim[0]
@@ -861,14 +886,20 @@ def ranked(lines, judged, n=10):
             cur[7].append(name)
     items = sorted(best.values(), key=lambda x: (-x[0], x[1]))
     lines.append("")
-    lines.append("Biggest real-vs-v3 mismatches: the worst row of each group, ranked by |v3 - real| / max(|real|, floor) (floors in")
-    lines.append("the tool: 1 for counts and sizes, 0.03-0.05 for correlations); the driver is the simulator parameter that most")
-    lines.append("plausibly causes it, read off simulator.hpp (discovery_market()), not fitted. Real = RTH (book: the Nov 3 morning).")
+    if drivers:
+        lines.append("Biggest real-vs-v3 mismatches: the worst row of each group, ranked by |v3 - real| / max(|real|, floor) (floors in")
+        lines.append("the tool: 1 for counts and sizes, 0.03-0.05 for correlations); the driver is the simulator parameter that most")
+        lines.append("plausibly causes it, read off simulator.hpp (discovery_market()), not fitted. Real = RTH (book: the Nov 3 morning).")
+    else:
+        lines.append("Biggest real-vs-%s mismatches: the worst row of each group (groups as in OF12), ranked by |%s - real| /" % (label, label))
+        lines.append("max(|real|, floor) (floors in the tool: 1 for counts and sizes, 0.03-0.05 for correlations). Real = RTH (book: the")
+        lines.append("Nov 3 morning).")
     for k, (sev, name, r, s, f, v, text, others) in enumerate(items[:n], 1):
-        lines.append("%2d. %s: real %s, v3 %s (%s)" % (k, name.strip(), f % r, f % s, v))
+        lines.append("%2d. %s: real %s, %s %s (%s)" % (k, name.strip(), f % r, label, f % s, v))
         if others:
             lines.append("    also off in this group: " + "; ".join(o.strip() for o in sorted(others)))
-        lines.append("    driver: " + text)
+        if drivers:
+            lines.append("    driver: " + text)
 
 
 def tails_note(lines, label, blocks, names, unit):
@@ -878,6 +909,88 @@ def tails_note(lines, label, blocks, names, unit):
     lines.append("  %s: per-%s 1-min excess kurtosis median %.1f (min %.1f, max %.1f: %s); largest |1-min return| per %s:"
                  " median %.0f ticks, max %.0f (%s)" % (label, unit, ks[len(ks) // 2][0], ks[0][0], ks[-1][0], names[ks[-1][1]],
                                                         unit, mx[len(mx) // 2][0], mx[-1][0], names[mx[-1][1]]))
+
+
+# OF13's pre-registered v4 gates (fixed before v4 was built; the real values are fixed): (gate, label,
+# data, statistic (row name or function of the rows), lo, hi, format). data: bars / sec (whole
+# sessions) or book (judged on the matched window and on whole sessions).
+def _l1(d):
+    return (d["L1 size, bid mean (lots)"][0] + d["L1 size, ask mean (lots)"][0]) / 2
+
+
+OF13_GATES = [
+    ("G1", "L1 mean (bid/ask avg, lots)", "book", _l1, 10, 28, "%.1f"),
+    ("G1", "mean L5 / mean L1", "book", lambda d: d["L5 size, mean per side"][0] / _l1(d), 1.2, None, "%.2f"),
+    ("G1", "spread = 1 tick (%)", "book", "spread = 1 tick (%)", 85, 100, "%.2f"),
+    ("G2", "corr(1-s delta, next 1 s mid move)", "book", "corr(1-s delta, next 1 s mid move)", -0.08, 0.04, "%+.3f"),
+    ("G2", "1-s delta markout +5 s (ticks)", "book", "1-s delta markout +5 s (signed, ticks)", -0.12, 0.04, "%+.3f"),
+    ("G2", "same-second signed mid move (ticks)", "book", "1-s delta: same-second mid move (signed, ticks)", 0.45, None, "%+.3f"),
+    ("G3", "1-s delta sign autocorr, lag 1 s", "sec", "1-s delta sign autocorr, lag 1 s", None, 0.08, "%+.3f"),
+    ("G3", "1-s delta sign autocorr, lag 10 s", "sec", "1-s delta sign autocorr, lag 10 s", None, 0.05, "%+.3f"),
+    ("G4", "event corr(I1, next mid change)", "book", "event corr(I1, next mid change)", 0.18, 0.32, "%+.3f"),
+    ("G4", "next mid change the way I1 points (%)", "book", "next mid change goes the way I1 points (%)", 56, None, "%.1f"),
+    ("G5", "R^2(1-min change ~ 1-min delta)", "bars", "R^2(1-min change ~ 1-min delta)", 0.25, 0.50, "%.3f"),
+    ("G5", "R^2(10 s change ~ 10 s delta)", "sec", "R^2(10 s price change ~ 10 s delta)", 0.22, 0.45, "%.3f"),
+    ("G6", "volume / min, x real RTH", "bars", "vol_x", 0.7, 1.4, "%.2f"),
+    ("G7", "1-min return sd (ticks)", "bars", "1-min return sd (ticks)", 6.5, 12.5, "%.2f"),
+    ("G7", "100 ms steps moving the mid > 8 ticks", "bookf", "100 ms steps moving the mid > 8 ticks (total)", None, 0, "%.0f"),
+    ("G8", "corr(1-min delta, next 1 min)", "bars", "corr(1-min delta, next 1 min)", -0.04, 0.04, "%+.3f"),
+    ("G8", "corr(1-min delta, next 5 min)", "bars", "corr(1-min delta, next 5 min)", -0.04, 0.04, "%+.3f"),
+    ("soft", "ac30 of |1-min returns|", "bars", "ac30 of |1-min returns|", 0.08, None, "%+.3f"),
+    ("soft", "mid changes / min (100 ms samples)", "book", "mid changes / min (100 ms samples)", 60, None, "%.1f"),
+    ("soft", "volume share 08:30-09:00 CT (%)", "bars", "volume share 08:30-09:00 CT (%)", 11, None, "%.2f"),
+]
+
+
+def gate_table(lines, names, sim_res, bar_blocks, sec_blocks, rth_b, window_s):
+    """Table 4 (--of13): each pre-registered gate per simulator market. Book gates are judged on the matched
+    window AND on whole sessions (both must pass); the real column is the reference only."""
+    rows = {"bars": BAR_ROWS + SHAPE_ROWS, "sec": SEC_ROWS, "book": BOOK_ROWS + BOOK_STEP_ROWS}
+
+    def vals(kind, blocks):
+        return dict(zip([r[0] for r in rows[kind]], jackknife(blocks, [r[1] for r in rows[kind]])))
+    real = {"bars": vals("bars", bar_blocks), "sec": vals("sec", sec_blocks), "bookw": vals("book", rth_b)}
+    real["bookf"] = real["bookw"]
+    real_vpm = real["bars"]["volume / min (lots)"][0]
+    real["bars"]["vol_x"] = (1.0, NAN)
+    sims = {}
+    for n in names:
+        d = {"bars": vals("bars", [r["bars"] for r in sim_res[n]]), "sec": vals("sec", [r["sec"] for r in sim_res[n]]),
+             "bookw": vals("book", [r["bookw"] for r in sim_res[n]]), "bookf": vals("book", [r["bookf"] for r in sim_res[n]])}
+        v, se = d["bars"]["volume / min (lots)"]
+        d["bars"]["vol_x"] = (v / real_vpm, se / real_vpm)
+        sims[n] = d
+
+    def get(d, key):
+        return (key(d), NAN) if callable(key) else d[key]
+    lines.append("")
+    lines.append("Table 4. OF13 pre-registered v4 gates (fixed before v4 was built). Book gates: the matched first %.0f min (w) and"
+                 % (window_s / 60))
+    lines.append("  whole sessions (f), both must pass; the rest: whole sessions. G6 = volume / min over the real RTH value (%.0f lots/min)."
+                 % real_vpm)
+    lines.append("  The real column is the reference (book: the one RTH morning; bars and 1-s: the year), not judged.")
+    hdr = "gate  statistic".ljust(50) + "band".rjust(16) + "real".rjust(12) + "".join((n + " (verdict)").rjust(30) for n in names)
+    lines.append(hdr)
+    lines.append("-" * len(hdr))
+    summary = {n: [0, 0] for n in names}
+    for g, label, kind, key, lo, hi, f in OF13_GATES:
+        band = "[%s, %s]" % ("-inf" if lo is None else f.replace("+", "") % lo, "inf" if hi is None else f.replace("+", "") % hi)
+        for k in (("bookw", "bookf") if kind == "book" else (kind,)):
+            tag = {"bookw": " (w)", "bookf": " (f)"}.get(k, "")
+            rv = get(real[k], key)[0]
+            line = ("%-5s %s%s" % (g, label, tag)).ljust(50) + band.rjust(16) + ("-" if math.isnan(rv) else f % rv).rjust(12)
+            for n in names:
+                v, se = get(sims[n][k], key)
+                ok = not math.isnan(v) and (lo is None or v >= lo) and (hi is None or v <= hi)
+                if g != "soft":
+                    summary[n][0 if ok else 1] += 1
+                line += (fmt(v, se, f) + "  " + ("PASS" if ok else "FAIL")).rjust(30)
+            lines.append(line)
+    lines.append("  max |mid change| in one 100 ms step, whole sessions: " + ", ".join(
+        "%s %.1f ticks" % (n, sims[n]["bookf"]["max |mid change| in one 100 ms step (ticks)"][0]) for n in names)
+        + "; real RTH morning %.1f" % real["bookw"]["max |mid change| in one 100 ms step (ticks)"][0])
+    lines.append("  gate rows passed (soft targets not counted): " + ", ".join(
+        "%s %d of %d" % (n, summary[n][0], sum(summary[n])) for n in names))
 
 
 def main():
@@ -891,6 +1004,8 @@ def main():
     ap.add_argument("--out", default="-")
     ap.add_argument("--depth-until", default="", help="UTC 'YYYY-MM-DD HH:MM:SS': ignore depth events from then on")
     ap.add_argument("--note", default="", help="free text for the header (e.g. the seeds the sessions used)")
+    ap.add_argument("--of13", action="store_true", help="OF13 report (experiments/of13_regen.sh): the 100 ms step rows (G7) "
+                    "and the pre-registered v4 gates G1-G8 per simulator market; without it the output is OF12's")
     a = ap.parse_args()
     sims = []
     for s in a.sim:
@@ -944,8 +1059,12 @@ def main():
     eth_blocks = [bar_stats(eth[td], False) for td in sorted(eth)]
     names = [n for n, _ in sims]
     L = []
-    L.append("OF12: real ES (Sierra Chart) vs the ES simulator -- the same statistics from the same code (tools/real_vs_sim.py)")
-    L.append("Generated by experiments/of12_regen.sh. Aggregate statistics only (the market data stays outside the repo).")
+    if a.of13:
+        L.append("OF13: real ES (Sierra Chart) vs simulator v4 (%s) -- the same statistics from the same code (tools/real_vs_sim.py)" % names[0])
+        L.append("Generated by experiments/of13_regen.sh. Aggregate statistics only (the market data stays outside the repo).")
+    else:
+        L.append("OF12: real ES (Sierra Chart) vs the ES simulator -- the same statistics from the same code (tools/real_vs_sim.py)")
+        L.append("Generated by experiments/of12_regen.sh. Aggregate statistics only (the market data stays outside the repo).")
     L.append("")
     L.append("Data")
     L.append("  1-min bars: %s: %d rows; RTH 08:30-15:00 CT on %d full days %s .. %s (%d CT days with RTH bars; days without all"
@@ -981,7 +1100,8 @@ def main():
              " (within-morning noise only:")
     L.append("    no day-to-day variation; treat the real RTH book column as one observation), 30-min ETH blocks."
              " Sim: blocks = sessions.")
-    L.append("  Verdict (v3 vs real): within 2 SE (combined) / within 20% / off xR (ratio v3/real) / off by D (signs differ, or")
+    vlab = names[0] if a.of13 else "v3"
+    L.append("  Verdict (%s vs real): within 2 SE (combined) / within 20%% / off xR (ratio %s/real) / off by D (signs differ, or" % (vlab, vlab))
     L.append("    |real| is below the row's floor: 0.03-0.05 for correlations, so a ratio of two near-zero numbers isn't quoted).")
 
     def sim_cols(key):
@@ -1000,16 +1120,19 @@ def main():
     def book_blocks(label):
         return [a_ for r in depth_res for k, a_ in sorted(r["accs"].items()) if k[0] == label]
     rth_b, eth_b = book_blocks("RTH"), book_blocks("ETH")
+    brows = BOOK_ROWS + (BOOK_STEP_ROWS if a.of13 else [])
     cols = [("real RTH book", rth_b)] + [(n + " 0-%.0fm" % (window_s / 60), [r["bookw"] for r in sim_res[n]]) for n in names] + \
            [("real ETH book", eth_b)]
     judged.update(table(L, "Table 3. Book (100 ms samples), the first %.0f min after the 08:30 CT open: real = Nov 3 only; "
                         "sim = the same minutes of each session. ETH = overnight/pre-open/post-close depth." % (window_s / 60),
-                        BOOK_ROWS, cols, 1))
+                        brows, cols, 1))
     table(L, "Table 3b. Real-only book detail (the simulator has no order counts).", BOOK_REAL_ONLY,
           [("real RTH book", rth_b), ("real ETH book", eth_b)], None)
     table(L, "Table 3c. Simulator book over whole 6.5 h sessions (context; verdict vs the real RTH morning window).",
-          BOOK_ROWS, [("real RTH book", rth_b)] + sim_cols("bookf"), 1)
-    ranked(L, judged)
+          brows, [("real RTH book", rth_b)] + sim_cols("bookf"), 1)
+    if a.of13:
+        gate_table(L, names, sim_res, bar_blocks, sec_blocks, rth_b, window_s)
+    ranked(L, judged, label=vlab, drivers=not a.of13)
     L.append("")
     L.append("Not compared (one side lacks the detail): per-trade sign autocorrelation and markouts after single prints (the real")
     L.append("  data is 1-s bundles: since Nov 3 Sierra stamps whole seconds; .depth carries no trades); quote-level (sub-100 ms)")
