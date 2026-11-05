@@ -75,7 +75,7 @@ enable_testing()
 # a binary built for a newer ISA than the build machine's (e.g. the AVX-512
 # preset on an AVX2 CI runner) then still builds.
 set(CMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
-add_executable(rag_tests tests/rag_tests.cpp tests/forgery_tests.cpp tests/reference_tests.cpp tests/text_clean_tests.cpp tests/agent_tests.cpp tests/api_examples_tests.cpp tests/model_based_tests.cpp tests/market_making_tests.cpp tests/mlp_tests.cpp tests/agent_edge_case_tests.cpp tests/agent_coverage_tests.cpp tests/rag_property_tests.cpp tests/policy_table_tests.cpp tests/orderflow_tests.cpp)
+add_executable(rag_tests tests/rag_tests.cpp tests/forgery_tests.cpp tests/reference_tests.cpp tests/text_clean_tests.cpp tests/agent_tests.cpp tests/api_examples_tests.cpp tests/model_based_tests.cpp tests/market_making_tests.cpp tests/mlp_tests.cpp tests/agent_edge_case_tests.cpp tests/agent_coverage_tests.cpp tests/rag_property_tests.cpp tests/policy_table_tests.cpp tests/orderflow_tests.cpp tests/stylized_tests.cpp)
 target_link_libraries(rag_tests PRIVATE rag GTest::gtest_main Threads::Threads)
 include(GoogleTest)
 gtest_discover_tests(rag_tests DISCOVERY_TIMEOUT 120)
@@ -132,9 +132,19 @@ if(RAG_OPTLIBS)
     gtest_discover_tests(rag_optlib_tests)
     add_executable(tune_agent examples/tune_agent.cpp)
     target_link_libraries(tune_agent PRIVATE rag Eigen3::Eigen NLopt::nlopt)
+    set(RAG_OF_CALIBRATE_NLOPT ON)
   else()
     message(STATUS "rag-cpp: Eigen3/NLopt not found; tuning/analysis targets disabled")
   endif()
+endif()
+
+# Simulator calibration against recorded ticks (examples/of_calibrate.cpp):
+# `facts` and `sim` always; `fit` when NLopt was found above.
+add_executable(of_calibrate examples/of_calibrate.cpp)
+target_link_libraries(of_calibrate PRIVATE rag)
+if(RAG_OF_CALIBRATE_NLOPT)
+  target_compile_definitions(of_calibrate PRIVATE RAG_HAVE_NLOPT)
+  target_link_libraries(of_calibrate PRIVATE NLopt::nlopt)
 endif()
 
 # PDF support (rag/pdf.hpp, the rag_pdf tool) needs poppler-cpp
