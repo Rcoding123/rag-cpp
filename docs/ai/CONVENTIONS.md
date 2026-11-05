@@ -50,10 +50,14 @@ every claim in the docs measurable and every change verifiable.
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctest --test-dir build -j4
 ```
 
-1. **Before pushing**, run the same 7 jobs as CI: gcc native, AVX2
-   (`-DRAG_ARCH=x86-64-v3`) and scalar (`-DRAG_ARCH=x86-64`); clang; ASan+UBSan
-   with both gcc and clang (`-DRAG_SANITIZE=ON`); and TSan (`-DRAG_TSAN=ON`).
-   All use `-DCMAKE_CXX_FLAGS=-Werror`.
+1. **Windows only (since 2026-11-04, the user's decision).** The project is
+   built and run with MSVC on the user's Windows server. The gate is the
+   full build and test suite there (`cmake --preset windows-msvc-avx512`,
+   `cmake --build --preset windows-avx512-release --parallel`,
+   `ctest --preset windows-avx512-release`) with no MSVC warnings. GitHub CI
+   runs only `msvc-windows`; the Linux GCC/Clang/sanitizer/fuzz jobs were
+   removed (restore them from `e0a4c7a`'s `ci.yml` if Linux matters again).
+   Portable C++ is still the habit, but GCC/Clang are no longer verified.
 2. **For loader or parser changes**, fuzz:
    `-DRAG_FUZZ=ON -DCMAKE_CXX_COMPILER=clang++`, `make_seeds`, then run
    `fuzz_load` / `fuzz_text` for a few minutes.
@@ -62,8 +66,8 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ## Git
 
-* Work on a branch. Push, wait for the 8 GitHub CI jobs, then fast-forward
-  `main` to the green commit.
+* Work on a branch. Fast-forward `main` to a commit whose full gate passed
+  on the Windows server.
 * Commit messages explain what changed and why, with measured results.
 
 ## Documentation

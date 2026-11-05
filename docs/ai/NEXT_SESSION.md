@@ -9,7 +9,8 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 
 > Continue the ES order-flow trading work in the repository
 > Rcoding123/rag-cpp, branch `research/rl` (`main` is fast-forwarded
-> only after all 9 CI jobs pass).
+> only after the full build and tests pass on the user's Windows server;
+> everything runs there, nothing on Linux).
 >
 > **Read first, in this order:** `docs/ai/README.md`, `docs/ai/ORDERFLOW.md`
 > (objectives, architecture, results OF1–OF9, honest status, ranked plan),

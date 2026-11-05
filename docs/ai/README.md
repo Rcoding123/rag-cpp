@@ -41,7 +41,8 @@ python3 tools/make_context_pack.py --with-source   # docs + all headers, tests, 
 * **Measure, don't assume.** Every number in these docs came from a run.
   If you change code, re-measure before quoting.
 * **Run the checks.** Run the full test matrix (CONVENTIONS.md) before
-  claiming something works. CI runs 8 jobs.
+  claiming something works. The gate is the full MSVC build and
+  test suite on the user's Windows server (CI runs `msvc-windows` only).
 * **Keep the guarantees.** Hot paths must not allocate. Batched queries are
   bit-identical to single ones. Loaders validate every field. Tests enforce
   all three.

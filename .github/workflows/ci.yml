@@ -12,81 +12,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Windows only (the user's decision, 2026-11-04): the project is built and run
+# with MSVC on Windows. The Linux GCC/Clang/sanitizer/fuzz jobs were removed;
+# see git history (e0a4c7a) to restore them. The authoritative gate is the
+# full build + ctest on the user's AVX-512 server; this job is a second check.
 jobs:
-  test:
-    name: ${{ matrix.name }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # GitHub-hosted runners vary (some have AVX-512, some don't), so the
-          # SIMD paths are pinned with explicit -march levels. "native" covers
-          # whatever the runner has, including AVX-512 when present.
-          - { name: gcc-native,        cxx: g++,     arch: native,    build: Release }
-          - { name: gcc-avx2,          cxx: g++,     arch: x86-64-v3, build: Release }
-          - { name: gcc-scalar,        cxx: g++,     arch: x86-64,    build: Release }
-          - { name: clang-native,      cxx: clang++, arch: native,    build: Release }
-          - { name: gcc-asan-ubsan,    cxx: g++,     arch: native,    build: Debug,          flags: -DRAG_SANITIZE=ON }
-          # Clang's UBSan also checks arithmetic on null pointers, which GCC's doesn't.
-          - { name: clang-asan-ubsan,  cxx: clang++, arch: native,    build: Debug,          flags: -DRAG_SANITIZE=ON }
-          # TSan only needs code that runs threads: the single-threaded agent and
-          # reference suites are excluded here (they run in every other job).
-          - { name: gcc-tsan,          cxx: g++,     arch: native,    build: RelWithDebInfo, flags: -DRAG_TSAN=ON,
-              ctest_args: '-E "^(Agent|ModelBased|ExecutionCosts|OffPolicy|MarketMaking|Reference|ApiExamples)"' }
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q libgtest-dev libbenchmark-dev libpoppler-cpp-dev libeigen3-dev libnlopt-cxx-dev
-
-      - name: Runner CPU
-        run: |
-          lscpu | grep -E 'Model name'
-          grep -o -w -E 'avx2|avx512f|avx512bw|avx512_vnni|fma' /proc/cpuinfo | sort -u | tr '\n' ' '; echo
-
-      # Ubuntu 24.04 kernels use 32 bits of mmap ASLR, which TSan's shadow
-      # memory layout cannot handle ("unexpected memory mapping").
-      - name: Reduce ASLR entropy for TSan
-        if: contains(matrix.flags, 'RAG_TSAN')
-        run: sudo sysctl -w vm.mmap_rnd_bits=28
-
-      - name: Configure
-        run: >
-          cmake -S . -B build
-          -DCMAKE_BUILD_TYPE=${{ matrix.build }}
-          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
-          -DCMAKE_CXX_FLAGS=-Werror
-          -DRAG_ARCH=${{ matrix.arch }}
-          ${{ matrix.flags }}
-
-      - name: Build
-        run: cmake --build build -j"$(nproc)"
-
-      - name: Test
-        env:
-          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
-          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
-          TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
-        run: ctest --test-dir build --output-on-failure -j"$(nproc)" ${{ matrix.ctest_args }}
-
-      - name: Repeat concurrency tests
-        if: contains(matrix.flags, 'RAG_TSAN')
-        env:
-          TSAN_OPTIONS: halt_on_error=1
-        run: |
-          ./build/rag_tests --gtest_filter='*Concurrent*' --gtest_repeat=25
-          ./build/rag_stress 10   # 10 s per dense mode: ingest/commit/save vs queries/batches/pins
-
-      - name: Demo and benchmark smoke run
-        if: matrix.name == 'gcc-native'
-        run: |
-          ./build/rag_demo
-          ./build/rag_bench --benchmark_filter='Dot|TopK|Query/' --benchmark_min_time=0.05s
-
   windows:
     name: msvc-windows
     runs-on: windows-2022
@@ -108,7 +38,7 @@ jobs:
         run: ctest --preset windows-release
 
       # The runner's CPU (Zen 3) has no AVX-512: compile the AVX-512 preset
-      # so MSVC accepts those kernels; they run on Linux CI and on AVX-512 PCs.
+      # so MSVC accepts those kernels; they run on AVX-512 PCs (the user's server runs the full suite).
       - name: Build the AVX-512 preset (compile only)
         run: |
           cmake --preset windows-msvc-avx512
@@ -120,43 +50,3 @@ jobs:
           ./build/Release/rag_demo.exe
           ./build/Release/agent_demo.exe | tail -n 25
           ./build/Release/rag_latency.exe
-
-  fuzz:
-    name: fuzz-smoke
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q libgtest-dev libclang-rt-18-dev
-
-      - name: Build fuzzers
-        run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=clang++ -DRAG_FUZZ=ON
-          cmake --build build --target fuzz_load fuzz_text fuzz_policy_table make_seeds -j"$(nproc)"
-
-      - name: Seed corpora
-        run: |
-          ./build/make_seeds corpus/load corpus/policy
-          mkdir -p corpus/text
-          printf 'The limit order book. VWAP.\nqueue position' > corpus/text/a
-          printf '\x05\x02\x09caf\xc3\xa9 ZX81Q the of and' > corpus/text/b
-
-      - name: Fuzz index loading (60 s)
-        run: ./build/fuzz_load -max_total_time=60 -rss_limit_mb=2048 -timeout=10 -artifact_prefix=crash-load- corpus/load
-
-      - name: Fuzz text pipeline (60 s)
-        run: ./build/fuzz_text -max_total_time=60 -rss_limit_mb=2048 -timeout=10 -max_len=4096 -artifact_prefix=crash-text- corpus/text
-
-      - name: Fuzz policy-table loading (30 s)
-        run: ./build/fuzz_policy_table -max_total_time=30 -rss_limit_mb=2048 -timeout=10 -artifact_prefix=crash-policy- corpus/policy
-
-      - name: Upload crashing inputs
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: fuzz-crashes
-          path: crash-*

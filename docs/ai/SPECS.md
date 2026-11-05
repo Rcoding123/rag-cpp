@@ -123,17 +123,16 @@ unless they reproduce.
 
 ## Test and CI matrix
 
+Windows only since 2026-11-04 (the user's decision). The authoritative gate
+is the full AVX-512 build and `ctest` on the user's server; GitHub CI keeps
+one job. The Linux jobs (GCC native/AVX2/scalar, Clang, ASan+UBSan with
+both compilers, TSan, libFuzzer smoke) were removed; `e0a4c7a`'s `ci.yml`
+has them.
+
 | Job | Compiler | Flags | What it checks |
 |---|---|---|---|
-| gcc-native | GCC | Release, `-march=native` | everything, AVX-512 path |
-| gcc-avx2 | GCC | Release, `x86-64-v3` | AVX2 path |
-| gcc-scalar | GCC | Release, `x86-64` | scalar fallback |
-| clang-native | Clang | Release | second compiler |
-| gcc-asan-ubsan | GCC | Debug, ASan + UBSan | memory and UB errors |
-| clang-asan-ubsan | Clang | Debug, ASan + UBSan | catches UB GCC's UBSan misses (R12) |
-| gcc-tsan | GCC | RelWithDebInfo, TSan | data races (skips single-threaded learning suites) |
-| fuzz-smoke | Clang | libFuzzer | the loaders and text pipeline under fuzzing |
-| msvc-windows | MSVC (VS 2022) | Release, `/arch:AVX2` | Windows build, full test suite, demos, latency probe |
+| user's server (local gate) | MSVC | Release, AVX-512 preset | full build, full test suite |
+| msvc-windows (GitHub) | MSVC (VS 2022) | Release, `/arch:AVX2` | Windows build, full test suite, demos, latency probe, AVX-512 compile |
 
 `ctest` registers every GoogleTest case plus `stress_all_modes` (the
 concurrent stress run) and `rag_pdf_cli_smoke`. STATUS.md has the current

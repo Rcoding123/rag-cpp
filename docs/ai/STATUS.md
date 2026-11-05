@@ -14,8 +14,9 @@
   gap predicts the next 30 s at ~0.6), so RL profits there are inflated;
   the "efficient" preset leaks value through the book (OF9).
 
-* **Platforms:** Linux (GCC 13, Clang 18; seven CI jobs including
-  sanitizers and fuzzing) and Windows (Visual Studio 2022 / MSVC, AVX2;
+* **Platforms:** Windows only since 2026-11-04 (Linux CI removed; GCC 13 and
+  Clang 18 with sanitizers and fuzzing last passed at `10bfe03`, except a
+  gcc-avx2 NLopt configure failure); Windows (Visual Studio 2022 / MSVC, AVX2;
   CI job `msvc-windows`: the AVX2 build's full test suite, demos, latency
   probe, and an AVX-512 compile; the AVX-512 build passed 285/285 on a
   Ryzen 9 9900X under Windows Server 2025, where `train_ensemble`
@@ -68,7 +69,8 @@
   regions. Their schedule fixes may shift the online-gain numbers of E8,
   E11 and E15 slightly; those were measured before the fixes.
 * **Testing:**
-  * the CI matrix covers SIMD levels, sanitizers and fuzzing;
+  * the full suite runs on the user's AVX-512 server and in CI's
+    `msvc-windows` (the sanitizer and fuzz jobs were Linux-only and are gone);
   * 287 ctest cases: 272 in `rag_tests`, 4 in `rag_optlib_tests`, 9 PDF tests (Poppler), the
     stress run and a `rag_pdf` CLI smoke test.
   * The TSan CI job skips the single-threaded learning suites (`Agent*`,

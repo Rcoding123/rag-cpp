@@ -115,7 +115,7 @@ rag-cpp/
 ├── experiments/                 the probe programs behind EXPERIMENTS.md and OF1-OF9 (snapshots; only of7 is built,
 │                                as of_tick_train), their result files, and research_synthesis.md
 ├── llms.txt                     index of this pack for language models
-└── .github/workflows/ci.yml     8 CI jobs
+└── .github/workflows/ci.yml     CI: msvc-windows
 ```
 
 ## Dependency layers (lower layers never include higher ones)
