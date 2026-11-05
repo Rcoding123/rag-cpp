@@ -1594,3 +1594,57 @@ results at ~4 trades/s.
   OF8 profits came from the slow-discovery leak, which is real at realistic
   activity too (`default_warm`: naive delta 5 s > 1.5 +15.2 ticks/episode).
   The pre-registered gate (f) holds non-vacuously.
+
+## OF12. Real ES vs the simulator, like for like (the user's Sierra Chart data)
+
+`bash experiments/of12_regen.sh` (~17 s; `experiments/of12_real_vs_sim.txt`,
+`tools/real_vs_sim.py`). One Python tool computes every statistic from
+three data shapes (1-min bars, 1-s bundles, an L2 book stream) and applies
+the same functions to the real data and to simulator sessions converted to
+those shapes (12 × 6.5 h sessions per market from the open, seeds
+960,012,001–012; `of_calibrate export` gained an opt-in market, seed and
+start). Real data (read-only, outside the repo; only aggregates are
+committed): 224 RTH days of 1-min bars with aggressor volume (Dec 2025 –
+Nov 2026), Sierra `.scid` 1-s bundles on the front month, and Sierra
+`.depth` L2 with only **43.9 min of RTH book** (Nov 3, 08:30–09:14 CT;
+treat that column as one observation) plus ~15.7 h overnight.
+
+* **v3 matches:** imbalance → next mid change (event corr(I1) +0.241
+  real vs +0.238; direction right 61% vs 58%), R² of price change on delta
+  (1 min 0.359 vs 0.352; 10 s 0.334 vs 0.300 without the outlier session),
+  no 1-min delta predictability on either side, spread = 1 tick (95% vs
+  100%).
+* **Biggest mismatches** (ranked in the results file, with the parameter
+  that most plausibly drives each):
+  1. **Book depth:** real L1 17 ± 1 lots (median 15, ~1.2 lots per resting
+     order, depth *rising* to ~36 at L5) vs v3 143 (falling with
+     distance). v3's stationary L1 = maker_rate × size / cancel_rate = 240.
+  2. **v3 flow predicts the mid after the fact:** corr(1-s delta, next 1 s
+     mid move) −0.035 real vs **+0.151** v3 (+5 s markout −0.05 vs +0.13
+     ticks); real ES moves within the same second (+0.66 vs +0.23 ticks).
+     In v3 impact goes to fair value first and reaches the mid only as the
+     stale queue depletes: a short-horizon leak, and the same mechanism as
+     the stale sweeps.
+  3. **1-s flow memory:** delta-sign ac at 1 s +0.017 real vs +0.236 v3
+     (order splitting and momentum takers).
+  4. **Volume:** v3 trades ~1.55× real ES's lots per second. Trade counts and
+     lots/trade are *not* comparable: Sierra's count looks like one trade
+     per resting order filled (1.31 lots/trade ≈ 1.2 lots per resting
+     order), the simulator's one per aggressive order.
+  5. **Volatility clustering:** ac30 of |1-min returns| +0.20 real vs 0.00
+     (v3's activity memory is ~10 min).
+  6. **Mid flicker:** real mid changes 168/min at 100 ms sampling vs 23
+     (thin real L1 empties and refills within the second).
+  7. **1-min volatility:** 9.3 ticks real vs 5.0 (4.2 without the outlier).
+* **Simulator pathology found:** in one v3 session (seed 960,012,012,
+  minute 314) a news jump empties the ask and takers print 1 lot on each
+  of 151 ticks in one 100 ms step, then the price falls back within a
+  minute. It drives v3's pooled 1-min kurtosis to 233 and inflates several
+  v3 SEs. It stays in the table, with a per-session note.
+* **Conclusion:** v3's imbalance signal and price-on-flow R² look like real
+  ES, but its book is ~8× too deep and its mid lags its flow by a second or
+  more, which real ES doesn't do. The next simulator iteration should
+  target book depth and same-second impact; more RTH depth recording
+  (Sierra market-depth recording on during RTH, tick-by-tick storage) is
+  needed before fitting book parameters.
+

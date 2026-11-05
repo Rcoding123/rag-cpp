@@ -27,6 +27,7 @@ docs/ai/PROJECT_MAP.md
 docs/ai/RAG_ENGINE.md
 docs/ai/README.md
 docs/ai/RESEARCH.md
+docs/ai/SESSION_REPORT_2026-11-05.md
 docs/ai/SPECS.md
 docs/ai/STATUS.md
 docs/ai/TASK_SPECS.md
@@ -120,13 +121,20 @@ experiments/of10_baselines.txt
 experiments/of10_calibrate_sim.txt
 experiments/of10_discovery.cpp
 experiments/of10_discovery.csv
+experiments/of10_final13_18.txt
 experiments/of10_heldout.csv
 experiments/of10_heldout.txt
 experiments/of10_regen.sh
 experiments/of10_results.txt
+experiments/of10_skeptic19_21.txt
 experiments/of10_tick_baselines.txt
 experiments/of10_warmup_check.txt
+experiments/of11_baselines.txt
+experiments/of11_days.txt
+experiments/of11_probe1050.txt
 experiments/of11_regen.sh
+experiments/of11_stress.txt
+experiments/of11_train.txt
 experiments/of1_stylized_facts.cpp
 experiments/of2_baselines.cpp
 experiments/of2_results.txt
@@ -2830,7 +2838,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (93,330 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (96,680 bytes)
 
 # RL experiment log
 
@@ -4429,6 +4437,60 @@ results at ~4 trades/s.
   activity too (`default_warm`: naive delta 5 s > 1.5 +15.2 ticks/episode).
   The pre-registered gate (f) holds non-vacuously.
 
+## OF12. Real ES vs the simulator, like for like (the user's Sierra Chart data)
+
+`bash experiments/of12_regen.sh` (~17 s; `experiments/of12_real_vs_sim.txt`,
+`tools/real_vs_sim.py`). One Python tool computes every statistic from
+three data shapes (1-min bars, 1-s bundles, an L2 book stream) and applies
+the same functions to the real data and to simulator sessions converted to
+those shapes (12 × 6.5 h sessions per market from the open, seeds
+960,012,001–012; `of_calibrate export` gained an opt-in market, seed and
+start). Real data (read-only, outside the repo; only aggregates are
+committed): 224 RTH days of 1-min bars with aggressor volume (Dec 2025 –
+Nov 2026), Sierra `.scid` 1-s bundles on the front month, and Sierra
+`.depth` L2 with only **43.9 min of RTH book** (Nov 3, 08:30–09:14 CT;
+treat that column as one observation) plus ~15.7 h overnight.
+
+* **v3 matches:** imbalance → next mid change (event corr(I1) +0.241
+  real vs +0.238; direction right 61% vs 58%), R² of price change on delta
+  (1 min 0.359 vs 0.352; 10 s 0.334 vs 0.300 without the outlier session),
+  no 1-min delta predictability on either side, spread = 1 tick (95% vs
+  100%).
+* **Biggest mismatches** (ranked in the results file, with the parameter
+  that most plausibly drives each):
+  1. **Book depth:** real L1 17 ± 1 lots (median 15, ~1.2 lots per resting
+     order, depth *rising* to ~36 at L5) vs v3 143 (falling with
+     distance). v3's stationary L1 = maker_rate × size / cancel_rate = 240.
+  2. **v3 flow predicts the mid after the fact:** corr(1-s delta, next 1 s
+     mid move) −0.035 real vs **+0.151** v3 (+5 s markout −0.05 vs +0.13
+     ticks); real ES moves within the same second (+0.66 vs +0.23 ticks).
+     In v3 impact goes to fair value first and reaches the mid only as the
+     stale queue depletes: a short-horizon leak, and the same mechanism as
+     the stale sweeps.
+  3. **1-s flow memory:** delta-sign ac at 1 s +0.017 real vs +0.236 v3
+     (order splitting and momentum takers).
+  4. **Volume:** v3 trades ~1.55× real ES's lots per second. Trade counts and
+     lots/trade are *not* comparable: Sierra's count looks like one trade
+     per resting order filled (1.31 lots/trade ≈ 1.2 lots per resting
+     order), the simulator's one per aggressive order.
+  5. **Volatility clustering:** ac30 of |1-min returns| +0.20 real vs 0.00
+     (v3's activity memory is ~10 min).
+  6. **Mid flicker:** real mid changes 168/min at 100 ms sampling vs 23
+     (thin real L1 empties and refills within the second).
+  7. **1-min volatility:** 9.3 ticks real vs 5.0 (4.2 without the outlier).
+* **Simulator pathology found:** in one v3 session (seed 960,012,012,
+  minute 314) a news jump empties the ask and takers print 1 lot on each
+  of 151 ticks in one 100 ms step, then the price falls back within a
+  minute. It drives v3's pooled 1-min kurtosis to 233 and inflates several
+  v3 SEs. It stays in the table, with a per-session note.
+* **Conclusion:** v3's imbalance signal and price-on-flow R² look like real
+  ES, but its book is ~8× too deep and its mid lags its flow by a second or
+  more, which real ES doesn't do. The next simulator iteration should
+  target book depth and same-second impact; more RTH depth recording
+  (Sierra market-depth recording on during RTH, tick-by-tick storage) is
+  needed before fitting book parameters.
+
+
 
 
 ---
@@ -4634,7 +4696,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (9,298 bytes)
+## FILE: docs/ai/STATUS.md  (9,453 bytes)
 
 # Status, limitations and next steps
 
@@ -4660,7 +4722,9 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
   sweeps), so it is accepted for market-order RL only, and meta-orders
   need a 1,050 s warm-up (A62–A66). The RL reruns (OF11, `1a73bd6`) find no edge on `discovery`:
   every seed negative on sealed episodes, ensemble flat, all stresses and
-  trading days ≤ 0. **Caveat:** the legacy
+  trading days ≤ 0. OF12 compared v3 with the user's real ES (Sierra):
+  imbalance and price-on-delta match; the book is ~8× too deep and the
+  mid lags the flow by a second. **Caveat:** the legacy
   activity model is unchanged, so every OF2–OF9 result still ran at ~4
   trades/s instead of 15–22 (ORDERFLOW.md §5).
 
@@ -4799,7 +4863,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/ORDERFLOW.md  (34,333 bytes)
+## FILE: docs/ai/ORDERFLOW.md  (35,026 bytes)
 
 # ES order-flow trading: simulator, agents, validation, plan
 
@@ -5177,6 +5241,13 @@ discovery stresses): every strategy ≤ 0 in all 11 scenarios; OF8: ensemble
 −3.3 ticks/day (Sharpe −3.1), rule −88; no OF2 rule > 0 by 2 SE. Gate (f)
 holds non-vacuously (EXPERIMENTS.md OF11).
 
+**OF12 (real ES vs the simulator, the user's Sierra data):** with the same
+code on both sides, v3 matches real ES on imbalance → next tick (+0.24 vs
++0.24) and on price-on-delta R², but its L1 queue is ~8× too deep (143 vs
+17 lots) and its mid lags its own flow (corr(1-s delta, next 1 s mid move)
++0.15 vs −0.04 real); real ES also has far more volatility clustering and
+mid flicker. Only 44 min of RTH book exist so far (EXPERIMENTS.md OF12).
+
 **Calibration** (`of_calibrate`): recorded-tick CSV round trip exact;
 in a recovery test (target = informed flow ×0.4) the fit matched
 predictability, R² and clustering but not activity or markout, and
@@ -5261,7 +5332,11 @@ profiting from their own permanent impact (`ScalpEnv` refuses
    the stale-sweep mechanism is redesigned (A64). 900M and 910M were
    viewed on the discovery market (v2 and an iteration-3 smoke;
    NEXT_SESSION.md §4), so confirm any edge once on 950M+. **Done (OF11, `1a73bd6`): no
-   edge** (OF2/OF9 rules: `of11_baselines.txt`); 950M+ unused. Then **calibrate to the user's ES ticks:** convert their export to the CSV
+   edge** (OF2/OF9 rules: `of11_baselines.txt`); 950M+ unused. **OF12
+   compared v3 with the user's real ES data** (Sierra; EXPERIMENTS.md OF12):
+   fix book depth (L1 ~17 lots, rising with distance) and same-second
+   impact first; record RTH depth and tick-by-tick trades for a few weeks
+   before fitting. Then **calibrate to the user's ES ticks:** convert their export to the CSV
    format, run `of_calibrate facts`, then `fit` with many seeds and long
    windows on their server; add richer targets first (markout curve at
    more horizons, queue depletion/refill rates; MBO if available). Re-run
@@ -5299,7 +5374,7 @@ profiting from their own permanent impact (`ScalpEnv` refuses
 
 ---
 
-## FILE: docs/ai/NEXT_SESSION.md  (14,169 bytes)
+## FILE: docs/ai/NEXT_SESSION.md  (14,240 bytes)
 
 # Continuing the work: the prompt and the Claude Code agent architecture
 
@@ -5478,7 +5553,7 @@ return { verdict, done, reviews, run, analysis }
 | 920,000,000+ | stress scenarios (OF6; OF11 on discovery v3 at warm-up 1,050 s) |
 | 930,000,000+ | trading days (OF8; OF11 on discovery v3 at warm-up 1,050 s) |
 | 940,000,000+ | pairing probes (separate streams) |
-| 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it |
+| 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it; OF12 exported sessions 960,012,001–012 for the real-vs-sim comparison |
 | **950,000,000+** | **fresh confirmation: unused; use once per claimed edge, then record it here** |
 
 ## 5. Red flags (stop and diagnose before reporting a win)

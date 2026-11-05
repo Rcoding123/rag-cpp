@@ -22,7 +22,9 @@
   sweeps), so it is accepted for market-order RL only, and meta-orders
   need a 1,050 s warm-up (A62–A66). The RL reruns (OF11, `1a73bd6`) find no edge on `discovery`:
   every seed negative on sealed episodes, ensemble flat, all stresses and
-  trading days ≤ 0. **Caveat:** the legacy
+  trading days ≤ 0. OF12 compared v3 with the user's real ES (Sierra):
+  imbalance and price-on-delta match; the book is ~8× too deep and the
+  mid lags the flow by a second. **Caveat:** the legacy
   activity model is unchanged, so every OF2–OF9 result still ran at ~4
   trades/s instead of 15–22 (ORDERFLOW.md §5).
 

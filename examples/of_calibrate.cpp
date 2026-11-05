@@ -4,9 +4,12 @@
 //   of_calibrate sim [seconds=10800] [market]        facts of the simulator (market: default, efficient, discovery)
 //   of_calibrate facts <ticks.csv> [options]         facts of recorded ticks
 //   of_calibrate fit   <ticks.csv> [options]         fit the simulator to them (needs NLopt)
-//   of_calibrate export <out.csv> [seconds=3600] [informed_scale=1]
+//   of_calibrate export <out.csv> [seconds=3600] [informed_scale=1] [market seed=7 start_second=3600]
 //                                                    write simulator ticks in the CSV format
-//                                                    (sample data; calibration self-tests)
+//                                                    (sample data; calibration self-tests). Without a
+//                                                    market: SimParams{}, seed 7, start 3600 (as before);
+//                                                    e.g. export s.csv 23400 1 discovery 960012001 0 writes
+//                                                    one whole 6.5 h session from the open (OF12)
 //
 // options: --tick 0.25  --time ns|us|ms|s  --evals 150  --seconds 10800
 //          --seeds 2 (simulator runs averaged per evaluation, in parallel
@@ -126,22 +129,21 @@ int main(int argc, char** argv) {
   if (mode == "export" && argc > 2) {
     const double seconds = argc > 3 ? std::atof(argv[3]) : 3600;
     SimParams p;
+    if (argc > 5) {  // opt-in market preset (and seed, start second); without it the export is unchanged
+      try {
+        p = market_preset(argv[5]);
+      } catch (const std::invalid_argument& e) {
+        std::fprintf(stderr, "%s\n", e.what());
+        return 2;
+      }
+    }
     if (argc > 4) p.informed_meta_rate *= std::atof(argv[4]);  // a market with a different informed share
-    EsSimulator sim(p, 7, 3600);
+    const std::uint64_t seed = argc > 6 ? std::strtoull(argv[6], nullptr, 10) : 7;
+    const double start_second = argc > 7 ? std::atof(argv[7]) : 3600;  // 0 = a whole session from the open
+    EsSimulator sim(p, seed, start_second);
     std::FILE* out = std::fopen(argv[2], "w");
     if (!out) return 1;
-    std::fprintf(out, "# ES simulator ticks: T,time_s,price,size,side / Q,time_s,bid,ask,bid sizes x5,ask sizes x5\n");
-    for (std::size_t s = 0, n = static_cast<std::size_t>(seconds / p.dt); s < n; ++s) {
-      sim.step();
-      const double t = static_cast<double>(sim.t_ns()) * 1e-9;
-      for (const auto& tr : sim.trades())
-        std::fprintf(out, "T,%.3f,%.2f,%u,%c\n", t, tr.price * 0.25, tr.size, tr.aggressor == Side::Buy ? 'B' : 'S');
-      const Quote q = sim.quote();
-      std::fprintf(out, "Q,%.3f,%.2f,%.2f", t + 0.0005, q.bid * 0.25, q.ask * 0.25);
-      for (auto v : q.bid_size) std::fprintf(out, ",%u", v);
-      for (auto v : q.ask_size) std::fprintf(out, ",%u", v);
-      std::fprintf(out, "\n");
-    }
+    write_sim_ticks(sim, static_cast<std::size_t>(seconds / p.dt), [out](const char* s, std::size_t n) { std::fwrite(s, 1, n, out); });
     std::fclose(out);
     return 0;
   }

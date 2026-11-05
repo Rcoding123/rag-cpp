@@ -374,6 +374,13 @@ discovery stresses): every strategy ≤ 0 in all 11 scenarios; OF8: ensemble
 −3.3 ticks/day (Sharpe −3.1), rule −88; no OF2 rule > 0 by 2 SE. Gate (f)
 holds non-vacuously (EXPERIMENTS.md OF11).
 
+**OF12 (real ES vs the simulator, the user's Sierra data):** with the same
+code on both sides, v3 matches real ES on imbalance → next tick (+0.24 vs
++0.24) and on price-on-delta R², but its L1 queue is ~8× too deep (143 vs
+17 lots) and its mid lags its own flow (corr(1-s delta, next 1 s mid move)
++0.15 vs −0.04 real); real ES also has far more volatility clustering and
+mid flicker. Only 44 min of RTH book exist so far (EXPERIMENTS.md OF12).
+
 **Calibration** (`of_calibrate`): recorded-tick CSV round trip exact;
 in a recovery test (target = informed flow ×0.4) the fit matched
 predictability, R² and clustering but not activity or markout, and
@@ -458,7 +465,11 @@ profiting from their own permanent impact (`ScalpEnv` refuses
    the stale-sweep mechanism is redesigned (A64). 900M and 910M were
    viewed on the discovery market (v2 and an iteration-3 smoke;
    NEXT_SESSION.md §4), so confirm any edge once on 950M+. **Done (OF11, `1a73bd6`): no
-   edge** (OF2/OF9 rules: `of11_baselines.txt`); 950M+ unused. Then **calibrate to the user's ES ticks:** convert their export to the CSV
+   edge** (OF2/OF9 rules: `of11_baselines.txt`); 950M+ unused. **OF12
+   compared v3 with the user's real ES data** (Sierra; EXPERIMENTS.md OF12):
+   fix book depth (L1 ~17 lots, rising with distance) and same-second
+   impact first; record RTH depth and tick-by-tick trades for a few weeks
+   before fitting. Then **calibrate to the user's ES ticks:** convert their export to the CSV
    format, run `of_calibrate facts`, then `fit` with many seeds and long
    windows on their server; add richer targets first (markout curve at
    more horizons, queue depletion/refill rates; MBO if available). Re-run

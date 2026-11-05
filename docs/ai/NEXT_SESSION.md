@@ -175,7 +175,7 @@ return { verdict, done, reviews, run, analysis }
 | 920,000,000+ | stress scenarios (OF6; OF11 on discovery v3 at warm-up 1,050 s) |
 | 930,000,000+ | trading days (OF8; OF11 on discovery v3 at warm-up 1,050 s) |
 | 940,000,000+ | pairing probes (separate streams) |
-| 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it |
+| 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it; OF12 exported sessions 960,012,001–012 for the real-vs-sim comparison |
 | **950,000,000+** | **fresh confirmation: unused; use once per claimed edge, then record it here** |
 
 ## 5. Red flags (stop and diagnose before reporting a win)

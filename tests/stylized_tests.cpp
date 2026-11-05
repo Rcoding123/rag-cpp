@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstdio>
 #include <sstream>
 #include <string>
 
@@ -82,6 +83,50 @@ TEST(StylizedMeter, CsvRoundTripReproducesTheSimulatorsFacts) {
   EXPECT_NEAR(a.ret1m_sd, b.ret1m_sd, 0.1 * a.ret1m_sd + 0.05);
   EXPECT_NEAR(a.sign_ac1, b.sign_ac1, 1e-9);  // same prints in the same order
   EXPECT_GT(a.trades_per_sec, 1.0);
+}
+
+TEST(TickCsv, SimWriterMatchesTheOldExportAndWritesSessionsFromTheOpen) {
+  // write_sim_ticks must give of_calibrate export's bytes as they were
+  // (the former inline fprintf loop, reproduced here with snprintf).
+  auto old_export = [](EsSimulator& sim, std::size_t steps) {
+    std::string s = "# ES simulator ticks: T,time_s,price,size,side / Q,time_s,bid,ask,bid sizes x5,ask sizes x5\n";
+    char b[64];
+    for (std::size_t k = 0; k < steps; ++k) {
+      sim.step();
+      const double t = static_cast<double>(sim.t_ns()) * 1e-9;
+      for (const auto& tr : sim.trades()) {
+        std::snprintf(b, sizeof b, "T,%.3f,%.2f,%u,%c\n", t, tr.price * 0.25, tr.size, tr.aggressor == Side::Buy ? 'B' : 'S');
+        s += b;
+      }
+      const Quote q = sim.quote();
+      std::snprintf(b, sizeof b, "Q,%.3f,%.2f,%.2f", t + 0.0005, q.bid * 0.25, q.ask * 0.25);
+      s += b;
+      for (auto v : q.bid_size) s += "," + std::to_string(v);
+      for (auto v : q.ask_size) s += "," + std::to_string(v);
+      s += "\n";
+    }
+    return s;
+  };
+  auto written = [](EsSimulator& sim, std::size_t steps) {
+    std::string s;
+    write_sim_ticks(sim, steps, [&s](const char* p, std::size_t n) { s.append(p, n); });
+    return s;
+  };
+  EsSimulator a(SimParams{}, 7, 3600), b(SimParams{}, 7, 3600);
+  const std::string old_text = old_export(a, 3000), new_text = written(b, 3000);
+  EXPECT_GT(old_text.size(), 100000u);
+  EXPECT_EQ(old_text, new_text);
+  // The opt-in form: a discovery session from the open (start second 0).
+  EsSimulator d(market_preset("discovery"), 960'000'001, 0);
+  std::istringstream in(written(d, 600));
+  Recorder r;
+  const auto st = replay_tick_csv(in, r, TickCsvOptions{.time_unit = "s"});
+  EXPECT_EQ(st.skipped, 0u);
+  EXPECT_EQ(st.quotes, 600u);
+  EXPECT_GT(st.trades, 100u);
+  ASSERT_FALSE(r.trades.empty());
+  EXPECT_LE(r.trades.front().t_ns, 60'000'000'000);  // times count from the open
+  EXPECT_GT(r.quotes.front().bid_size[0], 0u);
 }
 
 TEST(StylizedMeter, SimulatorFactsAreInARealisticRange) {

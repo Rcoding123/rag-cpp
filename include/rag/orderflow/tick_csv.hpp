@@ -21,6 +21,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
@@ -126,6 +127,32 @@ TickCsvStats replay_tick_csv(const std::string& path, Sink& sink, const TickCsvO
   std::ifstream in(path);
   if (!in) throw std::runtime_error("tick csv: cannot open " + path);
   return replay_tick_csv(in, sink, o);
+}
+
+// Writes `steps` steps of `sim` in this format (examples/of_calibrate.cpp
+// export): a '#' title line, then per step its trades (at the step's end
+// time, prices in index points at 0.25 per tick) and the quote with 5 levels
+// 0.5 ms later; times in seconds since the simulator was built. `write(const
+// char*, std::size_t)` receives the text.
+template <class Write>
+void write_sim_ticks(EsSimulator& sim, std::size_t steps, Write&& write) {
+  char buf[512];  // a Q line is at most ~130 characters
+  auto put = [&](int n) {
+    if (n > 0) write(static_cast<const char*>(buf), static_cast<std::size_t>(n));
+  };
+  put(std::snprintf(buf, sizeof buf, "# ES simulator ticks: T,time_s,price,size,side / Q,time_s,bid,ask,bid sizes x5,ask sizes x5\n"));
+  for (std::size_t s = 0; s < steps; ++s) {
+    sim.step();
+    const double t = static_cast<double>(sim.t_ns()) * 1e-9;
+    for (const auto& tr : sim.trades())
+      put(std::snprintf(buf, sizeof buf, "T,%.3f,%.2f,%u,%c\n", t, tr.price * 0.25, tr.size, tr.aggressor == Side::Buy ? 'B' : 'S'));
+    const Quote q = sim.quote();
+    int n = std::snprintf(buf, sizeof buf, "Q,%.3f,%.2f,%.2f", t + 0.0005, q.bid * 0.25, q.ask * 0.25);
+    for (auto v : q.bid_size) n += std::snprintf(buf + n, sizeof buf - static_cast<std::size_t>(n), ",%u", v);
+    for (auto v : q.ask_size) n += std::snprintf(buf + n, sizeof buf - static_cast<std::size_t>(n), ",%u", v);
+    n += std::snprintf(buf + n, sizeof buf - static_cast<std::size_t>(n), "\n");
+    put(n);
+  }
 }
 
 }  // namespace rag::orderflow
