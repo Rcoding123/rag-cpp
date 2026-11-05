@@ -62,7 +62,17 @@ question with numbers, across seeds, against the exact optimum, and records
 the result even when it's negative (EXPERIMENTS.md). Library defaults
 change only when an experiment shows they should (DECISIONS.md).
 
-## 3. The hand-off pack
+## 3. ES order-flow trading (current focus)
+
+**Goal:** RL agents that trade ES futures from order flow, validated to
+a trading desk's standard before any real money. Two strategies:
+order-flow scalping/momentum (market orders) and tick scalping (limit
+orders, queue position). Develop on a realistic simulator now; calibrate
+to and backtest on the user's ES tick data next; train on the user's
+many-core server. Success criteria, standard of evidence, status and the
+ranked plan: `ORDERFLOW.md`.
+
+## 4. The hand-off pack
 
 **Goal:** another AI, or a person, can take over the project from these
 documents alone.
@@ -97,3 +107,8 @@ documents alone.
 | "Keep experimenting with the RL… keep programming, testing and simulating" | experiments E1–E14 (EXPERIMENTS.md) |
 | "Create documents, layouts etc. along with the RAG engine so I can feed all of it to another AI" | this hand-off pack |
 | "Make the documents: the specs you're using, the libraries, objectives" | SPECS.md, OBJECTIVES.md, TASK_SPECS.md |
+| "I need to run this on Windows too", "make sure it's optimized" | MSVC build, presets (AVX2, AVX-512), `docs/WINDOWS.md`; verified 285/285 on the user's Ryzen 9 9900X |
+| "Aim for a proper trading strategy and validation" | `validation.hpp` (stress suite, sealed seeds), E28 |
+| "ES futures… directional trading… order flow… two agents: scalping/momentum and tick scalping (queue, OFI, order arrival)" | `include/rag/orderflow/`, OF1–OF9, `ORDERFLOW.md` |
+| "Start a web crawler for RL trading papers; make it anonymous" | `tools/research_crawler.py`, `experiments/research_synthesis.md` |
+| "Make the code suitable for my server (and rented GPUs); the next AI should pick up the work" | `of_train` (parallel seeds), parallel calibration, `ORDERFLOW.md` §3 and §7 |

@@ -98,6 +98,21 @@ All should pass.
 .\build\Release\rag_latency.exe 20000 # query latency percentiles (p50 / p99 / p99.9) per search mode
 ```
 
+### Order-flow trading tools on the server
+
+The ES order-flow tools (`docs/ai/ORDERFLOW.md`) build with the presets
+too and use every core:
+
+```powershell
+.\build-avx512\Release\of_train.exe --seeds 12 --episodes 2000 --out nets     # 12 scalping agents in parallel
+.\build-avx512\Release\of_backtest.exe es_ticks.csv --time ns nets\seed1.net  # backtest on recorded ticks
+.\build-avx512\Release\of_calibrate.exe facts es_ticks.csv --time ns          # calibration facts
+1..12 | % { Start-Process -NoNewWindow .\build-avx512\Release\of_tick_train.exe "$_ 2000 0.99 0.5 0.25 0.02 200 100 tick_seed$_.net" }
+```
+
+`of_calibrate fit` needs NLopt (not installed on Windows by default; run
+`facts` there and `fit` under WSL, or install NLopt with vcpkg).
+
 ### Train the best learned policy (`train_ensemble.exe`)
 
 ```powershell

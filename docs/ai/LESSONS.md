@@ -142,3 +142,30 @@ building learning systems in general, not just this task.
     network (τ = 1e-4) beat the network itself on every seed, at the cost
     of one extra copy of the weights; a fast one (1e-3) didn't. It also made
     the final policy usable without champion selection (E24).
+
+## Trading on order flow (OF1–OF9; ORDERFLOW.md)
+
+32. **A simulator that pays every day is wrong, not good.** The scalping
+    agent's annualized Sharpe of ~80 with no losing day measured the
+    simulator's predictability (markouts that keep drifting for 30 s), not
+    a tradable edge. Check the markout curve before believing P&L (OF8, OF9).
+33. **Make naive strategies fail first.** Naive passive quoting winning
+    every episode exposed a too-generous queue (uniform cancellations, no
+    latency competition); naive delta-following winning exposed too much
+    informed flow. Calibrate until naive rules are near breakeven (OF2, OF4).
+34. **Exploration must be able to reach the reward.** Uniform random
+    quoting modes cancelled and rejoined at the back of a 120-lot queue, so
+    the tick agent never got filled and learned not to quote; guiding
+    episodes with a rule fixed the experience, not yet the edge (OF5, OF7).
+35. **Same seed is not the same path.** Once our orders change the book,
+    two policies on one seed see different markets; paired differences are
+    nearly as noisy as unpaired ones, so validation leads are selection
+    noise until confirmed on fresh seeds (OF7 review).
+36. **Summary statistics don't identify mechanisms.** A fit matched
+    predictability with momentum instead of the true scarce informed flow;
+    and less informed trading made the market more predictable (slower
+    price discovery). Calibrate to richer targets (markout curves, queue
+    dynamics) (calibration recovery test).
+37. **Re-run what you commit.** A results table produced by a stale
+    binary (the last sweep step) went into git; regenerate result files
+    from the committed code, in the same command (OF4 correction).

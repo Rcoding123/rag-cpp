@@ -2,6 +2,15 @@
 
 ## Works and is verified
 
+* **ES order-flow trading** (`include/rag/orderflow/`, see `ORDERFLOW.md`):
+  a tick-level ES simulator calibrated to stylized facts, order-flow
+  features, a scalping environment (RL beats every rule, robust to 9
+  stresses, but the simulator is too predictable for the absolute P&L to
+  mean anything), a tick-scalping environment with FIFO queue position
+  (RL matches but doesn't beat the delta-skew rule), a backtester on
+  recorded ticks, calibration tooling, a parallel trainer for many-core
+  servers, and an anonymous research crawler.
+
 * **Platforms:** Linux (GCC 13, Clang 18; seven CI jobs including
   sanitizers and fuzzing) and Windows (Visual Studio 2022 / MSVC, AVX2;
   CI job `msvc-windows`: the AVX2 build's full test suite, demos, latency
@@ -110,6 +119,11 @@
   re-plan schedule fix (A40) and may shift slightly.
 
 ## Next steps (in rough priority order)
+
+0. **ES order-flow trading** (the current focus): the ranked plan is in
+   `ORDERFLOW.md` §7: calibrate the simulator to the user's ES ticks,
+   backtest the agents on real ticks, paired evaluation on the same
+   market path, the tick scalper at 100 ms latency on fresh seeds.
 
 1. A neural `Embedder` (e.g. ONNX Runtime with a MiniLM model, 384 dims to
    match), on a machine that can download models.

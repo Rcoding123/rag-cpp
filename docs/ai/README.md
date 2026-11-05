@@ -28,6 +28,10 @@ python3 tools/make_context_pack.py --with-source   # docs + all headers, tests, 
 10. `DECISIONS.md`: why things are the way they are, with evidence.
 11. `CONVENTIONS.md`: rules to follow when changing code.
 12. `STATUS.md`: limitations and next steps.
+13. `ORDERFLOW.md`: **the ES order-flow trading work** (simulator, two
+    agents, backtester, calibration, results OF1–OF9, ranked plan). Start
+    here to continue the trading work; `../../experiments/research_synthesis.md`
+    maps the literature onto it.
 
 ## Ground rules for an AI working on this code
 

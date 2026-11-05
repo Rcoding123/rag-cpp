@@ -40,6 +40,10 @@ and the conclusion; negative results stay in.
 | E23 | Does a vote across seeds' tables beat one network? | Yes: the median of 8 seeds' tables keeps 97.5% (fresh scenarios: 97.9%, better than every member by 4.4–10.2 points), vs 91.4% for the average seed and 94.1% for the best; 3 members already beat the best seed; at equal compute, 4 × 40k voted (96.7%) beats 1 × 160k (93.5%). |
 | E24 | Does averaging one network's weights help? | Yes, with a slow average: τ = 1e-4 deploys 94.1% (93.0–95.5) at 40k vs 91.5%, better on all 8 seeds (+1.0 to +5.6 points); ~ a 2–3-network vote for one training run. τ = 1e-3 is too fast. |
 | E25 | Do the vote and weight averaging add up? | Yes, with diminishing returns: 8 averaged networks voted reach 97.8% (best model-free result), 3 reach 96.6% (vs 95.4% unaveraged); the gains overlap because both remove per-network noise. |
+| E26 | Where do the learned policies err? | They over-trade: trading too much costs 3.5–11.2% of the optimal gain vs 0.7–5.8% for too little; the vote removes idiosyncratic errors, not the bias. |
+| E27 | Does a lower-quantile vote fix the bias? | No: better on the selection set (98.1 vs 97.5%), not on fresh scenarios (97.8 vs 97.9%) — selection bias. |
+| E28 | Do strategies survive a different market? (stress suite, sealed seeds) | Fixed strategies (DP plan, learned ensemble) only in their assumed market (−173% when the signal flips); the model-based agent re-learned in 50 episodes keeps 97–100% everywhere. |
+| OF1–OF9 | ES order-flow trading | See ORDERFLOW.md §4: RL scalping beats every rule in the simulator (robust to 9 stresses) but the simulator is too predictable to trust absolute P&L; tick-scalping RL matches, not beats, the rule. |
 | E19 | Do gap-increasing targets help? | Advantage learning (k = 0.5) lifts TileQ from 65–69% to 70–75% at 40k, and to 76–80% with coarse tiles: the best tile-coded result, still below the neural learner. |
 
 ---
@@ -1408,3 +1412,50 @@ R² = 0.56; effect of +1 standard deviation of each parameter):
 * **Practical recipe:** train 3–4 networks with `nn_polyak = 1e-4` and
   different seeds, compile each with `ExecutionPolicyTable`, deploy the
   median: 96.6–97.1% for 3–4× one network's training.
+
+
+## E26. Where do the learned execution policies err? (they over-trade)
+
+* **Setup:** each E22/E25 table's own trajectories on the 1,000 held-out
+  scenarios; every decision's one-step regret V*(s) − Q*(s, a) from the
+  exact DP, split by whether the table traded more or less than optimal.
+  Summed along the policy's own path this is exactly its gap to the
+  optimum (performance-difference identity). Probe `experiments/e26_errors.cpp`.
+* **Result:** unaveraged networks agree with the optimum on 60–71% of
+  decisions; trading too much costs 3.5–11.2% of the optimal gain, too
+  little 0.7–5.8%. The 8-network median vote agrees on 80% and loses
+  1.8% + 0.3%: it removes idiosyncratic errors, the over-trading bias
+  remains. Weight averaging also reduces it (averaged: 2.8–5.1% vs
+  1.0–3.1%).
+
+## E27. A lower-quantile vote (negative)
+
+* **Setup:** vote with the q-quantile of the members' actions instead of
+  the median, to counter E26's over-trading. Held-out (77M) and fresh
+  (99M) scenarios. Probe `experiments/e27_quantile.cpp`.
+* **Result:** for unaveraged networks q = 0.375 scored 98.1% vs the
+  median's 97.5% on the selection set, but 97.8% vs 97.9% on fresh
+  scenarios; for averaged networks the median was best on both. The
+  correction was fitted to the reused held-out set: selection bias, which
+  motivated the sealed test seeds of E28.
+
+## E28. Out-of-sample validation on a stress suite
+
+* **Setup:** `validation.hpp`: the nominal market plus 11 one-change
+  markets (impact ×2 / ×0.5, signal ×0.5 / ×1.5 / flipped, persistence 0.9 /
+  0.3, volatility ×2, permanent impact, impact exponent 1.5, fees), each
+  with its own exact optimum; 4,000 sealed episodes (900M+) per scenario,
+  paired against TWAP. Probe `experiments/e28_validation.cpp`, results
+  `e28_results.csv`.
+* **Result:** fixed strategies work only in their assumed market: the
+  nominal DP plan and the E25 ensemble keep 88–100% under moderate changes
+  and lose to TWAP in nearly every episode when the signal flips (−177%,
+  −173%); the model-based agent re-learned in 50 episodes keeps
+  96.8–100.1% everywhere (97.3% flipped). No false alarms from the model
+  check (z between −4.8 and −0.85).
+
+## OF1–OF9. ES order-flow trading
+
+The order-flow series (simulator stylized facts, scalping and
+tick-scalping baselines and RL, stress, daily P&L, efficient market,
+calibration, backtesting) is documented in [ORDERFLOW.md](ORDERFLOW.md) §4.

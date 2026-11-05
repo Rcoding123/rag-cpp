@@ -241,6 +241,23 @@ negative results, is logged in
 * what each design choice measurably did;
 * how the same architecture maps onto LLM agents.
 
+## ES order-flow trading
+
+A tick-level ES futures simulator (`include/rag/orderflow/`), order-flow
+features, two RL environments (directional scalping with market orders;
+passive tick scalping with FIFO queue position), a backtester on recorded
+ticks, simulator calibration tools and a parallel trainer:
+
+```bash
+./build/of_train --seeds 12 --episodes 2000 --out nets/       # one seed per thread
+./build/of_backtest es_ticks.csv --time ns nets/seed1.net     # recorded ticks (CSV)
+./build/of_calibrate facts es_ticks.csv --time ns             # real vs simulated stylized facts
+```
+
+Everything, including results OF1-OF9, the honest status (the simulator
+is still too predictable to trust absolute P&L) and the plan, is in
+[docs/ai/ORDERFLOW.md](docs/ai/ORDERFLOW.md).
+
 ## Batched queries
 
 ```cpp

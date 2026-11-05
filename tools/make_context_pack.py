@@ -34,6 +34,8 @@ DOCS = [
     "docs/ai/DECISIONS.md",
     "docs/ai/CONVENTIONS.md",
     "docs/ai/STATUS.md",
+    "docs/ai/ORDERFLOW.md",
+    "experiments/research_synthesis.md",
     "README.md",
 ]
 SOURCE_GLOBS = [

@@ -30,6 +30,9 @@ docs/ai/STATUS.md
 docs/ai/TASK_SPECS.md
 examples/agent_demo.cpp
 examples/demo.cpp
+examples/of_backtest.cpp
+examples/of_calibrate.cpp
+examples/of_train.cpp
 examples/rag_pdf.cpp
 examples/train_ensemble.cpp
 examples/tune_agent.cpp
@@ -85,6 +88,10 @@ experiments/e23_agg.py
 experiments/e23_fresh.cpp
 experiments/e23_vote.cpp
 experiments/e24_polyak.cpp
+experiments/e26_errors.cpp
+experiments/e27_quantile.cpp
+experiments/e28_results.csv
+experiments/e28_validation.cpp
 experiments/e7_cost.cpp
 experiments/e7_hybrid.cpp
 experiments/e7_probe.cpp
@@ -106,11 +113,25 @@ experiments/mb_probe.cpp
 experiments/mb_seeds.cpp
 experiments/mis_probe.cpp
 experiments/mlp_check.cpp
+experiments/of1_stylized_facts.cpp
+experiments/of2_baselines.cpp
+experiments/of2_results.txt
+experiments/of3_rl.cpp
+experiments/of4_results.txt
+experiments/of4_tick_baselines.cpp
+experiments/of5_results.csv
+experiments/of5_tick_rl.cpp
+experiments/of6_results.csv
+experiments/of6_scalp_stress.cpp
+experiments/of7_tick_guided.cpp
+experiments/of8_scalp_days.cpp
+experiments/of9_efficient_baselines.txt
 experiments/pdf_probe.cpp
 experiments/persist_timing.cpp
 experiments/polyak.cpp
 experiments/probe.cpp
 experiments/raw_check.cpp
+experiments/research_synthesis.md
 experiments/risk_probe.cpp
 experiments/surprise_probe.cpp
 experiments/sweep.cpp
@@ -136,6 +157,7 @@ include/rag/agent/policy_table.hpp
 include/rag/agent/rng.hpp
 include/rag/agent/trainer.hpp
 include/rag/agent/tuning.hpp
+include/rag/agent/validation.hpp
 include/rag/agent/variance_reduction.hpp
 include/rag/arena.hpp
 include/rag/bm25.hpp
@@ -147,6 +169,13 @@ include/rag/epoch.hpp
 include/rag/fusion.hpp
 include/rag/io.hpp
 include/rag/ivf_index.hpp
+include/rag/orderflow/features.hpp
+include/rag/orderflow/replay_env.hpp
+include/rag/orderflow/scalp_env.hpp
+include/rag/orderflow/simulator.hpp
+include/rag/orderflow/stylized.hpp
+include/rag/orderflow/tick_csv.hpp
+include/rag/orderflow/tick_env.hpp
 include/rag/pdf.hpp
 include/rag/prompt.hpp
 include/rag/simd.hpp
@@ -170,6 +199,7 @@ tests/market_making_tests.cpp
 tests/mlp_tests.cpp
 tests/model_based_tests.cpp
 tests/optional_libs_tests.cpp
+tests/orderflow_tests.cpp
 tests/pdf_tests.cpp
 tests/pdf_writer.hpp
 tests/pid.hpp
@@ -178,10 +208,13 @@ tests/rag_property_tests.cpp
 tests/rag_tests.cpp
 tests/reference_tests.cpp
 tests/stress.cpp
+tests/stylized_tests.cpp
 tests/synthetic.hpp
 tests/test_util.hpp
 tests/text_clean_tests.cpp
 tools/make_context_pack.py
+tools/research_crawler.py
+tools/test_research_crawler.py
 ```
 
 ## Contents
@@ -202,12 +235,14 @@ tools/make_context_pack.py
 14. docs/ai/DECISIONS.md
 15. docs/ai/CONVENTIONS.md
 16. docs/ai/STATUS.md
-17. README.md
+17. docs/ai/ORDERFLOW.md
+18. experiments/research_synthesis.md
+19. README.md
 
 
 ---
 
-## FILE: llms.txt  (2,105 bytes)
+## FILE: llms.txt  (2,376 bytes)
 
 ```cmake
 # rag-cpp
@@ -223,10 +258,12 @@ tools/make_context_pack.py
 - [API cheat sheet](docs/ai/API.md): compiled examples for the engine, PDFs, persistence, batching, agent
 - [RAG engine internals](docs/ai/RAG_ENGINE.md): data flow, invariants, concurrency, file format, performance
 - [Agent architecture](docs/agent.md): environment, encoders, learners, supervision, lessons
+- [ES order-flow trading](docs/ai/ORDERFLOW.md): simulator, scalping and tick-scalping agents, backtester, calibration, results OF1-OF9, plan
+- [Research synthesis](experiments/research_synthesis.md): what 595 crawled papers say about the order-flow work, ranked changes
 - [Windows build](docs/WINDOWS.md): Visual Studio 2022 / MSVC build, test and run steps, optimization flags
 - [Lessons](docs/ai/LESSONS.md): 27 cross-cutting lessons from the experiments, each with its evidence
 - [Research notes](docs/ai/RESEARCH.md): literature review (noisy-target RL, execution, market making) with ranked next experiments
-- [Experiment log](docs/ai/EXPERIMENTS.md): RL experiments E0-E25 with results, including failures (summary table at the top)
+- [Experiment log](docs/ai/EXPERIMENTS.md): RL experiments E0-E28 with results, including failures (summary table at the top)
 - [Decision log](docs/ai/DECISIONS.md): design decisions with evidence
 - [Conventions](docs/ai/CONVENTIONS.md): coding, testing and verification rules
 - [Status](docs/ai/STATUS.md): limitations and next steps
@@ -240,7 +277,7 @@ tools/make_context_pack.py
 
 ---
 
-## FILE: docs/ai/README.md  (2,059 bytes)
+## FILE: docs/ai/README.md  (2,318 bytes)
 
 # Hand-off pack for an AI assistant
 
@@ -272,6 +309,10 @@ python3 tools/make_context_pack.py --with-source   # docs + all headers, tests, 
 10. `DECISIONS.md`: why things are the way they are, with evidence.
 11. `CONVENTIONS.md`: rules to follow when changing code.
 12. `STATUS.md`: limitations and next steps.
+13. `ORDERFLOW.md`: **the ES order-flow trading work** (simulator, two
+    agents, backtester, calibration, results OF1–OF9, ranked plan). Start
+    here to continue the trading work; `../../experiments/research_synthesis.md`
+    maps the literature onto it.
 
 ## Ground rules for an AI working on this code
 
@@ -289,7 +330,7 @@ python3 tools/make_context_pack.py --with-source   # docs + all headers, tests, 
 
 ---
 
-## FILE: docs/ai/OBJECTIVES.md  (5,199 bytes)
+## FILE: docs/ai/OBJECTIVES.md  (6,464 bytes)
 
 # Objectives
 
@@ -355,7 +396,17 @@ question with numbers, across seeds, against the exact optimum, and records
 the result even when it's negative (EXPERIMENTS.md). Library defaults
 change only when an experiment shows they should (DECISIONS.md).
 
-## 3. The hand-off pack
+## 3. ES order-flow trading (current focus)
+
+**Goal:** RL agents that trade ES futures from order flow, validated to
+a trading desk's standard before any real money. Two strategies:
+order-flow scalping/momentum (market orders) and tick scalping (limit
+orders, queue position). Develop on a realistic simulator now; calibrate
+to and backtest on the user's ES tick data next; train on the user's
+many-core server. Success criteria, standard of evidence, status and the
+ranked plan: `ORDERFLOW.md`.
+
+## 4. The hand-off pack
 
 **Goal:** another AI, or a person, can take over the project from these
 documents alone.
@@ -390,12 +441,17 @@ documents alone.
 | "Keep experimenting with the RL… keep programming, testing and simulating" | experiments E1–E14 (EXPERIMENTS.md) |
 | "Create documents, layouts etc. along with the RAG engine so I can feed all of it to another AI" | this hand-off pack |
 | "Make the documents: the specs you're using, the libraries, objectives" | SPECS.md, OBJECTIVES.md, TASK_SPECS.md |
+| "I need to run this on Windows too", "make sure it's optimized" | MSVC build, presets (AVX2, AVX-512), `docs/WINDOWS.md`; verified 285/285 on the user's Ryzen 9 9900X |
+| "Aim for a proper trading strategy and validation" | `validation.hpp` (stress suite, sealed seeds), E28 |
+| "ES futures… directional trading… order flow… two agents: scalping/momentum and tick scalping (queue, OFI, order arrival)" | `include/rag/orderflow/`, OF1–OF9, `ORDERFLOW.md` |
+| "Start a web crawler for RL trading papers; make it anonymous" | `tools/research_crawler.py`, `experiments/research_synthesis.md` |
+| "Make the code suitable for my server (and rented GPUs); the next AI should pick up the work" | `of_train` (parallel seeds), parallel calibration, `ORDERFLOW.md` §3 and §7 |
 
 
 
 ---
 
-## FILE: docs/ai/PROJECT_MAP.md  (9,751 bytes)
+## FILE: docs/ai/PROJECT_MAP.md  (11,057 bytes)
 
 # Project map
 
@@ -442,6 +498,15 @@ rag-cpp/
 │           ├── learners.hpp     TileQ, ReplayBuffer, EpisodicMemory
 │           ├── mlp.hpp          from-scratch MLP: backprop, Adam, SGD (for NeuralQ)
 │           ├── policy_table.hpp compile a policy into a lookup table; save/load; median-vote ensembles (E22, E23)
+│           ├── validation.hpp   stress suite, sealed test seeds, paired trading metrics (E28)
+│       └── orderflow/           ES order-flow trading (ORDERFLOW.md)
+│           ├── simulator.hpp    EsSimulator: tick-level ES book, takers, meta-orders, fading, icebergs, FIFO own orders
+│           ├── features.hpp     FeatureBuilder: 13 order-flow features from any tick stream
+│           ├── scalp_env.hpp    ScalpEnv: directional scalping with market orders
+│           ├── tick_env.hpp     TickScalpEnv: passive tick scalping with queue position
+│           ├── tick_csv.hpp     recorded ticks from CSV, bucketed
+│           ├── replay_env.hpp   TickTape + ReplayScalpEnv: backtests on recorded ticks
+│           ├── stylized.hpp     stylized facts of a tick stream (calibration)
 │           ├── agent.hpp        Agent<Env>: TileQ / Episodic / ActorCritic / NeuralQ, n-step, distill, snapshots
 │           ├── evaluate.hpp     evaluate / compare on common random numbers (EvalStats)
 │           ├── drift.hpp        DriftDetector: one-sided CUSUM on surprise (DriftParams)
@@ -479,6 +544,9 @@ rag-cpp/
 │   ├── rag_pdf.cpp              CLI: index PDFs, ask questions with page citations
 │   ├── tune_agent.cpp           (NLopt + Eigen) hyperparameter search, validation, sensitivity
 │   ├── train_ensemble.cpp       the recommended policy (E25, A48): N averaged networks in parallel, tables, median vote
+│   ├── of_train.cpp             order-flow scalping agents trained in parallel (one seed per thread)
+│   ├── of_backtest.cpp          walk-forward backtest of scalping strategies on recorded ticks
+│   ├── of_calibrate.cpp         simulator vs recorded ticks: facts, fit (NLopt), export
 │   └── agent_demo.cpp           the self-learning agent end to end (model-free, drift, model-based + model check)
 ├── docs/
 │   ├── agent.md                 the agent's architecture, with every measured lesson
@@ -497,8 +565,10 @@ rag-cpp/
 │       ├── CONVENTIONS.md       coding, testing and verification rules
 │       └── STATUS.md            what works, limitations, next steps
 ├── tools/make_context_pack.py   bundles docs (and optionally sources) into one file for an AI
+├── tools/research_crawler.py    anonymous, polite crawler for RL trading research -> research_corpus/ (gitignored)
 ├── handoff/                    generated bundles to paste into another AI (docs ~58k tokens, full ~240k)
-├── experiments/                 the probe programs behind EXPERIMENTS.md (snapshots; not built)
+├── experiments/                 the probe programs behind EXPERIMENTS.md and OF1-OF9 (snapshots; only of7 is built,
+│                                as of_tick_train), their result files, and research_synthesis.md
 ├── llms.txt                     index of this pack for language models
 └── .github/workflows/ci.yml     8 CI jobs
 ```
@@ -706,7 +776,7 @@ count.
 
 ---
 
-## FILE: docs/ai/API.md  (16,459 bytes)
+## FILE: docs/ai/API.md  (17,260 bytes)
 
 # API cheat sheet
 
@@ -1026,6 +1096,20 @@ const auto voted = ExecutionPolicyTable::median({table, loaded, loaded});  // ce
 
 The table holds horizon × (lots + 1) × bins one-byte actions (129 KB at the
 defaults and 64 bins). Signals beyond the range use the edge bins (E22, E23).
+
+## 14. ES order-flow trading (summary; details in ORDERFLOW.md)
+
+```cpp
+#include "rag/orderflow/scalp_env.hpp"   // EsSimulator, FeatureBuilder, ScalpEnv
+#include "rag/orderflow/replay_env.hpp"  // TickTape, ReplayScalpEnv
+using namespace rag::orderflow;
+EsSimulator sim(SimParams{}, /*seed=*/1);        // or efficient_market()
+sim.step();                                       // 100 ms: sim.trades(), sim.quote()
+const auto id = sim.submit_limit(Side::Buy, sim.bid(), 1);  // FIFO queue position: sim.resting()
+ScalpEnv env;                                     // an Environment for rag::agent learners
+auto tape = std::make_shared<const TickTape>(TickTape::from_csv("es_ticks.csv", {.time_unit = "ns"}));
+ReplayScalpEnv replay(tape);                      // same observations, recorded ticks
+```
 
 A new environment only needs to satisfy the `Environment` concept: an
 `Observation` type, `kNumActions`, `kStateDims`, `kLo`/`kHi`, and
@@ -1653,7 +1737,7 @@ The hard problems are the same in both:
 
 ---
 
-## FILE: docs/WINDOWS.md  (9,645 bytes)
+## FILE: docs/WINDOWS.md  (10,395 bytes)
 
 # Building and running on Windows
 
@@ -1754,6 +1838,21 @@ All should pass.
 .\build\Release\agent_demo.exe        # the self-learning agent: trains, deploys, adapts to a regime change
 .\build\Release\rag_latency.exe 20000 # query latency percentiles (p50 / p99 / p99.9) per search mode
 ```
+
+### Order-flow trading tools on the server
+
+The ES order-flow tools (`docs/ai/ORDERFLOW.md`) build with the presets
+too and use every core:
+
+```powershell
+.\build-avx512\Release\of_train.exe --seeds 12 --episodes 2000 --out nets     # 12 scalping agents in parallel
+.\build-avx512\Release\of_backtest.exe es_ticks.csv --time ns nets\seed1.net  # backtest on recorded ticks
+.\build-avx512\Release\of_calibrate.exe facts es_ticks.csv --time ns          # calibration facts
+1..12 | % { Start-Process -NoNewWindow .\build-avx512\Release\of_tick_train.exe "$_ 2000 0.99 0.5 0.25 0.02 200 100 tick_seed$_.net" }
+```
+
+`of_calibrate fit` needs NLopt (not installed on Windows by default; run
+`facts` there and `fit` under WSL, or install NLopt with vcpkg).
 
 ### Train the best learned policy (`train_ensemble.exe`)
 
@@ -2063,7 +2162,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (8,286 bytes)
+## FILE: docs/ai/LESSONS.md  (10,032 bytes)
 
 # Lessons, distilled
 
@@ -2209,6 +2308,33 @@ building learning systems in general, not just this task.
     network (τ = 1e-4) beat the network itself on every seed, at the cost
     of one extra copy of the weights; a fast one (1e-3) didn't. It also made
     the final policy usable without champion selection (E24).
+
+## Trading on order flow (OF1–OF9; ORDERFLOW.md)
+
+32. **A simulator that pays every day is wrong, not good.** The scalping
+    agent's annualized Sharpe of ~80 with no losing day measured the
+    simulator's predictability (markouts that keep drifting for 30 s), not
+    a tradable edge. Check the markout curve before believing P&L (OF8, OF9).
+33. **Make naive strategies fail first.** Naive passive quoting winning
+    every episode exposed a too-generous queue (uniform cancellations, no
+    latency competition); naive delta-following winning exposed too much
+    informed flow. Calibrate until naive rules are near breakeven (OF2, OF4).
+34. **Exploration must be able to reach the reward.** Uniform random
+    quoting modes cancelled and rejoined at the back of a 120-lot queue, so
+    the tick agent never got filled and learned not to quote; guiding
+    episodes with a rule fixed the experience, not yet the edge (OF5, OF7).
+35. **Same seed is not the same path.** Once our orders change the book,
+    two policies on one seed see different markets; paired differences are
+    nearly as noisy as unpaired ones, so validation leads are selection
+    noise until confirmed on fresh seeds (OF7 review).
+36. **Summary statistics don't identify mechanisms.** A fit matched
+    predictability with momentum instead of the true scarce informed flow;
+    and less informed trading made the market more predictable (slower
+    price discovery). Calibrate to richer targets (markout curves, queue
+    dynamics) (calibration recovery test).
+37. **Re-run what you commit.** A results table produced by a stale
+    binary (the last sweep step) went into git; regenerate result files
+    from the committed code, in the same command (OF4 correction).
 
 
 
@@ -2621,7 +2747,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (80,575 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (83,864 bytes)
 
 # RL experiment log
 
@@ -2665,6 +2791,10 @@ and the conclusion; negative results stay in.
 | E23 | Does a vote across seeds' tables beat one network? | Yes: the median of 8 seeds' tables keeps 97.5% (fresh scenarios: 97.9%, better than every member by 4.4–10.2 points), vs 91.4% for the average seed and 94.1% for the best; 3 members already beat the best seed; at equal compute, 4 × 40k voted (96.7%) beats 1 × 160k (93.5%). |
 | E24 | Does averaging one network's weights help? | Yes, with a slow average: τ = 1e-4 deploys 94.1% (93.0–95.5) at 40k vs 91.5%, better on all 8 seeds (+1.0 to +5.6 points); ~ a 2–3-network vote for one training run. τ = 1e-3 is too fast. |
 | E25 | Do the vote and weight averaging add up? | Yes, with diminishing returns: 8 averaged networks voted reach 97.8% (best model-free result), 3 reach 96.6% (vs 95.4% unaveraged); the gains overlap because both remove per-network noise. |
+| E26 | Where do the learned policies err? | They over-trade: trading too much costs 3.5–11.2% of the optimal gain vs 0.7–5.8% for too little; the vote removes idiosyncratic errors, not the bias. |
+| E27 | Does a lower-quantile vote fix the bias? | No: better on the selection set (98.1 vs 97.5%), not on fresh scenarios (97.8 vs 97.9%) — selection bias. |
+| E28 | Do strategies survive a different market? (stress suite, sealed seeds) | Fixed strategies (DP plan, learned ensemble) only in their assumed market (−173% when the signal flips); the model-based agent re-learned in 50 episodes keeps 97–100% everywhere. |
+| OF1–OF9 | ES order-flow trading | See ORDERFLOW.md §4: RL scalping beats every rule in the simulator (robust to 9 stresses) but the simulator is too predictable to trust absolute P&L; tick-scalping RL matches, not beats, the rule. |
 | E19 | Do gap-increasing targets help? | Advantage learning (k = 0.5) lifts TileQ from 65–69% to 70–75% at 40k, and to 76–80% with coarse tiles: the best tile-coded result, still below the neural learner. |
 
 ---
@@ -4035,10 +4165,57 @@ R² = 0.56; effect of +1 standard deviation of each parameter):
   median: 96.6–97.1% for 3–4× one network's training.
 
 
+## E26. Where do the learned execution policies err? (they over-trade)
+
+* **Setup:** each E22/E25 table's own trajectories on the 1,000 held-out
+  scenarios; every decision's one-step regret V*(s) − Q*(s, a) from the
+  exact DP, split by whether the table traded more or less than optimal.
+  Summed along the policy's own path this is exactly its gap to the
+  optimum (performance-difference identity). Probe `experiments/e26_errors.cpp`.
+* **Result:** unaveraged networks agree with the optimum on 60–71% of
+  decisions; trading too much costs 3.5–11.2% of the optimal gain, too
+  little 0.7–5.8%. The 8-network median vote agrees on 80% and loses
+  1.8% + 0.3%: it removes idiosyncratic errors, the over-trading bias
+  remains. Weight averaging also reduces it (averaged: 2.8–5.1% vs
+  1.0–3.1%).
+
+## E27. A lower-quantile vote (negative)
+
+* **Setup:** vote with the q-quantile of the members' actions instead of
+  the median, to counter E26's over-trading. Held-out (77M) and fresh
+  (99M) scenarios. Probe `experiments/e27_quantile.cpp`.
+* **Result:** for unaveraged networks q = 0.375 scored 98.1% vs the
+  median's 97.5% on the selection set, but 97.8% vs 97.9% on fresh
+  scenarios; for averaged networks the median was best on both. The
+  correction was fitted to the reused held-out set: selection bias, which
+  motivated the sealed test seeds of E28.
+
+## E28. Out-of-sample validation on a stress suite
+
+* **Setup:** `validation.hpp`: the nominal market plus 11 one-change
+  markets (impact ×2 / ×0.5, signal ×0.5 / ×1.5 / flipped, persistence 0.9 /
+  0.3, volatility ×2, permanent impact, impact exponent 1.5, fees), each
+  with its own exact optimum; 4,000 sealed episodes (900M+) per scenario,
+  paired against TWAP. Probe `experiments/e28_validation.cpp`, results
+  `e28_results.csv`.
+* **Result:** fixed strategies work only in their assumed market: the
+  nominal DP plan and the E25 ensemble keep 88–100% under moderate changes
+  and lose to TWAP in nearly every episode when the signal flips (−177%,
+  −173%); the model-based agent re-learned in 50 episodes keeps
+  96.8–100.1% everywhere (97.3% flipped). No false alarms from the model
+  check (z between −4.8 and −0.85).
+
+## OF1–OF9. ES order-flow trading
+
+The order-flow series (simulator stylized facts, scalping and
+tick-scalping baselines and RL, stress, daily P&L, efficient market,
+calibration, backtesting) is documented in [ORDERFLOW.md](ORDERFLOW.md) §4.
+
+
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (18,081 bytes)
+## FILE: docs/ai/DECISIONS.md  (19,966 bytes)
 
 # Decision log
 
@@ -4131,6 +4308,13 @@ the code looks the way it does.
 | A46 | `ExecutionPolicyTable` checks its grid: the cell count must not overflow or exceed `vector::max_size()`, the loops use 64-bit counters, and the bin width must be a normal double, in the constructor and in `load()` | Bugs found by the review agent: a huge grid wrapped the size to 0 and wrote past the table; `lots = UINT32_MAX` looped forever; a subnormal width (1e-150 × 1e-160) sent every bin centre to the last bin, and `load()` accepted such files. Regression tests in `policy_table_tests.cpp`; `fuzz_policy_table` in CI found the last one unaided. |
 | A47 | `nn_polyak` (weight averaging for NeuralQ) is available, default 0; recommended 1e-4 | Deployed 94.1% vs 91.5% at 40k, better on 8/8 seeds, +6.2 points at 20k; training unchanged, one extra copy of the weights. Opt-in like A43, so other tests keep their behaviour (E24). |
 | A48 | Recommended deployment for a learned execution policy: 3–4 NeuralQ networks (`double_q`, `nn_polyak = 1e-4`, different seeds), each compiled to an `ExecutionPolicyTable`, combined with `median()` | 96.6–97.1% of the optimum (8 networks: 97.8%) at 3 ns per decision; weight averaging and voting add up with diminishing returns (E25). |
+| A49 | ES order-flow simulator: mechanisms (meta-orders, quote fading, icebergs, activity clustering), not curve fitting; capped fading and mean-zero activity excitation | Uncapped fading and raw-move excitation are supercritical (the book blew up at 6,000 trades/s); mechanisms reproduce stylized facts and make order flow predictive for the reasons real markets do (OF1). |
+| A50 | Queue model: cancellations biased to the back (power 3), ~120 faster lots join ahead of a 100 ms order | Uniform cancellations let naive two-sided quoting win every episode (+20.7 ticks / 5 min); with the defaults it is breakeven before fees and loses after, the stylized fact for slow 1-lot participants (OF4). |
+| A51 | The same `FeatureBuilder` for simulated and recorded ticks, self-normalized by running RMS | Simulator-trained agents run unchanged on recorded data (`ReplayScalpEnv`); backtest Sharpe on a simulated day replayed from CSV matches the in-simulator value (0.74/0.70 vs 0.76/0.77). |
+| A52 | `maker_info` (informed makers) is opt-in; `efficient_market()` preset | Default results stay reproducible; the preset removes 30 s delta predictability (corr -0.02) and flattens the markout curve, the regime real ES is closer to (OF9). |
+| A53 | NeuralQ allocates no tile tables | They were unused but (bins+1)^Dims: 3.8 GB per agent with two snapshots at 21 inputs; OOM-killed training (2 MB now). |
+| A54 | Tick scalper trained off-policy from rule-guided episodes; deployed greedy or rule-anchored | Plain exploration never gets filled (0.1 fills/episode); guided training quotes; anchored deployment matches the rule, greedy loses (OF7). |
+| A55 | Train many seeds in parallel threads (`of_train`, `of_calibrate --seeds`), not on GPUs | The networks are 2 x 64 units: per-update work is microseconds, so cores, not GPUs, are the bottleneck; results don't depend on the thread count. |
 
 
 
@@ -4217,11 +4401,20 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (7,237 bytes)
+## FILE: docs/ai/STATUS.md  (8,061 bytes)
 
 # Status, limitations and next steps
 
 ## Works and is verified
+
+* **ES order-flow trading** (`include/rag/orderflow/`, see `ORDERFLOW.md`):
+  a tick-level ES simulator calibrated to stylized facts, order-flow
+  features, a scalping environment (RL beats every rule, robust to 9
+  stresses, but the simulator is too predictable for the absolute P&L to
+  mean anything), a tick-scalping environment with FIFO queue position
+  (RL matches but doesn't beat the delta-skew rule), a backtester on
+  recorded ticks, calibration tooling, a parallel trainer for many-core
+  servers, and an anonymous research crawler.
 
 * **Platforms:** Linux (GCC 13, Clang 18; seven CI jobs including
   sanitizers and fuzzing) and Windows (Visual Studio 2022 / MSVC, AVX2;
@@ -4332,6 +4525,11 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ## Next steps (in rough priority order)
 
+0. **ES order-flow trading** (the current focus): the ranked plan is in
+   `ORDERFLOW.md` §7: calibrate the simulator to the user's ES ticks,
+   backtest the agents on real ticks, paired evaluation on the same
+   market path, the tick scalper at 100 ms latency on fresh seeds.
+
 1. A neural `Embedder` (e.g. ONNX Runtime with a MiniLM model, 384 dims to
    match), on a machine that can download models.
 2. Incremental BM25 segments with background merging.
@@ -4351,7 +4549,583 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: README.md  (20,697 bytes)
+## FILE: docs/ai/ORDERFLOW.md  (13,589 bytes)
+
+# ES order-flow trading: simulator, agents, validation, plan
+
+The order-flow trading work, in one place: what it is for, how it is
+built, how to run it (Linux and the user's Windows server), every result
+with its caveats, and what to do next. Experiment numbers (OF1–OF9) refer
+to probes in `experiments/`; detailed numbers for each are in the probe's
+results file and summarized here.
+
+## 1. Objectives (from the user)
+
+- **Market:** ES (E-mini S&P 500) futures. 1 tick = 0.25 index points =
+  $12.50 per contract.
+- **Two strategies, two agents:**
+  1. **Order-flow scalping / momentum** (directional, market orders,
+     seconds to minutes): decide from delta, volume, order-flow imbalance,
+     absorption and market structure.
+  2. **Tick scalping** (passive, limit orders): earn the spread with queue
+     position, order-flow imbalance and order-arrival information, while
+     avoiding adverse selection.
+- **Data:** the user has ES tick data on their server and will feed real
+  order flow later. Until then everything runs on the simulator, built so
+  the same feature and strategy code runs on recorded ticks unchanged.
+- **Hardware:** the user's server (AMD Ryzen 9 9900X, 12 cores / 24
+  threads, AVX-512, 128 GB, Windows Server 2025) does the long training;
+  GPUs can be rented. Tools train many seeds in parallel threads.
+- **Standard of evidence:** sealed test seeds, paired comparisons with
+  rules, stress scenarios, daily P&L / drawdown / Sharpe, and, before any
+  edge is believed, calibration to and backtests on real ES ticks.
+
+## 2. Architecture
+
+```
+            ┌──────────────── tick stream: Trade{price, size, aggressor}, Quote{bid, ask, 5 levels} ───────────────┐
+ simulator.hpp (EsSimulator)                                             tick_csv.hpp (recorded ticks, CSV)
+            │                                                                          │
+            └──────────────► features.hpp (FeatureBuilder: 13 order-flow features) ◄───┘
+                                   │                          │
+                 scalp_env.hpp (ScalpEnv)        replay_env.hpp (ReplayScalpEnv)   tick_env.hpp (TickScalpEnv)
+                 market orders, simulator        market orders, recorded ticks      limit orders + FIFO queue
+                                   │                          │                          │
+                     rag::agent learners (NeuralQ + Double DQN + weight averaging), Trainer, champion selection
+                                   │
+     tools: of_train (parallel seeds)  of_backtest (walk-forward on ticks)  of_calibrate (facts, fit)  probes OF1–OF9
+```
+
+| File | What it is |
+|---|---|
+| `include/rag/orderflow/simulator.hpp` | `EsSimulator`: L2 book (16 levels/side, 5 exposed), 100 ms steps; noise takers, informed and uninformed meta-orders (power-law sizes, child orders), momentum takers, makers with capped quote fading, optional informed makers (`maker_info`), icebergs (hidden reserve: absorption); activity log-OU + intraday U-shape + mean-zero excitation; fair value with activity-scaled volatility and jumps. Strategy orders: `market_order`, `submit_limit`/`cancel` with FIFO queue position (cancellations biased to the back, faster participants joining ahead). `efficient_market()` preset. |
+| `include/rag/orderflow/features.hpp` | `FeatureBuilder`: delta 5/30/120 s, OFI 5/30 s, relative volume, L1 and L1-5 imbalance, returns 5/30/120 s, VWAP distance, absorption (volume traded at a holding best level beyond the size displayed). Running window sums; self-normalized by a running RMS (works on any market without hand scales). |
+| `include/rag/orderflow/scalp_env.hpp` | `ScalpEnv`: target position short/flat/long every 1 s, market orders with 100 ms latency, real fills, $1.50/side fees, reward = mark-to-market change net of fees, ends flat, fresh market and random time of day per episode (10 min + 150 s warm-up). |
+| `include/rag/orderflow/tick_env.hpp` | `TickScalpEnv`: quote none/bid/ask/both or flatten every 0.5 s; 1-lot at the touch, rejoining at the back when the price moves; inventory ±1; FIFO fills; queue position in the observation; 5-min episodes. |
+| `include/rag/orderflow/tick_csv.hpp` | `replay_tick_csv`: recorded ticks (`T,time,price,size,B|S` / `Q,time,bid,ask[,5+5 sizes]`) replayed in buckets into any `add_trade`/`end_bucket` sink. |
+| `include/rag/orderflow/replay_env.hpp` | `TickTape` + `ReplayScalpEnv`: the scalping environment on recorded ticks (same observations, so simulator-trained agents run unchanged); fills at the recorded touch walking recorded depth; `seek(k)` for walk-forward windows. |
+| `include/rag/orderflow/stylized.hpp` | `StylizedMeter`/`simulate_facts`: the same stylized facts for simulated and recorded ticks (activity, spread, L1, 1-min sd/kurtosis/autocorrelations, trade-sign memory, price-on-flow R², 30 s delta predictability, markouts at 1/5/30 s, mid changes per minute). |
+| `examples/of_train.cpp` | Parallel training of scalping agents (one seed per thread), sealed scoring, mean-Q ensemble. |
+| `examples/of_backtest.cpp` | Walk-forward backtest of flat, the delta rule and saved agents on a tick CSV. |
+| `examples/of_calibrate.cpp` | `sim`, `facts <csv>`, `export <csv>`, `fit <csv>` (NLopt; seeds averaged in parallel threads). |
+| `experiments/of*.cpp` | Probes OF1–OF9 (below), results files next to them. |
+| `experiments/research_synthesis.md` | Literature synthesis from the research crawl, with a ranked change list. |
+| `tools/research_crawler.py` | Anonymous, polite crawler (arXiv, OpenAlex, Semantic Scholar, Hacker News) → `research_corpus/` (gitignored) indexable with `rag_pdf`. |
+
+Tests: `tests/orderflow_tests.cpp` (book invariants, determinism, FIFO
+queue, environments) and `tests/stylized_tests.cpp` (CSV reader, facts
+round trip, replay fills, NeuralQ memory).
+
+## 3. How to run
+
+Linux (from the repository root, after `cmake -S . -B build && cmake --build build -j`):
+
+```bash
+./build/of_train --seeds 12 --episodes 2000 --market default --out nets/   # parallel training
+./build/of_backtest es_ticks.csv --time ns nets/seed1.net nets/seed2.net   # recorded ticks
+./build/of_calibrate facts es_ticks.csv --time ns                           # real vs simulated facts
+./build/of_calibrate fit es_ticks.csv --time ns --seeds 12 --seconds 21600 --evals 300
+./build/of_calibrate export sample.csv 3600                                 # example of the CSV format
+```
+
+Windows server (Developer PowerShell, AVX-512 build; see `docs/WINDOWS.md`):
+the same tools are in `build-avx512\Release\` (`of_train.exe`, ...). The
+tick-scalping trainer (OF7) is the target `of_tick_train`; run one process
+per seed in parallel, e.g.
+`1..12 | % { Start-Process -NoNewWindow .\build-avx512\Release\of_tick_train.exe "$_ 2000 0.99 0.5 0.25 0.02 200 100 tick_seed$_.net" }`
+(Linux: `./build/of_tick_train SEED 2000 0.99 0.5 0.25 0.02 200 100 out.net`).
+
+Hardware notes: the networks are small (2 × 64 units); a GPU does not
+help at this size (per-update work is microseconds). Scale with cores:
+one seed per thread (`of_train`), seeds averaged in parallel
+(`of_calibrate --seeds`). GPUs pay off only with much larger models
+(e.g. convolutional/recurrent models over raw book sequences), which
+would need a GPU framework fed by this simulator: not built yet.
+
+## 4. Results (simulator unless stated; sealed test seeds)
+
+Seed blocks: training = trainer streams seeded by the run seed; validation
+= 700M+i; sealed tests: scalping 900M+i (OF2, OF3, OF9), tick scalping
+910M+i (OF4, OF5, OF7), stress 920M+i (OF6), days 930M+i (OF8).
+
+**OF1 — stylized facts** (`of1_stylized_facts.cpp`, 3 × 6.5 h): ~20
+trades/s, 3.8 lots/trade, ~4,500 contracts/min, spread 1 tick 97%,
+1-min sd 3.4–4.4 ticks, excess kurtosis 5–10, |r| autocorrelation 0.15–0.3,
+trade-sign autocorrelation 0.22 → 0.16 at lag 100, R²(10 s Δmid ~ delta)
+≈ 0.5, corr(30 s delta, next 30 s) ≈ 0.1. Two calibration bugs found on
+the way: uncapped quote fading and raw-move activity excitation both made
+the book blow up (6,000 trades/s).
+
+**OF2 — scalping baselines** (1 contract, 300 × 10 min): flat 0; 30 s
+delta momentum +1.83 ticks/episode (t 3.9); OFI momentum −1.8; L1
+imbalance −27.9 (trading costs); absorption −11.5; fading −4.5; oracle
+(sees fair value) +11.1.
+
+**OF3 — RL scalping** (NeuralQ + Double DQN + averaging, γ 0.97, n 5,
+2,000 episodes): +4.84, +5.29, +5.12, +3.88 ticks/episode for 4 seeds
+(t 10–13, 74–78% winning), 2.1–2.9× the best rule, 35–48% of the oracle.
+
+**OF6 — stress** (2 saved agents, 9 scenarios): profitable in all 9
+(t ≥ 4) including 1 s latency (+3.6/+4.2) and doubled fees (+2.1/+3.9);
+beats the rule in 8/9 (not with informed flow ×0.5).
+
+**OF8 — daily view** (20 days of 39 sessions): RL +171/+179 ticks/day,
+100% winning days, annualized Sharpe ~80; mean-Q ensemble of 2 +206. **Not
+believable as real trading**: the simulator is too predictable (see OF9).
+
+**OF4 — tick-scalping baselines** (300 × 5 min, defaults): quote both
+sides −2.77 ticks (gross +0.05: breakeven before fees); delta-skewed
+quoting +2.90 (t 10.5, 8.3 fills, 74% winning). The first queue model
+let naive quoting win every episode (+20.7); cancellations at the back
+of the queue and latency competition fixed that. (The committed table
+was once produced by a stale binary; corrected in f51c54b.)
+
+**OF5 — plain RL tick scalping**: learned not to quote (0–0.1 fills, ~0).
+Uniform exploration got 0.1 fills/episode: random modes keep cancelling
+and rejoining behind ~120 lots, so no quoting experience is ever seen.
+
+**OF7 — rule-guided tick scalping** (`of7_tick_guided.cpp`, reviewed):
+off-policy learning from episodes where the delta-skew rule acts
+(annealed 1 → 0.25, 2% deviations); greedy and rule-anchored
+deployments. Smoke (2 × 700): greedy quotes but loses (−0.8/−0.2);
+anchored +2.58/+2.57 vs the rule's +2.90 (not significantly different).
+Review findings: pairing shares the seed, not the market path (our orders
+change it), so validation leads are mostly selection noise; actions take
+effect instantly (the rule's edge is +2.20 with 100 ms action latency).
+Full run (4 × 2,000): see `experiments/of7_results.csv` when present.
+
+**OF9 — efficient market** (`efficient_market()`: informed makers): 30 s
+delta no longer predicts (corr −0.02 vs +0.12); markout flat after 5 s
+(+0.57 → +0.56 vs +0.57 → +1.40 by default). Baselines: delta momentum
+−7.2 ticks/episode (t −12), OFI momentum +1.4 (t 2.9: OFI sees the makers'
+re-pricing), oracle +8.8. RL retraining in this market: see
+`experiments/of9_*` when present.
+
+**Calibration** (`of_calibrate`): recorded-tick CSV round trip exact;
+in a recovery test (target = informed flow ×0.4) the fit matched
+predictability, R² and clustering but not activity or markout, and
+explained the predictability by momentum instead of informed flow:
+summary facts don't identify mechanisms. Less informed flow made the
+market *more* predictable (slower price discovery).
+
+**Backtester** (`of_backtest`): replaying a simulated day exported to CSV
+reproduces the agents' in-simulator Sharpe per window (0.74/0.70 vs
+0.76/0.77); a 6.5 h day backtests in under a second.
+
+## 5. Honest status
+
+- The RL scalping agent beats every rule *in the simulator*, robustly.
+  Its absolute P&L is a property of a simulator that is still too
+  predictable (OF8). Nothing here shows it makes money in real ES.
+- The tick-scalping agent does not beat the delta-skew rule. The
+  literature agrees that slow passive agents rarely have a robust edge;
+  the bar is "match or beat the rule at 100 ms latency on never-viewed
+  seeds", not positive P&L.
+- Both environments assume our orders don't need to be modelled beyond
+  the simulator (scalping) or a FIFO queue without MBO calibration (tick).
+
+## 6. Bugs found and fixed in this work (each has a test or a probe)
+
+Uncapped quote fading and supercritical activity excitation (book blew
+up); absorption feature measuring ordinary flow; tile tables of 8^16
+cells for NeuralQ (bad_alloc) and 3.8 GB snapshots at 21 inputs (OOM);
+unspecified argument-evaluation order in `reset()` (episodes differed
+between compilers); a non-copyable environment; results committed from a
+stale binary (OF4).
+
+## 7. Plan for the next AI (ranked)
+
+1. **Calibrate to the user's ES ticks:** convert their export to the CSV
+   format, run `of_calibrate facts`, then `fit` with many seeds and long
+   windows on their server; add richer targets first (markout curve at
+   more horizons, queue depletion/refill rates; MBO if available). Re-run
+   OF2/OF3/OF6/OF8 on the calibrated market.
+2. **Backtest on real ticks:** `of_backtest` with the saved agents and the
+   delta rule; walk-forward by day; train on recorded windows
+   (`ReplayScalpEnv::reset`) and test on later days only.
+3. **Paired evaluation on the same market path:** one RNG stream per
+   exogenous process in `EsSimulator` (opt-in so old results reproduce),
+   then measure the paired-difference sd (now 3.8–6.2 ticks vs 6.6
+   per-episode sd).
+4. **Tick scalper:** action latency in `TickScalpEnv` (opt-in), tick
+   diagnostics (no-trade share, spread capture vs carry, own-fill
+   markouts), learn the advantage over the rule; success = match or beat
+   the rule at 100 ms latency on fresh seeds (e.g. 940M+).
+5. **Validation hygiene:** a seed-block ledger, fresh-seed confirmation of
+   every claimed edge, CVaR in stress tests, domain randomization of
+   simulator parameters during training.
+6. Market-structure features (session high/low, volume-profile POC/value
+   area) and the remaining items of `experiments/research_synthesis.md`.
+
+
+
+---
+
+## FILE: experiments/research_synthesis.md  (44,562 bytes)
+
+# Research synthesis: ES order-flow simulator, scalping agent, tick-scalping agent, validation
+
+Experiment artifact for the `research/rl` branch. It is not part of `docs/`.
+
+## How this was made
+
+- **Corpus:** `research_corpus/` holds 595 items and 60 PDFs. The PDFs total 1,862 pages and are indexed in `corpus.ragidx`.
+- **Search:** I ran 64 targeted questions through `build/rag_pdf ask research_corpus/corpus.ragidx "<q>" -k 6..8`. They covered queue-reactive models, OFI and impact, RL market-making rewards and inventory penalties, adverse selection, no-trade collapse, latency, exploration, backtest overfitting, walk-forward testing and sim-to-real.
+- **Reading:** I extracted the 30 most relevant PDFs to text and read the cited pages in full. Each citation gives the title and year exactly as they appear in the corpus. Citations are tagged:
+  - **[PDF]**: I read the full text.
+  - **[abstract]**: the corpus has only the title and abstract, so the claim rests on the abstract alone.
+- **Our results:** they come from `NOTES_RL.md` (OF1 to OF8, the OF4 correction and OF7).
+
+### Where the corpus is thin (read this first)
+
+- **Backtest-overfitting statistics.** The corpus has nothing on the deflated Sharpe ratio or on purged or embargoed cross-validation: no metadata match and no full-text passage. The keyword scan found 0 deflated-Sharpe hits. What it does have is three abstracts:
+  - *Deep Reinforcement Learning for Cryptocurrency Trading: Practical Approach to Address Backtest Overfitting* (2022) [abstract]
+  - *Interpretable Hypothesis-Driven Trading:A Rigorous Walk-Forward Validation Framework for Market Microstructure Signals* (2025) [abstract]
+  - *The Red Queen's Trap: Limits of Deep Evolution in High-Frequency Trading* (2025) [abstract]
+
+  The validation section below therefore leans on the evaluation practice of the RL papers that are in the corpus as full text.
+- **Sim-to-real.** No paper studies transfer from a simulator to live trading. The only discussion is the limitations chapter of *Market Making Strategies with Reinforcement Learning* (2025) [PDF].
+- **ES specifically.** One econometric paper on E-mini order flow, *Returns and Order Flow Imbalances: Intraday Dynamics and Macroeconomic News Effects* (2025), is abstract only. The closest large-tick futures evidence is:
+  - Bund futures in *Deep Learning Meets Queue-Reactive: A Framework for Realistic Limit Order Book Simulation* (2025) [PDF];
+  - Bund/DAX in *Queue-reactive Hawkes models for the order flow* (2019) [abstract];
+  - KOSPI200 index futures in *Market Making under Order Stacking Framework: A Deep Reinforcement Learning Approach* (2022) [abstract].
+- **Ranking quality.** Semantic Scholar mostly failed during the crawl (HTTP 429), so citation-based ranking is weak. Several high-ranked digest items come from low-quality venues, and I did not use them.
+
+---
+
+## 1. Simulator realism and calibration
+
+### What the literature says
+
+**Queue-reactive (QR) dynamics are the standard tractable target for large-tick books.**
+
+*Deep Learning Meets Queue-Reactive: A Framework for Realistic Limit Order Book Simulation* (2025) [PDF] models each queue by event intensities λ_L(q), λ_C(q) and λ_M(q) (limit, cancel, market) that depend on the current queue size. These intensities have a closed-form maximum-likelihood estimate: count the events at queue size n and divide by the time spent at n (pp. 4-5). Calibration on Euro-Bund futures (about 4,000 lots per 5 minutes) gave three findings:
+- Adding hour of day and last event type to the state improves likelihood, next-event accuracy and inter-event timing (p. 10).
+- Independent queues miss cross-excitation between bid and ask. Modelling the book jointly fixes the event-transition matrix.
+- The validation suite (pp. 16-20) covers:
+  - impact during a TWAP buy that rises concavely and then relaxes;
+  - a square-root impact law, fitted exponent 0.55, R² 0.89;
+  - queue-size distribution Q-Q plots against real data;
+  - mid-price prediction, balanced accuracy 0.63 against 0.54 for a dedicated deep-learning price-prediction baseline.
+
+*Queue-reactive Hawkes models for the order flow* (2019) [abstract] calibrates on Bund and DAX futures. It reports that adding a Hawkes term to QR intensities "dramatically improves" inter-event-time statistics and queue-size distributions.
+
+*Reinforcement Learning in Queue-Reactive Models: Application to Optimal Execution* (2025) [PDF] uses a calibrated QR model as an RL environment precisely because it produces both kinds of impact (p. 3):
+- direct impact: liquidity consumed;
+- indirect impact: flow reacting to queue imbalance.
+
+**Who cancels, and where, decides queue value.**
+- *Market Making via Reinforcement Learning* (2018) [PDF] replays L2 data. It must assume where in the queue cancellations land, and it assumes uniform (p. 3).
+- *Cooperative Multi-Agent Reinforcement Learning for Market Making on Prediction-Market Order Books* (2026) [PDF] makes the same uniform assumption when it rebuilds market-by-order data from L2. It calls this a limitation (p. 33).
+- *Reinforcement Learning for Trade Execution with Market and Limit Orders* (2025) [PDF] goes the other way: its noise and tactical traders "always cancel orders with the highest queue positions first" (p. 11).
+- Our `cancel_back_bias = 3` sits between these two extremes. OF4 showed that this parameter, together with `join_ahead_mean`, determines whether passive quoting pays at all.
+
+**Order value can be decomposed.**
+
+*Deep Hawkes Process for High-Frequency Market Making* (2021) [PDF] values a resting order, following Moallemi and Yuan, as:
+
+V = P(fill) × (half-spread premium − E[adverse move | fill])  (pp. 37-38)
+
+*Optimal Market Making in Prediction Markets: Empirical Distribution Learning, Analytical Policy Characterization, and Reinforcement Learning* (2026) [PDF] derives a quote-or-cancel threshold from three quantities (p. 42):
+- queue depletion speed;
+- the hazard of adverse selection;
+- the size of the adverse move.
+
+Quoting patiently pays when the queue clears fast and adverse moves are small.
+
+**Predictability in real index futures decays fast.**
+- On the E-mini, price and flow impacts are significant at one second, and "shocks dissipate almost entirely within a second". News raises price impact and lowers flow impact. *Returns and Order Flow Imbalances: Intraday Dynamics and Macroeconomic News Effects* (2025) [abstract].
+- *Deep order flow imbalance: Extracting alpha at multiple horizons from the limit order book* (2023) [abstract] finds that the effective forecast horizon is about two average price changes.
+- *Market Informedness and Market-Maker Profitability: The Trade-Off Between Adverse Selection and Price Discovery* (2026) [abstract] finds informed flow most harmful when aggregate informedness is low. This matches our OF calibration finding that fewer informed traders make the market *more* predictable.
+- *When AI Trading Agents Compete: Adverse Selection of Meta-Orders by Reinforcement Learning-Based Market Making* (2025) [PDF] shows a fast RL market maker in a Hawkes book learning to profit from the price drift of a TWAP meta-order. A trail of slow meta-orders is something fast traders compete away, so a simulator in which nobody competes for that trail overstates what a slow strategy can earn from it.
+
+**Latency changes the answer, and order entry and cancellation have different effects.**
+- In *Integrating Tick-level Data and Periodical Signal for High-frequency Market Making* (2023) [PDF], order-entry latency of 10 ms gives a cumulative profit of about 15,000, while 40 ms gives about 1,000. Longer *cancel* latency raised profit there (20 to 80 ms: 8,000 to 14,000), which the authors tie to inventory effects (p. 16).
+- *Resolving Latency and Inventory Risk in Market Making with Reinforcement Learning* (2025) [abstract] trains with random delays of 30 to 100 ms.
+- The prediction-market thesis (2026, p. 57) adds action delays so that quotes can go stale.
+
+**Non-stationary direction is the main failure mode.**
+
+*Deep Learning of Robust Market Making under Regime-Switching Order Flow* (2026) [PDF] shows four things:
+- The direction bias of market orders in real books is "highly non-stationary, with slowly varying regimes" (p. 7).
+- Persistent directional flow causes inventory saturation in both closed-form and RL market makers.
+- PnL falls monotonically as regime duration grows (p. 18).
+- A fill-intensity model can be calibrated by censored waiting-time estimation, and diffusion by a volatility signature plot (p. 2).
+
+**Replay alone can't carry market impact; there is a partial fix.**
+- *Reinforcement Learning for Trade Execution with Market and Limit Orders* (2025) [PDF, p. 11] points out that a strategy trained on replayed history can't see its own impact.
+- *Consistent time travel for realistic interactions with historical data: reinforcement learning for market making* (2024) [PDF] re-indexes time in historical data. After each action it jumps to the point in history whose state matches the state after that action, so the market's reaction comes from real data. The authors report clearly higher gains than naive sequential replay.
+
+### How this maps onto our simulator
+
+| Our state | What the papers suggest |
+|---|---|
+| One RNG stream (`rng_` in `EsSimulator`). Any change in our orders shifts every later draw, including the fair-value path. The OF7 review found that "pairing shares the seed, not the path". | Paired-seed evaluation in the 2026 regime-switching paper relies on "same exogenous flow realizations across policies" (p. 14). |
+| Maker arrivals `maker_rate·exp(−i/decay)` don't depend on queue size; cancellations are linear in queue size. | QR intensities λ(q) are estimated per queue size from L2 or market-by-order data, and validated with queue-size Q-Q plots and event-transition matrices. |
+| Aggressor 5 s markout +0.545 ticks, and corr(30 s delta, next 30 s return) of 0.085 to 0.12. OF8 says the market is "too predictable". | E-mini impulse responses die out within about 1 s; the forecast horizon is about two price changes. |
+| The tick env applies actions instantly. The delta-skew rule earns +2.90 at 0 ms and +2.20 at 100 ms. | Latency, modelled separately for entry and cancel, is first-order for passive profit. |
+| Facts don't identify mechanisms. The v2 fit matched delta_predict and R² but got the mechanism wrong. | Calibrate to richer targets: λ(q) curves, the impact profile with a square-root exponent, markout curves, and queue-size distributions. |
+
+### Ranked changes to try (simulator)
+
+1. **Split the RNG into one stream per exogenous process.** Use separate streams for:
+   - fair value, jumps and activity noise;
+   - noise-taker arrivals;
+   - meta-order starts, sizes and sides;
+   - iceberg arrivals;
+   - maker arrivals and cancellations.
+
+   Two policies run on the same seed then share the same fundamental path and the same exogenous order arrivals, even though the book reacts to their orders. This is the cheapest fix for the OF7 MAJOR finding. Measure the paired-difference standard deviation before and after; it was 3.8 to 6.2 ticks against an episode standard deviation of 6.6. Change `simulator.hpp` (`Rng rng_` becomes several `Rng`s seeded from one seed). Evidence: the paired-seed protocol in *Deep Learning of Robust Market Making under Regime-Switching Order Flow* (2026).
+2. **Add latency to `TickScalpEnv`, modelled separately for submitting and cancelling.** Default to 100 ms to match `ScalpEnv`, and train with a random 30 to 300 ms. Today `manage()` submits and cancels inside the same simulator step. Evidence: *Integrating Tick-level Data and Periodical Signal for High-frequency Market Making* (2023); *Resolving Latency and Inventory Risk in Market Making with Reinforcement Learning* (2025) [abstract]; the prediction-market thesis (2026).
+3. **Recalibrate how fast predictability decays.** Measure the mid's impulse response to a 1 s order-flow shock, and the aggressor markout curve at 1, 5, 30 and 60 s. Target the E-mini fact that the response is "almost entirely within a second", plus the real markout curve once ES data is loaded. Two levers:
+   - Add a fast-competitor class that detects a running meta-order from signed child flow and trades ahead of it, which removes the slow trail.
+   - Shorten informed meta-order persistence (`meta_child_rate`, size cap).
+
+   Re-run OF2, OF3 and OF6 afterwards. Evidence: *Returns and Order Flow Imbalances…* (2025) [abstract]; *Deep order flow imbalance…* (2023) [abstract]; *When AI Trading Agents Compete…* (2025); *Market Informedness and Market-Maker Profitability…* (2026) [abstract].
+4. **Make maker intensities at the touch depend on queue size, and calibrate them with the QR counting estimator.** For each queue size n at the best level, estimate λ_L(n), λ_C(n) and λ_M(n) from L2 data, as event counts at size n divided by time at size n, optionally conditioned on hour of day and the last event type. Add "λ(n) curves at L1" as a calibration target in `stylized.hpp` / `of_calibrate`. Evidence: *Deep Learning Meets Queue-Reactive…* (2025); *Queue-reactive Hawkes models for the order flow* (2019) [abstract]; *Reinforcement Learning in Queue-Reactive Models…* (2025).
+5. **Add an impact-profile test to the stylized-facts suite.** Run TWAP buys of 10% to 200% of 5-minute volume through the simulator. Check that impact rises concavely, relaxes after the buy, and has a peak-impact exponent near 0.5. This is cheap and catches mechanism errors that the current facts miss. Evidence: *Deep Learning Meets Queue-Reactive…* (2025, pp. 16-18); *When AI Trading Agents Compete…* (2025, p. 3).
+6. **Treat cancel position and competition at join as sensitivity axes, not constants.** Report tick-env results over a grid: `cancel_back_bias` ∈ {1 (uniform, as in the replay papers), 3, back-first (as in the trade-execution paper)} and `join_ahead_mean` ∈ {60, 120, 200}. Calibrate both from market-by-order data when it is available; until then, every passive result is conditional on them. Evidence: *Market Making via Reinforcement Learning* (2018); *Cooperative Multi-Agent RL… Prediction-Market Order Books* (2026); *Reinforcement Learning for Trade Execution with Market and Limit Orders* (2025).
+7. **Add a regime-switching scenario for the direction of market-order flow.** Use a slowly varying buy probability for noise and momentum takers, with a mean regime duration τ, as a stress family. It is the documented failure mode for market makers. Evidence: *Deep Learning of Robust Market Making under Regime-Switching Order Flow* (2026).
+8. **Estimate passive fills in the replay backtester.** In `replay_env.hpp`, rebuild queue position from L2 using the same cancel-position assumption as the simulator, then sweep it. Prototype "consistent time travel" so our own orders can draw a market reaction from historical data. Evidence: *Consistent time travel…* (2024); *Market Making via Reinforcement Learning* (2018).
+
+---
+
+## 2. The scalping agent (directional, market orders)
+
+### What the literature says
+
+- **RL's value is in turning a signal into trades, and its turnover should scale with signal quality.** *Asynchronous Deep Double Duelling Q-Learning for Trading-Signal Execution in Limit Order Book Markets* (2023) [PDF] feeds a noisy oracle signal at three noise levels (pp. 9-10):
+  - RL beats the rule at every level.
+  - At the noisiest level, RL ends near zero mean while the rule loses.
+  - RL turnover *rises* with signal-to-noise; the agent "learns to trust the signal more".
+  - Significance comes from t-tests and bootstrapped confidence intervals over 31 test episodes.
+
+  This is a clean template for a signal-strength sweep.
+- **Mark-to-market in the state, and the risk of collapsing to "never trade".** *Deep Reinforcement Learning for Active High Frequency Trading* (2021) [PDF] reports three things:
+  - Adding mark-to-market P&L to the state "strongly improves convergence"; adding the spread did not help.
+  - Ensembles of 30 elements were used.
+  - The agent sometimes "converges to sub-optimal policy such as not trading at all" because expected returns are negative during early exploration.
+
+  Our 100-episode OF3 run showed exactly that, and we already include open P&L in the state.
+- **Reward horizon and auxiliary tasks.** *DeepScalper: A Risk-Aware Reinforcement Learning Framework to Capture Fleeting Intraday Trading Opportunities* (2021) [PDF] trains on a *hindsight bonus*, r_t + w·(p_{t+h} − p_t)·pos_t, used only in training while evaluation uses raw P&L. It also adds a volatility-prediction auxiliary head. Both reduce variance across 5 seeds (pp. 5, 9). The prediction-market MARL paper (2026) [PDF] also adds an auxiliary mid-move prediction head.
+- **Robustness by randomization, not only adversaries.** *Robust Market Making with Hawkes Order Flow and Price Impact via Adversarial Reinforcement Learning* (2026) [PDF] has three findings:
+  - Training on randomly sampled market parameters per episode (truncated normals around nominal) is competitive with adversarial training once the environment has Hawkes flow and impact.
+  - A recurrent encoder over the observation window improves the left tail.
+  - Robustness should be judged by CVaR10% plus a bootstrap test that the gain wasn't bought with directional inventory (pp. 2, 6).
+
+  *Market Making Strategies with Reinforcement Learning* (2025) [PDF, p. 138] also recommends domain randomization for sim-to-real.
+- **Generalization is limited by the number of distinct market paths.** *Towards Generalizable Reinforcement Learning for Trade Execution* (2023) [PDF] attributes RL overfitting to "large context space and limited context samples", and recommends compact representations of the market context. In simulation we can generate unlimited paths. On recorded ES data this becomes the binding limit: number of distinct days.
+- **Feature ideas, all [abstract].**
+  - *Cross-impact of order flow imbalance in equity markets* (2023): an OFI integrated over several book levels explains impact better than best-level OFI.
+  - *Order Flow Decomposition for Price Impact Analysis in Equity Limit Order Books* (2023): decomposing OFI by event type improves forward-looking prediction.
+
+  Our best-level OFI30 rule lost (−1.82, t −3.0), so these are worth a feature test, at low priority.
+
+### Our status
+
+- NeuralQ beats the delta-momentum rule by 2.1 to 2.9x and stays profitable in 9 stress scenarios. A 2-net ensemble adds 15% to 20%.
+- OF8 concludes that the absolute P&L isn't believable because the simulator is too predictable. Changing the simulator (section 1, item 3) therefore comes before changing the agent.
+
+### Ranked changes to try (scalping agent)
+
+1. **Signal-strength sweep after recalibration.** Sweep the informed share, meta-order persistence and fast-competitor intensity. At each level, compare RL, the delta rule and the oracle, and report RL turnover. Expected if the agent is sound: turnover falls and the RL edge shrinks toward zero as predictability falls, without collapsing below the rule. This is the test of whether the edge is skill or a simulator artifact. Evidence: *Asynchronous Deep Double Duelling Q-Learning…* (2023).
+2. **Randomize the simulator's parameters during training.** Sample `SimParams` per episode from truncated normals around nominal: informed rate, `value_vol`, `fade`, `noise_rate`, latency, fees. Evaluate on the held-out OF6 grid plus the new regime and fast-competitor scenarios. Compare against nominal-trained nets on CVaR10%, not only on the mean. Evidence: *Robust Market Making with Hawkes Order Flow…* (2026); *Market Making Strategies with Reinforcement Learning* (2025).
+3. **Train with random latency (30 to 300 ms per order)** in `ScalpEnv` instead of a fixed `latency_steps = 1`. OF6 showed RL losing a little at 1 s latency; training on a range should flatten that. Evidence: *Resolving Latency and Inventory Risk…* (2025) [abstract]; *Integrating Tick-level Data…* (2023).
+4. **Add an auxiliary prediction head** (next-30 s mid move or realized volatility) on the NeuralQ trunk, as an ablation with 4 seeds. It changes `rag/agent`, so it costs more. Evidence: *DeepScalper* (2021); *Cooperative Multi-Agent RL… Prediction-Market Order Books* (2026).
+5. **Hindsight bonus, training only** (h of 30 to 60 s, small w). Ablate it against the plain reward to see whether it cuts orders per episode without cutting net ticks. Evidence: *DeepScalper* (2021).
+6. **Add a recurrent or history encoder for regime identification.** Only do this if the regime-switching stress (section 1, item 7) shows a gap; our features are already windowed aggregates. Evidence: *Robust Market Making with Hawkes Order Flow…* (2026).
+7. **Feature test: multi-level integrated OFI and OFI split by event type**, run against the current 13 features. Evidence: *Cross-impact of order flow imbalance in equity markets* (2023) [abstract]; *Order Flow Decomposition…* (2023) [abstract].
+
+---
+
+## 3. The tick-scalping agent: why RL ends up not quoting, and how papers avoid it
+
+### The same failure is documented, and named
+
+- **JaxMARL-HFT.** In *JaxMARL-HFT: GPU-Accelerated Large-Scale Multi-Agent Reinforcement Learning for High-Frequency Trading* (2025) [PDF], the market makers "learn to trade very infrequently" (p. 7):
+  - The reward isn't normalized by traded volume, so "an optimal policy seems to be to never trade, thus guaranteeing no losses".
+  - An inventory penalty makes it worse.
+  - Even converged agents lose about 0.2 ticks on average.
+  - The authors blame part of it on cancelling and reposting every step: "a marked disadvantage in a price-time priority LOB".
+- **The prediction-market MARL paper.** *Cooperative Multi-Agent Reinforcement Learning for Market Making on Prediction-Market Order Books* (2026) [PDF] calls this the **no-trade collapse**: 61.1% to 97.7% no-trade actions across seeds in JaxMARL-HFT. Its analysis (pp. 5-6, 14-17) is the closest match to our OF5:
+  1. On realistic flow, "fills are disproportionately informed", so quoting has negative expected value early in training.
+  2. Removing the no-trade action doesn't help. The agent "moved most of its action mass onto the widest symmetric rows … where nothing fills". *Inaction is a reward problem.*
+  3. The basic reward (spread capture plus mark-to-market of inventory) has three faults:
+     - it is dominated by price noise from the revaluation term;
+     - it doesn't charge for inventory size;
+     - it misassigns credit over time. Spread is credited at the fill, while the adverse move lands a few steps later.
+
+     Inventory penalties make the first and third faults worse, because any penalty routed through the reward is smallest at zero inventory.
+
+### Why our tick agent doesn't quote (OF5 and OF7 against these mechanisms)
+
+| Mechanism in the literature | Our evidence |
+|---|---|
+| Cancelling and reposting destroys queue priority (JaxMARL-HFT 2025). Queue priority is "an economic resource the agent earns by holding" (regime-switching 2026, p. 11). | OF7: uniform exploration gives 0.10 fills per episode against 8.4 for the rule. Random mode changes cancel, then rejoin behind about 120 lots. 2% random deviations cut the rule from +3.05 to +1.23; 5% cut it to +0.03. |
+| Fills are adversely selected, so random quoting has negative expected value (prediction-market MARL 2026). Exploration returns are negative, so the agent converges to not trading (active HFT 2021). | Sealed OF4: quoting both sides earns −2.77 ticks per 5 min. That is +0.05 gross, against 23.5 fills × 0.12 ticks of fees. "Stay out" is the greedy answer to the data the agent sees. |
+| A mark-to-market reward is dominated by noise (prediction-market MARL 2026, p. 15). | Our reward is the change in equity at the mid, net of fees: the "basic reward". The per-episode standard deviation is about 6.6 ticks against a rule edge of about 3 ticks. |
+| Even good designs end near zero or negative on realistic flow: JaxMARL-HFT about −0.2 ticks; the prediction-market MARL paper's best mean is −4.3 ticks per episode. | Our conservative queue model (bias 3, join 120) was set on purpose so that naive quoting loses. "Don't quote" may be the right answer for a slow 1-lot participant. The honest bar is the delta-skew rule (+2.90 at 0 ms, +2.20 at 100 ms) on fresh seeds. |
+
+### How the papers avoid it
+
+- **Control inventory outside the reward.** The prediction-market MARL paper (2026, p. 16) uses a hard inventory cap plus a *loss stop with an annealed threshold*: once the episode loss passes the threshold, the agent can only close. The threshold starts loose and tightens. It uses no inventory penalty. Result: no-trade share 4.4% against 19.2% for the JaxMARL-HFT baseline, and −9.6 against −46.1 ticks per held-out episode.
+
+  The regime-switching paper (2026) also uses a hard bound, applied *after* the action is chosen: when the inventory is at its limit, the leg that would add to it is dropped. The reward and next state are computed on the quotes actually sent (p. 11).
+- **Reward the quality of fills, not mark-to-market.**
+  - The prediction-market MARL paper adds a **markout term** (mid move over the next 5 steps × the quantity just filled), with its coefficient **annealed up from zero** "so the quoter learns to quote before it is judged on the quality of its fills" (pp. 17-18). The markout was the most effective fix: the bare split scored −72.3 ticks, blend −41.0, markout −5.9, and markout plus curriculum −4.3.
+  - The regime-switching paper (2026) uses a dampened fill PnL: each fill is revalued at the mid after the decision, minus a quadratic inventory penalty plus a one-sided "inventory wall" term (p. 12).
+  - *Market Making via Reinforcement Learning* (2018) [PDF] uses **asymmetrically dampened PnL**, r = Ψ − max(0, η·Inv·Δm), which removes speculative upside but keeps downside. It improved learning stability and asymptotic performance over the plain PnL reward, which the authors found unstable and poor out of sample (pp. 4, 7).
+  - *Multi-Level Market Making with Reinforcement Learning* (2026) [PDF] keeps the mark-to-market change in the reward as potential-based shaping: denser signal, same optimal policy. It adds a linear |Q| penalty (pp. 5-6).
+- **Keep queue priority across decisions, with a compact action set.**
+  - The regime-switching paper (2026, p. 11) leaves a resting order in place when the target price is unchanged ("smart quoting … essential").
+  - It restricts actions to 6 one-tick offset pairs. Under stationary flow, 6 and 9 actions converged to the same result (+0.339 against +0.331). Under limited non-stationary fine-tuning, 6 actions won at every checkpoint (+0.097 against −0.005).
+  - Multi-level MM (2026) benchmarks "only cancel resting orders when necessary … to retain queue positions".
+  - The order-stacking paper (2022) [abstract, KOSPI200 index futures] quotes at several levels beyond the best "to reserve good queue position".
+- **Use state features that price the queue.** The regime-switching paper's quote-exposure feature is O = 1/(1 + lots ahead) per side, with imbalance (O_b − O_a)/(1 + O_b + O_a) (p. 10). The Deep Hawkes paper decomposes order value as fill probability × (half-spread − adverse selection cost).
+- **Use structured exploration and warm starts.**
+  - The regime-switching paper uses Rainbow: NoisyNet parameter-space exploration, prioritized replay, n-step returns and a C51 distributional head. Its reason: fill rewards are "sparse and heavy-tailed" (p. 12). It also warm-starts fine-tuning from a trained stationary controller.
+  - *Reinforcement Learning with Expert Trajectory For Quantitative Trading* (2021) [abstract] mixes expert and agent transitions in the TD error.
+  - The prediction-market MARL paper uses an entropy bonus against the collapse, and argues for on-policy learning over DQN's "deadly triad" (p. 19).
+- **Use one-sided and skewed actions.** The prediction-market MARL paper keeps an explicit no-trade row but adds skewed and one-sided rows. It cites Wang et al. that allowing abstention or one-sided quotes improves risk-adjusted returns (pp. 5-6, 13).
+
+  The 2018 paper goes the opposite way: the agent must quote at all times unless at the inventory limit. JaxMARL-HFT notes that forcing quotes reduced performance with its SpreadSkew action space.
+- **Measure the collapse.** Report the no-trade share and split portfolio value into spread capture and carry, alongside P&L. "Treat an improvement accompanied by a large rise in that share as withdrawal from trading" (prediction-market MARL paper, p. 30).
+
+### Ranked changes to try (tick-scalping agent)
+
+1. **Add diagnostics before changing the learner.** Per evaluation, report:
+   - quoting share per mode, and the share of time with no quote;
+   - fills per episode;
+   - P&L split into spread capture at fill time (fill price against mid) and carry/markout;
+   - own-fill markout curve at 1, 5 and 30 s.
+
+   Put this in `tick_env.hpp` accessors and `of5`/`of7` reporting. It is cheap and makes every later experiment interpretable. Evidence: *Cooperative Multi-Agent RL… Prediction-Market Order Books* (2026); *Multi-Level Market Making with Reinforcement Learning* (2026).
+2. **Train on a markout reward with an annealed coefficient; evaluate on true net P&L.** The training reward is:
+
+   r = Σ_fills side·(m_{t+H} − p_fill) − fees − κ·(cost of flattening)
+
+   with H of 5 to 10 s. Blend it with the current Δequity reward as `(1−β)·Δequity + β·markout_reward`, with β annealed from 0 to 1 over the first third of training. Keep the episode-end flatten. Alternative arm: asymmetric dampening, Δequity − max(0, η·pos·Δmid). This tests the "reward problem" diagnosis directly. Evidence: *Cooperative Multi-Agent RL… Prediction-Market Order Books* (2026); *Deep Learning of Robust Market Making under Regime-Switching Order Flow* (2026); *Market Making via Reinforcement Learning* (2018); *JaxMARL-HFT* (2025).
+3. **Explore without destroying queue position.** Arms:
+   - (a) *sticky* exploration: an exploratory mode is held for k decisions, k ≈ 10 to 40, that is 5 to 20 s;
+   - (b) exploration only among modes that keep an existing resting order (3→1 or 3→2, not 3→0→3);
+   - (c) parameter-space noise (NoisyNet-style), if the learner supports it;
+   - (d) the OF7 rule-guided episodes, kept.
+
+   Measure fills per episode during exploration against the rule's 8.4. This attacks the measured root cause of OF5. Evidence: *Deep Learning of Robust Market Making under Regime-Switching Order Flow* (2026); *JaxMARL-HFT* (2025); OF7.
+4. **Control inventory outside the reward.** Keep the ±1 cap, which already exists. Add an annealed per-episode loss stop: past the threshold, only flatten or the closing side is allowed, and the threshold tightens over training. Never add a |q| penalty to the reward. Evidence: *Cooperative Multi-Agent RL… Prediction-Market Order Books* (2026); *JaxMARL-HFT* (2025).
+5. **Add queue-value features:**
+   - O_b = 1/(1 + lots ahead of our bid), and O_a for the ask;
+   - exposure imbalance x = (O_b − O_a)/(1 + O_b + O_a);
+   - log(1 + lots ahead), in addition to today's ratio of lots ahead to displayed size;
+   - optionally a running estimate of each side's fill probability and adverse-selection cost.
+
+   Evidence: *Deep Learning of Robust Market Making under Regime-Switching Order Flow* (2026); *Deep Hawkes Process for High-Frequency Market Making* (2021); *Optimal Market Making in Prediction Markets…* (2026).
+6. **Learn on top of the delta-skew rule.** Keep the OF7 rule-anchored deployment and also learn the advantage of deviating, Q(s,a) − Q(s, rule(s)), so the learner starts at the rule's +2.90. Combine this with item 3 (d). Evidence: the regime-switching paper warm-starts from a trained controller and benchmarks against a calibrated analytic policy; *Reinforcement Learning with Expert Trajectory For Quantitative Trading* (2021) [abstract].
+7. **Try a distributional value head (C51-style)**, or at least quantile or Huber targets, for heavy-tailed, sparse fill rewards. This is a learner change in `rag/agent`. Evidence: *Deep Learning of Robust Market Making under Regime-Switching Order Flow* (2026).
+8. **Action-space variants:**
+   - one-sided "lean" modes that quote the closing side only while holding;
+   - a "stack" mode that rests a 1-lot one level behind the touch to build queue priority, with `max_position` 2 so stacking doesn't block the touch order.
+
+   OF7 found keep-levels hurt the *rule* (+3.05 to about +2.5), so treat this as a learner option, not a default. Evidence: *Market Making under Order Stacking Framework…* (2022) [abstract]; *Optimal Market Making in Prediction Markets…* (2026, scale quotes, pp. 42-43); *Multi-Level Market Making…* (2026, TOP2 markouts are better).
+9. **On-policy actor-critic with an entropy bonus** as a second learner, using the existing E5 actor-critic in `rag/agent`. Compare it with NeuralQ on no-trade share. Evidence: *Cooperative Multi-Agent RL… Prediction-Market Order Books* (2026, pp. 19, 29).
+10. **Quoter and risk-manager split** with a blended reward and a markout term. This only makes sense if inventory grows beyond ±1; it is listed for completeness. Evidence: *Cooperative Multi-Agent RL… Prediction-Market Order Books* (2026). The bare split was the *worst* configuration there (−72.3) until blend and markout were added.
+
+---
+
+## 4. Validation
+
+### What the literature says
+
+- **Paired evaluation on common random numbers, with proper tests.** The regime-switching paper (2026) [PDF]:
+  - evaluates every policy on "matched realizations of the order-flow process";
+  - keeps training and evaluation episodes "strictly disjoint";
+  - reports paired Wilcoxon and paired t-tests on per-seed differences, with N of 100 to 1,000 paired episodes (pp. 2, 14, 18-23).
+
+  The signal-execution DDQN paper (2023) uses t-tests and bootstrapped confidence intervals over test episodes.
+- **Tail-focused robustness metrics.** The Hawkes adversarial market-making paper (2026) [PDF] uses CVaR10% as the primary metric across 19 evaluation environments, plus a one-sided bootstrap test showing the tail gain did not come from directional terminal inventory (pp. 2, 6).
+- **Metrics that expose degenerate policies.** The prediction-market MARL paper (2026, p. 30) reports four things for every configuration:
+  - held-out portfolio value, averaged over the last five evaluations;
+  - stability, as the standard deviation of the last ten;
+  - no-trade share;
+  - the split into spread capture and carry, and the distribution across held-out windows.
+
+  It also admits a single seed per configuration as a limitation.
+- **Overfitting and selection, [abstract] only.**
+  - Treat backtest overfitting as a hypothesis test, estimate the probability of overfitting, and reject agents that are likely overfit: *Deep Reinforcement Learning for Cryptocurrency Trading: Practical Approach to Address Backtest Overfitting* (2022).
+  - Use walk-forward testing with 34 rolling test periods and strict information-set discipline, and report an insignificant aggregate (p = 0.34) honestly, with strong regime dependence: *Interpretable Hypothesis-Driven Trading:A Rigorous Walk-Forward Validation Framework…* (2025).
+  - Validation APY above 300% against more than 70% live capital decay, attributed to survivor bias from selecting under high variance: *The Red Queen's Trap…* (2025).
+- **Limits of generalization.** Overfitting scales with the size of the context space against the number of context samples: *Towards Generalizable Reinforcement Learning for Trade Execution* (2023) [PDF]. For ES replay, count distinct days, not windows.
+- **Sim-to-real.** *Market Making Strategies with Reinforcement Learning* (2025) [PDF, pp. 138-139] says a simulator must first match the real asset (spreads, volatility, returns), then be monitored and re-tuned as markets drift. It recommends mixing real and simulated experience, domain randomization, or online training. It cites no transfer result. *The corpus has no empirical sim-to-real transfer study for trading.*
+- **Not in the corpus:** the deflated Sharpe ratio, probability of backtest overfitting via combinatorially symmetric cross-validation, and purged or embargoed k-fold. These are still worth implementing, but this synthesis can't cite a source for them from the corpus.
+
+### Where we stand
+
+- **What we already do well:** sealed seed blocks, champion selection on a separate validation block, stress suites, a desk view and a replay sanity check.
+- **Known weaknesses, from the notes:**
+  - E27 selection bias on a reused held-out set;
+  - champion-selection optimism of 1 to 2 ticks in OF3;
+  - the sealed 910M block was viewed repeatedly in OF7;
+  - paired comparisons share the seed, not the path;
+  - one corrected baseline (OF4 binary mix-up).
+
+### Ranked changes to try (validation)
+
+1. **Common random numbers plus paired tests.** After the RNG split (simulator item 1), compare policies on per-episode paired differences, with a paired t-test, a Wilcoxon test and a bootstrap confidence interval. Report the paired-difference standard deviation next to every comparison. Evidence: *Deep Learning of Robust Market Making under Regime-Switching Order Flow* (2026); *Asynchronous Deep Double Duelling Q-Learning…* (2023).
+2. **Keep a seed-block ledger and confirm on fresh seeds.** Record every seed block and every time it was viewed, for example in `experiments/seed_ledger.csv`. A claim counts only when confirmed on a block that was never viewed before (940M, 950M and so on). Always report the gap between validation and test. Evidence: *The Red Queen's Trap…* (2025) [abstract]; our E27 and OF7 review.
+3. **Account for selection.** For each reported champion, log how many configurations, seeds and checkpoints were tried. Split the test episodes into blocks and estimate how often the validation-best configuration lands below the median out of sample: a probability-of-overfitting estimate in the spirit of the 2022 paper. Reject agents whose rank isn't stable. Evidence: *Deep Reinforcement Learning for Cryptocurrency Trading: Practical Approach to Address Backtest Overfitting* (2022) [abstract]; the deflated Sharpe ratio itself is not in the corpus.
+4. **Tail metrics in the stress suite.** Add CVaR10% per scenario to OF6 and `validation.hpp` (E28 already has CVaR5), plus a bootstrap test that the gains don't come from directional inventory. Evidence: *Robust Market Making with Hawkes Order Flow and Price Impact via Adversarial Reinforcement Learning* (2026).
+5. **Degenerate-policy metrics for every passive agent:** no-trade share, fills, the spread-against-carry split and own-fill markouts (the same as tick item 1). Evidence: *Cooperative Multi-Agent RL… Prediction-Market Order Books* (2026).
+6. **Sensitivity surfaces instead of point results.** Report tick and scalp results over the simulator parameters we can't yet calibrate: cancel bias, competition at join, informed share, latency. A claimed edge must hold across the plausible region. Evidence: the market-making papers above, which show results moving with cancel and queue assumptions.
+7. **A sim-to-real ladder for recorded ES data**, in this order:
+   1. stylized facts plus the new impact, λ(n) and markout targets (`of_calibrate facts`);
+   2. replay of directional strategies (market orders only, already supported);
+   3. replay of passive strategies with L2-inferred queue position under a swept cancel assumption;
+   4. walk-forward over many distinct days, split by regime (open, news minutes, midday);
+   5. paper trading.
+
+   Report per-regime results, because the walk-forward paper (2025) and the E-mini paper (2025) both find strong regime and news effects. Evidence: *Market Making Strategies with Reinforcement Learning* (2025); *Towards Generalizable Reinforcement Learning for Trade Execution* (2023); *Interpretable Hypothesis-Driven Trading…* (2025) [abstract]; *Returns and Order Flow Imbalances…* (2025) [abstract]; *Consistent time travel…* (2024).
+
+---
+
+## Overall priority order across areas
+
+| # | Change | Applies to | Main evidence |
+|---|---|---|---|
+| 1 | One RNG stream per exogenous process, for paired comparisons on the same market path | simulator / validation | Regime-Switching MM (2026) |
+| 2 | Tick-env diagnostics: no-trade share, fills, spread-against-carry split, own-fill markouts | tick-scalping agent | Prediction-Market MARL MM (2026); Multi-Level MM (2026) |
+| 3 | Separate submit and cancel latency in `TickScalpEnv` (100 ms default, randomized in training) | simulator | Tick-level MM (2023); Resolving Latency (2025, abstract) |
+| 4 | Markout or fill-quality training reward with an annealed coefficient; evaluate on net P&L | tick-scalping agent | Prediction-Market MARL MM (2026); Regime-Switching MM (2026); MM via RL (2018); JaxMARL-HFT (2025) |
+| 5 | Exploration that preserves queue position (sticky modes, order-keeping transitions, guided episodes) | tick-scalping agent | Regime-Switching MM (2026); JaxMARL-HFT (2025) |
+| 6 | Recalibrate predictability decay (impulse response about 1 s, markout curve); add fast competitors to the meta-order trail; re-run OF2, OF3 and OF6 | simulator | E-mini OFI (2025, abstract); Deep OFI (2023, abstract); AI Agents Compete (2025); Market Informedness (2026, abstract) |
+| 7 | Seed-block ledger, fresh-seed confirmation and selection accounting | validation | Backtest Overfitting (2022, abstract); Red Queen's Trap (2025, abstract) |
+| 8 | Signal-strength sweep for the scalping agent (turnover against signal quality, RL against rule) | scalping agent | Async DDDQN Signal Execution (2023) |
+| 9 | Inventory control outside the reward: annealed loss stop, no |q| penalty | tick-scalping agent | Prediction-Market MARL MM (2026); JaxMARL-HFT (2025) |
+| 10 | Queue-value features: O = 1/(1 + lots ahead), exposure imbalance, fill probability and adverse-selection cost | tick-scalping agent | Regime-Switching MM (2026); Deep Hawkes MM (2021) |
+| 11 | Queue-reactive maker intensities at L1, calibrated with the QR counting estimator; λ(n) calibration target | simulator | Deep Queue-Reactive (2025); QR Hawkes (2019, abstract); RL in QR (2025) |
+| 12 | CVaR10% and an inventory-bias bootstrap in stress validation | validation | Robust Hawkes Adversarial MM (2026) |
+| 13 | Randomize simulator parameters during scalping training | scalping agent | Robust Hawkes Adversarial MM (2026); MM Strategies thesis (2025) |
+| 14 | Impact-profile and square-root-law test in the stylized-facts suite | simulator | Deep Queue-Reactive (2025) |
+| 15 | Learn the advantage over the delta-skew rule, warm-started from the rule | tick-scalping agent | Regime-Switching MM (2026); RL with Expert Trajectory (2021, abstract) |
+| 16 | Sensitivity surfaces over cancel bias, competition at join, informed share and latency | validation | MM via RL (2018); Prediction-Market MARL MM (2026); RL Trade Execution Market+Limit (2025) |
+| 17 | Regime-switching direction of market-order flow as a stress family | simulator | Regime-Switching MM (2026) |
+| 18 | Distributional (C51-style) value head for sparse, heavy-tailed fill rewards | tick-scalping agent | Regime-Switching MM (2026) |
+| 19 | Auxiliary prediction head and training-only hindsight bonus for the scalping agent | scalping agent | DeepScalper (2021); Prediction-Market MARL MM (2026) |
+| 20 | Sim-to-real ladder with L2-inferred queue replay and time-travel replay | validation | Consistent Time Travel (2024); Generalizable Trade Execution (2023); MM Strategies thesis (2025) |
+| 21 | Order-stacking and one-sided lean modes, as learner options | tick-scalping agent | Order Stacking MM (2022, abstract); Prediction-Market MM thesis (2026); Multi-Level MM (2026) |
+| 22 | On-policy actor-critic with an entropy bonus as a second tick learner | tick-scalping agent | Prediction-Market MARL MM (2026) |
+
+**Caveat for the tick agent.** On realistic flow, no market-making paper in the corpus reports a robustly positive mean for a slow passive agent:
+- JaxMARL-HFT (2025): about −0.2 ticks;
+- prediction-market MARL MM (2026): best mean −4.3 ticks per episode;
+- the regime-switching paper (2026): positive, but in a zero-intelligence simulator with unit lots.
+
+The success criterion should be "match or beat the delta-skew rule at 100 ms latency on never-viewed seeds, with a meaningful no-trade share". Positive P&L by itself isn't the bar.
+
+
+
+---
+
+## FILE: README.md  (21,468 bytes)
 
 # rag-cpp — header-only, low-latency Retrieval-Augmented Generation in C++20
 
@@ -4595,6 +5369,23 @@ negative results, is logged in
   policy bank and the baseline guard;
 * what each design choice measurably did;
 * how the same architecture maps onto LLM agents.
+
+## ES order-flow trading
+
+A tick-level ES futures simulator (`include/rag/orderflow/`), order-flow
+features, two RL environments (directional scalping with market orders;
+passive tick scalping with FIFO queue position), a backtester on recorded
+ticks, simulator calibration tools and a parallel trainer:
+
+```bash
+./build/of_train --seeds 12 --episodes 2000 --out nets/       # one seed per thread
+./build/of_backtest es_ticks.csv --time ns nets/seed1.net     # recorded ticks (CSV)
+./build/of_calibrate facts es_ticks.csv --time ns             # real vs simulated stylized facts
+```
+
+Everything, including results OF1-OF9, the honest status (the simulator
+is still too predictable to trust absolute P&L) and the plan, is in
+[docs/ai/ORDERFLOW.md](docs/ai/ORDERFLOW.md).
 
 ## Batched queries
 

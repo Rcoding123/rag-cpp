@@ -30,6 +30,9 @@ docs/ai/STATUS.md
 docs/ai/TASK_SPECS.md
 examples/agent_demo.cpp
 examples/demo.cpp
+examples/of_backtest.cpp
+examples/of_calibrate.cpp
+examples/of_train.cpp
 examples/rag_pdf.cpp
 examples/train_ensemble.cpp
 examples/tune_agent.cpp
@@ -85,6 +88,10 @@ experiments/e23_agg.py
 experiments/e23_fresh.cpp
 experiments/e23_vote.cpp
 experiments/e24_polyak.cpp
+experiments/e26_errors.cpp
+experiments/e27_quantile.cpp
+experiments/e28_results.csv
+experiments/e28_validation.cpp
 experiments/e7_cost.cpp
 experiments/e7_hybrid.cpp
 experiments/e7_probe.cpp
@@ -106,11 +113,25 @@ experiments/mb_probe.cpp
 experiments/mb_seeds.cpp
 experiments/mis_probe.cpp
 experiments/mlp_check.cpp
+experiments/of1_stylized_facts.cpp
+experiments/of2_baselines.cpp
+experiments/of2_results.txt
+experiments/of3_rl.cpp
+experiments/of4_results.txt
+experiments/of4_tick_baselines.cpp
+experiments/of5_results.csv
+experiments/of5_tick_rl.cpp
+experiments/of6_results.csv
+experiments/of6_scalp_stress.cpp
+experiments/of7_tick_guided.cpp
+experiments/of8_scalp_days.cpp
+experiments/of9_efficient_baselines.txt
 experiments/pdf_probe.cpp
 experiments/persist_timing.cpp
 experiments/polyak.cpp
 experiments/probe.cpp
 experiments/raw_check.cpp
+experiments/research_synthesis.md
 experiments/risk_probe.cpp
 experiments/surprise_probe.cpp
 experiments/sweep.cpp
@@ -136,6 +157,7 @@ include/rag/agent/policy_table.hpp
 include/rag/agent/rng.hpp
 include/rag/agent/trainer.hpp
 include/rag/agent/tuning.hpp
+include/rag/agent/validation.hpp
 include/rag/agent/variance_reduction.hpp
 include/rag/arena.hpp
 include/rag/bm25.hpp
@@ -147,6 +169,13 @@ include/rag/epoch.hpp
 include/rag/fusion.hpp
 include/rag/io.hpp
 include/rag/ivf_index.hpp
+include/rag/orderflow/features.hpp
+include/rag/orderflow/replay_env.hpp
+include/rag/orderflow/scalp_env.hpp
+include/rag/orderflow/simulator.hpp
+include/rag/orderflow/stylized.hpp
+include/rag/orderflow/tick_csv.hpp
+include/rag/orderflow/tick_env.hpp
 include/rag/pdf.hpp
 include/rag/prompt.hpp
 include/rag/simd.hpp
@@ -170,6 +199,7 @@ tests/market_making_tests.cpp
 tests/mlp_tests.cpp
 tests/model_based_tests.cpp
 tests/optional_libs_tests.cpp
+tests/orderflow_tests.cpp
 tests/pdf_tests.cpp
 tests/pdf_writer.hpp
 tests/pid.hpp
@@ -178,10 +208,13 @@ tests/rag_property_tests.cpp
 tests/rag_tests.cpp
 tests/reference_tests.cpp
 tests/stress.cpp
+tests/stylized_tests.cpp
 tests/synthetic.hpp
 tests/test_util.hpp
 tests/text_clean_tests.cpp
 tools/make_context_pack.py
+tools/research_crawler.py
+tools/test_research_crawler.py
 ```
 
 ## Contents
@@ -202,83 +235,100 @@ tools/make_context_pack.py
 14. docs/ai/DECISIONS.md
 15. docs/ai/CONVENTIONS.md
 16. docs/ai/STATUS.md
-17. README.md
-18. CMakeLists.txt
-19. .github/workflows/ci.yml
-20. include/rag/agent/agent.hpp
-21. include/rag/agent/analysis.hpp
-22. include/rag/agent/drift.hpp
-23. include/rag/agent/env.hpp
-24. include/rag/agent/evaluate.hpp
-25. include/rag/agent/execution_dp.hpp
-26. include/rag/agent/features.hpp
-27. include/rag/agent/learners.hpp
-28. include/rag/agent/market_making.hpp
-29. include/rag/agent/mlp.hpp
-30. include/rag/agent/model_based.hpp
-31. include/rag/agent/ope.hpp
-32. include/rag/agent/policy_table.hpp
-33. include/rag/agent/rng.hpp
-34. include/rag/agent/trainer.hpp
-35. include/rag/agent/tuning.hpp
-36. include/rag/agent/variance_reduction.hpp
-37. include/rag/arena.hpp
-38. include/rag/bm25.hpp
-39. include/rag/chunker.hpp
-40. include/rag/common.hpp
-41. include/rag/embedder.hpp
-42. include/rag/engine.hpp
-43. include/rag/epoch.hpp
-44. include/rag/fusion.hpp
-45. include/rag/io.hpp
-46. include/rag/ivf_index.hpp
-47. include/rag/pdf.hpp
-48. include/rag/prompt.hpp
-49. include/rag/simd.hpp
-50. include/rag/text_clean.hpp
-51. include/rag/tokenizer.hpp
-52. include/rag/topk.hpp
-53. include/rag/vector_store.hpp
-54. include/rag.hpp
-55. examples/agent_demo.cpp
-56. examples/demo.cpp
-57. examples/rag_pdf.cpp
-58. examples/train_ensemble.cpp
-59. examples/tune_agent.cpp
-60. bench/latency.cpp
-61. bench/rag_bench.cpp
-62. bench/fixtures.hpp
-63. tests/agent_coverage_tests.cpp
-64. tests/agent_edge_case_tests.cpp
-65. tests/agent_tests.cpp
-66. tests/api_examples_tests.cpp
-67. tests/forgery_tests.cpp
-68. tests/market_making_tests.cpp
-69. tests/mlp_tests.cpp
-70. tests/model_based_tests.cpp
-71. tests/optional_libs_tests.cpp
-72. tests/pdf_tests.cpp
-73. tests/policy_table_tests.cpp
-74. tests/rag_property_tests.cpp
-75. tests/rag_tests.cpp
-76. tests/reference_tests.cpp
-77. tests/stress.cpp
-78. tests/text_clean_tests.cpp
-79. tests/pdf_writer.hpp
-80. tests/pid.hpp
-81. tests/synthetic.hpp
-82. tests/test_util.hpp
-83. tests/fuzz/fuzz_common.hpp
-84. tests/fuzz/fuzz_load.cpp
-85. tests/fuzz/fuzz_policy_table.cpp
-86. tests/fuzz/fuzz_text.cpp
-87. tests/fuzz/make_seeds.cpp
-88. tools/make_context_pack.py
+17. docs/ai/ORDERFLOW.md
+18. experiments/research_synthesis.md
+19. README.md
+20. CMakeLists.txt
+21. .github/workflows/ci.yml
+22. include/rag/agent/agent.hpp
+23. include/rag/agent/analysis.hpp
+24. include/rag/agent/drift.hpp
+25. include/rag/agent/env.hpp
+26. include/rag/agent/evaluate.hpp
+27. include/rag/agent/execution_dp.hpp
+28. include/rag/agent/features.hpp
+29. include/rag/agent/learners.hpp
+30. include/rag/agent/market_making.hpp
+31. include/rag/agent/mlp.hpp
+32. include/rag/agent/model_based.hpp
+33. include/rag/agent/ope.hpp
+34. include/rag/agent/policy_table.hpp
+35. include/rag/agent/rng.hpp
+36. include/rag/agent/trainer.hpp
+37. include/rag/agent/tuning.hpp
+38. include/rag/agent/validation.hpp
+39. include/rag/agent/variance_reduction.hpp
+40. include/rag/arena.hpp
+41. include/rag/bm25.hpp
+42. include/rag/chunker.hpp
+43. include/rag/common.hpp
+44. include/rag/embedder.hpp
+45. include/rag/engine.hpp
+46. include/rag/epoch.hpp
+47. include/rag/fusion.hpp
+48. include/rag/io.hpp
+49. include/rag/ivf_index.hpp
+50. include/rag/orderflow/features.hpp
+51. include/rag/orderflow/replay_env.hpp
+52. include/rag/orderflow/scalp_env.hpp
+53. include/rag/orderflow/simulator.hpp
+54. include/rag/orderflow/stylized.hpp
+55. include/rag/orderflow/tick_csv.hpp
+56. include/rag/orderflow/tick_env.hpp
+57. include/rag/pdf.hpp
+58. include/rag/prompt.hpp
+59. include/rag/simd.hpp
+60. include/rag/text_clean.hpp
+61. include/rag/tokenizer.hpp
+62. include/rag/topk.hpp
+63. include/rag/vector_store.hpp
+64. include/rag.hpp
+65. examples/agent_demo.cpp
+66. examples/demo.cpp
+67. examples/of_backtest.cpp
+68. examples/of_calibrate.cpp
+69. examples/of_train.cpp
+70. examples/rag_pdf.cpp
+71. examples/train_ensemble.cpp
+72. examples/tune_agent.cpp
+73. bench/latency.cpp
+74. bench/rag_bench.cpp
+75. bench/fixtures.hpp
+76. tests/agent_coverage_tests.cpp
+77. tests/agent_edge_case_tests.cpp
+78. tests/agent_tests.cpp
+79. tests/api_examples_tests.cpp
+80. tests/forgery_tests.cpp
+81. tests/market_making_tests.cpp
+82. tests/mlp_tests.cpp
+83. tests/model_based_tests.cpp
+84. tests/optional_libs_tests.cpp
+85. tests/orderflow_tests.cpp
+86. tests/pdf_tests.cpp
+87. tests/policy_table_tests.cpp
+88. tests/rag_property_tests.cpp
+89. tests/rag_tests.cpp
+90. tests/reference_tests.cpp
+91. tests/stress.cpp
+92. tests/stylized_tests.cpp
+93. tests/text_clean_tests.cpp
+94. tests/pdf_writer.hpp
+95. tests/pid.hpp
+96. tests/synthetic.hpp
+97. tests/test_util.hpp
+98. tests/fuzz/fuzz_common.hpp
+99. tests/fuzz/fuzz_load.cpp
+100. tests/fuzz/fuzz_policy_table.cpp
+101. tests/fuzz/fuzz_text.cpp
+102. tests/fuzz/make_seeds.cpp
+103. tools/make_context_pack.py
+104. tools/research_crawler.py
+105. tools/test_research_crawler.py
 
 
 ---
 
-## FILE: llms.txt  (2,105 bytes)
+## FILE: llms.txt  (2,376 bytes)
 
 ```cmake
 # rag-cpp
@@ -294,10 +344,12 @@ tools/make_context_pack.py
 - [API cheat sheet](docs/ai/API.md): compiled examples for the engine, PDFs, persistence, batching, agent
 - [RAG engine internals](docs/ai/RAG_ENGINE.md): data flow, invariants, concurrency, file format, performance
 - [Agent architecture](docs/agent.md): environment, encoders, learners, supervision, lessons
+- [ES order-flow trading](docs/ai/ORDERFLOW.md): simulator, scalping and tick-scalping agents, backtester, calibration, results OF1-OF9, plan
+- [Research synthesis](experiments/research_synthesis.md): what 595 crawled papers say about the order-flow work, ranked changes
 - [Windows build](docs/WINDOWS.md): Visual Studio 2022 / MSVC build, test and run steps, optimization flags
 - [Lessons](docs/ai/LESSONS.md): 27 cross-cutting lessons from the experiments, each with its evidence
 - [Research notes](docs/ai/RESEARCH.md): literature review (noisy-target RL, execution, market making) with ranked next experiments
-- [Experiment log](docs/ai/EXPERIMENTS.md): RL experiments E0-E25 with results, including failures (summary table at the top)
+- [Experiment log](docs/ai/EXPERIMENTS.md): RL experiments E0-E28 with results, including failures (summary table at the top)
 - [Decision log](docs/ai/DECISIONS.md): design decisions with evidence
 - [Conventions](docs/ai/CONVENTIONS.md): coding, testing and verification rules
 - [Status](docs/ai/STATUS.md): limitations and next steps
@@ -311,7 +363,7 @@ tools/make_context_pack.py
 
 ---
 
-## FILE: docs/ai/README.md  (2,059 bytes)
+## FILE: docs/ai/README.md  (2,318 bytes)
 
 # Hand-off pack for an AI assistant
 
@@ -343,6 +395,10 @@ python3 tools/make_context_pack.py --with-source   # docs + all headers, tests, 
 10. `DECISIONS.md`: why things are the way they are, with evidence.
 11. `CONVENTIONS.md`: rules to follow when changing code.
 12. `STATUS.md`: limitations and next steps.
+13. `ORDERFLOW.md`: **the ES order-flow trading work** (simulator, two
+    agents, backtester, calibration, results OF1–OF9, ranked plan). Start
+    here to continue the trading work; `../../experiments/research_synthesis.md`
+    maps the literature onto it.
 
 ## Ground rules for an AI working on this code
 
@@ -360,7 +416,7 @@ python3 tools/make_context_pack.py --with-source   # docs + all headers, tests, 
 
 ---
 
-## FILE: docs/ai/OBJECTIVES.md  (5,199 bytes)
+## FILE: docs/ai/OBJECTIVES.md  (6,464 bytes)
 
 # Objectives
 
@@ -426,7 +482,17 @@ question with numbers, across seeds, against the exact optimum, and records
 the result even when it's negative (EXPERIMENTS.md). Library defaults
 change only when an experiment shows they should (DECISIONS.md).
 
-## 3. The hand-off pack
+## 3. ES order-flow trading (current focus)
+
+**Goal:** RL agents that trade ES futures from order flow, validated to
+a trading desk's standard before any real money. Two strategies:
+order-flow scalping/momentum (market orders) and tick scalping (limit
+orders, queue position). Develop on a realistic simulator now; calibrate
+to and backtest on the user's ES tick data next; train on the user's
+many-core server. Success criteria, standard of evidence, status and the
+ranked plan: `ORDERFLOW.md`.
+
+## 4. The hand-off pack
 
 **Goal:** another AI, or a person, can take over the project from these
 documents alone.
@@ -461,12 +527,17 @@ documents alone.
 | "Keep experimenting with the RL… keep programming, testing and simulating" | experiments E1–E14 (EXPERIMENTS.md) |
 | "Create documents, layouts etc. along with the RAG engine so I can feed all of it to another AI" | this hand-off pack |
 | "Make the documents: the specs you're using, the libraries, objectives" | SPECS.md, OBJECTIVES.md, TASK_SPECS.md |
+| "I need to run this on Windows too", "make sure it's optimized" | MSVC build, presets (AVX2, AVX-512), `docs/WINDOWS.md`; verified 285/285 on the user's Ryzen 9 9900X |
+| "Aim for a proper trading strategy and validation" | `validation.hpp` (stress suite, sealed seeds), E28 |
+| "ES futures… directional trading… order flow… two agents: scalping/momentum and tick scalping (queue, OFI, order arrival)" | `include/rag/orderflow/`, OF1–OF9, `ORDERFLOW.md` |
+| "Start a web crawler for RL trading papers; make it anonymous" | `tools/research_crawler.py`, `experiments/research_synthesis.md` |
+| "Make the code suitable for my server (and rented GPUs); the next AI should pick up the work" | `of_train` (parallel seeds), parallel calibration, `ORDERFLOW.md` §3 and §7 |
 
 
 
 ---
 
-## FILE: docs/ai/PROJECT_MAP.md  (9,751 bytes)
+## FILE: docs/ai/PROJECT_MAP.md  (11,057 bytes)
 
 # Project map
 
@@ -513,6 +584,15 @@ rag-cpp/
 │           ├── learners.hpp     TileQ, ReplayBuffer, EpisodicMemory
 │           ├── mlp.hpp          from-scratch MLP: backprop, Adam, SGD (for NeuralQ)
 │           ├── policy_table.hpp compile a policy into a lookup table; save/load; median-vote ensembles (E22, E23)
+│           ├── validation.hpp   stress suite, sealed test seeds, paired trading metrics (E28)
+│       └── orderflow/           ES order-flow trading (ORDERFLOW.md)
+│           ├── simulator.hpp    EsSimulator: tick-level ES book, takers, meta-orders, fading, icebergs, FIFO own orders
+│           ├── features.hpp     FeatureBuilder: 13 order-flow features from any tick stream
+│           ├── scalp_env.hpp    ScalpEnv: directional scalping with market orders
+│           ├── tick_env.hpp     TickScalpEnv: passive tick scalping with queue position
+│           ├── tick_csv.hpp     recorded ticks from CSV, bucketed
+│           ├── replay_env.hpp   TickTape + ReplayScalpEnv: backtests on recorded ticks
+│           ├── stylized.hpp     stylized facts of a tick stream (calibration)
 │           ├── agent.hpp        Agent<Env>: TileQ / Episodic / ActorCritic / NeuralQ, n-step, distill, snapshots
 │           ├── evaluate.hpp     evaluate / compare on common random numbers (EvalStats)
 │           ├── drift.hpp        DriftDetector: one-sided CUSUM on surprise (DriftParams)
@@ -550,6 +630,9 @@ rag-cpp/
 │   ├── rag_pdf.cpp              CLI: index PDFs, ask questions with page citations
 │   ├── tune_agent.cpp           (NLopt + Eigen) hyperparameter search, validation, sensitivity
 │   ├── train_ensemble.cpp       the recommended policy (E25, A48): N averaged networks in parallel, tables, median vote
+│   ├── of_train.cpp             order-flow scalping agents trained in parallel (one seed per thread)
+│   ├── of_backtest.cpp          walk-forward backtest of scalping strategies on recorded ticks
+│   ├── of_calibrate.cpp         simulator vs recorded ticks: facts, fit (NLopt), export
 │   └── agent_demo.cpp           the self-learning agent end to end (model-free, drift, model-based + model check)
 ├── docs/
 │   ├── agent.md                 the agent's architecture, with every measured lesson
@@ -568,8 +651,10 @@ rag-cpp/
 │       ├── CONVENTIONS.md       coding, testing and verification rules
 │       └── STATUS.md            what works, limitations, next steps
 ├── tools/make_context_pack.py   bundles docs (and optionally sources) into one file for an AI
+├── tools/research_crawler.py    anonymous, polite crawler for RL trading research -> research_corpus/ (gitignored)
 ├── handoff/                    generated bundles to paste into another AI (docs ~58k tokens, full ~240k)
-├── experiments/                 the probe programs behind EXPERIMENTS.md (snapshots; not built)
+├── experiments/                 the probe programs behind EXPERIMENTS.md and OF1-OF9 (snapshots; only of7 is built,
+│                                as of_tick_train), their result files, and research_synthesis.md
 ├── llms.txt                     index of this pack for language models
 └── .github/workflows/ci.yml     8 CI jobs
 ```
@@ -777,7 +862,7 @@ count.
 
 ---
 
-## FILE: docs/ai/API.md  (16,459 bytes)
+## FILE: docs/ai/API.md  (17,260 bytes)
 
 # API cheat sheet
 
@@ -1097,6 +1182,20 @@ const auto voted = ExecutionPolicyTable::median({table, loaded, loaded});  // ce
 
 The table holds horizon × (lots + 1) × bins one-byte actions (129 KB at the
 defaults and 64 bins). Signals beyond the range use the edge bins (E22, E23).
+
+## 14. ES order-flow trading (summary; details in ORDERFLOW.md)
+
+```cpp
+#include "rag/orderflow/scalp_env.hpp"   // EsSimulator, FeatureBuilder, ScalpEnv
+#include "rag/orderflow/replay_env.hpp"  // TickTape, ReplayScalpEnv
+using namespace rag::orderflow;
+EsSimulator sim(SimParams{}, /*seed=*/1);        // or efficient_market()
+sim.step();                                       // 100 ms: sim.trades(), sim.quote()
+const auto id = sim.submit_limit(Side::Buy, sim.bid(), 1);  // FIFO queue position: sim.resting()
+ScalpEnv env;                                     // an Environment for rag::agent learners
+auto tape = std::make_shared<const TickTape>(TickTape::from_csv("es_ticks.csv", {.time_unit = "ns"}));
+ReplayScalpEnv replay(tape);                      // same observations, recorded ticks
+```
 
 A new environment only needs to satisfy the `Environment` concept: an
 `Observation` type, `kNumActions`, `kStateDims`, `kLo`/`kHi`, and
@@ -1724,7 +1823,7 @@ The hard problems are the same in both:
 
 ---
 
-## FILE: docs/WINDOWS.md  (9,645 bytes)
+## FILE: docs/WINDOWS.md  (10,395 bytes)
 
 # Building and running on Windows
 
@@ -1825,6 +1924,21 @@ All should pass.
 .\build\Release\agent_demo.exe        # the self-learning agent: trains, deploys, adapts to a regime change
 .\build\Release\rag_latency.exe 20000 # query latency percentiles (p50 / p99 / p99.9) per search mode
 ```
+
+### Order-flow trading tools on the server
+
+The ES order-flow tools (`docs/ai/ORDERFLOW.md`) build with the presets
+too and use every core:
+
+```powershell
+.\build-avx512\Release\of_train.exe --seeds 12 --episodes 2000 --out nets     # 12 scalping agents in parallel
+.\build-avx512\Release\of_backtest.exe es_ticks.csv --time ns nets\seed1.net  # backtest on recorded ticks
+.\build-avx512\Release\of_calibrate.exe facts es_ticks.csv --time ns          # calibration facts
+1..12 | % { Start-Process -NoNewWindow .\build-avx512\Release\of_tick_train.exe "$_ 2000 0.99 0.5 0.25 0.02 200 100 tick_seed$_.net" }
+```
+
+`of_calibrate fit` needs NLopt (not installed on Windows by default; run
+`facts` there and `fit` under WSL, or install NLopt with vcpkg).
 
 ### Train the best learned policy (`train_ensemble.exe`)
 
@@ -2134,7 +2248,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (8,286 bytes)
+## FILE: docs/ai/LESSONS.md  (10,032 bytes)
 
 # Lessons, distilled
 
@@ -2280,6 +2394,33 @@ building learning systems in general, not just this task.
     network (τ = 1e-4) beat the network itself on every seed, at the cost
     of one extra copy of the weights; a fast one (1e-3) didn't. It also made
     the final policy usable without champion selection (E24).
+
+## Trading on order flow (OF1–OF9; ORDERFLOW.md)
+
+32. **A simulator that pays every day is wrong, not good.** The scalping
+    agent's annualized Sharpe of ~80 with no losing day measured the
+    simulator's predictability (markouts that keep drifting for 30 s), not
+    a tradable edge. Check the markout curve before believing P&L (OF8, OF9).
+33. **Make naive strategies fail first.** Naive passive quoting winning
+    every episode exposed a too-generous queue (uniform cancellations, no
+    latency competition); naive delta-following winning exposed too much
+    informed flow. Calibrate until naive rules are near breakeven (OF2, OF4).
+34. **Exploration must be able to reach the reward.** Uniform random
+    quoting modes cancelled and rejoined at the back of a 120-lot queue, so
+    the tick agent never got filled and learned not to quote; guiding
+    episodes with a rule fixed the experience, not yet the edge (OF5, OF7).
+35. **Same seed is not the same path.** Once our orders change the book,
+    two policies on one seed see different markets; paired differences are
+    nearly as noisy as unpaired ones, so validation leads are selection
+    noise until confirmed on fresh seeds (OF7 review).
+36. **Summary statistics don't identify mechanisms.** A fit matched
+    predictability with momentum instead of the true scarce informed flow;
+    and less informed trading made the market more predictable (slower
+    price discovery). Calibrate to richer targets (markout curves, queue
+    dynamics) (calibration recovery test).
+37. **Re-run what you commit.** A results table produced by a stale
+    binary (the last sweep step) went into git; regenerate result files
+    from the committed code, in the same command (OF4 correction).
 
 
 
@@ -2692,7 +2833,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (80,575 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (83,864 bytes)
 
 # RL experiment log
 
@@ -2736,6 +2877,10 @@ and the conclusion; negative results stay in.
 | E23 | Does a vote across seeds' tables beat one network? | Yes: the median of 8 seeds' tables keeps 97.5% (fresh scenarios: 97.9%, better than every member by 4.4–10.2 points), vs 91.4% for the average seed and 94.1% for the best; 3 members already beat the best seed; at equal compute, 4 × 40k voted (96.7%) beats 1 × 160k (93.5%). |
 | E24 | Does averaging one network's weights help? | Yes, with a slow average: τ = 1e-4 deploys 94.1% (93.0–95.5) at 40k vs 91.5%, better on all 8 seeds (+1.0 to +5.6 points); ~ a 2–3-network vote for one training run. τ = 1e-3 is too fast. |
 | E25 | Do the vote and weight averaging add up? | Yes, with diminishing returns: 8 averaged networks voted reach 97.8% (best model-free result), 3 reach 96.6% (vs 95.4% unaveraged); the gains overlap because both remove per-network noise. |
+| E26 | Where do the learned policies err? | They over-trade: trading too much costs 3.5–11.2% of the optimal gain vs 0.7–5.8% for too little; the vote removes idiosyncratic errors, not the bias. |
+| E27 | Does a lower-quantile vote fix the bias? | No: better on the selection set (98.1 vs 97.5%), not on fresh scenarios (97.8 vs 97.9%) — selection bias. |
+| E28 | Do strategies survive a different market? (stress suite, sealed seeds) | Fixed strategies (DP plan, learned ensemble) only in their assumed market (−173% when the signal flips); the model-based agent re-learned in 50 episodes keeps 97–100% everywhere. |
+| OF1–OF9 | ES order-flow trading | See ORDERFLOW.md §4: RL scalping beats every rule in the simulator (robust to 9 stresses) but the simulator is too predictable to trust absolute P&L; tick-scalping RL matches, not beats, the rule. |
 | E19 | Do gap-increasing targets help? | Advantage learning (k = 0.5) lifts TileQ from 65–69% to 70–75% at 40k, and to 76–80% with coarse tiles: the best tile-coded result, still below the neural learner. |
 
 ---
@@ -4106,10 +4251,57 @@ R² = 0.56; effect of +1 standard deviation of each parameter):
   median: 96.6–97.1% for 3–4× one network's training.
 
 
+## E26. Where do the learned execution policies err? (they over-trade)
+
+* **Setup:** each E22/E25 table's own trajectories on the 1,000 held-out
+  scenarios; every decision's one-step regret V*(s) − Q*(s, a) from the
+  exact DP, split by whether the table traded more or less than optimal.
+  Summed along the policy's own path this is exactly its gap to the
+  optimum (performance-difference identity). Probe `experiments/e26_errors.cpp`.
+* **Result:** unaveraged networks agree with the optimum on 60–71% of
+  decisions; trading too much costs 3.5–11.2% of the optimal gain, too
+  little 0.7–5.8%. The 8-network median vote agrees on 80% and loses
+  1.8% + 0.3%: it removes idiosyncratic errors, the over-trading bias
+  remains. Weight averaging also reduces it (averaged: 2.8–5.1% vs
+  1.0–3.1%).
+
+## E27. A lower-quantile vote (negative)
+
+* **Setup:** vote with the q-quantile of the members' actions instead of
+  the median, to counter E26's over-trading. Held-out (77M) and fresh
+  (99M) scenarios. Probe `experiments/e27_quantile.cpp`.
+* **Result:** for unaveraged networks q = 0.375 scored 98.1% vs the
+  median's 97.5% on the selection set, but 97.8% vs 97.9% on fresh
+  scenarios; for averaged networks the median was best on both. The
+  correction was fitted to the reused held-out set: selection bias, which
+  motivated the sealed test seeds of E28.
+
+## E28. Out-of-sample validation on a stress suite
+
+* **Setup:** `validation.hpp`: the nominal market plus 11 one-change
+  markets (impact ×2 / ×0.5, signal ×0.5 / ×1.5 / flipped, persistence 0.9 /
+  0.3, volatility ×2, permanent impact, impact exponent 1.5, fees), each
+  with its own exact optimum; 4,000 sealed episodes (900M+) per scenario,
+  paired against TWAP. Probe `experiments/e28_validation.cpp`, results
+  `e28_results.csv`.
+* **Result:** fixed strategies work only in their assumed market: the
+  nominal DP plan and the E25 ensemble keep 88–100% under moderate changes
+  and lose to TWAP in nearly every episode when the signal flips (−177%,
+  −173%); the model-based agent re-learned in 50 episodes keeps
+  96.8–100.1% everywhere (97.3% flipped). No false alarms from the model
+  check (z between −4.8 and −0.85).
+
+## OF1–OF9. ES order-flow trading
+
+The order-flow series (simulator stylized facts, scalping and
+tick-scalping baselines and RL, stress, daily P&L, efficient market,
+calibration, backtesting) is documented in [ORDERFLOW.md](ORDERFLOW.md) §4.
+
+
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (18,081 bytes)
+## FILE: docs/ai/DECISIONS.md  (19,966 bytes)
 
 # Decision log
 
@@ -4202,6 +4394,13 @@ the code looks the way it does.
 | A46 | `ExecutionPolicyTable` checks its grid: the cell count must not overflow or exceed `vector::max_size()`, the loops use 64-bit counters, and the bin width must be a normal double, in the constructor and in `load()` | Bugs found by the review agent: a huge grid wrapped the size to 0 and wrote past the table; `lots = UINT32_MAX` looped forever; a subnormal width (1e-150 × 1e-160) sent every bin centre to the last bin, and `load()` accepted such files. Regression tests in `policy_table_tests.cpp`; `fuzz_policy_table` in CI found the last one unaided. |
 | A47 | `nn_polyak` (weight averaging for NeuralQ) is available, default 0; recommended 1e-4 | Deployed 94.1% vs 91.5% at 40k, better on 8/8 seeds, +6.2 points at 20k; training unchanged, one extra copy of the weights. Opt-in like A43, so other tests keep their behaviour (E24). |
 | A48 | Recommended deployment for a learned execution policy: 3–4 NeuralQ networks (`double_q`, `nn_polyak = 1e-4`, different seeds), each compiled to an `ExecutionPolicyTable`, combined with `median()` | 96.6–97.1% of the optimum (8 networks: 97.8%) at 3 ns per decision; weight averaging and voting add up with diminishing returns (E25). |
+| A49 | ES order-flow simulator: mechanisms (meta-orders, quote fading, icebergs, activity clustering), not curve fitting; capped fading and mean-zero activity excitation | Uncapped fading and raw-move excitation are supercritical (the book blew up at 6,000 trades/s); mechanisms reproduce stylized facts and make order flow predictive for the reasons real markets do (OF1). |
+| A50 | Queue model: cancellations biased to the back (power 3), ~120 faster lots join ahead of a 100 ms order | Uniform cancellations let naive two-sided quoting win every episode (+20.7 ticks / 5 min); with the defaults it is breakeven before fees and loses after, the stylized fact for slow 1-lot participants (OF4). |
+| A51 | The same `FeatureBuilder` for simulated and recorded ticks, self-normalized by running RMS | Simulator-trained agents run unchanged on recorded data (`ReplayScalpEnv`); backtest Sharpe on a simulated day replayed from CSV matches the in-simulator value (0.74/0.70 vs 0.76/0.77). |
+| A52 | `maker_info` (informed makers) is opt-in; `efficient_market()` preset | Default results stay reproducible; the preset removes 30 s delta predictability (corr -0.02) and flattens the markout curve, the regime real ES is closer to (OF9). |
+| A53 | NeuralQ allocates no tile tables | They were unused but (bins+1)^Dims: 3.8 GB per agent with two snapshots at 21 inputs; OOM-killed training (2 MB now). |
+| A54 | Tick scalper trained off-policy from rule-guided episodes; deployed greedy or rule-anchored | Plain exploration never gets filled (0.1 fills/episode); guided training quotes; anchored deployment matches the rule, greedy loses (OF7). |
+| A55 | Train many seeds in parallel threads (`of_train`, `of_calibrate --seeds`), not on GPUs | The networks are 2 x 64 units: per-update work is microseconds, so cores, not GPUs, are the bottleneck; results don't depend on the thread count. |
 
 
 
@@ -4288,11 +4487,20 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (7,237 bytes)
+## FILE: docs/ai/STATUS.md  (8,061 bytes)
 
 # Status, limitations and next steps
 
 ## Works and is verified
+
+* **ES order-flow trading** (`include/rag/orderflow/`, see `ORDERFLOW.md`):
+  a tick-level ES simulator calibrated to stylized facts, order-flow
+  features, a scalping environment (RL beats every rule, robust to 9
+  stresses, but the simulator is too predictable for the absolute P&L to
+  mean anything), a tick-scalping environment with FIFO queue position
+  (RL matches but doesn't beat the delta-skew rule), a backtester on
+  recorded ticks, calibration tooling, a parallel trainer for many-core
+  servers, and an anonymous research crawler.
 
 * **Platforms:** Linux (GCC 13, Clang 18; seven CI jobs including
   sanitizers and fuzzing) and Windows (Visual Studio 2022 / MSVC, AVX2;
@@ -4403,6 +4611,11 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ## Next steps (in rough priority order)
 
+0. **ES order-flow trading** (the current focus): the ranked plan is in
+   `ORDERFLOW.md` §7: calibrate the simulator to the user's ES ticks,
+   backtest the agents on real ticks, paired evaluation on the same
+   market path, the tick scalper at 100 ms latency on fresh seeds.
+
 1. A neural `Embedder` (e.g. ONNX Runtime with a MiniLM model, 384 dims to
    match), on a machine that can download models.
 2. Incremental BM25 segments with background merging.
@@ -4422,7 +4635,583 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: README.md  (20,697 bytes)
+## FILE: docs/ai/ORDERFLOW.md  (13,589 bytes)
+
+# ES order-flow trading: simulator, agents, validation, plan
+
+The order-flow trading work, in one place: what it is for, how it is
+built, how to run it (Linux and the user's Windows server), every result
+with its caveats, and what to do next. Experiment numbers (OF1–OF9) refer
+to probes in `experiments/`; detailed numbers for each are in the probe's
+results file and summarized here.
+
+## 1. Objectives (from the user)
+
+- **Market:** ES (E-mini S&P 500) futures. 1 tick = 0.25 index points =
+  $12.50 per contract.
+- **Two strategies, two agents:**
+  1. **Order-flow scalping / momentum** (directional, market orders,
+     seconds to minutes): decide from delta, volume, order-flow imbalance,
+     absorption and market structure.
+  2. **Tick scalping** (passive, limit orders): earn the spread with queue
+     position, order-flow imbalance and order-arrival information, while
+     avoiding adverse selection.
+- **Data:** the user has ES tick data on their server and will feed real
+  order flow later. Until then everything runs on the simulator, built so
+  the same feature and strategy code runs on recorded ticks unchanged.
+- **Hardware:** the user's server (AMD Ryzen 9 9900X, 12 cores / 24
+  threads, AVX-512, 128 GB, Windows Server 2025) does the long training;
+  GPUs can be rented. Tools train many seeds in parallel threads.
+- **Standard of evidence:** sealed test seeds, paired comparisons with
+  rules, stress scenarios, daily P&L / drawdown / Sharpe, and, before any
+  edge is believed, calibration to and backtests on real ES ticks.
+
+## 2. Architecture
+
+```
+            ┌──────────────── tick stream: Trade{price, size, aggressor}, Quote{bid, ask, 5 levels} ───────────────┐
+ simulator.hpp (EsSimulator)                                             tick_csv.hpp (recorded ticks, CSV)
+            │                                                                          │
+            └──────────────► features.hpp (FeatureBuilder: 13 order-flow features) ◄───┘
+                                   │                          │
+                 scalp_env.hpp (ScalpEnv)        replay_env.hpp (ReplayScalpEnv)   tick_env.hpp (TickScalpEnv)
+                 market orders, simulator        market orders, recorded ticks      limit orders + FIFO queue
+                                   │                          │                          │
+                     rag::agent learners (NeuralQ + Double DQN + weight averaging), Trainer, champion selection
+                                   │
+     tools: of_train (parallel seeds)  of_backtest (walk-forward on ticks)  of_calibrate (facts, fit)  probes OF1–OF9
+```
+
+| File | What it is |
+|---|---|
+| `include/rag/orderflow/simulator.hpp` | `EsSimulator`: L2 book (16 levels/side, 5 exposed), 100 ms steps; noise takers, informed and uninformed meta-orders (power-law sizes, child orders), momentum takers, makers with capped quote fading, optional informed makers (`maker_info`), icebergs (hidden reserve: absorption); activity log-OU + intraday U-shape + mean-zero excitation; fair value with activity-scaled volatility and jumps. Strategy orders: `market_order`, `submit_limit`/`cancel` with FIFO queue position (cancellations biased to the back, faster participants joining ahead). `efficient_market()` preset. |
+| `include/rag/orderflow/features.hpp` | `FeatureBuilder`: delta 5/30/120 s, OFI 5/30 s, relative volume, L1 and L1-5 imbalance, returns 5/30/120 s, VWAP distance, absorption (volume traded at a holding best level beyond the size displayed). Running window sums; self-normalized by a running RMS (works on any market without hand scales). |
+| `include/rag/orderflow/scalp_env.hpp` | `ScalpEnv`: target position short/flat/long every 1 s, market orders with 100 ms latency, real fills, $1.50/side fees, reward = mark-to-market change net of fees, ends flat, fresh market and random time of day per episode (10 min + 150 s warm-up). |
+| `include/rag/orderflow/tick_env.hpp` | `TickScalpEnv`: quote none/bid/ask/both or flatten every 0.5 s; 1-lot at the touch, rejoining at the back when the price moves; inventory ±1; FIFO fills; queue position in the observation; 5-min episodes. |
+| `include/rag/orderflow/tick_csv.hpp` | `replay_tick_csv`: recorded ticks (`T,time,price,size,B|S` / `Q,time,bid,ask[,5+5 sizes]`) replayed in buckets into any `add_trade`/`end_bucket` sink. |
+| `include/rag/orderflow/replay_env.hpp` | `TickTape` + `ReplayScalpEnv`: the scalping environment on recorded ticks (same observations, so simulator-trained agents run unchanged); fills at the recorded touch walking recorded depth; `seek(k)` for walk-forward windows. |
+| `include/rag/orderflow/stylized.hpp` | `StylizedMeter`/`simulate_facts`: the same stylized facts for simulated and recorded ticks (activity, spread, L1, 1-min sd/kurtosis/autocorrelations, trade-sign memory, price-on-flow R², 30 s delta predictability, markouts at 1/5/30 s, mid changes per minute). |
+| `examples/of_train.cpp` | Parallel training of scalping agents (one seed per thread), sealed scoring, mean-Q ensemble. |
+| `examples/of_backtest.cpp` | Walk-forward backtest of flat, the delta rule and saved agents on a tick CSV. |
+| `examples/of_calibrate.cpp` | `sim`, `facts <csv>`, `export <csv>`, `fit <csv>` (NLopt; seeds averaged in parallel threads). |
+| `experiments/of*.cpp` | Probes OF1–OF9 (below), results files next to them. |
+| `experiments/research_synthesis.md` | Literature synthesis from the research crawl, with a ranked change list. |
+| `tools/research_crawler.py` | Anonymous, polite crawler (arXiv, OpenAlex, Semantic Scholar, Hacker News) → `research_corpus/` (gitignored) indexable with `rag_pdf`. |
+
+Tests: `tests/orderflow_tests.cpp` (book invariants, determinism, FIFO
+queue, environments) and `tests/stylized_tests.cpp` (CSV reader, facts
+round trip, replay fills, NeuralQ memory).
+
+## 3. How to run
+
+Linux (from the repository root, after `cmake -S . -B build && cmake --build build -j`):
+
+```bash
+./build/of_train --seeds 12 --episodes 2000 --market default --out nets/   # parallel training
+./build/of_backtest es_ticks.csv --time ns nets/seed1.net nets/seed2.net   # recorded ticks
+./build/of_calibrate facts es_ticks.csv --time ns                           # real vs simulated facts
+./build/of_calibrate fit es_ticks.csv --time ns --seeds 12 --seconds 21600 --evals 300
+./build/of_calibrate export sample.csv 3600                                 # example of the CSV format
+```
+
+Windows server (Developer PowerShell, AVX-512 build; see `docs/WINDOWS.md`):
+the same tools are in `build-avx512\Release\` (`of_train.exe`, ...). The
+tick-scalping trainer (OF7) is the target `of_tick_train`; run one process
+per seed in parallel, e.g.
+`1..12 | % { Start-Process -NoNewWindow .\build-avx512\Release\of_tick_train.exe "$_ 2000 0.99 0.5 0.25 0.02 200 100 tick_seed$_.net" }`
+(Linux: `./build/of_tick_train SEED 2000 0.99 0.5 0.25 0.02 200 100 out.net`).
+
+Hardware notes: the networks are small (2 × 64 units); a GPU does not
+help at this size (per-update work is microseconds). Scale with cores:
+one seed per thread (`of_train`), seeds averaged in parallel
+(`of_calibrate --seeds`). GPUs pay off only with much larger models
+(e.g. convolutional/recurrent models over raw book sequences), which
+would need a GPU framework fed by this simulator: not built yet.
+
+## 4. Results (simulator unless stated; sealed test seeds)
+
+Seed blocks: training = trainer streams seeded by the run seed; validation
+= 700M+i; sealed tests: scalping 900M+i (OF2, OF3, OF9), tick scalping
+910M+i (OF4, OF5, OF7), stress 920M+i (OF6), days 930M+i (OF8).
+
+**OF1 — stylized facts** (`of1_stylized_facts.cpp`, 3 × 6.5 h): ~20
+trades/s, 3.8 lots/trade, ~4,500 contracts/min, spread 1 tick 97%,
+1-min sd 3.4–4.4 ticks, excess kurtosis 5–10, |r| autocorrelation 0.15–0.3,
+trade-sign autocorrelation 0.22 → 0.16 at lag 100, R²(10 s Δmid ~ delta)
+≈ 0.5, corr(30 s delta, next 30 s) ≈ 0.1. Two calibration bugs found on
+the way: uncapped quote fading and raw-move activity excitation both made
+the book blow up (6,000 trades/s).
+
+**OF2 — scalping baselines** (1 contract, 300 × 10 min): flat 0; 30 s
+delta momentum +1.83 ticks/episode (t 3.9); OFI momentum −1.8; L1
+imbalance −27.9 (trading costs); absorption −11.5; fading −4.5; oracle
+(sees fair value) +11.1.
+
+**OF3 — RL scalping** (NeuralQ + Double DQN + averaging, γ 0.97, n 5,
+2,000 episodes): +4.84, +5.29, +5.12, +3.88 ticks/episode for 4 seeds
+(t 10–13, 74–78% winning), 2.1–2.9× the best rule, 35–48% of the oracle.
+
+**OF6 — stress** (2 saved agents, 9 scenarios): profitable in all 9
+(t ≥ 4) including 1 s latency (+3.6/+4.2) and doubled fees (+2.1/+3.9);
+beats the rule in 8/9 (not with informed flow ×0.5).
+
+**OF8 — daily view** (20 days of 39 sessions): RL +171/+179 ticks/day,
+100% winning days, annualized Sharpe ~80; mean-Q ensemble of 2 +206. **Not
+believable as real trading**: the simulator is too predictable (see OF9).
+
+**OF4 — tick-scalping baselines** (300 × 5 min, defaults): quote both
+sides −2.77 ticks (gross +0.05: breakeven before fees); delta-skewed
+quoting +2.90 (t 10.5, 8.3 fills, 74% winning). The first queue model
+let naive quoting win every episode (+20.7); cancellations at the back
+of the queue and latency competition fixed that. (The committed table
+was once produced by a stale binary; corrected in f51c54b.)
+
+**OF5 — plain RL tick scalping**: learned not to quote (0–0.1 fills, ~0).
+Uniform exploration got 0.1 fills/episode: random modes keep cancelling
+and rejoining behind ~120 lots, so no quoting experience is ever seen.
+
+**OF7 — rule-guided tick scalping** (`of7_tick_guided.cpp`, reviewed):
+off-policy learning from episodes where the delta-skew rule acts
+(annealed 1 → 0.25, 2% deviations); greedy and rule-anchored
+deployments. Smoke (2 × 700): greedy quotes but loses (−0.8/−0.2);
+anchored +2.58/+2.57 vs the rule's +2.90 (not significantly different).
+Review findings: pairing shares the seed, not the market path (our orders
+change it), so validation leads are mostly selection noise; actions take
+effect instantly (the rule's edge is +2.20 with 100 ms action latency).
+Full run (4 × 2,000): see `experiments/of7_results.csv` when present.
+
+**OF9 — efficient market** (`efficient_market()`: informed makers): 30 s
+delta no longer predicts (corr −0.02 vs +0.12); markout flat after 5 s
+(+0.57 → +0.56 vs +0.57 → +1.40 by default). Baselines: delta momentum
+−7.2 ticks/episode (t −12), OFI momentum +1.4 (t 2.9: OFI sees the makers'
+re-pricing), oracle +8.8. RL retraining in this market: see
+`experiments/of9_*` when present.
+
+**Calibration** (`of_calibrate`): recorded-tick CSV round trip exact;
+in a recovery test (target = informed flow ×0.4) the fit matched
+predictability, R² and clustering but not activity or markout, and
+explained the predictability by momentum instead of informed flow:
+summary facts don't identify mechanisms. Less informed flow made the
+market *more* predictable (slower price discovery).
+
+**Backtester** (`of_backtest`): replaying a simulated day exported to CSV
+reproduces the agents' in-simulator Sharpe per window (0.74/0.70 vs
+0.76/0.77); a 6.5 h day backtests in under a second.
+
+## 5. Honest status
+
+- The RL scalping agent beats every rule *in the simulator*, robustly.
+  Its absolute P&L is a property of a simulator that is still too
+  predictable (OF8). Nothing here shows it makes money in real ES.
+- The tick-scalping agent does not beat the delta-skew rule. The
+  literature agrees that slow passive agents rarely have a robust edge;
+  the bar is "match or beat the rule at 100 ms latency on never-viewed
+  seeds", not positive P&L.
+- Both environments assume our orders don't need to be modelled beyond
+  the simulator (scalping) or a FIFO queue without MBO calibration (tick).
+
+## 6. Bugs found and fixed in this work (each has a test or a probe)
+
+Uncapped quote fading and supercritical activity excitation (book blew
+up); absorption feature measuring ordinary flow; tile tables of 8^16
+cells for NeuralQ (bad_alloc) and 3.8 GB snapshots at 21 inputs (OOM);
+unspecified argument-evaluation order in `reset()` (episodes differed
+between compilers); a non-copyable environment; results committed from a
+stale binary (OF4).
+
+## 7. Plan for the next AI (ranked)
+
+1. **Calibrate to the user's ES ticks:** convert their export to the CSV
+   format, run `of_calibrate facts`, then `fit` with many seeds and long
+   windows on their server; add richer targets first (markout curve at
+   more horizons, queue depletion/refill rates; MBO if available). Re-run
+   OF2/OF3/OF6/OF8 on the calibrated market.
+2. **Backtest on real ticks:** `of_backtest` with the saved agents and the
+   delta rule; walk-forward by day; train on recorded windows
+   (`ReplayScalpEnv::reset`) and test on later days only.
+3. **Paired evaluation on the same market path:** one RNG stream per
+   exogenous process in `EsSimulator` (opt-in so old results reproduce),
+   then measure the paired-difference sd (now 3.8–6.2 ticks vs 6.6
+   per-episode sd).
+4. **Tick scalper:** action latency in `TickScalpEnv` (opt-in), tick
+   diagnostics (no-trade share, spread capture vs carry, own-fill
+   markouts), learn the advantage over the rule; success = match or beat
+   the rule at 100 ms latency on fresh seeds (e.g. 940M+).
+5. **Validation hygiene:** a seed-block ledger, fresh-seed confirmation of
+   every claimed edge, CVaR in stress tests, domain randomization of
+   simulator parameters during training.
+6. Market-structure features (session high/low, volume-profile POC/value
+   area) and the remaining items of `experiments/research_synthesis.md`.
+
+
+
+---
+
+## FILE: experiments/research_synthesis.md  (44,562 bytes)
+
+# Research synthesis: ES order-flow simulator, scalping agent, tick-scalping agent, validation
+
+Experiment artifact for the `research/rl` branch. It is not part of `docs/`.
+
+## How this was made
+
+- **Corpus:** `research_corpus/` holds 595 items and 60 PDFs. The PDFs total 1,862 pages and are indexed in `corpus.ragidx`.
+- **Search:** I ran 64 targeted questions through `build/rag_pdf ask research_corpus/corpus.ragidx "<q>" -k 6..8`. They covered queue-reactive models, OFI and impact, RL market-making rewards and inventory penalties, adverse selection, no-trade collapse, latency, exploration, backtest overfitting, walk-forward testing and sim-to-real.
+- **Reading:** I extracted the 30 most relevant PDFs to text and read the cited pages in full. Each citation gives the title and year exactly as they appear in the corpus. Citations are tagged:
+  - **[PDF]**: I read the full text.
+  - **[abstract]**: the corpus has only the title and abstract, so the claim rests on the abstract alone.
+- **Our results:** they come from `NOTES_RL.md` (OF1 to OF8, the OF4 correction and OF7).
+
+### Where the corpus is thin (read this first)
+
+- **Backtest-overfitting statistics.** The corpus has nothing on the deflated Sharpe ratio or on purged or embargoed cross-validation: no metadata match and no full-text passage. The keyword scan found 0 deflated-Sharpe hits. What it does have is three abstracts:
+  - *Deep Reinforcement Learning for Cryptocurrency Trading: Practical Approach to Address Backtest Overfitting* (2022) [abstract]
+  - *Interpretable Hypothesis-Driven Trading:A Rigorous Walk-Forward Validation Framework for Market Microstructure Signals* (2025) [abstract]
+  - *The Red Queen's Trap: Limits of Deep Evolution in High-Frequency Trading* (2025) [abstract]
+
+  The validation section below therefore leans on the evaluation practice of the RL papers that are in the corpus as full text.
+- **Sim-to-real.** No paper studies transfer from a simulator to live trading. The only discussion is the limitations chapter of *Market Making Strategies with Reinforcement Learning* (2025) [PDF].
+- **ES specifically.** One econometric paper on E-mini order flow, *Returns and Order Flow Imbalances: Intraday Dynamics and Macroeconomic News Effects* (2025), is abstract only. The closest large-tick futures evidence is:
+  - Bund futures in *Deep Learning Meets Queue-Reactive: A Framework for Realistic Limit Order Book Simulation* (2025) [PDF];
+  - Bund/DAX in *Queue-reactive Hawkes models for the order flow* (2019) [abstract];
+  - KOSPI200 index futures in *Market Making under Order Stacking Framework: A Deep Reinforcement Learning Approach* (2022) [abstract].
+- **Ranking quality.** Semantic Scholar mostly failed during the crawl (HTTP 429), so citation-based ranking is weak. Several high-ranked digest items come from low-quality venues, and I did not use them.
+
+---
+
+## 1. Simulator realism and calibration
+
+### What the literature says
+
+**Queue-reactive (QR) dynamics are the standard tractable target for large-tick books.**
+
+*Deep Learning Meets Queue-Reactive: A Framework for Realistic Limit Order Book Simulation* (2025) [PDF] models each queue by event intensities λ_L(q), λ_C(q) and λ_M(q) (limit, cancel, market) that depend on the current queue size. These intensities have a closed-form maximum-likelihood estimate: count the events at queue size n and divide by the time spent at n (pp. 4-5). Calibration on Euro-Bund futures (about 4,000 lots per 5 minutes) gave three findings:
+- Adding hour of day and last event type to the state improves likelihood, next-event accuracy and inter-event timing (p. 10).
+- Independent queues miss cross-excitation between bid and ask. Modelling the book jointly fixes the event-transition matrix.
+- The validation suite (pp. 16-20) covers:
+  - impact during a TWAP buy that rises concavely and then relaxes;
+  - a square-root impact law, fitted exponent 0.55, R² 0.89;
+  - queue-size distribution Q-Q plots against real data;
+  - mid-price prediction, balanced accuracy 0.63 against 0.54 for a dedicated deep-learning price-prediction baseline.
+
+*Queue-reactive Hawkes models for the order flow* (2019) [abstract] calibrates on Bund and DAX futures. It reports that adding a Hawkes term to QR intensities "dramatically improves" inter-event-time statistics and queue-size distributions.
+
+*Reinforcement Learning in Queue-Reactive Models: Application to Optimal Execution* (2025) [PDF] uses a calibrated QR model as an RL environment precisely because it produces both kinds of impact (p. 3):
+- direct impact: liquidity consumed;
+- indirect impact: flow reacting to queue imbalance.
+
+**Who cancels, and where, decides queue value.**
+- *Market Making via Reinforcement Learning* (2018) [PDF] replays L2 data. It must assume where in the queue cancellations land, and it assumes uniform (p. 3).
+- *Cooperative Multi-Agent Reinforcement Learning for Market Making on Prediction-Market Order Books* (2026) [PDF] makes the same uniform assumption when it rebuilds market-by-order data from L2. It calls this a limitation (p. 33).
+- *Reinforcement Learning for Trade Execution with Market and Limit Orders* (2025) [PDF] goes the other way: its noise and tactical traders "always cancel orders with the highest queue positions first" (p. 11).
+- Our `cancel_back_bias = 3` sits between these two extremes. OF4 showed that this parameter, together with `join_ahead_mean`, determines whether passive quoting pays at all.
+
+**Order value can be decomposed.**
+
+*Deep Hawkes Process for High-Frequency Market Making* (2021) [PDF] values a resting order, following Moallemi and Yuan, as:
+
+V = P(fill) × (half-spread premium − E[adverse move | fill])  (pp. 37-38)
+
+*Optimal Market Making in Prediction Markets: Empirical Distribution Learning, Analytical Policy Characterization, and Reinforcement Learning* (2026) [PDF] derives a quote-or-cancel threshold from three quantities (p. 42):
+- queue depletion speed;
+- the hazard of adverse selection;
+- the size of the adverse move.
+
+Quoting patiently pays when the queue clears fast and adverse moves are small.
+
+**Predictability in real index futures decays fast.**
+- On the E-mini, price and flow impacts are significant at one second, and "shocks dissipate almost entirely within a second". News raises price impact and lowers flow impact. *Returns and Order Flow Imbalances: Intraday Dynamics and Macroeconomic News Effects* (2025) [abstract].
+- *Deep order flow imbalance: Extracting alpha at multiple horizons from the limit order book* (2023) [abstract] finds that the effective forecast horizon is about two average price changes.
+- *Market Informedness and Market-Maker Profitability: The Trade-Off Between Adverse Selection and Price Discovery* (2026) [abstract] finds informed flow most harmful when aggregate informedness is low. This matches our OF calibration finding that fewer informed traders make the market *more* predictable.
+- *When AI Trading Agents Compete: Adverse Selection of Meta-Orders by Reinforcement Learning-Based Market Making* (2025) [PDF] shows a fast RL market maker in a Hawkes book learning to profit from the price drift of a TWAP meta-order. A trail of slow meta-orders is something fast traders compete away, so a simulator in which nobody competes for that trail overstates what a slow strategy can earn from it.
+
+**Latency changes the answer, and order entry and cancellation have different effects.**
+- In *Integrating Tick-level Data and Periodical Signal for High-frequency Market Making* (2023) [PDF], order-entry latency of 10 ms gives a cumulative profit of about 15,000, while 40 ms gives about 1,000. Longer *cancel* latency raised profit there (20 to 80 ms: 8,000 to 14,000), which the authors tie to inventory effects (p. 16).
+- *Resolving Latency and Inventory Risk in Market Making with Reinforcement Learning* (2025) [abstract] trains with random delays of 30 to 100 ms.
+- The prediction-market thesis (2026, p. 57) adds action delays so that quotes can go stale.
+
+**Non-stationary direction is the main failure mode.**
+
+*Deep Learning of Robust Market Making under Regime-Switching Order Flow* (2026) [PDF] shows four things:
+- The direction bias of market orders in real books is "highly non-stationary, with slowly varying regimes" (p. 7).
+- Persistent directional flow causes inventory saturation in both closed-form and RL market makers.
+- PnL falls monotonically as regime duration grows (p. 18).
+- A fill-intensity model can be calibrated by censored waiting-time estimation, and diffusion by a volatility signature plot (p. 2).
+
+**Replay alone can't carry market impact; there is a partial fix.**
+- *Reinforcement Learning for Trade Execution with Market and Limit Orders* (2025) [PDF, p. 11] points out that a strategy trained on replayed history can't see its own impact.
+- *Consistent time travel for realistic interactions with historical data: reinforcement learning for market making* (2024) [PDF] re-indexes time in historical data. After each action it jumps to the point in history whose state matches the state after that action, so the market's reaction comes from real data. The authors report clearly higher gains than naive sequential replay.
+
+### How this maps onto our simulator
+
+| Our state | What the papers suggest |
+|---|---|
+| One RNG stream (`rng_` in `EsSimulator`). Any change in our orders shifts every later draw, including the fair-value path. The OF7 review found that "pairing shares the seed, not the path". | Paired-seed evaluation in the 2026 regime-switching paper relies on "same exogenous flow realizations across policies" (p. 14). |
+| Maker arrivals `maker_rate·exp(−i/decay)` don't depend on queue size; cancellations are linear in queue size. | QR intensities λ(q) are estimated per queue size from L2 or market-by-order data, and validated with queue-size Q-Q plots and event-transition matrices. |
+| Aggressor 5 s markout +0.545 ticks, and corr(30 s delta, next 30 s return) of 0.085 to 0.12. OF8 says the market is "too predictable". | E-mini impulse responses die out within about 1 s; the forecast horizon is about two price changes. |
+| The tick env applies actions instantly. The delta-skew rule earns +2.90 at 0 ms and +2.20 at 100 ms. | Latency, modelled separately for entry and cancel, is first-order for passive profit. |
+| Facts don't identify mechanisms. The v2 fit matched delta_predict and R² but got the mechanism wrong. | Calibrate to richer targets: λ(q) curves, the impact profile with a square-root exponent, markout curves, and queue-size distributions. |
+
+### Ranked changes to try (simulator)
+
+1. **Split the RNG into one stream per exogenous process.** Use separate streams for:
+   - fair value, jumps and activity noise;
+   - noise-taker arrivals;
+   - meta-order starts, sizes and sides;
+   - iceberg arrivals;
+   - maker arrivals and cancellations.
+
+   Two policies run on the same seed then share the same fundamental path and the same exogenous order arrivals, even though the book reacts to their orders. This is the cheapest fix for the OF7 MAJOR finding. Measure the paired-difference standard deviation before and after; it was 3.8 to 6.2 ticks against an episode standard deviation of 6.6. Change `simulator.hpp` (`Rng rng_` becomes several `Rng`s seeded from one seed). Evidence: the paired-seed protocol in *Deep Learning of Robust Market Making under Regime-Switching Order Flow* (2026).
+2. **Add latency to `TickScalpEnv`, modelled separately for submitting and cancelling.** Default to 100 ms to match `ScalpEnv`, and train with a random 30 to 300 ms. Today `manage()` submits and cancels inside the same simulator step. Evidence: *Integrating Tick-level Data and Periodical Signal for High-frequency Market Making* (2023); *Resolving Latency and Inventory Risk in Market Making with Reinforcement Learning* (2025) [abstract]; the prediction-market thesis (2026).
+3. **Recalibrate how fast predictability decays.** Measure the mid's impulse response to a 1 s order-flow shock, and the aggressor markout curve at 1, 5, 30 and 60 s. Target the E-mini fact that the response is "almost entirely within a second", plus the real markout curve once ES data is loaded. Two levers:
+   - Add a fast-competitor class that detects a running meta-order from signed child flow and trades ahead of it, which removes the slow trail.
+   - Shorten informed meta-order persistence (`meta_child_rate`, size cap).
+
+   Re-run OF2, OF3 and OF6 afterwards. Evidence: *Returns and Order Flow Imbalances…* (2025) [abstract]; *Deep order flow imbalance…* (2023) [abstract]; *When AI Trading Agents Compete…* (2025); *Market Informedness and Market-Maker Profitability…* (2026) [abstract].
+4. **Make maker intensities at the touch depend on queue size, and calibrate them with the QR counting estimator.** For each queue size n at the best level, estimate λ_L(n), λ_C(n) and λ_M(n) from L2 data, as event counts at size n divided by time at size n, optionally conditioned on hour of day and the last event type. Add "λ(n) curves at L1" as a calibration target in `stylized.hpp` / `of_calibrate`. Evidence: *Deep Learning Meets Queue-Reactive…* (2025); *Queue-reactive Hawkes models for the order flow* (2019) [abstract]; *Reinforcement Learning in Queue-Reactive Models…* (2025).
+5. **Add an impact-profile test to the stylized-facts suite.** Run TWAP buys of 10% to 200% of 5-minute volume through the simulator. Check that impact rises concavely, relaxes after the buy, and has a peak-impact exponent near 0.5. This is cheap and catches mechanism errors that the current facts miss. Evidence: *Deep Learning Meets Queue-Reactive…* (2025, pp. 16-18); *When AI Trading Agents Compete…* (2025, p. 3).
+6. **Treat cancel position and competition at join as sensitivity axes, not constants.** Report tick-env results over a grid: `cancel_back_bias` ∈ {1 (uniform, as in the replay papers), 3, back-first (as in the trade-execution paper)} and `join_ahead_mean` ∈ {60, 120, 200}. Calibrate both from market-by-order data when it is available; until then, every passive result is conditional on them. Evidence: *Market Making via Reinforcement Learning* (2018); *Cooperative Multi-Agent RL… Prediction-Market Order Books* (2026); *Reinforcement Learning for Trade Execution with Market and Limit Orders* (2025).
+7. **Add a regime-switching scenario for the direction of market-order flow.** Use a slowly varying buy probability for noise and momentum takers, with a mean regime duration τ, as a stress family. It is the documented failure mode for market makers. Evidence: *Deep Learning of Robust Market Making under Regime-Switching Order Flow* (2026).
+8. **Estimate passive fills in the replay backtester.** In `replay_env.hpp`, rebuild queue position from L2 using the same cancel-position assumption as the simulator, then sweep it. Prototype "consistent time travel" so our own orders can draw a market reaction from historical data. Evidence: *Consistent time travel…* (2024); *Market Making via Reinforcement Learning* (2018).
+
+---
+
+## 2. The scalping agent (directional, market orders)
+
+### What the literature says
+
+- **RL's value is in turning a signal into trades, and its turnover should scale with signal quality.** *Asynchronous Deep Double Duelling Q-Learning for Trading-Signal Execution in Limit Order Book Markets* (2023) [PDF] feeds a noisy oracle signal at three noise levels (pp. 9-10):
+  - RL beats the rule at every level.
+  - At the noisiest level, RL ends near zero mean while the rule loses.
+  - RL turnover *rises* with signal-to-noise; the agent "learns to trust the signal more".
+  - Significance comes from t-tests and bootstrapped confidence intervals over 31 test episodes.
+
+  This is a clean template for a signal-strength sweep.
+- **Mark-to-market in the state, and the risk of collapsing to "never trade".** *Deep Reinforcement Learning for Active High Frequency Trading* (2021) [PDF] reports three things:
+  - Adding mark-to-market P&L to the state "strongly improves convergence"; adding the spread did not help.
+  - Ensembles of 30 elements were used.
+  - The agent sometimes "converges to sub-optimal policy such as not trading at all" because expected returns are negative during early exploration.
+
+  Our 100-episode OF3 run showed exactly that, and we already include open P&L in the state.
+- **Reward horizon and auxiliary tasks.** *DeepScalper: A Risk-Aware Reinforcement Learning Framework to Capture Fleeting Intraday Trading Opportunities* (2021) [PDF] trains on a *hindsight bonus*, r_t + w·(p_{t+h} − p_t)·pos_t, used only in training while evaluation uses raw P&L. It also adds a volatility-prediction auxiliary head. Both reduce variance across 5 seeds (pp. 5, 9). The prediction-market MARL paper (2026) [PDF] also adds an auxiliary mid-move prediction head.
+- **Robustness by randomization, not only adversaries.** *Robust Market Making with Hawkes Order Flow and Price Impact via Adversarial Reinforcement Learning* (2026) [PDF] has three findings:
+  - Training on randomly sampled market parameters per episode (truncated normals around nominal) is competitive with adversarial training once the environment has Hawkes flow and impact.
+  - A recurrent encoder over the observation window improves the left tail.
+  - Robustness should be judged by CVaR10% plus a bootstrap test that the gain wasn't bought with directional inventory (pp. 2, 6).
+
+  *Market Making Strategies with Reinforcement Learning* (2025) [PDF, p. 138] also recommends domain randomization for sim-to-real.
+- **Generalization is limited by the number of distinct market paths.** *Towards Generalizable Reinforcement Learning for Trade Execution* (2023) [PDF] attributes RL overfitting to "large context space and limited context samples", and recommends compact representations of the market context. In simulation we can generate unlimited paths. On recorded ES data this becomes the binding limit: number of distinct days.
+- **Feature ideas, all [abstract].**
+  - *Cross-impact of order flow imbalance in equity markets* (2023): an OFI integrated over several book levels explains impact better than best-level OFI.
+  - *Order Flow Decomposition for Price Impact Analysis in Equity Limit Order Books* (2023): decomposing OFI by event type improves forward-looking prediction.
+
+  Our best-level OFI30 rule lost (−1.82, t −3.0), so these are worth a feature test, at low priority.
+
+### Our status
+
+- NeuralQ beats the delta-momentum rule by 2.1 to 2.9x and stays profitable in 9 stress scenarios. A 2-net ensemble adds 15% to 20%.
+- OF8 concludes that the absolute P&L isn't believable because the simulator is too predictable. Changing the simulator (section 1, item 3) therefore comes before changing the agent.
+
+### Ranked changes to try (scalping agent)
+
+1. **Signal-strength sweep after recalibration.** Sweep the informed share, meta-order persistence and fast-competitor intensity. At each level, compare RL, the delta rule and the oracle, and report RL turnover. Expected if the agent is sound: turnover falls and the RL edge shrinks toward zero as predictability falls, without collapsing below the rule. This is the test of whether the edge is skill or a simulator artifact. Evidence: *Asynchronous Deep Double Duelling Q-Learning…* (2023).
+2. **Randomize the simulator's parameters during training.** Sample `SimParams` per episode from truncated normals around nominal: informed rate, `value_vol`, `fade`, `noise_rate`, latency, fees. Evaluate on the held-out OF6 grid plus the new regime and fast-competitor scenarios. Compare against nominal-trained nets on CVaR10%, not only on the mean. Evidence: *Robust Market Making with Hawkes Order Flow…* (2026); *Market Making Strategies with Reinforcement Learning* (2025).
+3. **Train with random latency (30 to 300 ms per order)** in `ScalpEnv` instead of a fixed `latency_steps = 1`. OF6 showed RL losing a little at 1 s latency; training on a range should flatten that. Evidence: *Resolving Latency and Inventory Risk…* (2025) [abstract]; *Integrating Tick-level Data…* (2023).
+4. **Add an auxiliary prediction head** (next-30 s mid move or realized volatility) on the NeuralQ trunk, as an ablation with 4 seeds. It changes `rag/agent`, so it costs more. Evidence: *DeepScalper* (2021); *Cooperative Multi-Agent RL… Prediction-Market Order Books* (2026).
+5. **Hindsight bonus, training only** (h of 30 to 60 s, small w). Ablate it against the plain reward to see whether it cuts orders per episode without cutting net ticks. Evidence: *DeepScalper* (2021).
+6. **Add a recurrent or history encoder for regime identification.** Only do this if the regime-switching stress (section 1, item 7) shows a gap; our features are already windowed aggregates. Evidence: *Robust Market Making with Hawkes Order Flow…* (2026).
+7. **Feature test: multi-level integrated OFI and OFI split by event type**, run against the current 13 features. Evidence: *Cross-impact of order flow imbalance in equity markets* (2023) [abstract]; *Order Flow Decomposition…* (2023) [abstract].
+
+---
+
+## 3. The tick-scalping agent: why RL ends up not quoting, and how papers avoid it
+
+### The same failure is documented, and named
+
+- **JaxMARL-HFT.** In *JaxMARL-HFT: GPU-Accelerated Large-Scale Multi-Agent Reinforcement Learning for High-Frequency Trading* (2025) [PDF], the market makers "learn to trade very infrequently" (p. 7):
+  - The reward isn't normalized by traded volume, so "an optimal policy seems to be to never trade, thus guaranteeing no losses".
+  - An inventory penalty makes it worse.
+  - Even converged agents lose about 0.2 ticks on average.
+  - The authors blame part of it on cancelling and reposting every step: "a marked disadvantage in a price-time priority LOB".
+- **The prediction-market MARL paper.** *Cooperative Multi-Agent Reinforcement Learning for Market Making on Prediction-Market Order Books* (2026) [PDF] calls this the **no-trade collapse**: 61.1% to 97.7% no-trade actions across seeds in JaxMARL-HFT. Its analysis (pp. 5-6, 14-17) is the closest match to our OF5:
+  1. On realistic flow, "fills are disproportionately informed", so quoting has negative expected value early in training.
+  2. Removing the no-trade action doesn't help. The agent "moved most of its action mass onto the widest symmetric rows … where nothing fills". *Inaction is a reward problem.*
+  3. The basic reward (spread capture plus mark-to-market of inventory) has three faults:
+     - it is dominated by price noise from the revaluation term;
+     - it doesn't charge for inventory size;
+     - it misassigns credit over time. Spread is credited at the fill, while the adverse move lands a few steps later.
+
+     Inventory penalties make the first and third faults worse, because any penalty routed through the reward is smallest at zero inventory.
+
+### Why our tick agent doesn't quote (OF5 and OF7 against these mechanisms)
+
+| Mechanism in the literature | Our evidence |
+|---|---|
+| Cancelling and reposting destroys queue priority (JaxMARL-HFT 2025). Queue priority is "an economic resource the agent earns by holding" (regime-switching 2026, p. 11). | OF7: uniform exploration gives 0.10 fills per episode against 8.4 for the rule. Random mode changes cancel, then rejoin behind about 120 lots. 2% random deviations cut the rule from +3.05 to +1.23; 5% cut it to +0.03. |
+| Fills are adversely selected, so random quoting has negative expected value (prediction-market MARL 2026). Exploration returns are negative, so the agent converges to not trading (active HFT 2021). | Sealed OF4: quoting both sides earns −2.77 ticks per 5 min. That is +0.05 gross, against 23.5 fills × 0.12 ticks of fees. "Stay out" is the greedy answer to the data the agent sees. |
+| A mark-to-market reward is dominated by noise (prediction-market MARL 2026, p. 15). | Our reward is the change in equity at the mid, net of fees: the "basic reward". The per-episode standard deviation is about 6.6 ticks against a rule edge of about 3 ticks. |
+| Even good designs end near zero or negative on realistic flow: JaxMARL-HFT about −0.2 ticks; the prediction-market MARL paper's best mean is −4.3 ticks per episode. | Our conservative queue model (bias 3, join 120) was set on purpose so that naive quoting loses. "Don't quote" may be the right answer for a slow 1-lot participant. The honest bar is the delta-skew rule (+2.90 at 0 ms, +2.20 at 100 ms) on fresh seeds. |
+
+### How the papers avoid it
+
+- **Control inventory outside the reward.** The prediction-market MARL paper (2026, p. 16) uses a hard inventory cap plus a *loss stop with an annealed threshold*: once the episode loss passes the threshold, the agent can only close. The threshold starts loose and tightens. It uses no inventory penalty. Result: no-trade share 4.4% against 19.2% for the JaxMARL-HFT baseline, and −9.6 against −46.1 ticks per held-out episode.
+
+  The regime-switching paper (2026) also uses a hard bound, applied *after* the action is chosen: when the inventory is at its limit, the leg that would add to it is dropped. The reward and next state are computed on the quotes actually sent (p. 11).
+- **Reward the quality of fills, not mark-to-market.**
+  - The prediction-market MARL paper adds a **markout term** (mid move over the next 5 steps × the quantity just filled), with its coefficient **annealed up from zero** "so the quoter learns to quote before it is judged on the quality of its fills" (pp. 17-18). The markout was the most effective fix: the bare split scored −72.3 ticks, blend −41.0, markout −5.9, and markout plus curriculum −4.3.
+  - The regime-switching paper (2026) uses a dampened fill PnL: each fill is revalued at the mid after the decision, minus a quadratic inventory penalty plus a one-sided "inventory wall" term (p. 12).
+  - *Market Making via Reinforcement Learning* (2018) [PDF] uses **asymmetrically dampened PnL**, r = Ψ − max(0, η·Inv·Δm), which removes speculative upside but keeps downside. It improved learning stability and asymptotic performance over the plain PnL reward, which the authors found unstable and poor out of sample (pp. 4, 7).
+  - *Multi-Level Market Making with Reinforcement Learning* (2026) [PDF] keeps the mark-to-market change in the reward as potential-based shaping: denser signal, same optimal policy. It adds a linear |Q| penalty (pp. 5-6).
+- **Keep queue priority across decisions, with a compact action set.**
+  - The regime-switching paper (2026, p. 11) leaves a resting order in place when the target price is unchanged ("smart quoting … essential").
+  - It restricts actions to 6 one-tick offset pairs. Under stationary flow, 6 and 9 actions converged to the same result (+0.339 against +0.331). Under limited non-stationary fine-tuning, 6 actions won at every checkpoint (+0.097 against −0.005).
+  - Multi-level MM (2026) benchmarks "only cancel resting orders when necessary … to retain queue positions".
+  - The order-stacking paper (2022) [abstract, KOSPI200 index futures] quotes at several levels beyond the best "to reserve good queue position".
+- **Use state features that price the queue.** The regime-switching paper's quote-exposure feature is O = 1/(1 + lots ahead) per side, with imbalance (O_b − O_a)/(1 + O_b + O_a) (p. 10). The Deep Hawkes paper decomposes order value as fill probability × (half-spread − adverse selection cost).
+- **Use structured exploration and warm starts.**
+  - The regime-switching paper uses Rainbow: NoisyNet parameter-space exploration, prioritized replay, n-step returns and a C51 distributional head. Its reason: fill rewards are "sparse and heavy-tailed" (p. 12). It also warm-starts fine-tuning from a trained stationary controller.
+  - *Reinforcement Learning with Expert Trajectory For Quantitative Trading* (2021) [abstract] mixes expert and agent transitions in the TD error.
+  - The prediction-market MARL paper uses an entropy bonus against the collapse, and argues for on-policy learning over DQN's "deadly triad" (p. 19).
+- **Use one-sided and skewed actions.** The prediction-market MARL paper keeps an explicit no-trade row but adds skewed and one-sided rows. It cites Wang et al. that allowing abstention or one-sided quotes improves risk-adjusted returns (pp. 5-6, 13).
+
+  The 2018 paper goes the opposite way: the agent must quote at all times unless at the inventory limit. JaxMARL-HFT notes that forcing quotes reduced performance with its SpreadSkew action space.
+- **Measure the collapse.** Report the no-trade share and split portfolio value into spread capture and carry, alongside P&L. "Treat an improvement accompanied by a large rise in that share as withdrawal from trading" (prediction-market MARL paper, p. 30).
+
+### Ranked changes to try (tick-scalping agent)
+
+1. **Add diagnostics before changing the learner.** Per evaluation, report:
+   - quoting share per mode, and the share of time with no quote;
+   - fills per episode;
+   - P&L split into spread capture at fill time (fill price against mid) and carry/markout;
+   - own-fill markout curve at 1, 5 and 30 s.
+
+   Put this in `tick_env.hpp` accessors and `of5`/`of7` reporting. It is cheap and makes every later experiment interpretable. Evidence: *Cooperative Multi-Agent RL… Prediction-Market Order Books* (2026); *Multi-Level Market Making with Reinforcement Learning* (2026).
+2. **Train on a markout reward with an annealed coefficient; evaluate on true net P&L.** The training reward is:
+
+   r = Σ_fills side·(m_{t+H} − p_fill) − fees − κ·(cost of flattening)
+
+   with H of 5 to 10 s. Blend it with the current Δequity reward as `(1−β)·Δequity + β·markout_reward`, with β annealed from 0 to 1 over the first third of training. Keep the episode-end flatten. Alternative arm: asymmetric dampening, Δequity − max(0, η·pos·Δmid). This tests the "reward problem" diagnosis directly. Evidence: *Cooperative Multi-Agent RL… Prediction-Market Order Books* (2026); *Deep Learning of Robust Market Making under Regime-Switching Order Flow* (2026); *Market Making via Reinforcement Learning* (2018); *JaxMARL-HFT* (2025).
+3. **Explore without destroying queue position.** Arms:
+   - (a) *sticky* exploration: an exploratory mode is held for k decisions, k ≈ 10 to 40, that is 5 to 20 s;
+   - (b) exploration only among modes that keep an existing resting order (3→1 or 3→2, not 3→0→3);
+   - (c) parameter-space noise (NoisyNet-style), if the learner supports it;
+   - (d) the OF7 rule-guided episodes, kept.
+
+   Measure fills per episode during exploration against the rule's 8.4. This attacks the measured root cause of OF5. Evidence: *Deep Learning of Robust Market Making under Regime-Switching Order Flow* (2026); *JaxMARL-HFT* (2025); OF7.
+4. **Control inventory outside the reward.** Keep the ±1 cap, which already exists. Add an annealed per-episode loss stop: past the threshold, only flatten or the closing side is allowed, and the threshold tightens over training. Never add a |q| penalty to the reward. Evidence: *Cooperative Multi-Agent RL… Prediction-Market Order Books* (2026); *JaxMARL-HFT* (2025).
+5. **Add queue-value features:**
+   - O_b = 1/(1 + lots ahead of our bid), and O_a for the ask;
+   - exposure imbalance x = (O_b − O_a)/(1 + O_b + O_a);
+   - log(1 + lots ahead), in addition to today's ratio of lots ahead to displayed size;
+   - optionally a running estimate of each side's fill probability and adverse-selection cost.
+
+   Evidence: *Deep Learning of Robust Market Making under Regime-Switching Order Flow* (2026); *Deep Hawkes Process for High-Frequency Market Making* (2021); *Optimal Market Making in Prediction Markets…* (2026).
+6. **Learn on top of the delta-skew rule.** Keep the OF7 rule-anchored deployment and also learn the advantage of deviating, Q(s,a) − Q(s, rule(s)), so the learner starts at the rule's +2.90. Combine this with item 3 (d). Evidence: the regime-switching paper warm-starts from a trained controller and benchmarks against a calibrated analytic policy; *Reinforcement Learning with Expert Trajectory For Quantitative Trading* (2021) [abstract].
+7. **Try a distributional value head (C51-style)**, or at least quantile or Huber targets, for heavy-tailed, sparse fill rewards. This is a learner change in `rag/agent`. Evidence: *Deep Learning of Robust Market Making under Regime-Switching Order Flow* (2026).
+8. **Action-space variants:**
+   - one-sided "lean" modes that quote the closing side only while holding;
+   - a "stack" mode that rests a 1-lot one level behind the touch to build queue priority, with `max_position` 2 so stacking doesn't block the touch order.
+
+   OF7 found keep-levels hurt the *rule* (+3.05 to about +2.5), so treat this as a learner option, not a default. Evidence: *Market Making under Order Stacking Framework…* (2022) [abstract]; *Optimal Market Making in Prediction Markets…* (2026, scale quotes, pp. 42-43); *Multi-Level Market Making…* (2026, TOP2 markouts are better).
+9. **On-policy actor-critic with an entropy bonus** as a second learner, using the existing E5 actor-critic in `rag/agent`. Compare it with NeuralQ on no-trade share. Evidence: *Cooperative Multi-Agent RL… Prediction-Market Order Books* (2026, pp. 19, 29).
+10. **Quoter and risk-manager split** with a blended reward and a markout term. This only makes sense if inventory grows beyond ±1; it is listed for completeness. Evidence: *Cooperative Multi-Agent RL… Prediction-Market Order Books* (2026). The bare split was the *worst* configuration there (−72.3) until blend and markout were added.
+
+---
+
+## 4. Validation
+
+### What the literature says
+
+- **Paired evaluation on common random numbers, with proper tests.** The regime-switching paper (2026) [PDF]:
+  - evaluates every policy on "matched realizations of the order-flow process";
+  - keeps training and evaluation episodes "strictly disjoint";
+  - reports paired Wilcoxon and paired t-tests on per-seed differences, with N of 100 to 1,000 paired episodes (pp. 2, 14, 18-23).
+
+  The signal-execution DDQN paper (2023) uses t-tests and bootstrapped confidence intervals over test episodes.
+- **Tail-focused robustness metrics.** The Hawkes adversarial market-making paper (2026) [PDF] uses CVaR10% as the primary metric across 19 evaluation environments, plus a one-sided bootstrap test showing the tail gain did not come from directional terminal inventory (pp. 2, 6).
+- **Metrics that expose degenerate policies.** The prediction-market MARL paper (2026, p. 30) reports four things for every configuration:
+  - held-out portfolio value, averaged over the last five evaluations;
+  - stability, as the standard deviation of the last ten;
+  - no-trade share;
+  - the split into spread capture and carry, and the distribution across held-out windows.
+
+  It also admits a single seed per configuration as a limitation.
+- **Overfitting and selection, [abstract] only.**
+  - Treat backtest overfitting as a hypothesis test, estimate the probability of overfitting, and reject agents that are likely overfit: *Deep Reinforcement Learning for Cryptocurrency Trading: Practical Approach to Address Backtest Overfitting* (2022).
+  - Use walk-forward testing with 34 rolling test periods and strict information-set discipline, and report an insignificant aggregate (p = 0.34) honestly, with strong regime dependence: *Interpretable Hypothesis-Driven Trading:A Rigorous Walk-Forward Validation Framework…* (2025).
+  - Validation APY above 300% against more than 70% live capital decay, attributed to survivor bias from selecting under high variance: *The Red Queen's Trap…* (2025).
+- **Limits of generalization.** Overfitting scales with the size of the context space against the number of context samples: *Towards Generalizable Reinforcement Learning for Trade Execution* (2023) [PDF]. For ES replay, count distinct days, not windows.
+- **Sim-to-real.** *Market Making Strategies with Reinforcement Learning* (2025) [PDF, pp. 138-139] says a simulator must first match the real asset (spreads, volatility, returns), then be monitored and re-tuned as markets drift. It recommends mixing real and simulated experience, domain randomization, or online training. It cites no transfer result. *The corpus has no empirical sim-to-real transfer study for trading.*
+- **Not in the corpus:** the deflated Sharpe ratio, probability of backtest overfitting via combinatorially symmetric cross-validation, and purged or embargoed k-fold. These are still worth implementing, but this synthesis can't cite a source for them from the corpus.
+
+### Where we stand
+
+- **What we already do well:** sealed seed blocks, champion selection on a separate validation block, stress suites, a desk view and a replay sanity check.
+- **Known weaknesses, from the notes:**
+  - E27 selection bias on a reused held-out set;
+  - champion-selection optimism of 1 to 2 ticks in OF3;
+  - the sealed 910M block was viewed repeatedly in OF7;
+  - paired comparisons share the seed, not the path;
+  - one corrected baseline (OF4 binary mix-up).
+
+### Ranked changes to try (validation)
+
+1. **Common random numbers plus paired tests.** After the RNG split (simulator item 1), compare policies on per-episode paired differences, with a paired t-test, a Wilcoxon test and a bootstrap confidence interval. Report the paired-difference standard deviation next to every comparison. Evidence: *Deep Learning of Robust Market Making under Regime-Switching Order Flow* (2026); *Asynchronous Deep Double Duelling Q-Learning…* (2023).
+2. **Keep a seed-block ledger and confirm on fresh seeds.** Record every seed block and every time it was viewed, for example in `experiments/seed_ledger.csv`. A claim counts only when confirmed on a block that was never viewed before (940M, 950M and so on). Always report the gap between validation and test. Evidence: *The Red Queen's Trap…* (2025) [abstract]; our E27 and OF7 review.
+3. **Account for selection.** For each reported champion, log how many configurations, seeds and checkpoints were tried. Split the test episodes into blocks and estimate how often the validation-best configuration lands below the median out of sample: a probability-of-overfitting estimate in the spirit of the 2022 paper. Reject agents whose rank isn't stable. Evidence: *Deep Reinforcement Learning for Cryptocurrency Trading: Practical Approach to Address Backtest Overfitting* (2022) [abstract]; the deflated Sharpe ratio itself is not in the corpus.
+4. **Tail metrics in the stress suite.** Add CVaR10% per scenario to OF6 and `validation.hpp` (E28 already has CVaR5), plus a bootstrap test that the gains don't come from directional inventory. Evidence: *Robust Market Making with Hawkes Order Flow and Price Impact via Adversarial Reinforcement Learning* (2026).
+5. **Degenerate-policy metrics for every passive agent:** no-trade share, fills, the spread-against-carry split and own-fill markouts (the same as tick item 1). Evidence: *Cooperative Multi-Agent RL… Prediction-Market Order Books* (2026).
+6. **Sensitivity surfaces instead of point results.** Report tick and scalp results over the simulator parameters we can't yet calibrate: cancel bias, competition at join, informed share, latency. A claimed edge must hold across the plausible region. Evidence: the market-making papers above, which show results moving with cancel and queue assumptions.
+7. **A sim-to-real ladder for recorded ES data**, in this order:
+   1. stylized facts plus the new impact, λ(n) and markout targets (`of_calibrate facts`);
+   2. replay of directional strategies (market orders only, already supported);
+   3. replay of passive strategies with L2-inferred queue position under a swept cancel assumption;
+   4. walk-forward over many distinct days, split by regime (open, news minutes, midday);
+   5. paper trading.
+
+   Report per-regime results, because the walk-forward paper (2025) and the E-mini paper (2025) both find strong regime and news effects. Evidence: *Market Making Strategies with Reinforcement Learning* (2025); *Towards Generalizable Reinforcement Learning for Trade Execution* (2023); *Interpretable Hypothesis-Driven Trading…* (2025) [abstract]; *Returns and Order Flow Imbalances…* (2025) [abstract]; *Consistent time travel…* (2024).
+
+---
+
+## Overall priority order across areas
+
+| # | Change | Applies to | Main evidence |
+|---|---|---|---|
+| 1 | One RNG stream per exogenous process, for paired comparisons on the same market path | simulator / validation | Regime-Switching MM (2026) |
+| 2 | Tick-env diagnostics: no-trade share, fills, spread-against-carry split, own-fill markouts | tick-scalping agent | Prediction-Market MARL MM (2026); Multi-Level MM (2026) |
+| 3 | Separate submit and cancel latency in `TickScalpEnv` (100 ms default, randomized in training) | simulator | Tick-level MM (2023); Resolving Latency (2025, abstract) |
+| 4 | Markout or fill-quality training reward with an annealed coefficient; evaluate on net P&L | tick-scalping agent | Prediction-Market MARL MM (2026); Regime-Switching MM (2026); MM via RL (2018); JaxMARL-HFT (2025) |
+| 5 | Exploration that preserves queue position (sticky modes, order-keeping transitions, guided episodes) | tick-scalping agent | Regime-Switching MM (2026); JaxMARL-HFT (2025) |
+| 6 | Recalibrate predictability decay (impulse response about 1 s, markout curve); add fast competitors to the meta-order trail; re-run OF2, OF3 and OF6 | simulator | E-mini OFI (2025, abstract); Deep OFI (2023, abstract); AI Agents Compete (2025); Market Informedness (2026, abstract) |
+| 7 | Seed-block ledger, fresh-seed confirmation and selection accounting | validation | Backtest Overfitting (2022, abstract); Red Queen's Trap (2025, abstract) |
+| 8 | Signal-strength sweep for the scalping agent (turnover against signal quality, RL against rule) | scalping agent | Async DDDQN Signal Execution (2023) |
+| 9 | Inventory control outside the reward: annealed loss stop, no |q| penalty | tick-scalping agent | Prediction-Market MARL MM (2026); JaxMARL-HFT (2025) |
+| 10 | Queue-value features: O = 1/(1 + lots ahead), exposure imbalance, fill probability and adverse-selection cost | tick-scalping agent | Regime-Switching MM (2026); Deep Hawkes MM (2021) |
+| 11 | Queue-reactive maker intensities at L1, calibrated with the QR counting estimator; λ(n) calibration target | simulator | Deep Queue-Reactive (2025); QR Hawkes (2019, abstract); RL in QR (2025) |
+| 12 | CVaR10% and an inventory-bias bootstrap in stress validation | validation | Robust Hawkes Adversarial MM (2026) |
+| 13 | Randomize simulator parameters during scalping training | scalping agent | Robust Hawkes Adversarial MM (2026); MM Strategies thesis (2025) |
+| 14 | Impact-profile and square-root-law test in the stylized-facts suite | simulator | Deep Queue-Reactive (2025) |
+| 15 | Learn the advantage over the delta-skew rule, warm-started from the rule | tick-scalping agent | Regime-Switching MM (2026); RL with Expert Trajectory (2021, abstract) |
+| 16 | Sensitivity surfaces over cancel bias, competition at join, informed share and latency | validation | MM via RL (2018); Prediction-Market MARL MM (2026); RL Trade Execution Market+Limit (2025) |
+| 17 | Regime-switching direction of market-order flow as a stress family | simulator | Regime-Switching MM (2026) |
+| 18 | Distributional (C51-style) value head for sparse, heavy-tailed fill rewards | tick-scalping agent | Regime-Switching MM (2026) |
+| 19 | Auxiliary prediction head and training-only hindsight bonus for the scalping agent | scalping agent | DeepScalper (2021); Prediction-Market MARL MM (2026) |
+| 20 | Sim-to-real ladder with L2-inferred queue replay and time-travel replay | validation | Consistent Time Travel (2024); Generalizable Trade Execution (2023); MM Strategies thesis (2025) |
+| 21 | Order-stacking and one-sided lean modes, as learner options | tick-scalping agent | Order Stacking MM (2022, abstract); Prediction-Market MM thesis (2026); Multi-Level MM (2026) |
+| 22 | On-policy actor-critic with an entropy bonus as a second tick learner | tick-scalping agent | Prediction-Market MARL MM (2026) |
+
+**Caveat for the tick agent.** On realistic flow, no market-making paper in the corpus reports a robustly positive mean for a slow passive agent:
+- JaxMARL-HFT (2025): about −0.2 ticks;
+- prediction-market MARL MM (2026): best mean −4.3 ticks per episode;
+- the regime-switching paper (2026): positive, but in a zero-intelligence simulator with unit lots.
+
+The success criterion should be "match or beat the delta-skew rule at 100 ms latency on never-viewed seeds, with a meaningful no-trade share". Positive P&L by itself isn't the bar.
+
+
+
+---
+
+## FILE: README.md  (21,468 bytes)
 
 # rag-cpp — header-only, low-latency Retrieval-Augmented Generation in C++20
 
@@ -4667,6 +5456,23 @@ negative results, is logged in
 * what each design choice measurably did;
 * how the same architecture maps onto LLM agents.
 
+## ES order-flow trading
+
+A tick-level ES futures simulator (`include/rag/orderflow/`), order-flow
+features, two RL environments (directional scalping with market orders;
+passive tick scalping with FIFO queue position), a backtester on recorded
+ticks, simulator calibration tools and a parallel trainer:
+
+```bash
+./build/of_train --seeds 12 --episodes 2000 --out nets/       # one seed per thread
+./build/of_backtest es_ticks.csv --time ns nets/seed1.net     # recorded ticks (CSV)
+./build/of_calibrate facts es_ticks.csv --time ns             # real vs simulated stylized facts
+```
+
+Everything, including results OF1-OF9, the honest status (the simulator
+is still too predictable to trust absolute P&L) and the plan, is in
+[docs/ai/ORDERFLOW.md](docs/ai/ORDERFLOW.md).
+
 ## Batched queries
 
 ```cpp
@@ -4808,7 +5614,7 @@ jobs build with `-Werror`:
 
 ---
 
-## FILE: CMakeLists.txt  (8,315 bytes)
+## FILE: CMakeLists.txt  (9,489 bytes)
 
 ```cmake
 cmake_minimum_required(VERSION 3.20)
@@ -4888,7 +5694,7 @@ enable_testing()
 # a binary built for a newer ISA than the build machine's (e.g. the AVX-512
 # preset on an AVX2 CI runner) then still builds.
 set(CMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
-add_executable(rag_tests tests/rag_tests.cpp tests/forgery_tests.cpp tests/reference_tests.cpp tests/text_clean_tests.cpp tests/agent_tests.cpp tests/api_examples_tests.cpp tests/model_based_tests.cpp tests/market_making_tests.cpp tests/mlp_tests.cpp tests/agent_edge_case_tests.cpp tests/agent_coverage_tests.cpp tests/rag_property_tests.cpp tests/policy_table_tests.cpp)
+add_executable(rag_tests tests/rag_tests.cpp tests/forgery_tests.cpp tests/reference_tests.cpp tests/text_clean_tests.cpp tests/agent_tests.cpp tests/api_examples_tests.cpp tests/model_based_tests.cpp tests/market_making_tests.cpp tests/mlp_tests.cpp tests/agent_edge_case_tests.cpp tests/agent_coverage_tests.cpp tests/rag_property_tests.cpp tests/policy_table_tests.cpp tests/orderflow_tests.cpp tests/stylized_tests.cpp)
 target_link_libraries(rag_tests PRIVATE rag GTest::gtest_main Threads::Threads)
 include(GoogleTest)
 gtest_discover_tests(rag_tests DISCOVERY_TIMEOUT 120)
@@ -4945,9 +5751,32 @@ if(RAG_OPTLIBS)
     gtest_discover_tests(rag_optlib_tests)
     add_executable(tune_agent examples/tune_agent.cpp)
     target_link_libraries(tune_agent PRIVATE rag Eigen3::Eigen NLopt::nlopt)
+    set(RAG_OF_CALIBRATE_NLOPT ON)
   else()
     message(STATUS "rag-cpp: Eigen3/NLopt not found; tuning/analysis targets disabled")
   endif()
+endif()
+
+# Order-flow scalping agents trained in parallel (one seed per thread).
+add_executable(of_train examples/of_train.cpp)
+target_link_libraries(of_train PRIVATE rag Threads::Threads)
+add_test(NAME of_train_smoke COMMAND of_train --seeds 2 --threads 2 --episodes 3 --test 2 --out ${CMAKE_CURRENT_BINARY_DIR}/of_train_smoke)
+
+# The rule-guided tick-scalping trainer (OF7), one seed per process.
+add_executable(of_tick_train experiments/of7_tick_guided.cpp)
+target_link_libraries(of_tick_train PRIVATE rag)
+
+# Walk-forward backtest of scalping strategies on recorded ticks.
+add_executable(of_backtest examples/of_backtest.cpp)
+target_link_libraries(of_backtest PRIVATE rag)
+
+# Simulator calibration against recorded ticks (examples/of_calibrate.cpp):
+# `facts` and `sim` always; `fit` when NLopt was found above.
+add_executable(of_calibrate examples/of_calibrate.cpp)
+target_link_libraries(of_calibrate PRIVATE rag Threads::Threads)
+if(RAG_OF_CALIBRATE_NLOPT)
+  target_compile_definitions(of_calibrate PRIVATE RAG_HAVE_NLOPT)
+  target_link_libraries(of_calibrate PRIVATE NLopt::nlopt)
 endif()
 
 # PDF support (rag/pdf.hpp, the rag_pdf tool) needs poppler-cpp
@@ -5155,7 +5984,7 @@ jobs:
 
 ---
 
-## FILE: include/rag/agent/agent.hpp  (27,196 bytes)
+## FILE: include/rag/agent/agent.hpp  (27,499 bytes)
 
 ```cpp
 // rag/agent/agent.hpp — the decision-making core of a self-learning agent.
@@ -5297,8 +6126,11 @@ class Agent {
       : env_(env), cfg_(defaults(cfg)),
         coder_(Env::kLo, Env::kHi, cfg_.bins, cfg_.tilings),
         embed_(cfg_.kernel_width, cfg_.seed ^ 0xE5BEDull),
-        q_(coder_.size(), cfg_.tilings, static_cast<std::uint32_t>(A), cfg_.alpha, cfg_.init_q),
-        q2_(cfg_.double_q ? q_ : TileQ{}),
+        // NeuralQ uses neither tile table: allocating them anyway costs
+        // (bins + 1)^Dims cells each (2^21 x 8 tilings x 5 actions = 670 MB at
+        // 21 inputs) and every snapshot copies them.
+        q_(cfg_.learner == LearnerKind::NeuralQ ? TileQ{} : TileQ(coder_.size(), cfg_.tilings, static_cast<std::uint32_t>(A), cfg_.alpha, cfg_.init_q)),
+        q2_(cfg_.double_q && cfg_.learner != LearnerKind::NeuralQ ? q_ : TileQ{}),
         critic_(cfg_.learner == LearnerKind::ActorCritic ? TileQ(coder_.size(), cfg_.tilings, 1, cfg_.critic_alpha) : TileQ{}),
         replay_(cfg_.learner == LearnerKind::TileQ ? cfg_.replay_capacity : 0),
         mem_(cfg_.memory),
@@ -7380,7 +8212,7 @@ inline std::vector<double> train_model_based(ModelBasedMarketMaker& agent, Marke
 
 ---
 
-## FILE: include/rag/agent/mlp.hpp  (6,626 bytes)
+## FILE: include/rag/agent/mlp.hpp  (8,352 bytes)
 
 ```cpp
 // rag/agent/mlp.hpp — a small multilayer perceptron with backpropagation and
@@ -7401,7 +8233,11 @@ inline std::vector<double> train_model_based(ModelBasedMarketMaker& agent, Marke
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
+#include <filesystem>
 #include <vector>
+
+#include "rag/io.hpp"
 
 #include "rag/agent/rng.hpp"
 
@@ -7428,6 +8264,44 @@ class Mlp {
         w_[off++] = 0.0;  // bias
       }
     }
+  }
+
+  // The network's shape and weights (not the optimizer state) in the
+  // rag::io format: checksummed, crash-safe, validated on load. Enough to
+  // deploy a trained policy elsewhere; training resumes with fresh Adam state.
+  void save(const std::filesystem::path& path) const {
+    io::Writer w(path);
+    w.bytes(kMagic, sizeof kMagic);
+    w.vec(sizes_);
+    w.vec(w_);
+    w.commit();
+  }
+  [[nodiscard]] static Mlp load(const std::filesystem::path& path) {
+    io::Reader r(path);
+    char magic[sizeof kMagic];
+    r.bytes(magic, sizeof magic);
+    if (std::memcmp(magic, kMagic, sizeof magic) != 0) throw io::FormatError("Mlp: not a network file");
+    Mlp m;
+    m.sizes_ = r.vec<std::uint32_t>();
+    auto weights = r.vec<double>();
+    r.finish();
+    if (m.sizes_.size() < 2) throw io::FormatError("Mlp: needs at least two layers");
+    std::size_t n = 0, units = 0;
+    for (std::size_t l = 0; l + 1 < m.sizes_.size(); ++l) {
+      if (m.sizes_[l] == 0 || m.sizes_[l + 1] == 0 || m.sizes_[l] > 1'000'000 || m.sizes_[l + 1] > 1'000'000) throw io::FormatError("Mlp: bad layer size");
+      n += std::size_t{m.sizes_[l] + 1} * m.sizes_[l + 1];
+    }
+    for (auto s : m.sizes_) units += s;
+    if (weights.size() != n) throw io::FormatError("Mlp: weight count does not match the shape");
+    for (double x : weights)
+      if (!std::isfinite(x)) throw io::FormatError("Mlp: non-finite weight");
+    m.w_ = std::move(weights);
+    m.g_.assign(n, 0.0);
+    m.m_.assign(n, 0.0);
+    m.v_.assign(n, 0.0);
+    m.act_.resize(units);
+    m.delta_.resize(units);
+    return m;
   }
 
   [[nodiscard]] std::uint32_t inputs() const noexcept { return sizes_.front(); }
@@ -7541,6 +8415,7 @@ class Mlp {
     }
   }
 
+  static constexpr char kMagic[8] = {'R', 'A', 'G', 'M', 'L', 'P', '0', '1'};
   std::vector<std::uint32_t> sizes_;
   std::vector<double> w_, g_, m_, v_;  // weights (row per output unit, bias last), gradient, Adam moments
   std::vector<double> act_, delta_;    // training scratch
@@ -8394,7 +9269,7 @@ class Rng {
 
 ---
 
-## FILE: include/rag/agent/trainer.hpp  (13,136 bytes)
+## FILE: include/rag/agent/trainer.hpp  (13,369 bytes)
 
 ```cpp
 // rag/agent/trainer.hpp — the supervisor around a learning agent: training
@@ -8567,6 +9442,9 @@ class Trainer {
     return evaluate(env_, [&](const auto& o) { return deployed_act(o); }, cfg_.eval_episodes, cfg_.eval_seed).mean;
   }
   [[nodiscard]] bool has_champion() const noexcept { return champion_.has_value(); }
+  // The deployed policy's snapshot (nullptr before the first evaluation);
+  // e.g. champion()->net.save(path) for a NeuralQ agent.
+  [[nodiscard]] const auto* champion() const noexcept { return champion_ ? &*champion_ : nullptr; }
   [[nodiscard]] std::size_t bank_size() const noexcept { return bank_.size(); }
 
   // Held-out greedy score of the agent as it is now.
@@ -8826,6 +9704,128 @@ inline Result maximize_global(const std::vector<Param>& space, const std::vector
 }
 
 }  // namespace rag::agent::tuning
+
+```
+
+
+---
+
+## FILE: include/rag/agent/validation.hpp  (4,928 bytes)
+
+```cpp
+// rag/agent/validation.hpp — out-of-sample validation of execution
+// strategies (E28).
+//
+// A strategy that scores well in the simulator it was trained or tuned in
+// can still fail in the market it meets. This header measures strategies the
+// way a trading desk would before deploying one:
+//
+//   * on a stress suite: the nominal market and markets that differ from it
+//     (impact, signal strength and sign, persistence, volatility, permanent
+//     impact, impact shape, fees), each with its own exact optimum (DP);
+//   * on sealed test scenarios: a seed range used for nothing else, so no
+//     choice made while developing a strategy has seen them;
+//   * with paired, per-episode trading metrics against TWAP (common random
+//     numbers): mean gain with a bootstrap interval, share of what was
+//     achievable in that market, the worst-5% tail (CVaR) and the
+//     probability of doing worse than TWAP.
+//
+//   for (const auto& s : validation::stress_suite(ExecutionParams{})) {
+//     const auto m = validation::measure(s.params, strategy, 4000, validation::kSealedSeed);
+//   }
+#pragma once
+
+#include <cstdint>
+#include <string>
+#include <vector>
+
+#include "rag/agent/evaluate.hpp"
+#include "rag/agent/execution_dp.hpp"
+
+namespace rag::agent::validation {
+
+// Test scenarios start here; training, tuning and earlier evaluations use
+// seeds far below (all experiments up to E27 used < 10^8).
+inline constexpr std::uint64_t kSealedSeed = 900'000'000;
+
+struct Scenario {
+  std::string name;
+  ExecutionParams params;
+};
+
+// The nominal market first, then one change at a time.
+inline std::vector<Scenario> stress_suite(const ExecutionParams& base) {
+  std::vector<Scenario> s;
+  auto add = [&](std::string name, auto change) {
+    ExecutionParams p = base;
+    change(p);
+    s.push_back({std::move(name), p});
+  };
+  add("nominal", [](ExecutionParams&) {});
+  add("impact x2", [](ExecutionParams& p) { p.impact *= 2; p.terminal_impact *= 2; });
+  add("impact x0.5", [](ExecutionParams& p) { p.impact *= 0.5; p.terminal_impact *= 0.5; });
+  add("signal x0.5", [](ExecutionParams& p) { p.alpha *= 0.5; });
+  add("signal x1.5", [](ExecutionParams& p) { p.alpha *= 1.5; });
+  add("signal flipped", [](ExecutionParams& p) { p.alpha = -p.alpha; });
+  add("persistence 0.9", [](ExecutionParams& p) { p.signal_rho = 0.9; });
+  add("persistence 0.3", [](ExecutionParams& p) { p.signal_rho = 0.3; });
+  add("volatility x2", [](ExecutionParams& p) { p.noise_sd *= 2; });
+  add("permanent impact", [](ExecutionParams& p) { p.permanent_impact = 0.005; });
+  add("impact exponent 1.5", [](ExecutionParams& p) { p.impact_exponent = 1.5; });
+  add("fees 0.1 per trade", [](ExecutionParams& p) { p.fixed_cost = 0.1; });
+  return s;
+}
+
+struct Metrics {
+  double gain = 0;          // mean gain over TWAP per episode (price units)
+  Interval gain_ci;         // 95% bootstrap interval of the mean gain
+  double optimal_gain = 0;  // the scenario's exact optimum's mean gain on the same episodes
+  double share = 0;         // gain / optimal_gain (meaningful when optimal_gain > 0)
+  double cvar5 = 0;         // mean of the worst 5% of per-episode gains over TWAP
+  double p_worse = 0;       // share of episodes that did worse than TWAP
+};
+
+// Paired per-episode gains of `policy` over TWAP on episodes seed .. seed+n-1.
+template <class Policy>
+std::vector<double> gains_over_twap(const ExecutionParams& p, Policy&& policy, std::uint32_t episodes, std::uint64_t seed) {
+  const ExecutionEnv env(p);
+  auto twap = [](const ExecutionObs&) { return ExecutionEnv::kTwapAction; };
+  const auto a = episode_returns(env, policy, episodes, seed);
+  const auto b = episode_returns(env, twap, episodes, seed);
+  std::vector<double> d(a.size());
+  for (std::size_t i = 0; i < a.size(); ++i) d[i] = a[i] - b[i];
+  return d;
+}
+
+// optimal_gain < 0 means "compute it": solve the scenario's DP and score it
+// on the same episodes. Pass a precomputed value to measure many strategies.
+template <class Policy>
+Metrics measure(const ExecutionParams& p, Policy&& policy, std::uint32_t episodes, std::uint64_t seed, double optimal_gain = -1) {
+  Metrics m;
+  const auto g = gains_over_twap(p, policy, episodes, seed);
+  double sum = 0;
+  std::size_t worse = 0;
+  for (double x : g) {
+    sum += x;
+    worse += x < 0;
+  }
+  m.gain = sum / static_cast<double>(g.size());
+  m.gain_ci = bootstrap_mean(g, 2000, seed ^ 0x5eed);
+  m.cvar5 = cvar(g, 0.05);
+  m.p_worse = static_cast<double>(worse) / static_cast<double>(g.size());
+  if (optimal_gain < 0) {
+    const ExecutionDP dp(p);
+    const auto o = gains_over_twap(p, [&](const ExecutionObs& obs) { return dp.act(obs); }, episodes, seed);
+    double so = 0;
+    for (double x : o) so += x;
+    optimal_gain = so / static_cast<double>(o.size());
+  }
+  m.optimal_gain = optimal_gain;
+  m.share = optimal_gain > 0 ? m.gain / optimal_gain : 0;
+  return m;
+}
+
+}  // namespace rag::agent::validation
 
 ```
 
@@ -10924,6 +11924,1704 @@ class IvfIndex {
 
 ---
 
+## FILE: include/rag/orderflow/features.hpp  (6,788 bytes)
+
+```cpp
+// rag/orderflow/features.hpp — order-flow features from a tick stream.
+//
+// Feed it trades and quotes in time buckets (the simulator's steps, or
+// recorded ticks grouped into the same bucket width):
+//
+//   FeatureBuilder fb(0.1);                 // 100 ms buckets
+//   for each bucket: fb.add_trade(t)...; fb.end_bucket(quote);
+//   const auto& x = fb.values();            // kFeatures numbers, each scaled to ~unit size
+//
+// Every feature is divided by a running RMS of itself (EWMA over
+// `norm_seconds`), so the same code works on simulated and recorded ES
+// without hand-tuned scales, and values are clipped to +-kClip.
+//
+//   0  delta 5 s        signed aggressor volume (buys - sells)
+//   1  delta 30 s
+//   2  delta 120 s
+//   3  OFI 5 s          order-flow imbalance at the touch (Cont, Kukanov &
+//   4  OFI 30 s         Stoikov 2014): includes limit-order adds/cancels
+//   5  volume 30 s      log(volume / its running mean)
+//   6  imbalance L1     (bid size - ask size) / (sum), best level
+//   7  imbalance L1-5   the same over 5 levels
+//   8  return 5 s       mid change, ticks
+//   9  return 30 s
+//  10  return 120 s
+//  11  VWAP distance    mid - session VWAP
+//  12  absorption       hidden liquidity absorbed at the touch: while the
+//                       best bid holds, sell volume traded there beyond the
+//                       size that was displayed when it became best; minus
+//                       the same at the ask (> 0: a hidden buyer is
+//                       absorbing sellers). Ordinary selling into a deep
+//                       queue doesn't count; refills (icebergs) do.
+#pragma once
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstddef>
+#include <vector>
+
+#include "rag/orderflow/simulator.hpp"
+
+namespace rag::orderflow {
+
+inline constexpr std::size_t kFeatures = 13;
+inline constexpr double kClip = 4.0;
+
+class FeatureBuilder {
+ public:
+  explicit FeatureBuilder(double bucket_seconds = 0.1, double norm_seconds = 600)
+      : dt_(bucket_seconds), norm_alpha_(std::min(1.0, bucket_seconds / norm_seconds)) {
+    n5_ = buckets(5);
+    n30_ = buckets(30);
+    n120_ = buckets(120);
+    len_ = {n5_, n30_, n120_};
+    ring_.resize(n120_ + 1);
+    rms_.fill(1.0);
+  }
+
+  void add_trade(const Trade& t) {
+    cur_.delta += sign(t.aggressor) * t.size;
+    cur_.volume += t.size;
+    if (t.aggressor == Side::Sell && t.price == last_.bid) run_sold_ += t.size;
+    if (t.aggressor == Side::Buy && t.price == last_.ask) run_bought_ += t.size;
+    vwap_num_ += static_cast<double>(t.price) * t.size;
+    vwap_den_ += t.size;
+  }
+
+  void end_bucket(const Quote& q) {
+    // OFI contribution of this quote change (best level only).
+    if (have_quote_) {
+      double e = 0;
+      if (q.bid >= last_.bid) e += q.bid_size[0];
+      if (q.bid <= last_.bid) e -= last_.bid_size[0];
+      if (q.ask <= last_.ask) e -= q.ask_size[0];
+      if (q.ask >= last_.ask) e += last_.ask_size[0];
+      cur_.ofi = e;
+      // Absorption: volume beyond what was displayed, while the level holds.
+      if (q.bid != last_.bid) {
+        run_sold_ = 0;
+        bid_shown_ = q.bid_size[0];
+      }
+      if (q.ask != last_.ask) {
+        run_bought_ = 0;
+        ask_shown_ = q.ask_size[0];
+      }
+      absorb_ = std::max(0.0, run_sold_ - bid_shown_) - std::max(0.0, run_bought_ - ask_shown_);
+    }
+    cur_.mid = 0.5 * (q.bid + q.ask);
+    ring_[head_] = cur_;
+    head_ = (head_ + 1) % ring_.size();
+    count_ = std::min(count_ + 1, ring_.size());
+    // Running window sums: add the new bucket, drop the one that left.
+    for (std::size_t w = 0; w < 3; ++w) {
+      win_[w].add(cur_, 1);
+      if (count_ > len_[w]) win_[w].add(at(len_[w]), -1);
+    }
+    cur_ = {};
+    last_ = q;
+    have_quote_ = true;
+    compute(q);
+  }
+
+  [[nodiscard]] const std::array<double, kFeatures>& values() const noexcept { return x_; }
+  [[nodiscard]] std::array<double, kFeatures> raw() const noexcept { return raw_; }
+  // Enough history for the longest window.
+  [[nodiscard]] bool warm() const noexcept { return count_ > n120_; }
+  [[nodiscard]] double vwap() const noexcept { return vwap_den_ > 0 ? vwap_num_ / vwap_den_ : 0; }
+
+ private:
+  struct Bucket {
+    double delta = 0, volume = 0, ofi = 0, sold_at_bid = 0, bought_at_ask = 0, mid = 0;
+  };
+  struct Sums {
+    double delta = 0, volume = 0, ofi = 0, absorb = 0;
+    void add(const Bucket& b, double w) {
+      delta += w * b.delta;
+      volume += w * b.volume;
+      ofi += w * b.ofi;
+      absorb += w * (b.sold_at_bid - b.bought_at_ask);
+    }
+  };
+  [[nodiscard]] std::size_t buckets(double seconds) const { return std::max<std::size_t>(1, static_cast<std::size_t>(std::lround(seconds / dt_))); }
+  // The bucket `back` steps before the newest (0 = newest).
+  [[nodiscard]] const Bucket& at(std::size_t back) const { return ring_[(head_ + ring_.size() - 1 - back) % ring_.size()]; }
+  [[nodiscard]] double ret(std::size_t n) const { return count_ > n ? at(0).mid - at(n).mid : 0.0; }
+
+  void compute(const Quote& q) {
+    const Sums &w5 = win_[0], &w30 = win_[1], &w120 = win_[2];
+    const double vol30 = w30.volume;
+    vol_mean_ += (vol30 - vol_mean_) * norm_alpha_;
+    double bid5 = 0, ask5 = 0;
+    for (std::size_t i = 0; i < kDepth; ++i) {
+      bid5 += q.bid_size[i];
+      ask5 += q.ask_size[i];
+    }
+    const double b1 = q.bid_size[0], a1 = q.ask_size[0];
+    raw_ = {w5.delta,
+            w30.delta,
+            w120.delta,
+            w5.ofi,
+            w30.ofi,
+            std::log((vol30 + 1) / (vol_mean_ + 1)),
+            b1 + a1 > 0 ? (b1 - a1) / (b1 + a1) : 0,
+            bid5 + ask5 > 0 ? (bid5 - ask5) / (bid5 + ask5) : 0,
+            ret(n5_),
+            ret(n30_),
+            ret(n120_),
+            vwap_den_ > 0 ? 0.5 * (q.bid + q.ask) - vwap() : 0,
+            absorb_};
+    for (std::size_t k = 0; k < kFeatures; ++k) {
+      // Imbalances and the volume ratio are already unit-free.
+      const bool scaled = !(k == 5 || k == 6 || k == 7);
+      if (scaled) {
+        rms_[k] = std::sqrt(rms_[k] * rms_[k] + (raw_[k] * raw_[k] - rms_[k] * rms_[k]) * norm_alpha_);
+        x_[k] = std::clamp(raw_[k] / std::max(1e-9, rms_[k]), -kClip, kClip);
+      } else {
+        x_[k] = std::clamp(k == 5 ? raw_[k] : 2 * raw_[k], -kClip, kClip);
+      }
+    }
+  }
+
+  double dt_, norm_alpha_;
+  std::size_t n5_ = 1, n30_ = 1, n120_ = 1;
+  std::array<std::size_t, 3> len_{};
+  std::array<Sums, 3> win_{};
+  std::vector<Bucket> ring_;
+  std::size_t head_ = 0, count_ = 0;
+  Bucket cur_;
+  Quote last_{};
+  bool have_quote_ = false;
+  double vwap_num_ = 0, vwap_den_ = 0, vol_mean_ = 0;
+  double run_sold_ = 0, run_bought_ = 0, bid_shown_ = 0, ask_shown_ = 0, absorb_ = 0;
+  std::array<double, kFeatures> raw_{}, x_{}, rms_{};
+};
+
+}  // namespace rag::orderflow
+
+```
+
+
+---
+
+## FILE: include/rag/orderflow/replay_env.hpp  (8,679 bytes)
+
+```cpp
+// rag/orderflow/replay_env.hpp — the scalping environment on recorded ticks
+// (backtesting), with the same observations and actions as ScalpEnv, so an
+// agent trained in the simulator runs unchanged on real data.
+//
+//   TickTape tape = TickTape::from_csv("es_ticks.csv", {.time_unit = "ns"});
+//   ReplayScalpEnv env(tape, {.window_seconds = 600});
+//   env.seek(k);              // episode k = the k-th consecutive window (else reset() picks one at random)
+//
+// Fills: a market order reaches the book one bucket later (latency) and fills
+// at the recorded best ask (buy) or bid (sell); an order larger than the
+// recorded touch size walks the recorded depth, one tick per level. Fees per
+// contract per side as in ScalpEnv.
+//
+// What a replay cannot do: the strategy's own orders don't move the recorded
+// market (fine for 1-lot market orders in ES, whose touch holds hundreds of
+// lots), and passive queue fills can't be replayed faithfully without
+// order-by-order (MBO) data, so only directional market-order strategies are
+// backtested here.
+#pragma once
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+#include "rag/agent/env.hpp"
+#include "rag/orderflow/features.hpp"
+#include "rag/orderflow/scalp_env.hpp"
+#include "rag/orderflow/tick_csv.hpp"
+
+namespace rag::orderflow {
+
+// A recorded tick stream, bucketed: the trades of each bucket and the quote at its end.
+class TickTape {
+ public:
+  struct Bucket {
+    std::vector<Trade> trades;
+    Quote quote;
+  };
+  static TickTape from_csv(const std::string& path, const TickCsvOptions& o = {}) {
+    TickTape t;
+    t.bucket_seconds_ = o.bucket_seconds;
+    Collector c{&t, {}};
+    t.stats_ = replay_tick_csv(path, c, o);
+    return t;
+  }
+  static TickTape from_stream(std::istream& in, const TickCsvOptions& o = {}) {
+    TickTape t;
+    t.bucket_seconds_ = o.bucket_seconds;
+    Collector c{&t, {}};
+    t.stats_ = replay_tick_csv(in, c, o);
+    return t;
+  }
+  [[nodiscard]] std::size_t size() const noexcept { return buckets_.size(); }
+  [[nodiscard]] const Bucket& operator[](std::size_t i) const { return buckets_[i]; }
+  [[nodiscard]] double bucket_seconds() const noexcept { return bucket_seconds_; }
+  [[nodiscard]] const TickCsvStats& stats() const noexcept { return stats_; }
+
+ private:
+  struct Collector {
+    TickTape* t;
+    std::vector<Trade> pending;
+    void add_trade(const Trade& tr) { pending.push_back(tr); }
+    void end_bucket(const Quote& q) {
+      t->buckets_.push_back({std::move(pending), q});
+      pending.clear();
+    }
+  };
+  std::vector<Bucket> buckets_;
+  double bucket_seconds_ = 0.1;
+  TickCsvStats stats_;
+};
+
+struct ReplayParams {
+  double decide_seconds = 1.0;
+  double window_seconds = 600;   // one episode
+  double warmup_seconds = 150;   // features warm up on the tape before the window
+  std::uint32_t latency_buckets = 1;
+  std::uint32_t contracts = 1;
+  double fee_dollars = 1.5;
+};
+
+class ReplayScalpEnv {
+ public:
+  using Observation = ScalpObs;
+  static constexpr std::size_t kNumActions = ScalpEnv::kNumActions;
+  static constexpr std::size_t kStateDims = ScalpEnv::kStateDims;
+  static constexpr auto kLo = ScalpEnv::kLo;
+  static constexpr auto kHi = ScalpEnv::kHi;
+
+  ReplayScalpEnv(std::shared_ptr<const TickTape> tape, const ReplayParams& p = {}) : tape_(std::move(tape)), p_(p) {
+    if (!tape_ || tape_->size() == 0) throw std::invalid_argument("ReplayScalpEnv: empty tape");
+  }
+
+  // Consecutive windows that fit on the tape after the warm-up.
+  [[nodiscard]] std::size_t windows() const noexcept {
+    const std::size_t need = buckets(p_.window_seconds);
+    const std::size_t warm = buckets(p_.warmup_seconds);
+    return tape_->size() > warm + need ? (tape_->size() - warm) / need : 0;
+  }
+  // Episode k = window k (0-based), for walk-forward evaluation.
+  Observation seek(std::size_t k) {
+    if (k >= windows()) throw std::out_of_range("ReplayScalpEnv: no such window");
+    return start_at(k * buckets(p_.window_seconds));
+  }
+  // A random window (training on recorded data).
+  Observation reset(rag::agent::Rng& rng) {
+    const std::size_t w = windows();
+    if (w == 0) throw std::out_of_range("ReplayScalpEnv: tape shorter than warm-up + window");
+    return seek(rng.below(static_cast<std::uint32_t>(w)));
+  }
+
+  rag::agent::Step<Observation> step(rag::agent::Action a, rag::agent::Rng&) {
+    const int target = (static_cast<int>(a) - 1) * static_cast<int>(p_.contracts);
+    double fees = 0;
+    const std::size_t n = buckets(p_.decide_seconds);
+    for (std::size_t i = 0; i < n && pos_ < end_; ++i) {
+      advance();
+      if (i + 1 == std::min<std::size_t>(n, p_.latency_buckets) && target != position_) fees += trade_to(target);
+    }
+    if (p_.latency_buckets == 0 && target != position_) fees += trade_to(target);
+    const bool done = pos_ >= end_;
+    if (done && position_ != 0) fees += trade_to(0);
+    const double eq = cash_ + position_ * mid();
+    const double reward = eq - equity_ - fees;
+    equity_ = eq;
+    return {obs(done), reward, done};
+  }
+
+  [[nodiscard]] std::array<double, kStateDims> features(const Observation& o) const noexcept {
+    std::array<double, kStateDims> x{};
+    for (std::size_t i = 0; i < kFeatures; ++i) x[i] = o.f[i];
+    x[kFeatures] = static_cast<double>(o.position) / static_cast<double>(p_.contracts);
+    x[kFeatures + 1] = std::clamp(o.open_pnl / 4.0, -kClip, kClip);
+    x[kFeatures + 2] = o.time_left;
+    return x;
+  }
+
+  [[nodiscard]] double net_pnl_ticks() const noexcept { return equity_ - fees_; }
+  [[nodiscard]] std::uint32_t orders() const noexcept { return orders_; }
+  [[nodiscard]] double fees_ticks() const noexcept { return fees_; }
+
+ private:
+  [[nodiscard]] std::size_t buckets(double seconds) const {
+    return std::max<std::size_t>(1, static_cast<std::size_t>(std::lround(seconds / tape_->bucket_seconds())));
+  }
+  [[nodiscard]] double mid() const { return 0.5 * (quote().bid + quote().ask); }
+  [[nodiscard]] const Quote& quote() const { return (*tape_)[pos_ == 0 ? 0 : pos_ - 1].quote; }
+  void advance() {
+    const auto& b = (*tape_)[pos_++];
+    for (const auto& t : b.trades) fb_.add_trade(t);
+    fb_.end_bucket(b.quote);
+  }
+  Observation start_at(std::size_t window_start) {
+    fb_ = FeatureBuilder(tape_->bucket_seconds());
+    pos_ = window_start;
+    const std::size_t warm_end = window_start + buckets(p_.warmup_seconds);
+    while (pos_ < warm_end) advance();
+    end_ = std::min(tape_->size(), warm_end + buckets(p_.window_seconds));
+    position_ = 0;
+    cash_ = equity_ = fees_ = entry_ = 0;
+    orders_ = 0;
+    start_ = pos_;
+    return obs(false);
+  }
+  // Fill against the recorded book: the touch, then one tick worse per level.
+  double trade_to(int target) {
+    const int diff = target - position_;
+    std::uint32_t left = static_cast<std::uint32_t>(std::abs(diff));
+    const Quote& q = quote();
+    double notional = 0;
+    for (std::size_t lvl = 0; left > 0; ++lvl) {
+      const std::int32_t price = diff > 0 ? q.ask + static_cast<std::int32_t>(lvl) : q.bid - static_cast<std::int32_t>(lvl);
+      const std::uint32_t shown = lvl < kDepth ? (diff > 0 ? q.ask_size[lvl] : q.bid_size[lvl]) : 0;
+      // Without depth in the data (sizes 0), assume the touch holds the order.
+      const std::uint32_t take = (shown == 0 && lvl == 0) || lvl + 1 >= kDepth ? left : std::min(left, shown);
+      notional += static_cast<double>(take) * price;
+      left -= take;
+    }
+    const std::uint32_t qty = static_cast<std::uint32_t>(std::abs(diff));
+    const double avg = notional / qty;
+    cash_ -= (diff > 0 ? 1.0 : -1.0) * qty * avg;
+    const int before = position_;
+    position_ = target;
+    if (position_ != 0 && (before == 0 || (before > 0) != (position_ > 0))) entry_ = avg;
+    if (position_ == 0) entry_ = 0;
+    ++orders_;
+    const double fee = qty * p_.fee_dollars / kTickValue;
+    fees_ += fee;
+    return fee;
+  }
+  [[nodiscard]] Observation obs(bool done) const {
+    Observation o;
+    o.f = fb_.values();
+    o.position = position_;
+    o.open_pnl = position_ != 0 ? position_ * (mid() - entry_) : 0;
+    const double total = static_cast<double>(end_ - start_);
+    o.time_left = done || total <= 0 ? 0 : std::max(0.0, static_cast<double>(end_ - pos_) / total);
+    return o;
+  }
+
+  std::shared_ptr<const TickTape> tape_;
+  ReplayParams p_;
+  FeatureBuilder fb_{0.1};
+  std::size_t pos_ = 0, end_ = 0, start_ = 0;
+  int position_ = 0;
+  double cash_ = 0, equity_ = 0, fees_ = 0, entry_ = 0;
+  std::uint32_t orders_ = 0;
+};
+
+static_assert(rag::agent::Environment<ReplayScalpEnv>);
+
+}  // namespace rag::orderflow
+
+```
+
+
+---
+
+## FILE: include/rag/orderflow/scalp_env.hpp  (6,571 bytes)
+
+```cpp
+// rag/orderflow/scalp_env.hpp — directional order-flow scalping on the ES
+// simulator, as an Environment for rag::agent learners.
+//
+// Every `decide_seconds` the strategy picks a target position (short, flat
+// or long `contracts`); a change is sent as a market order that reaches the
+// book `latency_steps` simulator steps later, pays the spread through its
+// fills, and pays `fee_dollars` per contract per side. The reward is the
+// change in mark-to-market equity (marked at the mid) in ticks, net of fees;
+// the episode ends flat (a final market order closes any position).
+//
+// Observation: the 13 order-flow features (features.hpp), the position, the
+// open P&L and the time left. Each episode is a fresh market (a new
+// simulator seed and a random time of day), warmed up so every window is
+// full before the first decision.
+#pragma once
+
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <optional>
+
+#include "rag/agent/env.hpp"
+#include "rag/orderflow/features.hpp"
+#include "rag/orderflow/simulator.hpp"
+
+namespace rag::orderflow {
+
+struct ScalpParams {
+  SimParams sim;
+  double decide_seconds = 1.0;
+  double episode_seconds = 600;
+  double warmup_seconds = 150;
+  double start_second = -1;  // session time of the warm-up start; < 0: random each episode
+  std::uint32_t latency_steps = 1;  // 100 ms at the default dt
+  std::uint32_t contracts = 1;
+  double fee_dollars = 1.5;  // per contract per side (exchange, clearing, broker)
+};
+
+struct ScalpObs {
+  std::array<double, kFeatures> f{};
+  int position = 0;        // contracts
+  double open_pnl = 0;     // ticks, marked at the mid
+  double time_left = 1;    // fraction of the episode
+};
+
+class ScalpEnv {
+ public:
+  using Observation = ScalpObs;
+  static constexpr std::size_t kNumActions = 3;  // 0 short, 1 flat, 2 long
+  static constexpr std::size_t kStateDims = kFeatures + 3;
+  static constexpr std::array<double, kStateDims> kLo = [] {
+    std::array<double, kStateDims> a{};
+    a.fill(-kClip);
+    a[kFeatures] = -1;
+    a[kFeatures + 1] = -kClip;
+    a[kFeatures + 2] = 0;
+    return a;
+  }();
+  static constexpr std::array<double, kStateDims> kHi = [] {
+    std::array<double, kStateDims> a{};
+    a.fill(kClip);
+    a[kFeatures] = 1;
+    a[kFeatures + 1] = kClip;
+    a[kFeatures + 2] = 1;
+    return a;
+  }();
+
+  explicit ScalpEnv(const ScalpParams& p = {}) : p_(p) {}
+
+  Observation reset(rag::agent::Rng& rng) {
+    const double latest_start = std::max(0.0, p_.sim.session_seconds - p_.episode_seconds - p_.warmup_seconds);
+    const double u = rng.uniform();  // drawn either way: episode seeds don't depend on the setting
+    sim_.emplace(p_.sim, rng.next(), p_.start_second >= 0 ? p_.start_second : u * latest_start);
+    fb_ = FeatureBuilder(p_.sim.dt);
+    for (std::uint32_t i = 0; i < steps(p_.warmup_seconds); ++i) advance();
+    position_ = 0;
+    cash_ = 0;
+    equity_ = 0;
+    entry_mid_ = 0;
+    elapsed_ = 0;
+    trades_ = 0;
+    fees_ticks_ = 0;
+    return obs();
+  }
+
+  rag::agent::Step<Observation> step(rag::agent::Action a, rag::agent::Rng&) {
+    const int target = (static_cast<int>(a) - 1) * static_cast<int>(p_.contracts);
+    const std::uint32_t n = steps(p_.decide_seconds);
+    double fees = 0;
+    if (p_.latency_steps == 0 && target != position_) fees += trade_to(target);
+    for (std::uint32_t i = 0; i < n; ++i) {
+      advance();
+      if (p_.latency_steps > 0 && i + 1 == std::min(n, p_.latency_steps) && target != position_) fees += trade_to(target);
+    }
+    elapsed_ += p_.decide_seconds;
+    const bool done = elapsed_ >= p_.episode_seconds - 1e-9;
+    if (done && position_ != 0) fees += trade_to(0);
+    const double eq = cash_ + position_ * sim_->mid();
+    const double reward = eq - equity_ - fees;
+    equity_ = eq;
+    return {obs(), reward, done};
+  }
+
+  [[nodiscard]] std::array<double, kStateDims> features(const Observation& o) const noexcept {
+    std::array<double, kStateDims> x{};
+    for (std::size_t i = 0; i < kFeatures; ++i) x[i] = o.f[i];
+    x[kFeatures] = static_cast<double>(o.position) / static_cast<double>(p_.contracts);
+    x[kFeatures + 1] = std::clamp(o.open_pnl / 4.0, -kClip, kClip);
+    x[kFeatures + 2] = o.time_left;
+    return x;
+  }
+
+  // Episode statistics and the market, for evaluation and oracles.
+  [[nodiscard]] double net_pnl_ticks() const noexcept { return equity_ - fees_ticks_; }  // marked at the mid, after fees
+  [[nodiscard]] std::uint32_t round_trips() const noexcept { return trades_ / 2; }
+  [[nodiscard]] std::uint32_t orders() const noexcept { return trades_; }
+  [[nodiscard]] double fees_ticks() const noexcept { return fees_ticks_; }
+  [[nodiscard]] const EsSimulator& market() const noexcept { return *sim_; }
+  [[nodiscard]] const FeatureBuilder& feature_builder() const noexcept { return fb_; }
+  [[nodiscard]] const ScalpParams& params() const noexcept { return p_; }
+
+ private:
+  [[nodiscard]] std::uint32_t steps(double seconds) const {
+    return std::max<std::uint32_t>(1, static_cast<std::uint32_t>(std::lround(seconds / p_.sim.dt)));
+  }
+  void advance() {
+    sim_->step();
+    for (const auto& t : sim_->trades()) fb_.add_trade(t);
+    fb_.end_bucket(sim_->quote());
+  }
+  // Market order to reach `target`; returns the fee in ticks.
+  double trade_to(int target) {
+    const int diff = target - position_;
+    const auto qty = static_cast<std::uint32_t>(std::abs(diff));
+    const Fill f = sim_->market_order(diff > 0 ? Side::Buy : Side::Sell, qty);
+    cash_ -= (diff > 0 ? 1.0 : -1.0) * f.filled * f.avg_price;
+    const int before = position_;
+    position_ += diff > 0 ? static_cast<int>(f.filled) : -static_cast<int>(f.filled);
+    if (position_ != 0 && (before == 0 || (before > 0) != (position_ > 0))) entry_mid_ = f.avg_price;  // new or flipped position
+    if (position_ == 0) entry_mid_ = 0;
+    ++trades_;
+    const double fee = f.filled * p_.fee_dollars / kTickValue;
+    fees_ticks_ += fee;
+    return fee;
+  }
+  [[nodiscard]] Observation obs() const {
+    Observation o;
+    o.f = fb_.values();
+    o.position = position_;
+    o.open_pnl = position_ != 0 ? position_ * (sim_->mid() - entry_mid_) : 0;
+    o.time_left = std::max(0.0, 1 - elapsed_ / p_.episode_seconds);
+    return o;
+  }
+
+  ScalpParams p_;
+  std::optional<EsSimulator> sim_;  // by value: environments are copied (evaluate(), Agent)
+  FeatureBuilder fb_{0.1};
+  int position_ = 0;
+  double cash_ = 0, equity_ = 0, entry_mid_ = 0, elapsed_ = 0, fees_ticks_ = 0;
+  std::uint32_t trades_ = 0;
+};
+
+static_assert(rag::agent::Environment<ScalpEnv>);
+
+}  // namespace rag::orderflow
+
+```
+
+
+---
+
+## FILE: include/rag/orderflow/simulator.hpp  (24,405 bytes)
+
+```cpp
+// rag/orderflow/simulator.hpp — a synthetic ES futures market at tick level.
+//
+// It produces what real ES tick data contains: trade prints (price, size,
+// aggressor side) and quotes (best bid/ask and the size at the first kDepth
+// levels), so features and strategies written against it run unchanged on
+// recorded ticks later. A strategy can trade in it two ways:
+//
+//   market_order(side, qty)          take liquidity now (scalping / momentum)
+//   submit_limit(side, price, qty)   join the FIFO queue at a price (tick
+//   cancel(id)                       scalping): it fills only after the lots
+//                                    ahead of it have traded or cancelled
+//
+// Prices are integer ticks (ES: 1 tick = 0.25 index points = $12.50 per
+// contract). Time advances in steps of `dt` seconds. Each step:
+//
+//   1. activity: a log-OU process (volume and volatility clustering),
+//      excited by price moves, times an intraday U-shape;
+//   2. fair value: a hidden random walk with occasional jumps (news);
+//   3. takers, all with heavy-tailed sizes:
+//        noise       balanced single market orders;
+//        meta-orders large parent orders split into child market orders
+//                    over time, sizes power-law (the source of long memory
+//                    in trade signs); informed ones start when the price is
+//                    away from fair value and trade toward it, uninformed ones
+//                    (rebalancing) pick a random side;
+//        momentum    chase the last `momentum_lookback` seconds' move;
+//   4. makers: limit-order arrivals and cancellations at every level; they
+//      fade quotes against one-sided aggressive flow (cancel the side being
+//      hit, add to the other), so prices adjust quickly and limit-order flow
+//      carries information of its own;
+//   5. icebergs: large passive orders with hidden reserve, placed by players
+//      who know the fair value; aggressive flow into them trades without
+//      moving the price (absorption), and the price tends to turn there.
+//
+// All parameters are plain numbers in SimParams, meant to be calibrated
+// against recorded ES ticks (experiments/of1_stylized_facts.cpp measures
+// the stylized facts they produce).
+#pragma once
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <deque>
+#include <stdexcept>
+#include <vector>
+
+#include "rag/agent/rng.hpp"
+
+namespace rag::orderflow {
+
+using rag::agent::Rng;
+
+inline constexpr std::size_t kDepth = 5;     // book levels exposed in quotes
+inline constexpr std::size_t kLevels = 16;   // book levels simulated per side
+inline constexpr double kTickValue = 12.50;  // ES: dollars per tick per contract
+
+enum class Side : std::uint8_t { Buy, Sell };
+[[nodiscard]] inline constexpr double sign(Side s) noexcept { return s == Side::Buy ? 1.0 : -1.0; }
+
+struct Trade {
+  std::int64_t t_ns;
+  std::int32_t price;  // ticks
+  std::uint32_t size;  // contracts
+  Side aggressor;
+  bool own;  // the strategy's own market order
+};
+
+struct Quote {
+  std::int64_t t_ns;
+  std::int32_t bid, ask;  // ticks
+  std::array<std::uint32_t, kDepth> bid_size, ask_size;
+};
+
+struct OwnFill {  // a fill of the strategy's resting limit order
+  std::uint64_t id;
+  Side side;  // Buy: our bid was hit
+  std::int32_t price;
+  std::uint32_t size;
+};
+
+struct SimParams {
+  double dt = 0.1;                    // seconds per step
+  double session_seconds = 23'400;    // regular trading hours, for the intraday shape
+  std::int32_t start_price = 20'000;  // ticks (5,000.00 index points)
+  // Activity: d(log A) = -log A / activity_tau dt + activity_vol dW, plus
+  // activity_excite per tick the mid moved in a step *beyond its long-run
+  // average move* (bursts after large moves, no drift), clamped to
+  // [activity_min, activity_max]. Exciting on raw moves is supercritical:
+  // busier markets move more, which makes them busier, without limit.
+  double activity_tau = 300, activity_vol = 0.08, activity_excite = 0.15, activity_min = -1.5, activity_max = 2.0;
+  double open_boost = 1.5, close_boost = 1.0, boost_minutes = 30;  // intraday U-shape
+  // Fair value (ticks): diffusion per sqrt(second) at activity 1, scaled by
+  // sqrt(activity) (information arrives with trading: volatility clusters
+  // with volume, and the mixture fattens the tails); jumps.
+  double value_vol = 0.33, jump_rate = 1.0 / 900, jump_sd = 10;
+  // Noise takers: orders per second per side at activity 1.
+  double noise_rate = 2.0;
+  double taker_size_mean = 4.0, taker_size_logsd = 0.9;
+  // Meta-orders: total size Pareto(meta_min, meta_alpha) capped at meta_max,
+  // executed as child market orders at meta_child_rate per second.
+  double meta_min = 20, meta_alpha = 1.5, meta_max = 3000, meta_child_rate = 2.0;
+  double informed_meta_rate = 0.8, informed_scale = 2;  // starts per second at |value - mid| >= informed_scale
+  double uninformed_meta_rate = 0.4;                    // starts per second, random side
+  // Momentum takers.
+  double momentum_rate = 0.8, momentum_scale = 8, momentum_lookback = 30;
+  // Makers: limit orders per second at level i = maker_rate * exp(-i / maker_decay);
+  // each resting lot is cancelled at cancel_rate per second.
+  double maker_rate = 6.0, maker_decay = 3.0, maker_size_mean = 6.0, cancel_rate = 0.10;
+  // Quote fading: with f = EWMA (fade_tau seconds) of signed taker volume per
+  // second, the side being hit cancels at cancel_rate * L and the other side's
+  // arrivals grow by L, L = min(fade_max, exp(fade * |f| / fade_norm)). The cap
+  // matters: uncapped, fading feeds back on itself (the hit side vanishes,
+  // the price runs, momentum adds flow) and the book blows up.
+  double fade = 0.5, fade_norm = 25, fade_tau = 3, fade_max = 2.5;
+  // Informed makers (0 = off, the default): liquidity providers that infer
+  // where value is going re-price before the flow arrives. With g = fair
+  // value - mid in ticks, the side the price is heading toward cancels at
+  // cancel_rate * L and the other side's arrivals grow by L,
+  // L = min(maker_info_max, exp(maker_info * |g| / informed_scale)). Prices
+  // then move ahead of informed flow, so order flow predicts less (faster
+  // price discovery, flatter markout curve).
+  double maker_info = 0.0, maker_info_max = 4.0;
+  double spread_fill_prob = 0.6;  // per step: an order inside a wide spread (repeats while it succeeds)
+  // Icebergs.
+  double iceberg_rate = 1.0 / 90, iceberg_min = 300, iceberg_max = 1500, iceberg_peak = 20;
+  double iceberg_life = 300;            // seconds
+  std::int32_t iceberg_max_offset = 4;  // ticks behind the best price
+  std::uint32_t max_order = 300;        // size cap for a single order
+  // The strategy's queue position (tick scalping). Cancellations land
+  // mostly at the back of a queue (recent orders get pulled; the front is
+  // long-standing size): of n lots cancelled by others, n * (ahead / others)^
+  // cancel_back_bias come from ahead of our order (1 = uniform). And faster
+  // participants beat a 100 ms order to a level: on joining, a lognormal
+  // number of lots with mean join_ahead_mean lands ahead of it.
+  double cancel_back_bias = 3.0, join_ahead_mean = 120;  // OF4: naive two-sided quoting ~breakeven gross, loses after fees
+};
+
+// A more efficient market: informed makers re-price ahead of informed flow,
+// so order flow moves prices at once but no longer predicts the next 30 s
+// (3 seeds x 2 h: corr(30 s delta, next 30 s) -0.02 vs +0.12 by default;
+// markout flat after 5 s: +0.57 at 5 s, +0.56 at 30 s vs +1.40 by default).
+inline SimParams efficient_market() {
+  SimParams p;
+  p.maker_info = 1.0;
+  return p;
+}
+
+struct Fill {
+  std::uint32_t filled = 0;
+  double avg_price = 0;  // ticks
+};
+
+class EsSimulator {
+ public:
+  explicit EsSimulator(const SimParams& p = {}, std::uint64_t seed = 1, double start_second = 0) : p_(p), rng_(seed) {
+    if (!(p_.dt > 0) || !(p_.cancel_rate >= 0) || !(p_.maker_decay > 0) || !(p_.meta_alpha > 0) || !(p_.fade_tau > 0))
+      throw std::invalid_argument("SimParams: dt, maker_decay, meta_alpha and fade_tau must be positive");
+    bid_ = p_.start_price;
+    value_ = p_.start_price + 0.5;
+    clock_ = start_second;
+    for (std::size_t i = 0; i < kLevels; ++i) bid_q_[i] = ask_q_[i] = stationary_depth(i);
+    history_.push_back(mid());
+  }
+
+  // Advance one step of dt seconds; trades() and own_fills() then hold this step's events.
+  void step() {
+    trades_.clear();
+    fills_.clear();
+    const double dt = p_.dt;
+    t_ns_ += static_cast<std::int64_t>(std::llround(dt * 1e9));
+    clock_ += dt;
+    const double mid0 = mid();
+    // 1. Activity.
+    log_activity_ += -log_activity_ / p_.activity_tau * dt + p_.activity_vol * std::sqrt(dt) * rng_.normal();
+    const double a = std::exp(log_activity_) * intraday(clock_);
+    // 2. Fair value.
+    value_ += p_.value_vol * std::sqrt(a * dt) * rng_.normal();
+    if (rng_.uniform() < p_.jump_rate * dt) value_ += p_.jump_sd * rng_.normal();
+    // 3. Takers.
+    orders_.clear();
+    for (std::uint32_t n = poisson(p_.noise_rate * a * dt); n > 0; --n) orders_.push_back({Side::Buy, taker_size()});
+    for (std::uint32_t n = poisson(p_.noise_rate * a * dt); n > 0; --n) orders_.push_back({Side::Sell, taker_size()});
+    const double gap = value_ - mid();
+    if (std::abs(gap) > 0.5)
+      for (std::uint32_t n = poisson(p_.informed_meta_rate * std::min(1.0, std::abs(gap) / p_.informed_scale) * a * dt); n > 0; --n)
+        metas_.push_back({gap > 0 ? Side::Buy : Side::Sell, meta_size(), true});
+    for (std::uint32_t n = poisson(p_.uninformed_meta_rate * a * dt); n > 0; --n)
+      metas_.push_back({rng_.uniform() < 0.5 ? Side::Buy : Side::Sell, meta_size(), false});
+    for (auto& m : metas_) {
+      if (m.informed && sign(m.side) * (value_ - mid()) < -1) m.left = 0;  // the edge is gone: stop
+      for (std::uint32_t n = poisson(p_.meta_child_rate * a * dt); n > 0 && m.left > 0; --n) {
+        const std::uint32_t c = std::min(m.left, taker_size());
+        orders_.push_back({m.side, c});
+        m.left -= c;
+      }
+    }
+    std::erase_if(metas_, [](const Meta& m) { return m.left == 0; });
+    const double move = mid() - history_.front();
+    if (std::abs(move) >= 1)
+      for (std::uint32_t n = poisson(p_.momentum_rate * std::min(1.0, std::abs(move) / p_.momentum_scale) * a * dt); n > 0; --n)
+        orders_.push_back({move > 0 ? Side::Buy : Side::Sell, taker_size()});
+    for (std::size_t i = orders_.size(); i > 1; --i) std::swap(orders_[i - 1], orders_[rng_.below(static_cast<std::uint32_t>(i))]);
+    double signed_volume = 0;
+    for (const auto& o : orders_) {
+      execute(o.side, o.size, false);
+      signed_volume += sign(o.side) * o.size;
+    }
+    flow_ += (signed_volume / dt - flow_) * std::min(1.0, dt / p_.fade_tau);
+    // 4. Makers, fading against the flow.
+    const double lean = std::min(p_.fade_max, std::exp(p_.fade * std::abs(flow_) / p_.fade_norm));
+    double bid_cancel = p_.cancel_rate * (flow_ < 0 ? lean : 1.0), ask_cancel = p_.cancel_rate * (flow_ > 0 ? lean : 1.0);
+    double bid_add = flow_ > 0 ? lean : 1.0, ask_add = flow_ < 0 ? lean : 1.0;
+    if (p_.maker_info > 0) {
+      const double g = value_ - mid();
+      const double info = std::min(p_.maker_info_max, std::exp(p_.maker_info * std::abs(g) / p_.informed_scale));
+      if (g > 0) {  // value above the price: asks get pulled, bids get added
+        ask_cancel *= info;
+        bid_add *= info;
+      } else {
+        bid_cancel *= info;
+        ask_add *= info;
+      }
+    }
+    for (std::size_t i = 0; i < kLevels; ++i) {
+      const double rate = p_.maker_rate * std::exp(-static_cast<double>(i) / p_.maker_decay) * a * dt;
+      bid_q_[i] += maker_lots(rate * bid_add);
+      ask_q_[i] += maker_lots(rate * ask_add);
+      cancel_level(Side::Buy, i, poisson(bid_cancel * others(Side::Buy, i) * dt));
+      cancel_level(Side::Sell, i, poisson(ask_cancel * others(Side::Sell, i) * dt));
+    }
+    // 5. Icebergs.
+    if (rng_.uniform() < p_.iceberg_rate * a * dt) place_iceberg();
+    manage_icebergs();
+    normalize_book();
+    while (spread_ > 1 && rng_.uniform() < p_.spread_fill_prob) improve(rng_.uniform() < 0.5 ? Side::Buy : Side::Sell);
+    drop_far_orders();
+    const double moved = std::abs(mid() - mid0);
+    move_avg_ += (moved - move_avg_) * std::min(1.0, dt / 1800);
+    log_activity_ = std::clamp(log_activity_ + p_.activity_excite * (moved - move_avg_), p_.activity_min, p_.activity_max);
+    history_.push_back(mid());
+    const auto keep = static_cast<std::size_t>(std::ceil(p_.momentum_lookback / dt)) + 1;
+    while (history_.size() > keep) history_.pop_front();
+  }
+
+  // ---- the strategy's orders --------------------------------------------
+  // Take liquidity now; prints are flagged own = true.
+  Fill market_order(Side side, std::uint32_t qty) { return execute(side, qty, true); }
+
+  // Join the back of the queue at `price`. A price at or through the
+  // opposite best is rejected (returns 0): use market_order to take.
+  std::uint64_t submit_limit(Side side, std::int32_t price, std::uint32_t qty) {
+    if (qty == 0) return 0;
+    if (side == Side::Buy ? price >= ask() : price <= bid_) return 0;
+    // Inside the spread: the order becomes the new best level.
+    while (side == Side::Buy ? price > bid_ : price < ask()) improve(side, false);
+    const std::size_t i = level_index(side, price);
+    if (i >= kLevels) return 0;  // too far from the market to simulate
+    auto& q = side == Side::Buy ? bid_q_ : ask_q_;
+    const std::uint32_t faster = p_.join_ahead_mean > 0 ? lognormal_size(p_.join_ahead_mean, 0.8) : 0;
+    q[i] += faster;
+    resting_.push_back({next_id_, side, price, qty, q[i]});
+    q[i] += qty;
+    return next_id_++;
+  }
+  // Cancel a resting order; returns the unfilled size it removed.
+  std::uint32_t cancel(std::uint64_t id) {
+    for (auto it = resting_.begin(); it != resting_.end(); ++it)
+      if (it->id == id) {
+        const std::uint32_t left = it->qty;
+        const std::size_t i = level_index(it->side, it->price);
+        if (i < kLevels) {
+          auto& q = it->side == Side::Buy ? bid_q_ : ask_q_;
+          q[i] -= std::min(q[i], left);
+        }
+        resting_.erase(it);
+        return left;
+      }
+    return 0;
+  }
+  struct Resting {
+    std::uint64_t id;
+    Side side;
+    std::int32_t price;
+    std::uint32_t qty;    // unfilled
+    std::uint32_t ahead;  // lots ahead of it in the queue
+  };
+  [[nodiscard]] const std::vector<Resting>& resting() const noexcept { return resting_; }
+  [[nodiscard]] const std::vector<OwnFill>& own_fills() const noexcept { return fills_; }
+
+  // ---- market state -----------------------------------------------------
+  [[nodiscard]] const std::vector<Trade>& trades() const noexcept { return trades_; }
+  [[nodiscard]] Quote quote() const noexcept {
+    Quote q{t_ns_, bid_, ask(), {}, {}};
+    for (std::size_t i = 0; i < kDepth; ++i) {
+      q.bid_size[i] = bid_q_[i];
+      q.ask_size[i] = ask_q_[i];
+    }
+    return q;
+  }
+  [[nodiscard]] std::int32_t bid() const noexcept { return bid_; }
+  [[nodiscard]] std::int32_t ask() const noexcept { return bid_ + spread_; }
+  [[nodiscard]] std::int32_t spread() const noexcept { return spread_; }
+  [[nodiscard]] double mid() const noexcept { return bid_ + 0.5 * spread_; }
+  [[nodiscard]] std::int64_t t_ns() const noexcept { return t_ns_; }
+  [[nodiscard]] const SimParams& params() const noexcept { return p_; }
+  // Hidden from strategies; for oracles and diagnostics only.
+  [[nodiscard]] double fair_value() const noexcept { return value_; }
+  [[nodiscard]] double activity() const noexcept { return std::exp(log_activity_) * intraday(clock_); }
+  [[nodiscard]] std::size_t active_icebergs() const noexcept { return icebergs_.size(); }
+  [[nodiscard]] std::size_t active_meta_orders() const noexcept { return metas_.size(); }
+
+ private:
+  struct Order {
+    Side side;
+    std::uint32_t size;
+  };
+  struct Meta {
+    Side side;
+    std::uint32_t left;
+    bool informed;
+  };
+  struct Iceberg {
+    Side side;  // Buy: a hidden bid
+    std::int32_t price;
+    std::uint32_t reserve;
+    double expires;
+  };
+
+  [[nodiscard]] double intraday(double sec) const noexcept {
+    const double m = p_.boost_minutes * 60;
+    const double to_close = std::max(0.0, p_.session_seconds - sec);
+    return 1 + p_.open_boost * std::exp(-sec / m) + p_.close_boost * std::exp(-to_close / m);
+  }
+  [[nodiscard]] std::uint32_t stationary_depth(std::size_t i) const {
+    const double lots = p_.maker_rate * std::exp(-static_cast<double>(i) / p_.maker_decay) * p_.maker_size_mean / std::max(1e-9, p_.cancel_rate);
+    return static_cast<std::uint32_t>(std::min(1e6, lots));
+  }
+  [[nodiscard]] std::size_t level_index(Side side, std::int32_t price) const noexcept {
+    const std::int32_t d = side == Side::Buy ? bid_ - price : price - ask();
+    return d < 0 ? kLevels : static_cast<std::size_t>(d);
+  }
+  // Lots at a level that aren't the strategy's.
+  [[nodiscard]] std::uint32_t others(Side side, std::size_t i) const noexcept {
+    const auto& q = side == Side::Buy ? bid_q_ : ask_q_;
+    std::uint32_t own = 0;
+    for (const auto& r : resting_)
+      if (r.side == side && level_index(side, r.price) == i) own += r.qty;
+    return q[i] > own ? q[i] - own : 0;
+  }
+
+  std::uint32_t poisson(double lambda) {
+    if (!(lambda > 0)) return 0;
+    if (lambda > 30) return static_cast<std::uint32_t>(std::max(0.0, std::round(lambda + std::sqrt(lambda) * rng_.normal())));
+    const double l = std::exp(-lambda);
+    std::uint32_t k = 0;
+    double prod = rng_.uniform();
+    while (prod > l && k < 200) {
+      ++k;
+      prod *= rng_.uniform();
+    }
+    return k;
+  }
+  std::uint32_t lognormal_size(double mean, double logsd) {
+    const double mu = std::log(mean) - 0.5 * logsd * logsd;
+    return static_cast<std::uint32_t>(std::clamp(std::round(std::exp(mu + logsd * rng_.normal())), 1.0, static_cast<double>(p_.max_order)));
+  }
+  std::uint32_t taker_size() { return lognormal_size(p_.taker_size_mean, p_.taker_size_logsd); }
+  std::uint32_t meta_size() {
+    const double u = std::max(1e-12, rng_.uniform());
+    return static_cast<std::uint32_t>(std::min(p_.meta_max, p_.meta_min * std::pow(u, -1.0 / p_.meta_alpha)));
+  }
+  std::uint32_t maker_lots(double rate) {
+    std::uint32_t lots = 0;
+    for (std::uint32_t n = poisson(rate); n > 0; --n) lots += lognormal_size(p_.maker_size_mean, 0.8);
+    return lots;
+  }
+
+  // Others cancel `n` lots at a level; the strategy's queue position improves
+  // in proportion (cancellations land uniformly in the queue).
+  void cancel_level(Side side, std::size_t i, std::uint32_t n) {
+    const std::uint32_t oth = others(side, i);
+    n = std::min(n, oth);
+    if (n == 0) return;
+    auto& q = side == Side::Buy ? bid_q_ : ask_q_;
+    q[i] -= n;
+    for (auto& r : resting_)
+      if (r.side == side && level_index(side, r.price) == i && oth > 0)
+        r.ahead -= std::min(r.ahead, static_cast<std::uint32_t>(std::llround(
+                                         static_cast<double>(n) * std::pow(static_cast<double>(r.ahead) / oth, p_.cancel_back_bias))));
+  }
+
+  Iceberg* iceberg_at(Side side, std::int32_t price) {
+    for (auto& ib : icebergs_)
+      if (ib.side == side && ib.price == price && ib.reserve > 0) return &ib;
+    return nullptr;
+  }
+
+  // Take `take` lots from the best level of the passive side: the queue
+  // ahead of each resting own order first, then the order itself (FIFO).
+  void consume_best(Side passive, std::uint32_t take) {
+    auto& q = passive == Side::Buy ? bid_q_ : ask_q_;
+    const std::int32_t price = passive == Side::Buy ? bid_ : ask();
+    q[0] -= std::min(q[0], take);
+    for (auto it = resting_.begin(); it != resting_.end();) {
+      if (it->side != passive || it->price != price) {
+        ++it;
+        continue;
+      }
+      const std::uint32_t past = std::min(take, it->ahead);
+      it->ahead -= past;
+      const std::uint32_t mine = std::min(take - past, it->qty);
+      if (mine > 0) {
+        fills_.push_back({it->id, passive, price, mine});
+        it->qty -= mine;
+      }
+      if (it->qty == 0) {
+        it = resting_.erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
+
+  // Take liquidity: a Buy consumes asks, a Sell consumes bids, level by level.
+  Fill execute(Side side, std::uint32_t qty, bool own) {
+    Fill f;
+    double notional = 0;
+    std::uint32_t left = qty;
+    auto& q = side == Side::Buy ? ask_q_ : bid_q_;
+    const Side passive = side == Side::Buy ? Side::Sell : Side::Buy;
+    for (int guard = 0; left > 0 && guard < 1000; ++guard) {
+      const std::int32_t price = side == Side::Buy ? ask() : bid_;
+      if (q[0] == 0) {
+        if (Iceberg* ib = iceberg_at(passive, price)) {  // hidden reserve refills the displayed queue
+          const auto refill = std::min<std::uint32_t>(static_cast<std::uint32_t>(p_.iceberg_peak), ib->reserve);
+          q[0] += refill;
+          ib->reserve -= refill;
+          continue;
+        }
+        shift_out(side);
+        continue;
+      }
+      const std::uint32_t take = std::min(left, q[0]);
+      consume_best(passive, take);
+      left -= take;
+      f.filled += take;
+      notional += static_cast<double>(take) * price;
+      trades_.push_back({t_ns_, price, take, side, own});
+    }
+    f.avg_price = f.filled ? notional / f.filled : 0;
+    return f;
+  }
+
+  // The best level on the side being taken is gone: the next one becomes best.
+  void shift_out(Side taker) {
+    auto& q = taker == Side::Buy ? ask_q_ : bid_q_;
+    for (std::size_t i = 0; i + 1 < kLevels; ++i) q[i] = q[i + 1];
+    q[kLevels - 1] = stationary_depth(kLevels - 1);
+    if (taker == Side::Sell) --bid_;
+    ++spread_;
+  }
+
+  // A new best level inside the spread: a better bid (Buy) or ask (Sell),
+  // opened by a maker's order or empty (the strategy's order joins it).
+  void improve(Side maker, bool with_maker_order = true) {
+    auto& q = maker == Side::Buy ? bid_q_ : ask_q_;
+    for (std::size_t i = kLevels - 1; i > 0; --i) q[i] = q[i - 1];
+    q[0] = with_maker_order ? lognormal_size(p_.maker_size_mean, 0.8) : 0;
+    if (maker == Side::Buy) ++bid_;
+    --spread_;
+  }
+
+  // Cancellations can empty the best level; the price then moves to the next.
+  void normalize_book() {
+    for (int g = 0; g < 4 && bid_q_[0] == 0 && !iceberg_at(Side::Buy, bid_); ++g) shift_out(Side::Sell);
+    for (int g = 0; g < 4 && ask_q_[0] == 0 && !iceberg_at(Side::Sell, ask()); ++g) shift_out(Side::Buy);
+  }
+
+  // Own orders pushed beyond the simulated depth are cancelled.
+  void drop_far_orders() {
+    std::erase_if(resting_, [&](const Resting& r) { return level_index(r.side, r.price) >= kLevels; });
+  }
+
+  void place_iceberg() {
+    // Informed passive player: below value, buyers wait under the price;
+    // above value, sellers wait over it.
+    const Side side = value_ >= mid() ? Side::Buy : Side::Sell;
+    const auto offset = static_cast<std::int32_t>(1 + rng_.below(static_cast<std::uint32_t>(p_.iceberg_max_offset)));
+    const std::int32_t price = side == Side::Buy ? bid_ - offset : ask() + offset;
+    const auto reserve = static_cast<std::uint32_t>(p_.iceberg_min + rng_.uniform() * (p_.iceberg_max - p_.iceberg_min));
+    icebergs_.push_back({side, price, reserve, clock_ + p_.iceberg_life});
+  }
+
+  void manage_icebergs() {
+    std::erase_if(icebergs_, [&](const Iceberg& ib) {
+      const bool wrong = ib.side == Side::Buy ? value_ < ib.price - 1 : value_ > ib.price + 1;
+      return ib.reserve == 0 || clock_ > ib.expires || wrong;
+    });
+    for (const auto& ib : icebergs_) {  // a resting iceberg always shows its peak
+      const std::size_t i = level_index(ib.side, ib.price);
+      if (i >= kLevels) continue;
+      auto& lvl = ib.side == Side::Buy ? bid_q_[i] : ask_q_[i];
+      lvl = std::max<std::uint32_t>(lvl, static_cast<std::uint32_t>(p_.iceberg_peak));
+    }
+  }
+
+  SimParams p_;
+  Rng rng_;
+  std::int32_t bid_ = 0, spread_ = 1;
+  std::array<std::uint32_t, kLevels> bid_q_{}, ask_q_{};
+  double value_ = 0, log_activity_ = 0, clock_ = 0, flow_ = 0, move_avg_ = 0.1;
+  std::int64_t t_ns_ = 0;
+  std::uint64_t next_id_ = 1;
+  std::deque<double> history_;
+  std::vector<Trade> trades_;
+  std::vector<OwnFill> fills_;
+  std::vector<Order> orders_;
+  std::vector<Meta> metas_;
+  std::vector<Iceberg> icebergs_;
+  std::vector<Resting> resting_;
+};
+
+}  // namespace rag::orderflow
+
+```
+
+
+---
+
+## FILE: include/rag/orderflow/stylized.hpp  (7,151 bytes)
+
+```cpp
+// rag/orderflow/stylized.hpp — the stylized facts of a tick stream, measured
+// the same way for simulated and recorded ES ticks (for calibration).
+//
+//   StylizedMeter m(0.1);                       // bucket width in seconds
+//   for each bucket: m.add_trade(t)...; m.end_bucket(quote);
+//   const StylizedFacts f = m.facts();
+//
+// Facts (prices in ticks):
+//   trades_per_sec, mean_trade_size, volume_per_min      activity
+//   spread1_share, mean_l1_size                          book
+//   ret1m_sd, ret1m_kurtosis (excess), ret1m_ac1,        1-minute mid returns
+//   absret1m_ac1                                         volatility clustering
+//   sign_ac1, sign_ac10, sign_ac100                      trade-sign autocorrelation (long memory)
+//   impact_r2                                            R^2 of 10 s mid change on 10 s delta
+//   delta_predict                                        corr(30 s delta, next 30 s mid change)
+//   markout_1s, markout_5s, markout_30s                  mean mid change 1/5/30 s after an
+//                                                        aggressive print, signed by its side
+//                                                        (ticks; the adverse selection a passive
+//                                                        fill suffers, as a curve)
+//   mid_changes_per_min                                  how often the mid moves (queue depletion)
+#pragma once
+
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <deque>
+#include <vector>
+
+#include "rag/orderflow/simulator.hpp"
+
+namespace rag::orderflow {
+
+struct StylizedFacts {
+  double seconds = 0, trades_per_sec = 0, mean_trade_size = 0, volume_per_min = 0;
+  double spread1_share = 0, mean_l1_size = 0;
+  double ret1m_sd = 0, ret1m_kurtosis = 0, ret1m_ac1 = 0, absret1m_ac1 = 0;
+  double sign_ac1 = 0, sign_ac10 = 0, sign_ac100 = 0;
+  double impact_r2 = 0, delta_predict = 0, markout_5s = 0;
+  double markout_1s = 0, markout_30s = 0, mid_changes_per_min = 0;
+};
+
+namespace detail {
+inline double mean_of(const std::vector<double>& v) {
+  double s = 0;
+  for (double x : v) s += x;
+  return v.empty() ? 0 : s / static_cast<double>(v.size());
+}
+inline double corr(const std::vector<double>& a, const std::vector<double>& b) {
+  const std::size_t n = std::min(a.size(), b.size());
+  if (n < 3) return 0;
+  double ma = 0, mb = 0;
+  for (std::size_t i = 0; i < n; ++i) {
+    ma += a[i];
+    mb += b[i];
+  }
+  ma /= static_cast<double>(n);
+  mb /= static_cast<double>(n);
+  double sab = 0, saa = 0, sbb = 0;
+  for (std::size_t i = 0; i < n; ++i) {
+    sab += (a[i] - ma) * (b[i] - mb);
+    saa += (a[i] - ma) * (a[i] - ma);
+    sbb += (b[i] - mb) * (b[i] - mb);
+  }
+  return saa > 0 && sbb > 0 ? sab / std::sqrt(saa * sbb) : 0;
+}
+inline double autocorr(const std::vector<double>& v, std::size_t lag) {
+  if (v.size() <= lag + 2) return 0;
+  return corr(std::vector<double>(v.begin(), v.end() - static_cast<std::ptrdiff_t>(lag)),
+              std::vector<double>(v.begin() + static_cast<std::ptrdiff_t>(lag), v.end()));
+}
+}  // namespace detail
+
+class StylizedMeter {
+ public:
+  explicit StylizedMeter(double bucket_seconds = 0.1) : dt_(bucket_seconds) {}
+
+  void add_trade(const Trade& t) {
+    const double s = t.aggressor == Side::Buy ? 1.0 : -1.0;
+    trades_ += 1;
+    volume_ += t.size;
+    delta_ += s * t.size;
+    if (signs_.size() < kMaxSigns) signs_.push_back(s);
+    pending_signs_ += s;  // markout: signed prints in this bucket
+  }
+
+  void end_bucket(const Quote& q) {
+    const double mid = 0.5 * (q.bid + q.ask);
+    mids_.push_back(mid);
+    deltas_.push_back(delta_);
+    marks_.push_back(pending_signs_);
+    delta_ = 0;
+    pending_signs_ = 0;
+    spread1_ += (q.ask - q.bid) == 1;
+    l1_ += 0.5 * (q.bid_size[0] + q.ask_size[0]);
+  }
+
+  [[nodiscard]] StylizedFacts facts() const {
+    using namespace detail;
+    StylizedFacts f;
+    const std::size_t n = mids_.size();
+    f.seconds = static_cast<double>(n) * dt_;
+    if (n == 0 || f.seconds <= 0) return f;
+    f.trades_per_sec = trades_ / f.seconds;
+    f.mean_trade_size = trades_ > 0 ? volume_ / trades_ : 0;
+    f.volume_per_min = volume_ / f.seconds * 60;
+    f.spread1_share = spread1_ / static_cast<double>(n);
+    f.mean_l1_size = l1_ / static_cast<double>(n);
+    const auto per = [&](double sec) { return std::max<std::size_t>(1, static_cast<std::size_t>(std::lround(sec / dt_))); };
+    const std::size_t b10 = per(10), b30 = per(30), b60 = per(60), b5 = per(5);
+    std::vector<double> r1, abs1, r10, d10, d30, f30;
+    for (std::size_t i = b60; i < n; i += b60) {
+      r1.push_back(mids_[i] - mids_[i - b60]);
+      abs1.push_back(std::abs(r1.back()));
+    }
+    auto window = [&](std::size_t end, std::size_t len) {
+      double s = 0;
+      for (std::size_t i = end - len; i < end; ++i) s += deltas_[i];
+      return s;
+    };
+    for (std::size_t i = b10; i < n; i += b10) {
+      r10.push_back(mids_[i] - mids_[i - b10]);
+      d10.push_back(window(i, b10));
+    }
+    for (std::size_t i = b30; i + b30 < n; i += b30) {
+      d30.push_back(window(i, b30));
+      f30.push_back(mids_[i + b30] - mids_[i]);
+    }
+    if (r1.size() > 2) {
+      const double m = mean_of(r1);
+      double m2 = 0, m4 = 0;
+      for (double x : r1) {
+        m2 += (x - m) * (x - m);
+        m4 += std::pow(x - m, 4);
+      }
+      m2 /= static_cast<double>(r1.size());
+      m4 /= static_cast<double>(r1.size());
+      f.ret1m_sd = std::sqrt(m2);
+      f.ret1m_kurtosis = m2 > 0 ? m4 / (m2 * m2) - 3 : 0;
+      f.ret1m_ac1 = autocorr(r1, 1);
+      f.absret1m_ac1 = autocorr(abs1, 1);
+    }
+    f.sign_ac1 = autocorr(signs_, 1);
+    f.sign_ac10 = autocorr(signs_, 10);
+    f.sign_ac100 = autocorr(signs_, 100);
+    const double c = corr(d10, r10);
+    f.impact_r2 = c * c;
+    f.delta_predict = corr(d30, f30);
+    auto markout = [&](std::size_t h) {
+      double mk = 0, cnt = 0;
+      for (std::size_t i = 0; i + h < n; ++i)
+        if (marks_[i] != 0) {
+          mk += marks_[i] * (mids_[i + h] - mids_[i]);
+          cnt += std::abs(marks_[i]);
+        }
+      return cnt > 0 ? mk / cnt : 0.0;
+    };
+    f.markout_1s = markout(per(1));
+    f.markout_5s = markout(b5);
+    f.markout_30s = markout(b30);
+    double changes = 0;
+    for (std::size_t i = 1; i < n; ++i) changes += mids_[i] != mids_[i - 1];
+    f.mid_changes_per_min = changes / f.seconds * 60;
+    return f;
+  }
+
+ private:
+  static constexpr std::size_t kMaxSigns = 2'000'000;
+  double dt_;
+  double trades_ = 0, volume_ = 0, delta_ = 0, pending_signs_ = 0, spread1_ = 0, l1_ = 0;
+  std::vector<double> mids_, deltas_, marks_, signs_;
+};
+
+// Stylized facts of the simulator with these parameters over `seconds` of trading.
+inline StylizedFacts simulate_facts(const SimParams& p, double seconds, std::uint64_t seed = 1, double start_second = 3600) {
+  EsSimulator sim(p, seed, start_second);
+  StylizedMeter m(p.dt);
+  const auto steps = static_cast<std::size_t>(seconds / p.dt);
+  for (std::size_t s = 0; s < steps; ++s) {
+    sim.step();
+    for (const auto& t : sim.trades()) m.add_trade(t);
+    m.end_bucket(sim.quote());
+  }
+  return m.facts();
+}
+
+}  // namespace rag::orderflow
+
+```
+
+
+---
+
+## FILE: include/rag/orderflow/tick_csv.hpp  (4,780 bytes)
+
+```cpp
+// rag/orderflow/tick_csv.hpp — read recorded ticks from a simple CSV and
+// replay them, in time buckets, into anything with add_trade()/end_bucket()
+// (FeatureBuilder, StylizedMeter, ...).
+//
+// Format: one event per line, time-ordered; '#' lines and blank lines are
+// ignored. Prices are in index points (converted with tick_size) and times in
+// `time_unit` (ns, us, ms or s, fractional allowed):
+//
+//   T,<time>,<price>,<size>,<B|S>                         trade; B/S = aggressor side
+//   Q,<time>,<bid>,<ask>[,<bid size 1..5>,<ask size 1..5>] best bid/ask (and depth)
+//
+// e.g.  T,1730811600.125,5012.25,3,B
+//       Q,1730811600.130,5012.00,5012.25,412,380,355,290,301,388,402,377,365,330
+//
+// Any vendor export (Rithmic, CQG, Sierra Chart, Databento, ...) can be
+// turned into this with a few lines of scripting. Gaps longer than
+// `max_gap_seconds` (overnight, halts) restart the bucket clock instead of
+// emitting empty buckets.
+#pragma once
+
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+#include "rag/orderflow/simulator.hpp"
+
+namespace rag::orderflow {
+
+struct TickCsvOptions {
+  double tick_size = 0.25;        // ES: 0.25 index points
+  std::string time_unit = "ns";   // ns | us | ms | s
+  double bucket_seconds = 0.1;
+  double max_gap_seconds = 60;
+};
+
+struct TickCsvStats {
+  std::size_t lines = 0, trades = 0, quotes = 0, buckets = 0, skipped = 0, gaps = 0;
+};
+
+namespace detail {
+inline std::vector<std::string> split_csv(const std::string& line) {
+  std::vector<std::string> out;
+  std::string cur;
+  std::istringstream s(line);
+  while (std::getline(s, cur, ',')) out.push_back(cur);
+  return out;
+}
+inline double time_scale(const std::string& unit) {
+  if (unit == "ns") return 1e-9;
+  if (unit == "us") return 1e-6;
+  if (unit == "ms") return 1e-3;
+  if (unit == "s") return 1.0;
+  throw std::invalid_argument("tick csv: time_unit must be ns, us, ms or s");
+}
+}  // namespace detail
+
+// Replays the file into `sink`; returns counts. Lines that don't parse are
+// counted in `skipped`, not fatal.
+template <class Sink>
+TickCsvStats replay_tick_csv(std::istream& in, Sink& sink, const TickCsvOptions& o = {}) {
+  if (!(o.tick_size > 0) || !(o.bucket_seconds > 0)) throw std::invalid_argument("tick csv: tick_size and bucket_seconds must be positive");
+  const double scale = detail::time_scale(o.time_unit);
+  TickCsvStats st;
+  Quote last{};
+  bool have_quote = false, started = false;
+  double bucket_end = 0;
+  auto ticks = [&](const std::string& s) { return static_cast<std::int32_t>(std::llround(std::stod(s) / o.tick_size)); };
+  std::string line;
+  while (std::getline(in, line)) {
+    ++st.lines;
+    if (line.empty() || line[0] == '#' || line[0] == '\r') continue;
+    const auto f = detail::split_csv(line);
+    try {
+      if (f.size() < 4 || (f[0] != "T" && f[0] != "Q")) throw std::invalid_argument("type");
+      const double t = std::stod(f[1]) * scale;
+      if (!started) {
+        bucket_end = t + o.bucket_seconds;
+        started = true;
+      }
+      if (t - bucket_end > o.max_gap_seconds) {  // a session gap: restart the clock
+        ++st.gaps;
+        bucket_end = t + o.bucket_seconds;
+      }
+      while (t >= bucket_end) {  // close every bucket that ended before this event
+        if (have_quote) {
+          sink.end_bucket(last);
+          ++st.buckets;
+        }
+        bucket_end += o.bucket_seconds;
+      }
+      if (f[0] == "T") {
+        if (f.size() < 5 || (f[4] != "B" && f[4] != "S")) throw std::invalid_argument("side");
+        const auto size = static_cast<std::uint32_t>(std::stoul(f[3]));
+        sink.add_trade(Trade{static_cast<std::int64_t>(t * 1e9), ticks(f[2]), size, f[4] == "B" ? Side::Buy : Side::Sell, false});
+        ++st.trades;
+      } else {
+        Quote q{static_cast<std::int64_t>(t * 1e9), ticks(f[2]), ticks(f[3]), {}, {}};
+        if (q.ask <= q.bid) throw std::invalid_argument("crossed");
+        if (f.size() >= 4 + 2 * kDepth)
+          for (std::size_t i = 0; i < kDepth; ++i) {
+            q.bid_size[i] = static_cast<std::uint32_t>(std::stoul(f[4 + i]));
+            q.ask_size[i] = static_cast<std::uint32_t>(std::stoul(f[4 + kDepth + i]));
+          }
+        last = q;
+        have_quote = true;
+        ++st.quotes;
+      }
+    } catch (const std::exception&) {
+      ++st.skipped;
+    }
+  }
+  if (have_quote) {
+    sink.end_bucket(last);
+    ++st.buckets;
+  }
+  return st;
+}
+
+template <class Sink>
+TickCsvStats replay_tick_csv(const std::string& path, Sink& sink, const TickCsvOptions& o = {}) {
+  std::ifstream in(path);
+  if (!in) throw std::runtime_error("tick csv: cannot open " + path);
+  return replay_tick_csv(in, sink, o);
+}
+
+}  // namespace rag::orderflow
+
+```
+
+
+---
+
+## FILE: include/rag/orderflow/tick_env.hpp  (8,929 bytes)
+
+```cpp
+// rag/orderflow/tick_env.hpp — tick scalping (passive, queue-based) on the
+// ES simulator, as an Environment for rag::agent learners.
+//
+// The strategy earns the spread by resting 1-lot limit orders at the best
+// bid and/or ask and managing inventory. Every `decide_seconds` it picks a
+// quoting mode:
+//
+//   0 no quotes        cancel everything
+//   1 bid only         rest a buy at the best bid
+//   2 ask only         rest a sell at the best ask
+//   3 both sides
+//   4 flatten          cancel quotes, market order back to flat
+//
+// Between decisions the environment keeps each quoted side at the touch
+// every simulator step: if the best price moved away, the order is cancelled
+// and rejoins at the back of the new best queue (queue priority is lost, as
+// in a real FIFO book). A side is not quoted when a fill would take the
+// inventory past +-max_position. Fills come from the simulator's FIFO model:
+// an order fills only after the lots ahead of it trade, so adverse
+// selection (being filled just before the price moves through you) is real.
+//
+// Reward: change in mark-to-market equity (at the mid) in ticks, net of
+// fees; the episode ends flat. Observation: the 13 order-flow features plus
+// queue position on each side, touch sizes, spread, position, open P&L and
+// time left.
+#pragma once
+
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <optional>
+
+#include "rag/agent/env.hpp"
+#include "rag/orderflow/features.hpp"
+#include "rag/orderflow/simulator.hpp"
+
+namespace rag::orderflow {
+
+struct TickParams {
+  SimParams sim;
+  double decide_seconds = 0.5;
+  double episode_seconds = 300;
+  double warmup_seconds = 150;
+  double start_second = -1;  // session time of the warm-up start; < 0: random each episode
+  int max_position = 1;
+  double fee_dollars = 1.5;  // per contract per side, passive or aggressive
+};
+
+struct TickObs {
+  std::array<double, kFeatures> f{};
+  double bid_queue = -1, ask_queue = -1;  // lots ahead / displayed size at our level; -1: not quoting
+  double bid_size = 0, ask_size = 0;      // log(1 + touch size)
+  double spread = 1;                      // ticks
+  int position = 0;
+  double open_pnl = 0;  // ticks
+  double time_left = 1;
+};
+
+class TickScalpEnv {
+ public:
+  using Observation = TickObs;
+  static constexpr std::size_t kNumActions = 5;
+  static constexpr std::size_t kStateDims = kFeatures + 8;
+  static constexpr std::array<double, kStateDims> kLo = [] {
+    std::array<double, kStateDims> a{};
+    a.fill(-kClip);
+    for (std::size_t i = kFeatures; i < kStateDims; ++i) a[i] = -1;
+    return a;
+  }();
+  static constexpr std::array<double, kStateDims> kHi = [] {
+    std::array<double, kStateDims> a{};
+    a.fill(kClip);
+    for (std::size_t i = kFeatures; i < kStateDims; ++i) a[i] = 1;
+    return a;
+  }();
+
+  explicit TickScalpEnv(const TickParams& p = {}) : p_(p) {}
+
+  Observation reset(rag::agent::Rng& rng) {
+    const double latest_start = std::max(0.0, p_.sim.session_seconds - p_.episode_seconds - p_.warmup_seconds);
+    const double u = rng.uniform();  // drawn either way: episode seeds don't depend on the setting
+    sim_.emplace(p_.sim, rng.next(), p_.start_second >= 0 ? p_.start_second : u * latest_start);
+    fb_ = FeatureBuilder(p_.sim.dt);
+    for (std::uint32_t i = 0; i < steps(p_.warmup_seconds); ++i) advance();
+    position_ = 0;
+    cash_ = equity_ = fees_ = elapsed_ = 0;
+    entry_ = 0;
+    bid_id_ = ask_id_ = 0;
+    mode_ = 0;
+    fills_ = 0;
+    return obs();
+  }
+
+  rag::agent::Step<Observation> step(rag::agent::Action a, rag::agent::Rng&) {
+    double fees = 0;
+    if (a == 4) {
+      mode_ = 0;
+      manage();
+      if (position_ != 0) fees += take_to_flat();
+    } else {
+      mode_ = static_cast<int>(a);
+      manage();
+    }
+    for (std::uint32_t i = 0, n = steps(p_.decide_seconds); i < n; ++i) {
+      advance();
+      fees += book_fills();
+      manage();
+    }
+    elapsed_ += p_.decide_seconds;
+    const bool done = elapsed_ >= p_.episode_seconds - 1e-9;
+    if (done) {
+      mode_ = 0;
+      manage();
+      if (position_ != 0) fees += take_to_flat();
+    }
+    const double eq = cash_ + position_ * sim_->mid();
+    const double reward = eq - equity_ - fees;
+    equity_ = eq;
+    return {obs(), reward, done};
+  }
+
+  [[nodiscard]] std::array<double, kStateDims> features(const Observation& o) const noexcept {
+    std::array<double, kStateDims> x{};
+    for (std::size_t i = 0; i < kFeatures; ++i) x[i] = o.f[i];
+    x[kFeatures + 0] = std::clamp(o.bid_queue, -1.0, 1.0);
+    x[kFeatures + 1] = std::clamp(o.ask_queue, -1.0, 1.0);
+    x[kFeatures + 2] = std::clamp(o.bid_size / 8 * 2 - 1, -1.0, 1.0);  // log sizes: ~0..8
+    x[kFeatures + 3] = std::clamp(o.ask_size / 8 * 2 - 1, -1.0, 1.0);
+    x[kFeatures + 4] = std::clamp(o.spread - 1, 0.0, 1.0);
+    x[kFeatures + 5] = static_cast<double>(o.position) / p_.max_position;
+    x[kFeatures + 6] = std::clamp(o.open_pnl / 4, -1.0, 1.0);
+    x[kFeatures + 7] = o.time_left * 2 - 1;
+    return x;
+  }
+
+  [[nodiscard]] double net_pnl_ticks() const noexcept { return equity_ - fees_; }
+  [[nodiscard]] std::uint32_t fills() const noexcept { return fills_; }
+  [[nodiscard]] double fees_ticks() const noexcept { return fees_; }
+  [[nodiscard]] const EsSimulator& market() const noexcept { return *sim_; }
+  [[nodiscard]] const TickParams& params() const noexcept { return p_; }
+
+ private:
+  [[nodiscard]] std::uint32_t steps(double seconds) const {
+    return std::max<std::uint32_t>(1, static_cast<std::uint32_t>(std::lround(seconds / p_.sim.dt)));
+  }
+  void advance() {
+    sim_->step();
+    for (const auto& t : sim_->trades()) fb_.add_trade(t);
+    fb_.end_bucket(sim_->quote());
+  }
+  [[nodiscard]] const EsSimulator::Resting* find(std::uint64_t id) const {
+    if (id == 0) return nullptr;
+    for (const auto& r : sim_->resting())
+      if (r.id == id) return &r;
+    return nullptr;
+  }
+  void on_fill(Side side, std::int32_t price, std::uint32_t size) {
+    const int before = position_;
+    const int signed_size = side == Side::Buy ? static_cast<int>(size) : -static_cast<int>(size);
+    cash_ -= signed_size * static_cast<double>(price);
+    position_ += signed_size;
+    if (position_ != 0 && (before == 0 || (before > 0) != (position_ > 0))) entry_ = price;
+    if (position_ == 0) entry_ = 0;
+    ++fills_;
+  }
+  // Passive fills from the last simulator step; returns their fees.
+  double book_fills() {
+    double fees = 0;
+    for (const auto& f : sim_->own_fills()) {
+      on_fill(f.side, f.price, f.size);
+      fees += f.size * p_.fee_dollars / kTickValue;
+    }
+    fees_ += fees;
+    if (!find(bid_id_)) bid_id_ = 0;
+    if (!find(ask_id_)) ask_id_ = 0;
+    return fees;
+  }
+  // Keep each wanted side resting at the touch; cancel unwanted ones.
+  void manage() {
+    const bool want_bid = (mode_ == 1 || mode_ == 3) && position_ < p_.max_position;
+    const bool want_ask = (mode_ == 2 || mode_ == 3) && position_ > -p_.max_position;
+    auto keep = [&](std::uint64_t& id, bool want, Side side) {
+      const auto* r = find(id);
+      const std::int32_t best = side == Side::Buy ? sim_->bid() : sim_->ask();
+      if (r && (!want || r->price != best)) {
+        sim_->cancel(id);
+        id = 0;
+        r = nullptr;
+      }
+      if (want && !r) id = sim_->submit_limit(side, best, 1);
+    };
+    keep(bid_id_, want_bid, Side::Buy);
+    keep(ask_id_, want_ask, Side::Sell);
+  }
+  double take_to_flat() {
+    const int diff = -position_;
+    const Fill f = sim_->market_order(diff > 0 ? Side::Buy : Side::Sell, static_cast<std::uint32_t>(std::abs(diff)));
+    cash_ -= (diff > 0 ? 1.0 : -1.0) * f.filled * f.avg_price;
+    position_ += diff > 0 ? static_cast<int>(f.filled) : -static_cast<int>(f.filled);
+    if (position_ == 0) entry_ = 0;
+    ++fills_;
+    const double fee = f.filled * p_.fee_dollars / kTickValue;
+    fees_ += fee;
+    return fee;
+  }
+  [[nodiscard]] Observation obs() const {
+    Observation o;
+    o.f = fb_.values();
+    const Quote q = sim_->quote();
+    auto queue = [&](std::uint64_t id, std::uint32_t shown) {
+      const auto* r = find(id);
+      return r ? static_cast<double>(r->ahead) / std::max<std::uint32_t>(1, shown) : -1.0;
+    };
+    o.bid_queue = queue(bid_id_, q.bid_size[0]);
+    o.ask_queue = queue(ask_id_, q.ask_size[0]);
+    o.bid_size = std::log1p(q.bid_size[0]);
+    o.ask_size = std::log1p(q.ask_size[0]);
+    o.spread = q.ask - q.bid;
+    o.position = position_;
+    o.open_pnl = position_ != 0 ? position_ * (sim_->mid() - entry_) : 0;
+    o.time_left = std::max(0.0, 1 - elapsed_ / p_.episode_seconds);
+    return o;
+  }
+
+  TickParams p_;
+  std::optional<EsSimulator> sim_;
+  FeatureBuilder fb_{0.1};
+  int position_ = 0, mode_ = 0;
+  double cash_ = 0, equity_ = 0, fees_ = 0, elapsed_ = 0, entry_ = 0;
+  std::uint64_t bid_id_ = 0, ask_id_ = 0;
+  std::uint32_t fills_ = 0;
+};
+
+static_assert(rag::agent::Environment<TickScalpEnv>);
+
+}  // namespace rag::orderflow
+
+```
+
+
+---
+
 ## FILE: include/rag/pdf.hpp  (3,964 bytes)
 
 ```cpp
@@ -12345,6 +15043,528 @@ int main() {
 
 ---
 
+## FILE: examples/of_backtest.cpp  (4,488 bytes)
+
+```cpp
+// of_backtest — walk-forward backtest of order-flow scalping strategies on
+// recorded ticks (CSV format: rag/orderflow/tick_csv.hpp). The tape is cut
+// into consecutive windows (default 10 minutes, each with a 150 s feature
+// warm-up); every strategy trades every window with 1 contract, market
+// orders, 100 ms latency, the recorded spread and depth, and fees.
+//
+//   of_backtest <ticks.csv> [--tick 0.25] [--time ns|us|ms|s] [--window 600] [--fee 1.5] [NET...]
+//
+// NETs are networks saved by experiments/of3_rl.cpp (ScalpEnv agents).
+// Reports per strategy: windows, mean net ticks per window (and $), t-stat,
+// Sharpe per window, share of winning windows, total, and the maximum
+// drawdown of the cumulative P&L across windows.
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <functional>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "rag/agent/agent.hpp"
+#include "rag/orderflow/replay_env.hpp"
+
+using namespace rag::agent;
+using namespace rag::orderflow;
+
+int main(int argc, char** argv) {
+  if (argc < 2) {
+    std::fprintf(stderr, "usage: of_backtest <ticks.csv> [--tick 0.25] [--time ns] [--window 600] [--fee 1.5] [NET...]\n");
+    return 2;
+  }
+  TickCsvOptions co;
+  ReplayParams rp;
+  std::vector<std::string> nets;
+  for (int i = 2; i < argc; ++i) {
+    const std::string a = argv[i];
+    if (a == "--tick" && i + 1 < argc) co.tick_size = std::atof(argv[++i]);
+    else if (a == "--time" && i + 1 < argc) co.time_unit = argv[++i];
+    else if (a == "--window" && i + 1 < argc) rp.window_seconds = std::atof(argv[++i]);
+    else if (a == "--fee" && i + 1 < argc) rp.fee_dollars = std::atof(argv[++i]);
+    else nets.push_back(a);
+  }
+  auto tape = std::make_shared<const TickTape>(TickTape::from_csv(argv[1], co));
+  const auto& st = tape->stats();
+  std::printf("tape: %zu buckets (%.1f h), %zu trades, %zu quotes, %zu lines skipped, %zu gaps\n", tape->size(),
+              static_cast<double>(tape->size()) * tape->bucket_seconds() / 3600, st.trades, st.quotes, st.skipped, st.gaps);
+  ReplayScalpEnv probe(tape, rp);
+  const std::size_t windows = probe.windows();
+  std::printf("%zu windows of %.0f s\n", windows, rp.window_seconds);
+  if (windows == 0) return 1;
+
+  std::vector<std::unique_ptr<Agent<ReplayScalpEnv>>> agents;
+  for (const auto& path : nets) {
+    AgentConfig<ReplayScalpEnv::kStateDims> c;
+    c.learner = LearnerKind::NeuralQ;
+    c.bins.fill(1);
+    c.double_q = true;
+    c.nn_polyak = 1e-4;
+    auto a = std::make_unique<Agent<ReplayScalpEnv>>(probe, c);
+    auto s = a->snapshot();
+    s.net = Mlp::load(path);
+    a->restore(s);
+    agents.push_back(std::move(a));
+  }
+  const auto n_of = [](const std::vector<double>& v) { return static_cast<double>(v.size()); };
+  std::vector<std::pair<std::string, std::function<Action(const ScalpObs&)>>> strategies = {
+      {"flat", [](const ScalpObs&) -> Action { return 1; }},
+      {"delta 30 s rule", [](const ScalpObs& o) -> Action { return o.f[1] > 1.5 ? 2 : o.f[1] < -1.5 ? 0 : static_cast<Action>(o.position + 1); }},
+  };
+  for (std::size_t i = 0; i < agents.size(); ++i)
+    strategies.push_back({nets[i].substr(nets[i].find_last_of("/\\") + 1), [&, i](const ScalpObs& o) { return agents[i]->act(o, false); }});
+
+  std::printf("%-22s %8s %9s %8s %7s %8s %6s %9s %8s\n", "strategy", "windows", "ticks/win", "$/win", "t", "Sharpe", "win%", "total", "max DD");
+  for (auto& [name, policy] : strategies) {
+    std::vector<double> pnl;
+    double orders = 0;
+    for (std::size_t w = 0; w < windows; ++w) {
+      ReplayScalpEnv env(tape, rp);
+      Rng r(1);
+      auto o = env.seek(w);
+      for (;;) {
+        const auto s = env.step(policy(o), r);
+        o = s.obs;
+        if (s.done) break;
+      }
+      pnl.push_back(env.net_pnl_ticks());
+      orders += env.orders();
+    }
+    double m = 0, v = 0, wins = 0, cum = 0, peak = 0, dd = 0;
+    for (double x : pnl) {
+      m += x;
+      wins += x > 0;
+      cum += x;
+      peak = std::max(peak, cum);
+      dd = std::max(dd, peak - cum);
+    }
+    m /= n_of(pnl);
+    for (double x : pnl) v += (x - m) * (x - m);
+    const double sd = pnl.size() > 1 ? std::sqrt(v / (n_of(pnl) - 1)) : 0;
+    std::printf("%-22s %8zu %+9.2f %+8.1f %+7.2f %+8.3f %5.1f%% %+9.1f %8.1f   (%.1f orders/win)\n", name.c_str(), pnl.size(), m, m * kTickValue,
+                sd > 0 ? m / (sd / std::sqrt(n_of(pnl))) : 0.0, sd > 0 ? m / sd : 0.0, 100 * wins / n_of(pnl), cum, dd, orders / n_of(pnl));
+  }
+}
+
+```
+
+
+---
+
+## FILE: examples/of_calibrate.cpp  (10,503 bytes)
+
+```cpp
+// of_calibrate — compare the ES simulator with recorded ES ticks, and fit its
+// parameters so the simulated market has the same stylized facts.
+//
+//   of_calibrate sim [seconds=10800]                 facts of the simulator (default parameters)
+//   of_calibrate facts <ticks.csv> [options]         facts of recorded ticks
+//   of_calibrate fit   <ticks.csv> [options]         fit the simulator to them (needs NLopt)
+//   of_calibrate export <out.csv> [seconds=3600] [informed_scale=1]
+//                                                    write simulator ticks in the CSV format
+//                                                    (sample data; calibration self-tests)
+//
+// options: --tick 0.25  --time ns|us|ms|s  --evals 150  --seconds 10800
+//          --seeds 2 (simulator runs averaged per evaluation, in parallel
+//          threads: the facts of one short run are noisy, and the fit chases
+//          the noise; on a 24-thread machine use e.g. --seeds 12 --seconds 21600)
+// The CSV format is documented in rag/orderflow/tick_csv.hpp.
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <string>
+#include <thread>
+#include <vector>
+
+#include "rag/orderflow/stylized.hpp"
+#include "rag/orderflow/tick_csv.hpp"
+#if defined(RAG_HAVE_NLOPT)
+#include "rag/agent/tuning.hpp"
+#endif
+
+using namespace rag::orderflow;
+
+namespace {
+
+void print_facts(const char* label, const StylizedFacts& f) {
+  std::printf("%s (%.1f hours)\n", label, f.seconds / 3600);
+  std::printf("  activity     %.1f trades/s, %.2f contracts/trade, %.0f contracts/min\n", f.trades_per_sec, f.mean_trade_size, f.volume_per_min);
+  std::printf("  book         spread = 1 tick %.1f%%, mean best-level size %.0f\n", 100 * f.spread1_share, f.mean_l1_size);
+  std::printf("  returns      1-min sd %.2f ticks, excess kurtosis %.2f, lag-1 autocorr %+.3f, |r| lag-1 %+.3f\n", f.ret1m_sd, f.ret1m_kurtosis,
+              f.ret1m_ac1, f.absret1m_ac1);
+  std::printf("  trade signs  autocorr lag 1 %+.3f, lag 10 %+.3f, lag 100 %+.3f\n", f.sign_ac1, f.sign_ac10, f.sign_ac100);
+  std::printf("  order flow   R^2(10 s mid change ~ 10 s delta) %.3f, corr(30 s delta, next 30 s) %+.3f\n", f.impact_r2, f.delta_predict);
+  std::printf("  markouts     after an aggressive print: 1 s %+.3f, 5 s %+.3f, 30 s %+.3f ticks; mid changes %.1f per minute\n", f.markout_1s,
+              f.markout_5s, f.markout_30s, f.mid_changes_per_min);
+}
+
+struct Options {
+  double tick = 0.25, seconds = 10800;
+  std::string time = "ns";
+  int evals = 150, seeds = 2;
+};
+
+Options parse(int argc, char** argv, int from) {
+  Options o;
+  for (int i = from; i + 1 < argc; i += 2) {
+    const std::string k = argv[i];
+    if (k == "--tick") o.tick = std::atof(argv[i + 1]);
+    else if (k == "--time") o.time = argv[i + 1];
+    else if (k == "--evals") o.evals = std::atoi(argv[i + 1]);
+    else if (k == "--seconds") o.seconds = std::atof(argv[i + 1]);
+    else if (k == "--seeds") o.seeds = std::max(1, std::atoi(argv[i + 1]));
+  }
+  return o;
+}
+
+StylizedFacts read_facts(const std::string& path, const Options& o) {
+  StylizedMeter m(0.1);
+  const auto st = replay_tick_csv(path, m, TickCsvOptions{.tick_size = o.tick, .time_unit = o.time});
+  std::printf("read %zu lines: %zu trades, %zu quotes, %zu buckets of 100 ms, %zu skipped, %zu session gaps\n", st.lines, st.trades, st.quotes,
+              st.buckets, st.skipped, st.gaps);
+  return m.facts();
+}
+
+#if defined(RAG_HAVE_NLOPT)
+// Relative squared error on the facts that matter for trading, weighted.
+double loss(const StylizedFacts& sim, const StylizedFacts& real) {
+  auto rel = [](double a, double b, double floor) { const double d = (a - b) / std::max(std::abs(b), floor); return d * d; };
+  auto abs2 = [](double a, double b, double scale) { const double d = (a - b) / scale; return d * d; };
+  return 1.0 * rel(sim.trades_per_sec, real.trades_per_sec, 1) + 1.0 * rel(sim.volume_per_min, real.volume_per_min, 100) +
+         1.0 * rel(sim.mean_l1_size, real.mean_l1_size, 10) + 2.0 * rel(sim.ret1m_sd, real.ret1m_sd, 0.5) +
+         1.0 * abs2(sim.spread1_share, real.spread1_share, 0.05) + 1.0 * abs2(sim.sign_ac1, real.sign_ac1, 0.05) +
+         1.0 * abs2(sim.sign_ac100, real.sign_ac100, 0.05) + 2.0 * abs2(sim.impact_r2, real.impact_r2, 0.05) +
+         4.0 * abs2(sim.delta_predict, real.delta_predict, 0.03) + 2.0 * abs2(sim.markout_5s, real.markout_5s, 0.1) +
+         1.0 * abs2(sim.markout_1s, real.markout_1s, 0.1) + 1.0 * abs2(sim.markout_30s, real.markout_30s, 0.2) +
+         1.0 * rel(sim.mid_changes_per_min, real.mid_changes_per_min, 1) +
+         0.5 * abs2(std::log1p(std::max(0.0, sim.ret1m_kurtosis)), std::log1p(std::max(0.0, real.ret1m_kurtosis)), 0.5) +
+         1.0 * abs2(sim.ret1m_ac1, real.ret1m_ac1, 0.05);
+}
+// Facts averaged over several simulator seeds, run in parallel threads (on
+// a many-core machine more seeds cost no extra wall-clock time).
+StylizedFacts averaged_facts(const SimParams& p, double seconds, int seeds, std::uint64_t first_seed) {
+  std::vector<StylizedFacts> runs(static_cast<std::size_t>(seeds));
+  std::vector<std::thread> pool;
+  for (int i = 0; i < seeds; ++i)
+    pool.emplace_back([&, i] { runs[static_cast<std::size_t>(i)] = simulate_facts(p, seconds, first_seed + static_cast<std::uint64_t>(i)); });
+  for (auto& t : pool) t.join();
+  StylizedFacts a;
+  for (const auto& f : runs) {
+    a.seconds += f.seconds;
+    a.trades_per_sec += f.trades_per_sec / seeds;
+    a.mean_trade_size += f.mean_trade_size / seeds;
+    a.volume_per_min += f.volume_per_min / seeds;
+    a.spread1_share += f.spread1_share / seeds;
+    a.mean_l1_size += f.mean_l1_size / seeds;
+    a.ret1m_sd += f.ret1m_sd / seeds;
+    a.ret1m_kurtosis += f.ret1m_kurtosis / seeds;
+    a.ret1m_ac1 += f.ret1m_ac1 / seeds;
+    a.absret1m_ac1 += f.absret1m_ac1 / seeds;
+    a.sign_ac1 += f.sign_ac1 / seeds;
+    a.sign_ac10 += f.sign_ac10 / seeds;
+    a.sign_ac100 += f.sign_ac100 / seeds;
+    a.impact_r2 += f.impact_r2 / seeds;
+    a.delta_predict += f.delta_predict / seeds;
+    a.markout_5s += f.markout_5s / seeds;
+    a.markout_1s += f.markout_1s / seeds;
+    a.markout_30s += f.markout_30s / seeds;
+    a.mid_changes_per_min += f.mid_changes_per_min / seeds;
+  }
+  return a;
+}
+#endif
+
+}  // namespace
+
+int main(int argc, char** argv) {
+  const std::string mode = argc > 1 ? argv[1] : "";
+  if (mode == "export" && argc > 2) {
+    const double seconds = argc > 3 ? std::atof(argv[3]) : 3600;
+    SimParams p;
+    if (argc > 4) p.informed_meta_rate *= std::atof(argv[4]);  // a market with a different informed share
+    EsSimulator sim(p, 7, 3600);
+    std::FILE* out = std::fopen(argv[2], "w");
+    if (!out) return 1;
+    std::fprintf(out, "# ES simulator ticks: T,time_s,price,size,side / Q,time_s,bid,ask,bid sizes x5,ask sizes x5\n");
+    for (std::size_t s = 0, n = static_cast<std::size_t>(seconds / p.dt); s < n; ++s) {
+      sim.step();
+      const double t = static_cast<double>(sim.t_ns()) * 1e-9;
+      for (const auto& tr : sim.trades())
+        std::fprintf(out, "T,%.3f,%.2f,%u,%c\n", t, tr.price * 0.25, tr.size, tr.aggressor == Side::Buy ? 'B' : 'S');
+      const Quote q = sim.quote();
+      std::fprintf(out, "Q,%.3f,%.2f,%.2f", t + 0.0005, q.bid * 0.25, q.ask * 0.25);
+      for (auto v : q.bid_size) std::fprintf(out, ",%u", v);
+      for (auto v : q.ask_size) std::fprintf(out, ",%u", v);
+      std::fprintf(out, "\n");
+    }
+    std::fclose(out);
+    return 0;
+  }
+  if (mode == "sim") {
+    const double seconds = argc > 2 ? std::atof(argv[2]) : 10800;
+    print_facts("simulator, default parameters", simulate_facts(SimParams{}, seconds));
+    return 0;
+  }
+  if ((mode == "facts" || mode == "fit") && argc > 2) {
+    const Options o = parse(argc, argv, 3);
+    const StylizedFacts real = read_facts(argv[2], o);
+    print_facts("recorded ticks", real);
+    print_facts("simulator, default parameters", simulate_facts(SimParams{}, o.seconds));
+    if (mode == "facts") return 0;
+#if defined(RAG_HAVE_NLOPT)
+    using rag::agent::tuning::Param;
+    const std::vector<Param> space = {{"noise_rate", 0.3, 10, true, false},        {"informed_meta_rate", 0.05, 3, true, false},
+                                      {"uninformed_meta_rate", 0.05, 3, true, false}, {"value_vol", 0.05, 1.5, true, false},
+                                      {"maker_rate", 1, 40, true, false},            {"cancel_rate", 0.02, 0.5, true, false},
+                                      {"fade", 0, 2, false, false},                  {"momentum_rate", 0.05, 4, true, false}};
+    auto apply = [&](const std::vector<double>& v) {
+      SimParams p;
+      p.noise_rate = v[0];
+      p.informed_meta_rate = v[1];
+      p.uninformed_meta_rate = v[2];
+      p.value_vol = v[3];
+      p.maker_rate = v[4];
+      p.cancel_rate = v[5];
+      p.fade = v[6];
+      p.momentum_rate = v[7];
+      p.taker_size_mean = std::max(1.0, real.mean_trade_size);
+      return p;
+    };
+    const SimParams d;
+    const std::vector<double> start = {d.noise_rate, d.informed_meta_rate, d.uninformed_meta_rate, d.value_vol,
+                                       d.maker_rate, d.cancel_rate,        d.fade,                 d.momentum_rate};
+    std::printf("\nfitting %zu parameters with %d simulator runs of %.1f h each...\n", space.size(), o.evals, o.seconds / 3600);
+    const auto r = rag::agent::tuning::maximize_global(
+        space, start, [&](const std::vector<double>& v) { return -loss(averaged_facts(apply(v), o.seconds, o.seeds, 1), real); }, o.evals * 2 / 3,
+        o.evals - o.evals * 2 / 3, 1);
+    const SimParams best = apply(r.best);
+    std::printf("loss %.3f -> %.3f (%s)\n", loss(averaged_facts(SimParams{}, o.seconds, o.seeds, 1), real), -r.best_score, r.status.c_str());
+    const StylizedFacts check = averaged_facts(best, o.seconds, o.seeds, 1000);
+    std::printf("loss on fresh seeds: %.3f\n", loss(check, real));
+    print_facts("simulator, fitted parameters (fresh seeds)", check);
+    std::printf("\nSimParams fitted;\n");
+    for (std::size_t i = 0; i < space.size(); ++i) std::printf("fitted.%s = %.6g;\n", space[i].name.c_str(), r.best[i]);
+    std::printf("fitted.taker_size_mean = %.6g;\n", best.taker_size_mean);
+    return 0;
+#else
+    std::fprintf(stderr, "fit needs NLopt (build with libnlopt-cxx-dev / RAG_OPTLIBS); facts mode works without it\n");
+    return 1;
+#endif
+  }
+  std::fprintf(stderr, "usage: of_calibrate sim [seconds] | facts <ticks.csv> [--tick 0.25 --time ns] | fit <ticks.csv> [--evals 150 --seconds 10800]\n");
+  return 2;
+}
+
+```
+
+
+---
+
+## FILE: examples/of_train.cpp  (7,828 bytes)
+
+```cpp
+// of_train — train order-flow scalping agents in parallel on a many-core
+// machine: one seed per thread, then score every agent and their mean-Q
+// ensemble on sealed test episodes against the 30 s delta rule.
+//
+//   of_train [--seeds 12] [--threads N] [--episodes 2000] [--market default|efficient]
+//            [--hidden 64] [--gamma 0.97] [--nstep 5] [--batch 32] [--lr 0.001]
+//            [--test 300] [--out DIR]
+//
+// --threads defaults to the number of hardware threads (capped at --seeds).
+// Each agent is NeuralQ with Double DQN and weight averaging (the recipe of
+// OF3); champion selected on validation episodes (seeds 700M+), scored once
+// on sealed episodes (900M+, the OF2/OF3 test set). Networks are saved as
+// DIR/seedK.net (load with Mlp::load, run with of_backtest on recorded ticks).
+//
+// Results don't depend on the thread count: each agent owns its environment,
+// simulator and random streams. Time: ~0.75 s per episode per thread on a
+// 2.8 GHz Xeon (much less on a modern desktop core); 12 seeds x 2,000
+// episodes on 12 cores take about as long as one seed.
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <filesystem>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <vector>
+
+#include "rag/agent/trainer.hpp"
+#include "rag/orderflow/scalp_env.hpp"
+
+using namespace rag::agent;
+using namespace rag::orderflow;
+
+namespace {
+
+struct Options {
+  unsigned seeds = 12, threads = 0, episodes = 2000, test = 300, hidden = 64, nstep = 5, batch = 32;
+  double gamma = 0.97, lr = 1e-3;
+  std::string market = "default", out = "of_train_out";
+};
+
+struct Score {
+  double mean = 0, t = 0, win = 0, orders = 0;
+};
+
+template <class Policy>
+Score score(const ScalpParams& p, Policy&& policy, unsigned episodes) {
+  std::vector<double> pnl;
+  double orders = 0;
+  for (unsigned i = 0; i < episodes; ++i) {
+    ScalpEnv env(p);
+    Rng r(900'000'000ull + i);  // sealed test episodes
+    auto o = env.reset(r);
+    for (;;) {
+      const auto st = env.step(policy(o), r);
+      o = st.obs;
+      if (st.done) break;
+    }
+    pnl.push_back(env.net_pnl_ticks());
+    orders += env.orders();
+  }
+  Score s;
+  double v = 0;
+  for (double x : pnl) {
+    s.mean += x;
+    s.win += x > 0;
+  }
+  const double n = static_cast<double>(pnl.size());
+  s.mean /= n;
+  for (double x : pnl) v += (x - s.mean) * (x - s.mean);
+  const double se = std::sqrt(v / (n - 1) / n);
+  s.t = se > 0 ? s.mean / se : 0;
+  s.win = 100 * s.win / n;
+  s.orders = orders / n;
+  return s;
+}
+
+AgentConfig<ScalpEnv::kStateDims> config(const Options& o, std::uint64_t seed) {
+  AgentConfig<ScalpEnv::kStateDims> c;
+  c.seed = seed;
+  c.learner = LearnerKind::NeuralQ;
+  c.bins.fill(1);  // the tile grid is unused by NeuralQ
+  c.double_q = true;
+  c.nn_polyak = 1e-4;
+  c.nn_hidden = o.hidden;
+  c.nn_batch = o.batch;
+  c.nn_lr = o.lr;
+  c.gamma = o.gamma;
+  c.n_step = o.nstep;
+  c.eps_start = 1.0;
+  c.eps_end = 0.02;
+  c.eps_decay_episodes = std::max(1u, o.episodes / 2);
+  return c;
+}
+
+}  // namespace
+
+int main(int argc, char** argv) {
+  Options o;
+  for (int i = 1; i + 1 < argc; i += 2) {
+    const std::string k = argv[i], v = argv[i + 1];
+    if (k == "--seeds") o.seeds = static_cast<unsigned>(std::max(1, std::atoi(v.c_str())));
+    else if (k == "--threads") o.threads = static_cast<unsigned>(std::max(1, std::atoi(v.c_str())));
+    else if (k == "--episodes") o.episodes = static_cast<unsigned>(std::max(1, std::atoi(v.c_str())));
+    else if (k == "--test") o.test = static_cast<unsigned>(std::max(2, std::atoi(v.c_str())));
+    else if (k == "--hidden") o.hidden = static_cast<unsigned>(std::max(4, std::atoi(v.c_str())));
+    else if (k == "--nstep") o.nstep = static_cast<unsigned>(std::max(1, std::atoi(v.c_str())));
+    else if (k == "--batch") o.batch = static_cast<unsigned>(std::max(1, std::atoi(v.c_str())));
+    else if (k == "--gamma") o.gamma = std::atof(v.c_str());
+    else if (k == "--lr") o.lr = std::atof(v.c_str());
+    else if (k == "--market") o.market = v;
+    else if (k == "--out") o.out = v;
+    else {
+      std::fprintf(stderr, "unknown option %s\n", k.c_str());
+      return 2;
+    }
+  }
+  if (o.threads == 0) o.threads = std::max(1u, std::thread::hardware_concurrency());
+  o.threads = std::min(o.threads, o.seeds);
+  ScalpParams p;
+  if (o.market == "efficient") p.sim = efficient_market();
+  else if (o.market != "default") {
+    std::fprintf(stderr, "--market must be default or efficient\n");
+    return 2;
+  }
+  std::filesystem::create_directories(o.out);
+  std::printf("training %u seeds x %u episodes on %u threads (hardware threads: %u), market %s, hidden %u\n", o.seeds, o.episodes, o.threads,
+              std::thread::hardware_concurrency(), o.market.c_str(), o.hidden);
+  std::fflush(stdout);
+
+  const auto t0 = std::chrono::steady_clock::now();
+  std::vector<std::unique_ptr<Agent<ScalpEnv>>> agents(o.seeds);
+  std::vector<Score> scores(o.seeds);
+  std::vector<double> validation(o.seeds);
+  std::atomic<unsigned> next{0};
+  std::mutex print;
+  auto worker = [&] {
+    for (unsigned i; (i = next++) < o.seeds;) {
+      const std::uint64_t seed = i + 1;
+      ScalpEnv env(p);
+      auto agent = std::make_unique<Agent<ScalpEnv>>(env, config(o, seed));
+      Trainer<ScalpEnv> tr(*agent, env,
+                           {.eval_every = std::max(1u, o.episodes / 20), .eval_episodes = 40, .eval_seed = 700'000'000, .train_seed = seed,
+                            .detect_drift = false});
+      const auto rep = tr.run(o.episodes);
+      validation[i] = rep.champion_score;
+      if (const auto* ch = tr.champion()) {
+        ch->net.save(o.out + "/seed" + std::to_string(seed) + ".net");
+        agent->restore(*ch);  // the deployed policy, for scoring and the ensemble
+      }
+      scores[i] = score(p, [&](const ScalpObs& ob) { return agent->act(ob, false); }, o.test);
+      {
+        std::lock_guard lock(print);
+        std::printf("  seed %2llu: validation %+.2f, sealed test %+.2f ticks/episode (t %+.1f, %.1f orders, %.0f%% winning)\n",
+                    static_cast<unsigned long long>(seed), validation[i], scores[i].mean, scores[i].t, scores[i].orders, scores[i].win);
+        std::fflush(stdout);
+      }
+      agents[i] = std::move(agent);
+    }
+  };
+  std::vector<std::thread> pool;
+  for (unsigned t = 0; t < o.threads; ++t) pool.emplace_back(worker);
+  for (auto& t : pool) t.join();
+  const double secs = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+
+  const Score rule = score(
+      p, [](const ScalpObs& ob) -> Action { return ob.f[1] > 1.5 ? 2 : ob.f[1] < -1.5 ? 0 : static_cast<Action>(ob.position + 1); }, o.test);
+  const Score ens = score(
+      p,
+      [&](const ScalpObs& ob) -> Action {
+        std::array<double, ScalpEnv::kNumActions> sum{}, q{};
+        for (auto& a : agents) {
+          a->q_values(ob, q.data());
+          for (std::size_t k = 0; k < q.size(); ++k) sum[k] += q[k];
+        }
+        return static_cast<Action>(std::max_element(sum.begin(), sum.end()) - sum.begin());
+      },
+      o.test);
+  double mean_single = 0;
+  for (const auto& s : scores) mean_single += s.mean / static_cast<double>(scores.size());
+  std::printf("\nsealed test, %u episodes of 10 min (1 ES contract):\n", o.test);
+  std::printf("  delta 30 s rule      %+.2f ticks/episode (t %+.1f)\n", rule.mean, rule.t);
+  std::printf("  RL, mean of seeds    %+.2f\n", mean_single);
+  std::printf("  RL mean-Q ensemble   %+.2f (t %+.1f, %.1f orders, %.0f%% winning) of all %u seeds\n", ens.mean, ens.t, ens.orders, ens.win, o.seeds);
+  std::printf("training took %.0f s; networks in %s/\n", secs, o.out.c_str());
+  std::printf("note: these are simulator results; replay recorded ticks with of_backtest before trusting any edge.\n");
+}
+
+```
+
+
+---
+
 ## FILE: examples/rag_pdf.cpp  (12,800 bytes)
 
 ```cpp
@@ -13396,7 +16616,7 @@ inline Engine& engine(DenseMode mode) {
 
 ---
 
-## FILE: tests/agent_coverage_tests.cpp  (41,190 bytes)
+## FILE: tests/agent_coverage_tests.cpp  (42,321 bytes)
 
 ```cpp
 // agent_coverage_tests.cpp — exact checks of agent behaviour the other test
@@ -14286,6 +17506,31 @@ TEST(AgentCoverage, TrainerTwoSidedDetectorConfirmsAnImprovedWorld) {
       EXPECT_EQ(tr.run(1).drift_alarms, std::vector<std::uint64_t>{2000});  // the next evaluation catches it
     }
   }
+}
+
+// --- validation.hpp (E28) ----------------------------------------------------
+#include "rag/agent/validation.hpp"
+
+TEST(Validation, StressSuiteAndPairedMetrics) {
+  const ExecutionParams base;
+  const auto suite = validation::stress_suite(base);
+  ASSERT_EQ(suite.size(), 12u);
+  EXPECT_EQ(suite[0].name, "nominal");
+  EXPECT_EQ(suite[0].params.alpha, base.alpha);
+  EXPECT_EQ(suite[5].name, "signal flipped");
+  EXPECT_EQ(suite[5].params.alpha, -base.alpha);
+  // TWAP against itself: exactly zero gain, never worse.
+  const auto twap = validation::measure(base, [](const ExecutionObs&) { return ExecutionEnv::kTwapAction; }, 200, validation::kSealedSeed);
+  EXPECT_EQ(twap.gain, 0.0);
+  EXPECT_EQ(twap.p_worse, 0.0);
+  EXPECT_GT(twap.optimal_gain, 0.0);
+  // The scenario's own optimum scores 100% of itself.
+  const ExecutionDP dp(base);
+  const auto best = validation::measure(base, [&](const ExecutionObs& o) { return dp.act(o); }, 200, validation::kSealedSeed);
+  EXPECT_NEAR(best.share, 1.0, 1e-12);
+  EXPECT_LE(best.gain_ci.lo, best.gain);
+  EXPECT_GE(best.gain_ci.hi, best.gain);
+  EXPECT_LE(best.cvar5, best.gain);
 }
 
 ```
@@ -15804,7 +19049,7 @@ TEST(AgentNeural, DoubleAndAdvantageTargetsStillLearn) {
 
 ---
 
-## FILE: tests/api_examples_tests.cpp  (11,935 bytes)
+## FILE: tests/api_examples_tests.cpp  (12,798 bytes)
 
 ```cpp
 // api_examples_tests.cpp — every code example in docs/ai/API.md, compiled
@@ -15814,6 +19059,7 @@ TEST(AgentNeural, DoubleAndAdvantageTargetsStillLearn) {
 #include "pid.hpp"
 
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -15823,6 +19069,7 @@ TEST(AgentNeural, DoubleAndAdvantageTargetsStillLearn) {
 #include "rag/agent/model_based.hpp"
 #include "rag/agent/ope.hpp"
 #include "rag/agent/policy_table.hpp"
+#include "rag/orderflow/replay_env.hpp"
 #include "rag/agent/trainer.hpp"
 #include "rag/text_clean.hpp"
 
@@ -16060,6 +19307,29 @@ TEST(ApiExamples, CompileAPolicyIntoATable) {
   const auto voted = ExecutionPolicyTable::median({table, loaded, loaded});
   EXPECT_EQ(loaded.act(obs), fast);
   EXPECT_EQ(voted.act(obs), fast);
+  std::filesystem::remove(path);
+}
+
+// --- API.md §14: ES order-flow trading ---------------------------------------
+TEST(ApiExamples, OrderFlowTrading) {
+  using namespace rag::orderflow;
+  EsSimulator sim(SimParams{}, /*seed=*/1);
+  sim.step();
+  const auto id = sim.submit_limit(Side::Buy, sim.bid(), 1);
+  EXPECT_NE(id, 0u);
+  EXPECT_EQ(sim.resting().size(), 1u);
+  ScalpEnv env;
+  rag::agent::Rng r(1);
+  const auto o = env.reset(r);
+  EXPECT_EQ(o.position, 0);
+  const auto path = tmp("es_ticks.csv");
+  {
+    std::ofstream f(path);
+    for (int i = 0; i < 9000; ++i) f << "Q," << i * 100'000'000LL << ",5000.00,5000.25\n";
+  }
+  auto tape = std::make_shared<const TickTape>(TickTape::from_csv(path.string(), {.time_unit = "ns"}));
+  ReplayScalpEnv replay(tape);
+  EXPECT_GE(replay.windows(), 1u);
   std::filesystem::remove(path);
 }
 
@@ -16563,7 +19833,7 @@ TEST(MarketMaking, AModelBasedMarketMakerNeedsAFewEpisodes) {
 
 ---
 
-## FILE: tests/mlp_tests.cpp  (4,784 bytes)
+## FILE: tests/mlp_tests.cpp  (5,822 bytes)
 
 ```cpp
 // mlp_tests.cpp — the from-scratch neural network (E16): backpropagation
@@ -16572,6 +19842,9 @@ TEST(MarketMaking, AModelBasedMarketMakerNeedsAFewEpisodes) {
 
 #include <array>
 #include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <vector>
 
 #include "rag/agent/mlp.hpp"
@@ -16689,6 +19962,33 @@ TEST(NeuralQ, WeightAveragingLeavesTrainingUnchangedAndOnlyAffectsGreedyActing) 
     differ += avg->act(o, false) != plain->act(o, false);
   }
   EXPECT_GT(differ, 0) << "a slow average should act differently from the online network somewhere";
+}
+
+TEST(Mlp, SaveLoadRoundTripAndRejectsCorruptFiles) {
+  Rng rng(12);
+  const Mlp net({4, 9, 3}, rng);
+  const auto path = std::filesystem::path(::testing::TempDir()) / "mlp_roundtrip.net";
+  net.save(path);
+  const Mlp back = Mlp::load(path);
+  EXPECT_EQ(back.parameters(), net.parameters());
+  std::vector<double> s1(net.scratch_size()), s2(back.scratch_size());
+  std::array<double, 3> a{}, b{};
+  const std::array<double, 4> x = {0.1, -1.2, 0.7, 2.0};
+  net.forward(x.data(), a.data(), s1.data());
+  back.forward(x.data(), b.data(), s2.data());
+  EXPECT_EQ(a, b);
+  std::vector<char> bytes;
+  {
+    std::ifstream f(path, std::ios::binary);
+    bytes.assign(std::istreambuf_iterator<char>(f), {});
+  }
+  bytes[bytes.size() / 2] ^= 0x40;
+  {
+    std::ofstream f(path, std::ios::binary | std::ios::trunc);
+    f.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+  }
+  EXPECT_THROW((void)Mlp::load(path), rag::io::FormatError);
+  std::filesystem::remove(path);
 }
 
 ```
@@ -17363,6 +20663,275 @@ TEST(Analysis, QuadraticSensitivityRecoversKnownEffects) {
   EXPECT_NEAR(s.linear[2], 0.0, 0.1);
   EXPECT_NEAR(s.quadratic[2], 0.0, 0.1);
   EXPECT_GT(s.r2, 0.99);
+}
+
+```
+
+
+---
+
+## FILE: tests/orderflow_tests.cpp  (9,302 bytes)
+
+```cpp
+// orderflow_tests.cpp — the ES order-flow simulator: book invariants,
+// determinism, market orders, and the FIFO queue mechanics tick-scalping
+// strategies depend on.
+#include <gtest/gtest.h>
+
+#include <cmath>
+#include <vector>
+
+#include "rag/orderflow/simulator.hpp"
+
+using namespace rag::orderflow;
+
+TEST(EsSimulator, BookStaysConsistentAndPrintsAreAtTheTouch) {
+  EsSimulator sim(SimParams{}, 7);
+  std::size_t prints = 0;
+  for (int s = 0; s < 20'000; ++s) {
+    const std::int32_t bid0 = sim.bid(), ask0 = sim.ask();
+    sim.step();
+    ASSERT_GE(sim.spread(), 1);
+    ASSERT_LT(sim.bid(), sim.ask());
+    for (const auto& t : sim.trades()) {
+      ++prints;
+      ASSERT_GT(t.size, 0u);
+      ASSERT_FALSE(t.own);
+      // A buy prints at or above the ask it started from (sweeping moves it up),
+      // a sell at or below the bid; never more than the simulated depth away.
+      if (t.aggressor == Side::Buy) {
+        ASSERT_GE(t.price, ask0 - static_cast<std::int32_t>(kLevels));
+      } else {
+        ASSERT_LE(t.price, bid0 + static_cast<std::int32_t>(kLevels));
+      }
+    }
+    const Quote q = sim.quote();
+    ASSERT_EQ(q.bid, sim.bid());
+    ASSERT_EQ(q.ask, sim.ask());
+  }
+  EXPECT_GT(prints, 10'000u);  // ~2,000 s of trading
+  EXPECT_LT(std::abs(sim.mid() - 20'000.0), 2'000.0);
+}
+
+TEST(EsSimulator, SameSeedSamePathDifferentSeedDifferentPath) {
+  auto path = [](std::uint64_t seed) {
+    EsSimulator sim(SimParams{}, seed);
+    std::vector<double> m;
+    for (int s = 0; s < 3000; ++s) {
+      sim.step();
+      m.push_back(sim.mid());
+    }
+    return m;
+  };
+  EXPECT_EQ(path(3), path(3));
+  EXPECT_NE(path(3), path(4));
+}
+
+TEST(EsSimulator, MarketOrderTakesTheBestPrices) {
+  EsSimulator sim(SimParams{}, 1);
+  const std::int32_t ask = sim.ask();
+  const std::uint32_t at_ask = sim.quote().ask_size[0];
+  const Fill f = sim.market_order(Side::Buy, 3);
+  EXPECT_EQ(f.filled, 3u);
+  EXPECT_EQ(f.avg_price, ask);  // the best level has far more than 3 lots
+  ASSERT_EQ(sim.trades().size(), 1u);
+  EXPECT_TRUE(sim.trades()[0].own);
+  EXPECT_EQ(sim.quote().ask_size[0], at_ask - 3);
+}
+
+TEST(EsSimulator, LimitOrderFillsOnlyAfterTheQueueAheadTrades) {
+  EsSimulator sim(SimParams{.join_ahead_mean = 0}, 1);  // no faster participants: we join right behind the visible queue
+  const std::int32_t bid = sim.bid();
+  const std::uint32_t queue = sim.quote().bid_size[0];
+  const std::uint64_t id = sim.submit_limit(Side::Buy, bid, 2);
+  ASSERT_NE(id, 0u);
+  ASSERT_EQ(sim.resting().size(), 1u);
+  EXPECT_EQ(sim.resting()[0].ahead, queue);  // joined the back of the queue
+  EXPECT_EQ(sim.quote().bid_size[0], queue + 2);
+  // Selling exactly the lots ahead fills none of ours (FIFO)...
+  sim.market_order(Side::Sell, queue);
+  EXPECT_TRUE(sim.own_fills().empty());
+  EXPECT_EQ(sim.resting()[0].ahead, 0u);
+  EXPECT_EQ(sim.bid(), bid);  // our 2 lots still hold the level
+  // ...one more lot fills one of ours, at our price.
+  sim.market_order(Side::Sell, 1);
+  ASSERT_EQ(sim.own_fills().size(), 1u);
+  EXPECT_EQ(sim.own_fills()[0].id, id);
+  EXPECT_EQ(sim.own_fills()[0].size, 1u);
+  EXPECT_EQ(sim.own_fills()[0].price, bid);
+  EXPECT_EQ(sim.resting()[0].qty, 1u);
+  // Cancel returns what's left and takes it off the book.
+  const std::uint32_t before = sim.quote().bid_size[0];
+  EXPECT_EQ(sim.cancel(id), 1u);
+  EXPECT_TRUE(sim.resting().empty());
+  EXPECT_EQ(sim.quote().bid_size[0], before - 1);
+  EXPECT_EQ(sim.cancel(id), 0u);
+}
+
+TEST(EsSimulator, QueuePositionImprovesAsOthersCancel) {
+  SimParams p;
+  // No takers and no icebergs: new maker orders only join behind ours, so
+  // only cancellations can move it forward.
+  p.noise_rate = 0;
+  p.informed_meta_rate = 0;
+  p.uninformed_meta_rate = 0;
+  p.momentum_rate = 0;
+  p.iceberg_rate = 0;
+  EsSimulator sim(p, 2);
+  const std::uint64_t id = sim.submit_limit(Side::Sell, sim.ask(), 1);
+  ASSERT_NE(id, 0u);
+  const std::uint32_t ahead0 = sim.resting()[0].ahead;
+  for (int s = 0; s < 100; ++s) sim.step();  // 10 s at 10% cancellations per second
+  ASSERT_EQ(sim.resting().size(), 1u);
+  EXPECT_LT(sim.resting()[0].ahead, ahead0);
+  EXPECT_GT(sim.resting()[0].ahead, ahead0 / 10);
+  EXPECT_EQ(sim.resting()[0].qty, 1u);  // nobody traded
+}
+
+TEST(EsSimulator, LimitOrdersThroughTheMarketAreRejected) {
+  EsSimulator sim(SimParams{}, 1);
+  EXPECT_EQ(sim.submit_limit(Side::Buy, sim.ask(), 1), 0u);
+  EXPECT_EQ(sim.submit_limit(Side::Sell, sim.bid(), 1), 0u);
+  EXPECT_EQ(sim.submit_limit(Side::Buy, sim.bid(), 0), 0u);
+  EXPECT_THROW(EsSimulator(SimParams{.dt = 0}), std::invalid_argument);
+}
+
+// --- features.hpp and scalp_env.hpp ------------------------------------------
+#include "rag/orderflow/scalp_env.hpp"
+
+TEST(FeatureBuilder, WindowSumsMatchTheTapeAndValuesStayBounded) {
+  EsSimulator sim(SimParams{}, 5);
+  FeatureBuilder fb(0.1);
+  std::vector<double> deltas;
+  for (int s = 0; s < 2000; ++s) {
+    sim.step();
+    double d = 0;
+    for (const auto& t : sim.trades()) {
+      fb.add_trade(t);
+      d += sign(t.aggressor) * t.size;
+    }
+    fb.end_bucket(sim.quote());
+    deltas.push_back(d);
+    for (double x : fb.values()) {
+      ASSERT_TRUE(std::isfinite(x));
+      ASSERT_LE(std::abs(x), kClip);
+    }
+  }
+  EXPECT_TRUE(fb.warm());  // 200 s > the 120 s window
+  double d5 = 0, d30 = 0;
+  for (std::size_t i = 0; i < 50; ++i) d5 += deltas[deltas.size() - 1 - i];
+  for (std::size_t i = 0; i < 300; ++i) d30 += deltas[deltas.size() - 1 - i];
+  EXPECT_NEAR(fb.raw()[0], d5, 1e-6);   // delta over 5 s = 50 buckets
+  EXPECT_NEAR(fb.raw()[1], d30, 1e-6);  // 30 s
+}
+
+TEST(ScalpEnv, RewardsAddUpToNetPnlAndFlatEarnsNothing) {
+  ScalpParams p;
+  p.episode_seconds = 120;
+  ScalpEnv env(p);
+  for (rag::agent::Action fixed : {rag::agent::Action{1}, rag::agent::Action{2}}) {
+    rag::agent::Rng r(11);
+    auto o = env.reset(r);
+    double total = 0;
+    int steps = 0;
+    for (;;) {
+      const auto st = env.step(fixed, r);
+      total += st.reward;
+      ++steps;
+      o = st.obs;
+      if (st.done) break;
+    }
+    EXPECT_EQ(steps, 120);
+    EXPECT_EQ(o.position, 0);  // the episode ends flat
+    EXPECT_NEAR(total, env.net_pnl_ticks(), 1e-6);
+    if (fixed == 1) {
+      EXPECT_EQ(total, 0.0);
+      EXPECT_EQ(env.orders(), 0u);
+    } else {
+      EXPECT_EQ(env.orders(), 2u);  // in once, out at the end
+      EXPECT_NEAR(env.fees_ticks(), 2 * p.fee_dollars / kTickValue, 1e-12);
+    }
+  }
+}
+
+TEST(ScalpEnv, TradingEveryStepLosesTheSpreadAndFees) {
+  ScalpParams p;
+  p.episode_seconds = 60;
+  ScalpEnv env(p);
+  rag::agent::Rng r(3);
+  env.reset(r);
+  for (int i = 0; i < 60; ++i) env.step(static_cast<rag::agent::Action>(i % 2 == 0 ? 0 : 2), r);  // flip short/long every second
+  // ~60 flips of 2 contracts: each pays about a spread (1 tick) per contract plus fees.
+  EXPECT_LT(env.net_pnl_ticks(), -40.0);
+}
+
+// --- tick_env.hpp ------------------------------------------------------------
+#include "rag/orderflow/tick_env.hpp"
+
+TEST(TickScalpEnv, InventoryStaysWithinLimitsAndRewardsAddUp) {
+  TickParams p;
+  p.episode_seconds = 120;
+  TickScalpEnv env(p);
+  for (rag::agent::Action mode : {rag::agent::Action{0}, rag::agent::Action{3}, rag::agent::Action{1}}) {
+    rag::agent::Rng r(21);
+    auto o = env.reset(r);
+    double total = 0;
+    for (;;) {
+      const auto st = env.step(mode, r);
+      total += st.reward;
+      o = st.obs;
+      ASSERT_LE(std::abs(o.position), p.max_position);
+      if (st.done) break;
+    }
+    EXPECT_EQ(o.position, 0);
+    EXPECT_NEAR(total, env.net_pnl_ticks(), 1e-6);
+    if (mode == 0) {
+      EXPECT_EQ(env.fills(), 0u);
+      EXPECT_EQ(total, 0.0);
+    } else {
+      EXPECT_GT(env.fills(), 0u);  // two minutes at the touch gets filled
+    }
+  }
+}
+
+TEST(TickScalpEnv, QueuePositionIsObservedWhileQuoting) {
+  TickScalpEnv env;
+  rag::agent::Rng r(5);
+  env.reset(r);
+  const auto st = env.step(3, r);  // quote both sides for 0.5 s
+  // Unless already filled, each side reports a queue position in (0, ~2].
+  if (st.obs.position == 0) {
+    EXPECT_GT(st.obs.bid_queue, 0.0);
+    EXPECT_GT(st.obs.ask_queue, 0.0);
+  }
+  const auto none = env.step(0, r);
+  EXPECT_EQ(none.obs.bid_queue, -1.0);
+  EXPECT_EQ(none.obs.ask_queue, -1.0);
+}
+
+// Why OF5's agent never learned to quote (and why OF7 guides exploration):
+// a fill needs the quote to stay put while the ~120 lots ahead of it trade
+// or cancel, and uniformly random modes cancel a side at most decisions, so
+// the order rejoins at the back again and again. Measured on 120 s episodes
+// (seeds 31-38): quoting both sides throughout got 6-14 fills each, uniform
+// random modes got 0 every time (300 s validation episodes: 24.3 vs 0.10 per
+// episode).
+TEST(TickScalpEnv, OnlyQuotesThatStayPutReachTheFrontOfTheQueue) {
+  TickParams p;
+  p.episode_seconds = 120;
+  std::uint32_t persistent = 0, flickering = 0;
+  for (std::uint64_t seed = 31; seed < 35; ++seed) {
+    for (const bool random_modes : {false, true}) {
+      TickScalpEnv env(p);
+      rag::agent::Rng r(seed), pick(seed + 1000);
+      env.reset(r);
+      while (!env.step(random_modes ? pick.below(5) : rag::agent::Action{3}, r).done) {
+      }
+      (random_modes ? flickering : persistent) += env.fills();
+    }
+  }
+  EXPECT_GE(persistent, 20u);  // measured 34 (10 + 6 + 10 + 8)
+  EXPECT_LE(flickering, 2u);   // measured 0
 }
 
 ```
@@ -21941,6 +25510,171 @@ int main(int argc, char** argv) {
 
 ---
 
+## FILE: tests/stylized_tests.cpp  (5,950 bytes)
+
+```cpp
+// stylized_tests.cpp — the tick CSV reader and the stylized-facts meter used
+// to calibrate the ES simulator against recorded ticks.
+#include <gtest/gtest.h>
+
+#include <cmath>
+#include <sstream>
+#include <string>
+
+#include "rag/orderflow/stylized.hpp"
+#include "rag/orderflow/tick_csv.hpp"
+
+using namespace rag::orderflow;
+
+namespace {
+struct Recorder {
+  std::vector<Trade> trades;
+  std::vector<Quote> quotes;
+  void add_trade(const Trade& t) { trades.push_back(t); }
+  void end_bucket(const Quote& q) { quotes.push_back(q); }
+};
+}  // namespace
+
+TEST(TickCsv, ParsesTradesQuotesAndBucketsThem) {
+  std::istringstream in(
+      "# header\n"
+      "Q,0.00,5000.00,5000.25,10,11,12,13,14,20,21,22,23,24\n"
+      "T,0.05,5000.25,3,B\n"
+      "T,0.07,5000.00,2,S\n"
+      "Q,0.12,5000.25,5000.50\n"
+      "bad,line\n"
+      "T,0.31,5000.50,1,X\n"  // bad side: skipped
+      "T,100.0,5001.00,4,B\n");  // after a gap > 60 s
+  Recorder r;
+  const auto st = replay_tick_csv(in, r, TickCsvOptions{.time_unit = "s"});
+  EXPECT_EQ(st.trades, 3u);
+  EXPECT_EQ(st.quotes, 2u);
+  EXPECT_EQ(st.skipped, 2u);
+  EXPECT_EQ(st.gaps, 1u);
+  ASSERT_EQ(r.trades.size(), 3u);
+  EXPECT_EQ(r.trades[0].price, 20001);  // 5000.25 / 0.25
+  EXPECT_EQ(r.trades[0].aggressor, Side::Buy);
+  EXPECT_EQ(r.trades[1].aggressor, Side::Sell);
+  ASSERT_FALSE(r.quotes.empty());
+  EXPECT_EQ(r.quotes[0].bid, 20000);
+  EXPECT_EQ(r.quotes[0].ask, 20001);
+  EXPECT_EQ(r.quotes[0].bid_size[0], 10u);
+  EXPECT_EQ(r.quotes[0].ask_size[4], 24u);
+  EXPECT_EQ(r.quotes.back().bid, 20001);  // the second quote (no depth given: sizes 0)
+  EXPECT_THROW(replay_tick_csv(in, r, TickCsvOptions{.tick_size = 0}), std::invalid_argument);
+}
+
+TEST(StylizedMeter, CsvRoundTripReproducesTheSimulatorsFacts) {
+  // Simulator ticks written in the CSV format and read back must give the
+  // same facts as measuring the simulator directly.
+  const SimParams p;
+  EsSimulator sim(p, 4, 3600);
+  StylizedMeter direct(p.dt);
+  std::ostringstream csv;
+  csv.precision(12);
+  for (int s = 0; s < 6000; ++s) {  // 10 minutes
+    sim.step();
+    const double t = static_cast<double>(sim.t_ns()) * 1e-9;
+    for (const auto& tr : sim.trades()) {
+      direct.add_trade(tr);
+      csv << "T," << t << "," << tr.price * 0.25 << "," << tr.size << "," << (tr.aggressor == Side::Buy ? 'B' : 'S') << "\n";
+    }
+    const Quote q = sim.quote();
+    direct.end_bucket(q);
+    csv << "Q," << t + 0.0005 << "," << q.bid * 0.25 << "," << q.ask * 0.25;
+    for (auto v : q.bid_size) csv << "," << v;
+    for (auto v : q.ask_size) csv << "," << v;
+    csv << "\n";
+  }
+  StylizedMeter replayed(p.dt);
+  std::istringstream in(csv.str());
+  const auto st = replay_tick_csv(in, replayed, TickCsvOptions{.time_unit = "s"});
+  EXPECT_EQ(st.skipped, 0u);
+  const auto a = direct.facts(), b = replayed.facts();
+  EXPECT_NEAR(a.trades_per_sec, b.trades_per_sec, 0.02 * a.trades_per_sec);
+  EXPECT_NEAR(a.mean_trade_size, b.mean_trade_size, 1e-9);
+  EXPECT_NEAR(a.spread1_share, b.spread1_share, 0.01);
+  EXPECT_NEAR(a.ret1m_sd, b.ret1m_sd, 0.1 * a.ret1m_sd + 0.05);
+  EXPECT_NEAR(a.sign_ac1, b.sign_ac1, 1e-9);  // same prints in the same order
+  EXPECT_GT(a.trades_per_sec, 1.0);
+}
+
+TEST(StylizedMeter, SimulatorFactsAreInARealisticRange) {
+  const auto f = simulate_facts(SimParams{}, 1800, 3);
+  EXPECT_GT(f.trades_per_sec, 3);
+  EXPECT_LT(f.trades_per_sec, 80);
+  EXPECT_GT(f.spread1_share, 0.9);
+  EXPECT_GT(f.sign_ac1, 0.05);  // order splitting: long memory in trade signs
+  EXPECT_GT(f.impact_r2, 0.1);  // order flow moves prices
+}
+
+// --- replay_env.hpp ------------------------------------------------------------
+#include "rag/orderflow/replay_env.hpp"
+
+TEST(ReplayScalpEnv, FillsAtTheRecordedTouchWithFeesAndWindowsTheTape) {
+  // 20 minutes of a constant market: bid 5000.00 x 50, ask 5000.25 x 50, one print per second.
+  std::ostringstream csv;
+  for (int i = 0; i < 12000; ++i) {
+    const double t = i * 0.1;
+    if (i % 10 == 0) csv << "T," << t << ",5000.25,1,B\n";
+    csv << "Q," << t + 0.0005 << ",5000.00,5000.25,50,50,50,50,50,50,50,50,50,50\n";
+  }
+  std::istringstream in(csv.str());
+  auto tape = std::make_shared<const TickTape>(TickTape::from_stream(in, TickCsvOptions{.time_unit = "s"}));
+  ReplayParams p;
+  p.window_seconds = 300;
+  ReplayScalpEnv env(tape, p);
+  EXPECT_EQ(env.windows(), 3u);  // (1200 s - 150 s warm-up) / 300 s
+  rag::agent::Rng r(1);
+  for (rag::agent::Action a : {rag::agent::Action{1}, rag::agent::Action{2}}) {
+    auto o = env.seek(1);
+    double total = 0;
+    for (;;) {
+      const auto s = env.step(a, r);
+      total += s.reward;
+      o = s.obs;
+      if (s.done) break;
+    }
+    EXPECT_NEAR(total, env.net_pnl_ticks(), 1e-9);
+    if (a == 1) {
+      EXPECT_EQ(env.net_pnl_ticks(), 0.0);
+    } else {
+      // Long once at the ask, out at the bid in an unchanged market: one tick of spread plus two fees.
+      EXPECT_EQ(env.orders(), 2u);
+      EXPECT_NEAR(env.net_pnl_ticks(), -1.0 - 2 * p.fee_dollars / kTickValue, 1e-9);
+    }
+  }
+  EXPECT_THROW(env.seek(3), std::out_of_range);
+}
+
+// --- agent memory: NeuralQ allocates no tile tables ------------------------------
+#include "rag/agent/agent.hpp"
+#include "rag/orderflow/tick_env.hpp"
+
+TEST(NeuralQMemory, HighDimensionalEnvironmentsNeedNoTileTables) {
+  // 21 inputs at the default 8 bins would need 9^21 tile cells per table;
+  // NeuralQ never uses them, so construction and snapshots must stay small.
+  TickScalpEnv env;
+  rag::agent::AgentConfig<TickScalpEnv::kStateDims> c;
+  c.learner = rag::agent::LearnerKind::NeuralQ;
+  c.double_q = true;
+  c.nn_polyak = 1e-4;
+  rag::agent::Agent<TickScalpEnv> agent(env, c);
+  const auto snap = agent.snapshot();
+  EXPECT_EQ(snap.q.weights().size(), 0u);
+  EXPECT_EQ(snap.q2.weights().size(), 0u);
+  EXPECT_GT(snap.net.parameters(), 0u);
+  rag::agent::Rng r(1);
+  auto o = env.reset(r);
+  const auto a = agent.act(o, true);
+  EXPECT_LT(a, TickScalpEnv::kNumActions);
+}
+
+```
+
+
+---
+
 ## FILE: tests/text_clean_tests.cpp  (11,633 bytes)
 
 ```cpp
@@ -22952,7 +26686,7 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: tools/make_context_pack.py  (3,774 bytes)
+## FILE: tools/make_context_pack.py  (3,843 bytes)
 
 ````python
 #!/usr/bin/env python3
@@ -22991,6 +26725,8 @@ DOCS = [
     "docs/ai/DECISIONS.md",
     "docs/ai/CONVENTIONS.md",
     "docs/ai/STATUS.md",
+    "docs/ai/ORDERFLOW.md",
+    "experiments/research_synthesis.md",
     "README.md",
 ]
 SOURCE_GLOBS = [
@@ -23060,3 +26796,687 @@ if __name__ == "__main__":
     main()
 
 ````
+
+
+---
+
+## FILE: tools/research_crawler.py  (23,582 bytes)
+
+```python
+#!/usr/bin/env python3
+"""research_crawler.py - collect reinforcement-learning trading research.
+
+Searches public research APIs for papers and articles on RL for trading
+(order flow, limit order books, market making, tick scalping, execution,
+futures), ranks them for relevance, and writes a corpus the RAG engine can
+index:
+
+  OUT/papers.jsonl        one JSON record per paper/article (merged, deduplicated)
+  OUT/digest.md           ranked list: title, year, venue, citations, link, abstract
+  OUT/docs/<id>.md        one text document per item (title, metadata, abstract,
+                          article text): `rag_pdf index corpus.ragidx OUT/docs`
+  OUT/pdfs/<id>.pdf       open-access PDFs (with --pdfs)
+  OUT/cache/              raw responses, so re-runs don't re-download
+
+Sources (no accounts or API keys):
+  arxiv       export.arxiv.org API (q-fin and cs categories)
+  openalex    api.openalex.org (journals, conferences, SSRN and more)
+  s2          api.semanticscholar.org (with citation counts)
+  hn          hn.algolia.com: Hacker News stories (blog posts, articles);
+              --fetch-articles also downloads the linked pages' text
+
+Anonymous by design: the requests carry a generic user agent
+("research-crawler/1.0"), no email address, no API key, no cookies and no
+referrer, so nothing identifies who runs it. It is also polite: it checks
+robots.txt before fetching any web page or PDF, waits between requests to the
+same host (arXiv asks for 3 s), backs off on 429/5xx, and caches everything.
+It does not rotate IPs or disguise itself to get past blocks: a source that
+refuses it is skipped.
+
+Usage:
+  python3 tools/research_crawler.py                      # all sources, default queries
+  python3 tools/research_crawler.py --since 2018 --max-per-query 50 --pdfs
+  python3 tools/research_crawler.py --sources arxiv,s2 --query "deep reinforcement learning limit order book"
+  python3 tools/research_crawler.py --queries my_queries.txt --fetch-articles
+
+Standard library only (Python 3.9+); runs on Linux, macOS and Windows.
+"""
+from __future__ import annotations
+
+import argparse
+import gzip
+import hashlib
+import html
+import html.parser
+import json
+import math
+import re
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+import urllib.robotparser
+import xml.etree.ElementTree as ET
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+
+USER_AGENT = "research-crawler/1.0"
+
+DEFAULT_QUERIES = [
+    "reinforcement learning order flow trading",
+    "reinforcement learning limit order book",
+    "deep reinforcement learning market making",
+    "reinforcement learning high-frequency trading",
+    "reinforcement learning optimal execution",
+    "reinforcement learning futures trading",
+    "deep reinforcement learning intraday trading",
+    "queue position limit order book",
+    "order flow imbalance price prediction",
+    "deep learning limit order book prediction",
+    "market microstructure reinforcement learning",
+    "agent-based market simulator reinforcement learning",
+    "offline reinforcement learning trading",
+    "reinforcement learning trading backtest overfitting",
+]
+
+# Relevance lexicon: (pattern, weight). Title hits count 3x.
+RL_TERMS = [
+    (r"reinforcement learning", 3), (r"\bq-learning\b", 2), (r"\bdqn\b|deep q-network", 2), (r"\bppo\b|proximal policy", 2),
+    (r"actor-critic|\bsac\b|soft actor", 2), (r"policy gradient", 2), (r"offline rl|offline reinforcement", 2),
+    (r"\bmdp\b|markov decision", 1), (r"\bagent\b", 0.5),
+]
+MARKET_TERMS = [
+    (r"order flow", 3), (r"limit order book|\blob\b|order book", 3), (r"market making|market maker", 3), (r"queue", 2),
+    (r"imbalance", 2), (r"high[- ]frequency|\bhft\b", 2), (r"optimal execution|trade execution|execution", 1.5),
+    (r"microstructure", 2), (r"\btick\b|tick-level|tick data", 2), (r"scalp", 2), (r"spread", 1), (r"liquidity", 1),
+    (r"futures", 1.5), (r"e-mini|s&p 500|\bcme\b", 2), (r"intraday", 1.5), (r"trading", 1),
+]
+VALIDATION_TERMS = [
+    (r"backtest", 1), (r"overfit", 1.5), (r"walk[- ]forward", 1.5), (r"out-of-sample", 1), (r"transaction cost", 1),
+    (r"simulator|simulation", 0.5),
+]
+
+
+@dataclass
+class Item:
+    key: str                     # dedup key: doi:, arxiv:, or title:
+    source: str                  # first source that found it
+    kind: str                    # paper | article
+    title: str
+    year: int | None = None
+    authors: list[str] = field(default_factory=list)
+    venue: str = ""
+    abstract: str = ""
+    url: str = ""
+    pdf_url: str = ""
+    doi: str = ""
+    arxiv_id: str = ""
+    citations: int | None = None
+    sources: list[str] = field(default_factory=list)
+    queries: list[str] = field(default_factory=list)
+    text: str = ""               # fetched article text (hn with --fetch-articles)
+    score: float = 0.0
+
+
+# ------------------------------------------------------------------ helpers
+def normalize_title(t: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", t.lower()).strip()
+
+
+def make_key(doi: str = "", arxiv_id: str = "", title: str = "") -> str:
+    if doi:
+        return "doi:" + doi.lower().removeprefix("https://doi.org/")
+    if arxiv_id:
+        return "arxiv:" + re.sub(r"v\d+$", "", arxiv_id)
+    return "title:" + normalize_title(title)
+
+
+def slug(key: str) -> str:
+    return hashlib.sha1(key.encode()).hexdigest()[:12]
+
+
+def abstract_from_inverted_index(inv: dict | None) -> str:
+    """OpenAlex stores abstracts as {word: [positions]}."""
+    if not inv:
+        return ""
+    pos = {}
+    for word, places in inv.items():
+        for p in places:
+            pos[p] = word
+    return " ".join(pos[i] for i in sorted(pos))
+
+
+def lexicon_score(text: str, terms) -> float:
+    return sum(w for pat, w in terms if re.search(pat, text))
+
+
+def relevance(item: Item, now_year: int) -> float:
+    """Keyword relevance (title 3x), boosted by citations and recency; items
+    without both an RL term and a market term are pushed down."""
+    title, body = item.title.lower(), (item.abstract + " " + item.text[:5000]).lower()
+    rl = 3 * lexicon_score(title, RL_TERMS) + lexicon_score(body, RL_TERMS)
+    mk = 3 * lexicon_score(title, MARKET_TERMS) + lexicon_score(body, MARKET_TERMS)
+    va = lexicon_score(title + " " + body, VALIDATION_TERMS)
+    s = rl + mk + va
+    if rl == 0 or mk == 0:
+        s *= 0.3
+    if item.citations:
+        s += 1.5 * math.log1p(item.citations)
+    if item.year:
+        s += max(0.0, 3.0 - 0.3 * max(0, now_year - item.year))
+    return round(s, 2)
+
+
+class TextExtractor(html.parser.HTMLParser):
+    """Visible text of an HTML page (scripts, styles and navigation dropped)."""
+    SKIP = {"script", "style", "noscript", "nav", "header", "footer", "svg", "form"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+        self.depth = 0
+        self.title = ""
+        self._in_title = False
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self.SKIP:
+            self.depth += 1
+        if tag == "title":
+            self._in_title = True
+        if tag in ("p", "br", "li", "h1", "h2", "h3", "h4", "tr", "div"):
+            self.parts.append("\n")
+
+    def handle_endtag(self, tag):
+        if tag in self.SKIP and self.depth:
+            self.depth -= 1
+        if tag == "title":
+            self._in_title = False
+
+    def handle_data(self, data):
+        if self._in_title:
+            self.title += data
+        elif not self.depth:
+            self.parts.append(data)
+
+    def text(self) -> str:
+        t = "".join(self.parts)
+        t = re.sub(r"[ \t\r\f\v]+", " ", t)
+        return re.sub(r"\n\s*\n+", "\n\n", t).strip()
+
+
+def html_to_text(page: str) -> tuple[str, str]:
+    p = TextExtractor()
+    p.feed(page)
+    return p.title.strip(), p.text()
+
+
+# ------------------------------------------------------------------ HTTP
+class Fetcher:
+    """Anonymous, polite HTTP: generic user agent, no cookies/referrer/keys;
+    per-host delay, robots.txt for pages, retries with backoff, disk cache."""
+
+    API_HOSTS = {"export.arxiv.org", "api.openalex.org", "api.semanticscholar.org", "hn.algolia.com"}
+
+    def __init__(self, cache: Path, delays: dict[str, float] | None = None, default_delay: float = 1.0, timeout: float = 30):
+        self.cache = cache
+        self.cache.mkdir(parents=True, exist_ok=True)
+        self.delays = delays or {"export.arxiv.org": 3.1, "arxiv.org": 3.1, "api.semanticscholar.org": 1.2}
+        self.default_delay = default_delay
+        self.timeout = timeout
+        self.last: dict[str, float] = {}
+        self.robots: dict[str, urllib.robotparser.RobotFileParser | None] = {}
+        # No cookie processor is installed: urllib sends no cookies.
+        self.opener = urllib.request.build_opener()
+        self.opener.addheaders = [("User-Agent", USER_AGENT), ("Accept-Encoding", "gzip")]
+
+    def _wait(self, host: str):
+        delay = self.delays.get(host, self.default_delay)
+        dt = time.monotonic() - self.last.get(host, -1e9)
+        if dt < delay:
+            time.sleep(delay - dt)
+        self.last[host] = time.monotonic()
+
+    def allowed(self, url: str) -> bool:
+        parts = urllib.parse.urlsplit(url)
+        if parts.hostname in self.API_HOSTS:
+            return True  # documented public APIs for automated access
+        base = f"{parts.scheme}://{parts.netloc}"
+        if base not in self.robots:
+            rp = urllib.robotparser.RobotFileParser()
+            try:
+                raw = self.get(base + "/robots.txt", check_robots=False, cache=True, quiet=True)
+                rp.parse(raw.decode("utf-8", "replace").splitlines() if raw is not None else [])
+                self.robots[base] = rp
+            except Exception:
+                self.robots[base] = None  # unreachable robots.txt: treat as allowed
+        rp = self.robots[base]
+        return True if rp is None else rp.can_fetch(USER_AGENT, url)
+
+    def get(self, url: str, check_robots: bool = True, cache: bool = True, quiet: bool = False, retries: int = 4) -> bytes | None:
+        path = self.cache / (hashlib.sha1(url.encode()).hexdigest() + ".bin")
+        if cache and path.exists():
+            return path.read_bytes()
+        if check_robots and not self.allowed(url):
+            if not quiet:
+                print(f"  robots.txt disallows {url}; skipped", file=sys.stderr)
+            return None
+        host = urllib.parse.urlsplit(url).hostname or ""
+        for attempt in range(retries + 1):
+            self._wait(host)
+            try:
+                with self.opener.open(urllib.request.Request(url), timeout=self.timeout) as r:
+                    data = r.read()
+                    if r.headers.get("Content-Encoding") == "gzip":
+                        data = gzip.decompress(data)
+                if cache:
+                    path.write_bytes(data)
+                return data
+            except urllib.error.HTTPError as e:
+                if e.code in (429, 500, 502, 503, 504) and attempt < retries:
+                    wait = float(e.headers.get("Retry-After") or 0) or 5 * 2**attempt
+                    time.sleep(min(wait, 120))
+                    continue
+                if not quiet:
+                    print(f"  HTTP {e.code} for {url}", file=sys.stderr)
+                return None
+            except (urllib.error.URLError, TimeoutError, OSError) as e:
+                if attempt < retries:
+                    time.sleep(3 * 2**attempt)
+                    continue
+                if not quiet:
+                    print(f"  failed {url}: {e}", file=sys.stderr)
+                return None
+        return None
+
+
+# ------------------------------------------------------------------ sources
+def parse_arxiv(atom: bytes, query: str) -> list[Item]:
+    ns = {"a": "http://www.w3.org/2005/Atom", "arxiv": "http://arxiv.org/schemas/atom"}
+    root = ET.fromstring(atom)
+    out = []
+    for e in root.findall("a:entry", ns):
+        aid = (e.findtext("a:id", "", ns) or "").rsplit("/abs/", 1)[-1]
+        title = " ".join((e.findtext("a:title", "", ns) or "").split())
+        if not title:
+            continue
+        pdf = next((l.get("href", "") for l in e.findall("a:link", ns) if l.get("title") == "pdf"), "")
+        doi = e.findtext("arxiv:doi", "", ns) or ""
+        year = (e.findtext("a:published", "", ns) or "")[:4]
+        out.append(Item(
+            key=make_key(doi=doi, arxiv_id=aid, title=title), source="arxiv", kind="paper", title=title,
+            year=int(year) if year.isdigit() else None,
+            authors=[a.findtext("a:name", "", ns) for a in e.findall("a:author", ns)],
+            venue=e.findtext("arxiv:journal_ref", "", ns) or "arXiv",
+            abstract=" ".join((e.findtext("a:summary", "", ns) or "").split()),
+            url=f"https://arxiv.org/abs/{aid}", pdf_url=pdf.replace("http://", "https://"), doi=doi, arxiv_id=aid,
+            sources=["arxiv"], queries=[query]))
+    return out
+
+
+def parse_openalex(data: bytes, query: str) -> list[Item]:
+    out = []
+    for w in json.loads(data).get("results", []):
+        title = w.get("title") or w.get("display_name") or ""
+        if not title:
+            continue
+        doi = (w.get("doi") or "").removeprefix("https://doi.org/")
+        loc = w.get("primary_location") or {}
+        src = loc.get("source") or {}
+        oa = w.get("open_access") or {}
+        out.append(Item(
+            key=make_key(doi=doi, title=title), source="openalex", kind="paper", title=title,
+            year=w.get("publication_year"),
+            authors=[(a.get("author") or {}).get("display_name", "") for a in w.get("authorships", [])][:20],
+            venue=src.get("display_name") or "", abstract=abstract_from_inverted_index(w.get("abstract_inverted_index")),
+            url=loc.get("landing_page_url") or (f"https://doi.org/{doi}" if doi else w.get("id", "")),
+            pdf_url=oa.get("oa_url") or "", doi=doi, citations=w.get("cited_by_count"),
+            sources=["openalex"], queries=[query]))
+    return out
+
+
+def parse_s2(data: bytes, query: str) -> list[Item]:
+    out = []
+    for p in json.loads(data).get("data", []) or []:
+        title = p.get("title") or ""
+        if not title:
+            continue
+        ext = p.get("externalIds") or {}
+        doi, aid = ext.get("DOI") or "", ext.get("ArXiv") or ""
+        out.append(Item(
+            key=make_key(doi=doi, arxiv_id=aid, title=title), source="s2", kind="paper", title=title, year=p.get("year"),
+            authors=[a.get("name", "") for a in p.get("authors") or []][:20], venue=p.get("venue") or "",
+            abstract=p.get("abstract") or "", url=p.get("url") or "", pdf_url=(p.get("openAccessPdf") or {}).get("url") or "",
+            doi=doi, arxiv_id=aid, citations=p.get("citationCount"), sources=["s2"], queries=[query]))
+    return out
+
+
+def parse_hn(data: bytes, query: str) -> list[Item]:
+    out = []
+    for h in json.loads(data).get("hits", []):
+        url, title = h.get("url") or "", h.get("title") or ""
+        if not url or not title:
+            continue
+        out.append(Item(
+            key="url:" + url.split("#")[0].rstrip("/"), source="hn", kind="article", title=title,
+            year=int((h.get("created_at") or "0000")[:4]) or None, venue=urllib.parse.urlsplit(url).hostname or "",
+            url=url, citations=h.get("points"), sources=["hn"], queries=[query]))
+    return out
+
+
+def search(fetcher: Fetcher, source: str, query: str, n: int, since: int) -> list[Item]:
+    q = urllib.parse.quote
+    if source == "arxiv":
+        terms = " AND ".join(f'all:"{w}"' if " " in w else f"all:{w}" for w in split_query(query))
+        cats = "(cat:q-fin.* OR cat:cs.LG OR cat:cs.AI OR cat:stat.ML)"
+        url = (f"https://export.arxiv.org/api/query?search_query={q(f'({terms}) AND {cats}')}"
+               f"&start=0&max_results={n}&sortBy=relevance")
+        data = fetcher.get(url)
+        items = parse_arxiv(data, query) if data else []
+    elif source == "openalex":
+        url = (f"https://api.openalex.org/works?search={q(query)}&per-page={min(n, 200)}"
+               f"&filter=from_publication_date:{since}-01-01")
+        data = fetcher.get(url)
+        items = parse_openalex(data, query) if data else []
+    elif source == "s2":
+        fields = "title,abstract,year,venue,citationCount,externalIds,openAccessPdf,url,authors"
+        url = (f"https://api.semanticscholar.org/graph/v1/paper/search?query={q(query)}"
+               f"&limit={min(n, 100)}&fields={fields}&year={since}-")
+        data = fetcher.get(url)
+        items = parse_s2(data, query) if data else []
+    elif source == "hn":
+        url = f"https://hn.algolia.com/api/v1/search?query={q(query)}&tags=story&hitsPerPage={min(n, 100)}"
+        data = fetcher.get(url)
+        items = parse_hn(data, query) if data else []
+    else:
+        raise ValueError(f"unknown source {source}")
+    return [i for i in items if not i.year or i.year >= since]
+
+
+def split_query(query: str) -> list[str]:
+    """Keep known multi-word phrases together for arXiv's field search."""
+    phrases = ["reinforcement learning", "deep reinforcement learning", "order flow", "limit order book", "order book",
+               "market making", "high-frequency trading", "optimal execution", "queue position", "market microstructure",
+               "deep learning", "price prediction", "agent-based"]
+    rest, found = query.lower(), []
+    for ph in sorted(phrases, key=len, reverse=True):
+        if ph in rest:
+            found.append(ph)
+            rest = rest.replace(ph, " ")
+    return found + [w for w in rest.split() if len(w) > 2]
+
+
+def merge(into: dict[str, Item], items: list[Item]) -> None:
+    for it in items:
+        cur = into.get(it.key)
+        if cur is None:
+            # Also merge a title match against an existing doi/arxiv record.
+            tkey = "title:" + normalize_title(it.title)
+            cur = next((v for v in into.values() if normalize_title(v.title) == tkey[6:]), None) if it.kind == "paper" else None
+            if cur is None:
+                into[it.key] = it
+                continue
+        for f in ("abstract", "pdf_url", "doi", "arxiv_id", "venue", "url"):
+            if not getattr(cur, f) and getattr(it, f):
+                setattr(cur, f, getattr(it, f))
+        if it.citations is not None and (cur.citations is None or it.citations > cur.citations):
+            cur.citations = it.citations
+        cur.year = cur.year or it.year
+        cur.authors = cur.authors or it.authors
+        cur.sources = sorted(set(cur.sources) | set(it.sources))
+        cur.queries = sorted(set(cur.queries) | set(it.queries))
+
+
+# ------------------------------------------------------------------ output
+def write_outputs(out: Path, items: list[Item]) -> None:
+    (out / "docs").mkdir(parents=True, exist_ok=True)
+    with open(out / "papers.jsonl", "w", encoding="utf-8") as f:
+        for it in items:
+            f.write(json.dumps(asdict(it), ensure_ascii=False) + "\n")
+    lines = [f"# RL trading research digest ({len(items)} items)", "",
+             "Ranked by keyword relevance (RL x market-microstructure terms), citations and recency.", ""]
+    for n, it in enumerate(items, 1):
+        meta = ", ".join(x for x in [str(it.year or ""), it.venue, f"{it.citations} citations" if it.kind == "paper" and it.citations is not None
+                                     else (f"{it.citations} points" if it.citations is not None else "")] if x)
+        lines.append(f"{n}. **{it.title}** ({meta}) score {it.score}  ")
+        lines.append(f"   {it.url}" + (f" · [pdf]({it.pdf_url})" if it.pdf_url else ""))
+        if it.abstract:
+            lines.append(f"   > {it.abstract[:400]}{'...' if len(it.abstract) > 400 else ''}")
+        lines.append("")
+    (out / "digest.md").write_text("\n".join(lines), encoding="utf-8")
+    for it in items:
+        body = [f"# {it.title}", "", f"- kind: {it.kind}", f"- year: {it.year or ''}", f"- authors: {', '.join(it.authors[:12])}",
+                f"- venue: {it.venue}", f"- link: {it.url}", f"- citations: {it.citations if it.citations is not None else ''}",
+                f"- relevance: {it.score}", ""]
+        if it.abstract:
+            body += ["## Abstract", "", it.abstract, ""]
+        if it.text:
+            body += ["## Text", "", it.text, ""]
+        (out / "docs" / f"{slug(it.key)}.md").write_text("\n".join(body), encoding="utf-8")
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("--out", default="research_corpus", help="output directory")
+    ap.add_argument("--sources", default="arxiv,openalex,s2,hn", help="comma-separated: arxiv,openalex,s2,hn")
+    ap.add_argument("--query", action="append", help="a search query (repeatable); default: built-in list")
+    ap.add_argument("--queries", help="file with one query per line")
+    ap.add_argument("--max-per-query", type=int, default=40)
+    ap.add_argument("--since", type=int, default=2015, help="earliest publication year")
+    ap.add_argument("--min-score", type=float, default=4.0, help="drop items below this relevance")
+    ap.add_argument("--fetch-articles", action="store_true", help="download the text of linked articles (hn)")
+    ap.add_argument("--pdfs", action="store_true", help="download open-access PDFs of the top items")
+    ap.add_argument("--max-pdfs", type=int, default=100)
+    args = ap.parse_args(argv)
+
+    out = Path(args.out)
+    fetcher = Fetcher(out / "cache")
+    queries = args.query or []
+    if args.queries:
+        queries += [l.strip() for l in Path(args.queries).read_text(encoding="utf-8").splitlines() if l.strip() and not l.startswith("#")]
+    queries = queries or DEFAULT_QUERIES
+    found: dict[str, Item] = {}
+    for source in [s.strip() for s in args.sources.split(",") if s.strip()]:
+        for query in queries:
+            items = search(fetcher, source, query, args.max_per_query, args.since)
+            print(f"{source:9s} {len(items):4d}  {query}", file=sys.stderr)
+            merge(found, items)
+    now_year = time.gmtime().tm_year
+    if args.fetch_articles:
+        for it in found.values():
+            if it.kind == "article":
+                raw = fetcher.get(it.url)
+                if raw:
+                    _, it.text = html_to_text(raw.decode("utf-8", "replace"))
+                    it.text = it.text[:50_000]
+    for it in found.values():
+        it.score = relevance(it, now_year)
+    ranked = sorted((i for i in found.values() if i.score >= args.min_score), key=lambda i: -i.score)
+    write_outputs(out, ranked)
+    if args.pdfs:
+        (out / "pdfs").mkdir(exist_ok=True)
+        got = 0
+        for it in ranked:
+            if got >= args.max_pdfs:
+                break
+            if it.pdf_url:
+                dest = out / "pdfs" / f"{slug(it.key)}.pdf"
+                if dest.exists() and dest.read_bytes()[:4] == b"%PDF":  # already downloaded: don't fetch again
+                    got += 1
+                    continue
+                url = it.pdf_url.replace("://arxiv.org/", "://export.arxiv.org/")  # arXiv asks bulk clients to use export
+                data = fetcher.get(url, cache=False)
+                if data and data[:4] == b"%PDF":
+                    dest.write_bytes(data)
+                    got += 1
+        print(f"downloaded {got} PDFs", file=sys.stderr)
+    print(f"{len(found)} items found, {len(ranked)} kept (score >= {args.min_score}); wrote {out / 'digest.md'}", file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+```
+
+
+---
+
+## FILE: tools/test_research_crawler.py  (7,549 bytes)
+
+```python
+"""Offline tests for research_crawler.py: parsers on small hand-written
+responses in each API's documented shape, merging, ranking, robots.txt and
+the anonymity of requests. No network access is needed or used.
+
+    python3 -m unittest discover -s tools -p "test_*.py"
+"""
+import json
+import sys
+import tempfile
+import unittest
+import urllib.robotparser
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import research_crawler as rc  # noqa: E402
+
+ARXIV = b"""<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
+  <entry>
+    <id>http://arxiv.org/abs/2101.00001v2</id>
+    <published>2021-01-04T00:00:00Z</published>
+    <title>Deep Reinforcement Learning for
+      Market Making in a Limit Order Book</title>
+    <summary>We train a PPO agent on order flow imbalance and queue position features.</summary>
+    <author><name>A. Author</name></author><author><name>B. Author</name></author>
+    <link title="pdf" href="http://arxiv.org/pdf/2101.00001v2"/>
+    <arxiv:doi>10.1000/example.1</arxiv:doi>
+  </entry>
+</feed>"""
+
+OPENALEX = json.dumps({"results": [{
+    "id": "https://openalex.org/W1", "doi": "https://doi.org/10.1000/EXAMPLE.1",
+    "title": "Deep reinforcement learning for market making in a limit order book",
+    "publication_year": 2021, "cited_by_count": 42,
+    "authorships": [{"author": {"display_name": "A. Author"}}],
+    "primary_location": {"landing_page_url": "https://example.org/paper", "source": {"display_name": "Quant Finance"}},
+    "abstract_inverted_index": {"We": [0], "train": [1], "agents": [2]},
+    "open_access": {"oa_url": ""}}]}).encode()
+
+S2 = json.dumps({"data": [{
+    "title": "Order flow imbalance and short-term price prediction", "year": 2019, "venue": "J. Fin. Econometrics",
+    "abstract": "Order flow imbalance at the best quotes predicts price changes.", "citationCount": 10,
+    "externalIds": {"ArXiv": "1907.00002"}, "openAccessPdf": {"url": "https://arxiv.org/pdf/1907.00002"},
+    "url": "https://www.semanticscholar.org/paper/x", "authors": [{"name": "C. Author"}]}]}).encode()
+
+HN = json.dumps({"hits": [
+    {"title": "Scalping ES futures with reinforcement learning", "url": "https://blog.example.com/rl-es#top",
+     "points": 120, "created_at": "2023-05-01T00:00:00Z"},
+    {"title": "Ask HN: no link", "url": None, "points": 5, "created_at": "2023-01-01T00:00:00Z"}]}).encode()
+
+
+class Parsers(unittest.TestCase):
+    def test_arxiv(self):
+        [it] = rc.parse_arxiv(ARXIV, "q")
+        self.assertEqual(it.title, "Deep Reinforcement Learning for Market Making in a Limit Order Book")
+        self.assertEqual(it.arxiv_id, "2101.00001v2")
+        self.assertEqual(it.key, "doi:10.1000/example.1")
+        self.assertEqual(it.year, 2021)
+        self.assertEqual(it.authors, ["A. Author", "B. Author"])
+        self.assertEqual(it.pdf_url, "https://arxiv.org/pdf/2101.00001v2")
+
+    def test_openalex_rebuilds_the_abstract(self):
+        [it] = rc.parse_openalex(OPENALEX, "q")
+        self.assertEqual(it.abstract, "We train agents")
+        self.assertEqual(it.doi, "10.1000/EXAMPLE.1")
+        self.assertEqual(it.key, "doi:10.1000/example.1")  # keys are case-insensitive
+        self.assertEqual(it.citations, 42)
+        self.assertEqual(it.venue, "Quant Finance")
+
+    def test_s2_and_hn(self):
+        [p] = rc.parse_s2(S2, "q")
+        self.assertEqual(p.key, "arxiv:1907.00002")
+        self.assertEqual(p.citations, 10)
+        hits = rc.parse_hn(HN, "q")
+        self.assertEqual(len(hits), 1)  # stories without a link are dropped
+        self.assertEqual(hits[0].kind, "article")
+        self.assertEqual(hits[0].key, "url:https://blog.example.com/rl-es")
+        self.assertEqual(hits[0].venue, "blog.example.com")
+
+
+class MergeAndRank(unittest.TestCase):
+    def test_same_paper_from_two_sources_merges(self):
+        found = {}
+        rc.merge(found, rc.parse_arxiv(ARXIV, "q1"))
+        rc.merge(found, rc.parse_openalex(OPENALEX, "q2"))
+        self.assertEqual(len(found), 1)
+        [it] = found.values()
+        self.assertEqual(it.sources, ["arxiv", "openalex"])
+        self.assertEqual(it.queries, ["q1", "q2"])
+        self.assertEqual(it.citations, 42)  # the larger count wins
+        self.assertTrue(it.pdf_url)
+
+    def test_relevance_prefers_rl_on_microstructure(self):
+        core = rc.Item(key="a", source="s", kind="paper", title="Reinforcement learning for market making with order flow",
+                       abstract="queue position and order book imbalance", year=2024)
+        generic = rc.Item(key="b", source="s", kind="paper", title="Reinforcement learning for robot control",
+                          abstract="locomotion", year=2024)
+        finance_only = rc.Item(key="c", source="s", kind="paper", title="Order book imbalance and spreads",
+                               abstract="microstructure of futures markets", year=2024)
+        s = {i.key: rc.relevance(i, 2025) for i in (core, generic, finance_only)}
+        self.assertGreater(s["a"], s["c"])
+        self.assertGreater(s["a"], s["b"])
+        self.assertGreater(s["c"], 0)
+
+    def test_outputs(self):
+        found = {}
+        rc.merge(found, rc.parse_arxiv(ARXIV, "q"))
+        rc.merge(found, rc.parse_hn(HN, "q"))
+        items = list(found.values())
+        for it in items:
+            it.score = rc.relevance(it, 2025)
+        with tempfile.TemporaryDirectory() as d:
+            rc.write_outputs(Path(d), items)
+            lines = (Path(d) / "papers.jsonl").read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(lines), 2)
+            self.assertIn("Market Making", (Path(d) / "digest.md").read_text(encoding="utf-8"))
+            self.assertEqual(len(list((Path(d) / "docs").glob("*.md"))), 2)
+
+
+class Helpers(unittest.TestCase):
+    def test_html_to_text_drops_scripts_and_navigation(self):
+        title, text = rc.html_to_text("<html><head><title>T</title><script>var x=1;</script></head>"
+                                      "<body><nav>menu</nav><p>Order flow &amp; RL.</p><p>Second.</p></body></html>")
+        self.assertEqual(title, "T")
+        self.assertIn("Order flow & RL.", text)
+        self.assertNotIn("var x", text)
+        self.assertNotIn("menu", text)
+
+    def test_split_query_keeps_phrases(self):
+        self.assertEqual(rc.split_query("reinforcement learning limit order book"), ["reinforcement learning", "limit order book"])
+
+    def test_requests_are_anonymous(self):
+        f = rc.Fetcher(Path(tempfile.mkdtemp()))
+        headers = dict(f.opener.addheaders)
+        self.assertEqual(headers["User-Agent"], "research-crawler/1.0")
+        self.assertNotIn("From", headers)
+        self.assertNotIn("Cookie", headers)
+        self.assertNotIn("Referer", headers)
+        self.assertFalse(any("@" in v for v in headers.values()))
+
+    def test_robots_txt_is_respected_for_web_pages(self):
+        f = rc.Fetcher(Path(tempfile.mkdtemp()))
+        rp = urllib.robotparser.RobotFileParser()
+        rp.parse(["User-agent: *", "Disallow: /private/"])
+        f.robots["https://blog.example.com"] = rp
+        self.assertTrue(f.allowed("https://blog.example.com/post"))
+        self.assertFalse(f.allowed("https://blog.example.com/private/x"))
+        self.assertIsNone(f.get("https://blog.example.com/private/x", quiet=True))  # skipped without a request
+        self.assertTrue(f.allowed("https://export.arxiv.org/api/query?x"))  # documented public API
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+```

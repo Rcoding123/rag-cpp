@@ -43,6 +43,15 @@ rag-cpp/
 │           ├── learners.hpp     TileQ, ReplayBuffer, EpisodicMemory
 │           ├── mlp.hpp          from-scratch MLP: backprop, Adam, SGD (for NeuralQ)
 │           ├── policy_table.hpp compile a policy into a lookup table; save/load; median-vote ensembles (E22, E23)
+│           ├── validation.hpp   stress suite, sealed test seeds, paired trading metrics (E28)
+│       └── orderflow/           ES order-flow trading (ORDERFLOW.md)
+│           ├── simulator.hpp    EsSimulator: tick-level ES book, takers, meta-orders, fading, icebergs, FIFO own orders
+│           ├── features.hpp     FeatureBuilder: 13 order-flow features from any tick stream
+│           ├── scalp_env.hpp    ScalpEnv: directional scalping with market orders
+│           ├── tick_env.hpp     TickScalpEnv: passive tick scalping with queue position
+│           ├── tick_csv.hpp     recorded ticks from CSV, bucketed
+│           ├── replay_env.hpp   TickTape + ReplayScalpEnv: backtests on recorded ticks
+│           ├── stylized.hpp     stylized facts of a tick stream (calibration)
 │           ├── agent.hpp        Agent<Env>: TileQ / Episodic / ActorCritic / NeuralQ, n-step, distill, snapshots
 │           ├── evaluate.hpp     evaluate / compare on common random numbers (EvalStats)
 │           ├── drift.hpp        DriftDetector: one-sided CUSUM on surprise (DriftParams)
@@ -80,6 +89,9 @@ rag-cpp/
 │   ├── rag_pdf.cpp              CLI: index PDFs, ask questions with page citations
 │   ├── tune_agent.cpp           (NLopt + Eigen) hyperparameter search, validation, sensitivity
 │   ├── train_ensemble.cpp       the recommended policy (E25, A48): N averaged networks in parallel, tables, median vote
+│   ├── of_train.cpp             order-flow scalping agents trained in parallel (one seed per thread)
+│   ├── of_backtest.cpp          walk-forward backtest of scalping strategies on recorded ticks
+│   ├── of_calibrate.cpp         simulator vs recorded ticks: facts, fit (NLopt), export
 │   └── agent_demo.cpp           the self-learning agent end to end (model-free, drift, model-based + model check)
 ├── docs/
 │   ├── agent.md                 the agent's architecture, with every measured lesson
@@ -98,8 +110,10 @@ rag-cpp/
 │       ├── CONVENTIONS.md       coding, testing and verification rules
 │       └── STATUS.md            what works, limitations, next steps
 ├── tools/make_context_pack.py   bundles docs (and optionally sources) into one file for an AI
+├── tools/research_crawler.py    anonymous, polite crawler for RL trading research -> research_corpus/ (gitignored)
 ├── handoff/                    generated bundles to paste into another AI (docs ~58k tokens, full ~240k)
-├── experiments/                 the probe programs behind EXPERIMENTS.md (snapshots; not built)
+├── experiments/                 the probe programs behind EXPERIMENTS.md and OF1-OF9 (snapshots; only of7 is built,
+│                                as of_tick_train), their result files, and research_synthesis.md
 ├── llms.txt                     index of this pack for language models
 └── .github/workflows/ci.yml     8 CI jobs
 ```

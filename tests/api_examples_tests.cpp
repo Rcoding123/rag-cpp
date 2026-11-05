@@ -5,6 +5,7 @@
 #include "pid.hpp"
 
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -14,6 +15,7 @@
 #include "rag/agent/model_based.hpp"
 #include "rag/agent/ope.hpp"
 #include "rag/agent/policy_table.hpp"
+#include "rag/orderflow/replay_env.hpp"
 #include "rag/agent/trainer.hpp"
 #include "rag/text_clean.hpp"
 
@@ -251,5 +253,28 @@ TEST(ApiExamples, CompileAPolicyIntoATable) {
   const auto voted = ExecutionPolicyTable::median({table, loaded, loaded});
   EXPECT_EQ(loaded.act(obs), fast);
   EXPECT_EQ(voted.act(obs), fast);
+  std::filesystem::remove(path);
+}
+
+// --- API.md §14: ES order-flow trading ---------------------------------------
+TEST(ApiExamples, OrderFlowTrading) {
+  using namespace rag::orderflow;
+  EsSimulator sim(SimParams{}, /*seed=*/1);
+  sim.step();
+  const auto id = sim.submit_limit(Side::Buy, sim.bid(), 1);
+  EXPECT_NE(id, 0u);
+  EXPECT_EQ(sim.resting().size(), 1u);
+  ScalpEnv env;
+  rag::agent::Rng r(1);
+  const auto o = env.reset(r);
+  EXPECT_EQ(o.position, 0);
+  const auto path = tmp("es_ticks.csv");
+  {
+    std::ofstream f(path);
+    for (int i = 0; i < 9000; ++i) f << "Q," << i * 100'000'000LL << ",5000.00,5000.25\n";
+  }
+  auto tape = std::make_shared<const TickTape>(TickTape::from_csv(path.string(), {.time_unit = "ns"}));
+  ReplayScalpEnv replay(tape);
+  EXPECT_GE(replay.windows(), 1u);
   std::filesystem::remove(path);
 }

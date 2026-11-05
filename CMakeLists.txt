@@ -143,6 +143,10 @@ add_executable(of_train examples/of_train.cpp)
 target_link_libraries(of_train PRIVATE rag Threads::Threads)
 add_test(NAME of_train_smoke COMMAND of_train --seeds 2 --threads 2 --episodes 3 --test 2 --out ${CMAKE_CURRENT_BINARY_DIR}/of_train_smoke)
 
+# The rule-guided tick-scalping trainer (OF7), one seed per process.
+add_executable(of_tick_train experiments/of7_tick_guided.cpp)
+target_link_libraries(of_tick_train PRIVATE rag)
+
 # Walk-forward backtest of scalping strategies on recorded ticks.
 add_executable(of_backtest examples/of_backtest.cpp)
 target_link_libraries(of_backtest PRIVATE rag)

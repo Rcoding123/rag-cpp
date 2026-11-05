@@ -317,6 +317,20 @@ const auto voted = ExecutionPolicyTable::median({table, loaded, loaded});  // ce
 The table holds horizon × (lots + 1) × bins one-byte actions (129 KB at the
 defaults and 64 bins). Signals beyond the range use the edge bins (E22, E23).
 
+## 14. ES order-flow trading (summary; details in ORDERFLOW.md)
+
+```cpp
+#include "rag/orderflow/scalp_env.hpp"   // EsSimulator, FeatureBuilder, ScalpEnv
+#include "rag/orderflow/replay_env.hpp"  // TickTape, ReplayScalpEnv
+using namespace rag::orderflow;
+EsSimulator sim(SimParams{}, /*seed=*/1);        // or efficient_market()
+sim.step();                                       // 100 ms: sim.trades(), sim.quote()
+const auto id = sim.submit_limit(Side::Buy, sim.bid(), 1);  // FIFO queue position: sim.resting()
+ScalpEnv env;                                     // an Environment for rag::agent learners
+auto tape = std::make_shared<const TickTape>(TickTape::from_csv("es_ticks.csv", {.time_unit = "ns"}));
+ReplayScalpEnv replay(tape);                      // same observations, recorded ticks
+```
+
 A new environment only needs to satisfy the `Environment` concept: an
 `Observation` type, `kNumActions`, `kStateDims`, `kLo`/`kHi`, and
 `reset(rng)`, `step(action, rng)` and `features(obs)`.
