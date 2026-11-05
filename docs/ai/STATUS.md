@@ -9,7 +9,10 @@
   mean anything), a tick-scalping environment with FIFO queue position
   (RL matches but doesn't beat the delta-skew rule), a backtester on
   recorded ticks, calibration tooling, a parallel trainer for many-core
-  servers, and an anonymous research crawler.
+  servers, and an anonymous research crawler. Known flaw, first on the
+  plan: price discovery is too slow in the simulator (the hidden value
+  gap predicts the next 30 s at ~0.6), so RL profits there are inflated;
+  the "efficient" preset leaks value through the book (OF9).
 
 * **Platforms:** Linux (GCC 13, Clang 18; seven CI jobs including
   sanitizers and fuzzing) and Windows (Visual Studio 2022 / MSVC, AVX2;

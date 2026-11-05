@@ -21,6 +21,7 @@ docs/ai/DECISIONS.md
 docs/ai/EXPERIMENTS.md
 docs/ai/LESSONS.md
 docs/ai/OBJECTIVES.md
+docs/ai/ORDERFLOW.md
 docs/ai/PROJECT_MAP.md
 docs/ai/RAG_ENGINE.md
 docs/ai/README.md
@@ -123,9 +124,11 @@ experiments/of5_results.csv
 experiments/of5_tick_rl.cpp
 experiments/of6_results.csv
 experiments/of6_scalp_stress.cpp
+experiments/of7_results.csv
 experiments/of7_tick_guided.cpp
 experiments/of8_scalp_days.cpp
 experiments/of9_efficient_baselines.txt
+experiments/of9_rl_results.csv
 experiments/pdf_probe.cpp
 experiments/persist_timing.cpp
 experiments/polyak.cpp
@@ -2162,7 +2165,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (10,032 bytes)
+## FILE: docs/ai/LESSONS.md  (10,633 bytes)
 
 # Lessons, distilled
 
@@ -2335,6 +2338,15 @@ building learning systems in general, not just this task.
 37. **Re-run what you commit.** A results table produced by a stale
     binary (the last sweep step) went into git; regenerate result files
     from the committed code, in the same command (OF4 correction).
+38. **Beating the oracle means a leak.** Making trade flow unpredictable
+    (informed makers) moved the information into the book: the agent read
+    the makers' tilted order rates and outperformed an oracle that sees
+    the hidden value. Check every new market against an oracle and against
+    the features' correlation with hidden state (OF9).
+39. **Pairing needs counter-based randomness.** One stream per process
+    barely helped (state-dependent draw counts desynchronize streams);
+    re-seeding every step from (seed, process, step) doubled the paired
+    runs' correlation (0.33 -> 0.61).
 
 
 
@@ -4401,7 +4413,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (8,061 bytes)
+## FILE: docs/ai/STATUS.md  (8,291 bytes)
 
 # Status, limitations and next steps
 
@@ -4414,7 +4426,10 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
   mean anything), a tick-scalping environment with FIFO queue position
   (RL matches but doesn't beat the delta-skew rule), a backtester on
   recorded ticks, calibration tooling, a parallel trainer for many-core
-  servers, and an anonymous research crawler.
+  servers, and an anonymous research crawler. Known flaw, first on the
+  plan: price discovery is too slow in the simulator (the hidden value
+  gap predicts the next 30 s at ~0.6), so RL profits there are inflated;
+  the "efficient" preset leaks value through the book (OF9).
 
 * **Platforms:** Linux (GCC 13, Clang 18; seven CI jobs including
   sanitizers and fuzzing) and Windows (Visual Studio 2022 / MSVC, AVX2;
@@ -4549,7 +4564,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/ORDERFLOW.md  (13,589 bytes)
+## FILE: docs/ai/ORDERFLOW.md  (15,901 bytes)
 
 # ES order-flow trading: simulator, agents, validation, plan
 
@@ -4692,14 +4707,29 @@ anchored +2.58/+2.57 vs the rule's +2.90 (not significantly different).
 Review findings: pairing shares the seed, not the market path (our orders
 change it), so validation leads are mostly selection noise; actions take
 effect instantly (the rule's edge is +2.20 with 100 ms action latency).
-Full run (4 × 2,000): see `experiments/of7_results.csv` when present.
+Full run (2,000 episodes; seeds 1–2: seeds 3–4 were OOM-killed by the
+tile-table bug, since fixed), `experiments/of7_results.csv`: anchored
+champions +3.02 / +2.94 ticks vs the rule's +2.90, paired +0.13 (t 0.5)
+/ +0.04 (t 0.2): **not significant**. Their validation leads (+0.97 t 2.2,
++1.09 t 2.8) vanished on sealed data, exactly the selection noise the
+review predicted. Greedy champions −0.89 / −0.58 (−3.8 / −3.5 vs the
+rule). RL matches the rule; it doesn't beat it.
 
 **OF9 — efficient market** (`efficient_market()`: informed makers): 30 s
 delta no longer predicts (corr −0.02 vs +0.12); markout flat after 5 s
 (+0.57 → +0.56 vs +0.57 → +1.40 by default). Baselines: delta momentum
 −7.2 ticks/episode (t −12), OFI momentum +1.4 (t 2.9: OFI sees the makers'
-re-pricing), oracle +8.8. RL retraining in this market: see
-`experiments/of9_*` when present.
+re-pricing), oracle +8.8. **RL retraining in this market** (4 seeds ×
+2,000, `experiments/of9_rl_results.csv`): +9.7 to +11.2 ticks/episode
+(t 21–24, 95–97% winning), *more* than by default and more than the
+fair-value oracle: a red flag. Diagnosis: the informed makers tilt their
+order rates toward the hidden value while the price adjusts slowly, so the
+book imbalance leaks it (corr with the hidden gap 0.49 vs 0.20 by default;
+L1 imbalance vs next 30 s return 0.32 vs 0.25) and the agent reads it. The
+preset removed trade-flow predictability and moved it into the book. In
+both presets price discovery is far too slow (the hidden gap predicts the
+next 30 s return at 0.58–0.65); real ES prices information in seconds.
+**This is the most important simulator fix** (plan item 1).
 
 **Calibration** (`of_calibrate`): recorded-tick CSV round trip exact;
 in a recovery test (target = informed flow ×0.4) the fit matched
@@ -4735,7 +4765,11 @@ stale binary (OF4).
 
 ## 7. Plan for the next AI (ranked)
 
-1. **Calibrate to the user's ES ticks:** convert their export to the CSV
+1. **Fix slow price discovery, then calibrate to the user's ES ticks.**
+   First make makers re-price immediately when value moves (quote jumps,
+   not rate tilts), until the hidden gap no longer predicts the next 30 s
+   and book imbalance predicts only the next tick or two (OF9 diagnosis);
+   re-run OF2, OF3, OF6, OF8, OF9. Then **calibrate to the user's ES ticks:** convert their export to the CSV
    format, run `of_calibrate facts`, then `fit` with many seeds and long
    windows on their server; add richer targets first (markout curve at
    more horizons, queue depletion/refill rates; MBO if available). Re-run
@@ -4743,10 +4777,22 @@ stale binary (OF4).
 2. **Backtest on real ticks:** `of_backtest` with the saved agents and the
    delta rule; walk-forward by day; train on recorded windows
    (`ReplayScalpEnv::reset`) and test on later days only.
-3. **Paired evaluation on the same market path:** one RNG stream per
-   exogenous process in `EsSimulator` (opt-in so old results reproduce),
-   then measure the paired-difference sd (now 3.8–6.2 ticks vs 6.6
-   per-episode sd).
+3. **Paired evaluation on the same market path:** `SimParams::separate_streams`
+   (opt-in; one RNG stream per exogenous process) exists, but measured it
+   barely helps: rule vs the rule with one forced deviation, 200 episodes,
+   paired-difference sd 5.41 → 5.16 ticks against an episode sd of ~4.8.
+   Why: state-dependent draws (cancellations scale with queue size; the
+   Poisson sampler uses a variable number of uniforms) desynchronize even
+   a process's own stream, and activity (which scales fair-value
+   volatility) is excited by price moves, so the fair-value path itself is
+   endogenous (independent of our orders only with `activity_excite = 0`;
+   tested). With the streams also re-seeded every step from (seed,
+   process, step) (counter-based, now the behaviour of `separate_streams`),
+   the correlation of the paired runs rises from 0.33 (shared stream) to
+   0.61: paired comparisons have ~40% less variance. Use
+   `separate_streams = true` for paired validation; the rest of the noise
+   is the market's genuine reaction to our orders. Next: fewer
+   state-dependent draw counts inside a step.
 4. **Tick scalper:** action latency in `TickScalpEnv` (opt-in), tick
    diagnostics (no-trade share, spread capture vs carry, own-fill
    markouts), learn the advantage over the rule; success = match or beat

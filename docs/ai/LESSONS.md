@@ -169,3 +169,12 @@ building learning systems in general, not just this task.
 37. **Re-run what you commit.** A results table produced by a stale
     binary (the last sweep step) went into git; regenerate result files
     from the committed code, in the same command (OF4 correction).
+38. **Beating the oracle means a leak.** Making trade flow unpredictable
+    (informed makers) moved the information into the book: the agent read
+    the makers' tilted order rates and outperformed an oracle that sees
+    the hidden value. Check every new market against an oracle and against
+    the features' correlation with hidden state (OF9).
+39. **Pairing needs counter-based randomness.** One stream per process
+    barely helped (state-dependent draw counts desynchronize streams);
+    re-seeding every step from (seed, process, step) doubled the paired
+    runs' correlation (0.33 -> 0.61).

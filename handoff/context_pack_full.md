@@ -21,6 +21,7 @@ docs/ai/DECISIONS.md
 docs/ai/EXPERIMENTS.md
 docs/ai/LESSONS.md
 docs/ai/OBJECTIVES.md
+docs/ai/ORDERFLOW.md
 docs/ai/PROJECT_MAP.md
 docs/ai/RAG_ENGINE.md
 docs/ai/README.md
@@ -123,9 +124,11 @@ experiments/of5_results.csv
 experiments/of5_tick_rl.cpp
 experiments/of6_results.csv
 experiments/of6_scalp_stress.cpp
+experiments/of7_results.csv
 experiments/of7_tick_guided.cpp
 experiments/of8_scalp_days.cpp
 experiments/of9_efficient_baselines.txt
+experiments/of9_rl_results.csv
 experiments/pdf_probe.cpp
 experiments/persist_timing.cpp
 experiments/polyak.cpp
@@ -2248,7 +2251,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (10,032 bytes)
+## FILE: docs/ai/LESSONS.md  (10,633 bytes)
 
 # Lessons, distilled
 
@@ -2421,6 +2424,15 @@ building learning systems in general, not just this task.
 37. **Re-run what you commit.** A results table produced by a stale
     binary (the last sweep step) went into git; regenerate result files
     from the committed code, in the same command (OF4 correction).
+38. **Beating the oracle means a leak.** Making trade flow unpredictable
+    (informed makers) moved the information into the book: the agent read
+    the makers' tilted order rates and outperformed an oracle that sees
+    the hidden value. Check every new market against an oracle and against
+    the features' correlation with hidden state (OF9).
+39. **Pairing needs counter-based randomness.** One stream per process
+    barely helped (state-dependent draw counts desynchronize streams);
+    re-seeding every step from (seed, process, step) doubled the paired
+    runs' correlation (0.33 -> 0.61).
 
 
 
@@ -4487,7 +4499,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (8,061 bytes)
+## FILE: docs/ai/STATUS.md  (8,291 bytes)
 
 # Status, limitations and next steps
 
@@ -4500,7 +4512,10 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
   mean anything), a tick-scalping environment with FIFO queue position
   (RL matches but doesn't beat the delta-skew rule), a backtester on
   recorded ticks, calibration tooling, a parallel trainer for many-core
-  servers, and an anonymous research crawler.
+  servers, and an anonymous research crawler. Known flaw, first on the
+  plan: price discovery is too slow in the simulator (the hidden value
+  gap predicts the next 30 s at ~0.6), so RL profits there are inflated;
+  the "efficient" preset leaks value through the book (OF9).
 
 * **Platforms:** Linux (GCC 13, Clang 18; seven CI jobs including
   sanitizers and fuzzing) and Windows (Visual Studio 2022 / MSVC, AVX2;
@@ -4635,7 +4650,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/ORDERFLOW.md  (13,589 bytes)
+## FILE: docs/ai/ORDERFLOW.md  (15,901 bytes)
 
 # ES order-flow trading: simulator, agents, validation, plan
 
@@ -4778,14 +4793,29 @@ anchored +2.58/+2.57 vs the rule's +2.90 (not significantly different).
 Review findings: pairing shares the seed, not the market path (our orders
 change it), so validation leads are mostly selection noise; actions take
 effect instantly (the rule's edge is +2.20 with 100 ms action latency).
-Full run (4 × 2,000): see `experiments/of7_results.csv` when present.
+Full run (2,000 episodes; seeds 1–2: seeds 3–4 were OOM-killed by the
+tile-table bug, since fixed), `experiments/of7_results.csv`: anchored
+champions +3.02 / +2.94 ticks vs the rule's +2.90, paired +0.13 (t 0.5)
+/ +0.04 (t 0.2): **not significant**. Their validation leads (+0.97 t 2.2,
++1.09 t 2.8) vanished on sealed data, exactly the selection noise the
+review predicted. Greedy champions −0.89 / −0.58 (−3.8 / −3.5 vs the
+rule). RL matches the rule; it doesn't beat it.
 
 **OF9 — efficient market** (`efficient_market()`: informed makers): 30 s
 delta no longer predicts (corr −0.02 vs +0.12); markout flat after 5 s
 (+0.57 → +0.56 vs +0.57 → +1.40 by default). Baselines: delta momentum
 −7.2 ticks/episode (t −12), OFI momentum +1.4 (t 2.9: OFI sees the makers'
-re-pricing), oracle +8.8. RL retraining in this market: see
-`experiments/of9_*` when present.
+re-pricing), oracle +8.8. **RL retraining in this market** (4 seeds ×
+2,000, `experiments/of9_rl_results.csv`): +9.7 to +11.2 ticks/episode
+(t 21–24, 95–97% winning), *more* than by default and more than the
+fair-value oracle: a red flag. Diagnosis: the informed makers tilt their
+order rates toward the hidden value while the price adjusts slowly, so the
+book imbalance leaks it (corr with the hidden gap 0.49 vs 0.20 by default;
+L1 imbalance vs next 30 s return 0.32 vs 0.25) and the agent reads it. The
+preset removed trade-flow predictability and moved it into the book. In
+both presets price discovery is far too slow (the hidden gap predicts the
+next 30 s return at 0.58–0.65); real ES prices information in seconds.
+**This is the most important simulator fix** (plan item 1).
 
 **Calibration** (`of_calibrate`): recorded-tick CSV round trip exact;
 in a recovery test (target = informed flow ×0.4) the fit matched
@@ -4821,7 +4851,11 @@ stale binary (OF4).
 
 ## 7. Plan for the next AI (ranked)
 
-1. **Calibrate to the user's ES ticks:** convert their export to the CSV
+1. **Fix slow price discovery, then calibrate to the user's ES ticks.**
+   First make makers re-price immediately when value moves (quote jumps,
+   not rate tilts), until the hidden gap no longer predicts the next 30 s
+   and book imbalance predicts only the next tick or two (OF9 diagnosis);
+   re-run OF2, OF3, OF6, OF8, OF9. Then **calibrate to the user's ES ticks:** convert their export to the CSV
    format, run `of_calibrate facts`, then `fit` with many seeds and long
    windows on their server; add richer targets first (markout curve at
    more horizons, queue depletion/refill rates; MBO if available). Re-run
@@ -4829,10 +4863,22 @@ stale binary (OF4).
 2. **Backtest on real ticks:** `of_backtest` with the saved agents and the
    delta rule; walk-forward by day; train on recorded windows
    (`ReplayScalpEnv::reset`) and test on later days only.
-3. **Paired evaluation on the same market path:** one RNG stream per
-   exogenous process in `EsSimulator` (opt-in so old results reproduce),
-   then measure the paired-difference sd (now 3.8–6.2 ticks vs 6.6
-   per-episode sd).
+3. **Paired evaluation on the same market path:** `SimParams::separate_streams`
+   (opt-in; one RNG stream per exogenous process) exists, but measured it
+   barely helps: rule vs the rule with one forced deviation, 200 episodes,
+   paired-difference sd 5.41 → 5.16 ticks against an episode sd of ~4.8.
+   Why: state-dependent draws (cancellations scale with queue size; the
+   Poisson sampler uses a variable number of uniforms) desynchronize even
+   a process's own stream, and activity (which scales fair-value
+   volatility) is excited by price moves, so the fair-value path itself is
+   endogenous (independent of our orders only with `activity_excite = 0`;
+   tested). With the streams also re-seeded every step from (seed,
+   process, step) (counter-based, now the behaviour of `separate_streams`),
+   the correlation of the paired runs rises from 0.33 (shared stream) to
+   0.61: paired comparisons have ~40% less variance. Use
+   `separate_streams = true` for paired validation; the rest of the noise
+   is the market's genuine reaction to our orders. Next: fewer
+   state-dependent draw counts inside a step.
 4. **Tick scalper:** action latency in `TickScalpEnv` (opt-in), tick
    diagnostics (no-trade share, spread capture vs carry, own-fill
    markouts), learn the advantage over the rule; success = match or beat
@@ -12509,7 +12555,7 @@ static_assert(rag::agent::Environment<ScalpEnv>);
 
 ---
 
-## FILE: include/rag/orderflow/simulator.hpp  (24,405 bytes)
+## FILE: include/rag/orderflow/simulator.hpp  (26,776 bytes)
 
 ```cpp
 // rag/orderflow/simulator.hpp — a synthetic ES futures market at tick level.
@@ -12647,13 +12693,25 @@ struct SimParams {
   // cancel_back_bias come from ahead of our order (1 = uniform). And faster
   // participants beat a 100 ms order to a level: on joining, a lognormal
   // number of lots with mean join_ahead_mean lands ahead of it.
+  // One random stream per exogenous process (value/activity, noise takers,
+  // meta-orders, momentum, order shuffling, makers, icebergs, our queue
+  // competition) instead of one shared stream. Then two strategies run on
+  // the same seed see the same news and the same arriving traders even
+  // after their own orders change the book (paired comparisons). Off by
+  // default: the shared stream reproduces every earlier result exactly.
+  bool separate_streams = false;
   double cancel_back_bias = 3.0, join_ahead_mean = 120;  // OF4: naive two-sided quoting ~breakeven gross, loses after fees
 };
 
-// A more efficient market: informed makers re-price ahead of informed flow,
-// so order flow moves prices at once but no longer predicts the next 30 s
-// (3 seeds x 2 h: corr(30 s delta, next 30 s) -0.02 vs +0.12 by default;
-// markout flat after 5 s: +0.57 at 5 s, +0.56 at 30 s vs +1.40 by default).
+// Informed makers: they re-price ahead of informed flow, so *trade* flow no
+// longer predicts the next 30 s (3 seeds x 2 h: corr(30 s delta, next 30 s)
+// -0.02 vs +0.12 by default; markout flat after 5 s). CAUTION, despite the
+// name: the makers tilt their order *rates* toward the hidden value while
+// the price adjusts slowly, so the *book imbalance* now leaks it (corr with
+// the hidden gap 0.49 vs 0.20; with the next 30 s return 0.32 vs 0.25) and
+// RL scalping earns more here than by default (OF9). Price discovery is too
+// slow in both presets (the hidden gap predicts the next 30 s at 0.58-0.65);
+// a truly efficient market needs makers that re-price (jump quotes) at once.
 inline SimParams efficient_market() {
   SimParams p;
   p.maker_info = 1.0;
@@ -12670,6 +12728,9 @@ class EsSimulator {
   explicit EsSimulator(const SimParams& p = {}, std::uint64_t seed = 1, double start_second = 0) : p_(p), rng_(seed) {
     if (!(p_.dt > 0) || !(p_.cancel_rate >= 0) || !(p_.maker_decay > 0) || !(p_.meta_alpha > 0) || !(p_.fade_tau > 0))
       throw std::invalid_argument("SimParams: dt, maker_decay, meta_alpha and fade_tau must be positive");
+    seed_ = seed;
+    if (p_.separate_streams)
+      for (std::uint64_t k = 0; k < kStreams; ++k) streams_.emplace_back(stream_seed(k, 0));
     bid_ = p_.start_price;
     value_ = p_.start_price + 0.5;
     clock_ = start_second;
@@ -12681,26 +12742,34 @@ class EsSimulator {
   void step() {
     trades_.clear();
     fills_.clear();
+    // Counter-based streams: every step re-seeds each process from (seed,
+    // process, step), so a different number of draws in one step (state-
+    // dependent counts) can't shift any later step's randomness.
+    ++steps_;
+    for (std::size_t k = 0; k < streams_.size(); ++k) streams_[k].reseed(stream_seed(k, steps_));
     const double dt = p_.dt;
     t_ns_ += static_cast<std::int64_t>(std::llround(dt * 1e9));
     clock_ += dt;
     const double mid0 = mid();
     // 1. Activity.
-    log_activity_ += -log_activity_ / p_.activity_tau * dt + p_.activity_vol * std::sqrt(dt) * rng_.normal();
+    use(kValue);
+    log_activity_ += -log_activity_ / p_.activity_tau * dt + p_.activity_vol * std::sqrt(dt) * r().normal();
     const double a = std::exp(log_activity_) * intraday(clock_);
     // 2. Fair value.
-    value_ += p_.value_vol * std::sqrt(a * dt) * rng_.normal();
-    if (rng_.uniform() < p_.jump_rate * dt) value_ += p_.jump_sd * rng_.normal();
+    value_ += p_.value_vol * std::sqrt(a * dt) * r().normal();
+    if (r().uniform() < p_.jump_rate * dt) value_ += p_.jump_sd * r().normal();
     // 3. Takers.
     orders_.clear();
+    use(kNoise);
     for (std::uint32_t n = poisson(p_.noise_rate * a * dt); n > 0; --n) orders_.push_back({Side::Buy, taker_size()});
     for (std::uint32_t n = poisson(p_.noise_rate * a * dt); n > 0; --n) orders_.push_back({Side::Sell, taker_size()});
     const double gap = value_ - mid();
+    use(kMeta);
     if (std::abs(gap) > 0.5)
       for (std::uint32_t n = poisson(p_.informed_meta_rate * std::min(1.0, std::abs(gap) / p_.informed_scale) * a * dt); n > 0; --n)
         metas_.push_back({gap > 0 ? Side::Buy : Side::Sell, meta_size(), true});
     for (std::uint32_t n = poisson(p_.uninformed_meta_rate * a * dt); n > 0; --n)
-      metas_.push_back({rng_.uniform() < 0.5 ? Side::Buy : Side::Sell, meta_size(), false});
+      metas_.push_back({r().uniform() < 0.5 ? Side::Buy : Side::Sell, meta_size(), false});
     for (auto& m : metas_) {
       if (m.informed && sign(m.side) * (value_ - mid()) < -1) m.left = 0;  // the edge is gone: stop
       for (std::uint32_t n = poisson(p_.meta_child_rate * a * dt); n > 0 && m.left > 0; --n) {
@@ -12710,11 +12779,13 @@ class EsSimulator {
       }
     }
     std::erase_if(metas_, [](const Meta& m) { return m.left == 0; });
+    use(kMomentum);
     const double move = mid() - history_.front();
     if (std::abs(move) >= 1)
       for (std::uint32_t n = poisson(p_.momentum_rate * std::min(1.0, std::abs(move) / p_.momentum_scale) * a * dt); n > 0; --n)
         orders_.push_back({move > 0 ? Side::Buy : Side::Sell, taker_size()});
-    for (std::size_t i = orders_.size(); i > 1; --i) std::swap(orders_[i - 1], orders_[rng_.below(static_cast<std::uint32_t>(i))]);
+    use(kShuffle);
+    for (std::size_t i = orders_.size(); i > 1; --i) std::swap(orders_[i - 1], orders_[r().below(static_cast<std::uint32_t>(i))]);
     double signed_volume = 0;
     for (const auto& o : orders_) {
       execute(o.side, o.size, false);
@@ -12722,6 +12793,7 @@ class EsSimulator {
     }
     flow_ += (signed_volume / dt - flow_) * std::min(1.0, dt / p_.fade_tau);
     // 4. Makers, fading against the flow.
+    use(kMaker);
     const double lean = std::min(p_.fade_max, std::exp(p_.fade * std::abs(flow_) / p_.fade_norm));
     double bid_cancel = p_.cancel_rate * (flow_ < 0 ? lean : 1.0), ask_cancel = p_.cancel_rate * (flow_ > 0 ? lean : 1.0);
     double bid_add = flow_ > 0 ? lean : 1.0, ask_add = flow_ < 0 ? lean : 1.0;
@@ -12744,10 +12816,12 @@ class EsSimulator {
       cancel_level(Side::Sell, i, poisson(ask_cancel * others(Side::Sell, i) * dt));
     }
     // 5. Icebergs.
-    if (rng_.uniform() < p_.iceberg_rate * a * dt) place_iceberg();
+    use(kIceberg);
+    if (r().uniform() < p_.iceberg_rate * a * dt) place_iceberg();
     manage_icebergs();
     normalize_book();
-    while (spread_ > 1 && rng_.uniform() < p_.spread_fill_prob) improve(rng_.uniform() < 0.5 ? Side::Buy : Side::Sell);
+    use(kMaker);
+    while (spread_ > 1 && r().uniform() < p_.spread_fill_prob) improve(r().uniform() < 0.5 ? Side::Buy : Side::Sell);
     drop_far_orders();
     const double moved = std::abs(mid() - mid0);
     move_avg_ += (moved - move_avg_) * std::min(1.0, dt / 1800);
@@ -12771,6 +12845,7 @@ class EsSimulator {
     const std::size_t i = level_index(side, price);
     if (i >= kLevels) return 0;  // too far from the market to simulate
     auto& q = side == Side::Buy ? bid_q_ : ask_q_;
+    use(kOwn);
     const std::uint32_t faster = p_.join_ahead_mean > 0 ? lognormal_size(p_.join_ahead_mean, 0.8) : 0;
     q[i] += faster;
     resting_.push_back({next_id_, side, price, qty, q[i]});
@@ -12865,23 +12940,23 @@ class EsSimulator {
 
   std::uint32_t poisson(double lambda) {
     if (!(lambda > 0)) return 0;
-    if (lambda > 30) return static_cast<std::uint32_t>(std::max(0.0, std::round(lambda + std::sqrt(lambda) * rng_.normal())));
+    if (lambda > 30) return static_cast<std::uint32_t>(std::max(0.0, std::round(lambda + std::sqrt(lambda) * r().normal())));
     const double l = std::exp(-lambda);
     std::uint32_t k = 0;
-    double prod = rng_.uniform();
+    double prod = r().uniform();
     while (prod > l && k < 200) {
       ++k;
-      prod *= rng_.uniform();
+      prod *= r().uniform();
     }
     return k;
   }
   std::uint32_t lognormal_size(double mean, double logsd) {
     const double mu = std::log(mean) - 0.5 * logsd * logsd;
-    return static_cast<std::uint32_t>(std::clamp(std::round(std::exp(mu + logsd * rng_.normal())), 1.0, static_cast<double>(p_.max_order)));
+    return static_cast<std::uint32_t>(std::clamp(std::round(std::exp(mu + logsd * r().normal())), 1.0, static_cast<double>(p_.max_order)));
   }
   std::uint32_t taker_size() { return lognormal_size(p_.taker_size_mean, p_.taker_size_logsd); }
   std::uint32_t meta_size() {
-    const double u = std::max(1e-12, rng_.uniform());
+    const double u = std::max(1e-12, r().uniform());
     return static_cast<std::uint32_t>(std::min(p_.meta_max, p_.meta_min * std::pow(u, -1.0 / p_.meta_alpha)));
   }
   std::uint32_t maker_lots(double rate) {
@@ -13000,9 +13075,9 @@ class EsSimulator {
     // Informed passive player: below value, buyers wait under the price;
     // above value, sellers wait over it.
     const Side side = value_ >= mid() ? Side::Buy : Side::Sell;
-    const auto offset = static_cast<std::int32_t>(1 + rng_.below(static_cast<std::uint32_t>(p_.iceberg_max_offset)));
+    const auto offset = static_cast<std::int32_t>(1 + r().below(static_cast<std::uint32_t>(p_.iceberg_max_offset)));
     const std::int32_t price = side == Side::Buy ? bid_ - offset : ask() + offset;
-    const auto reserve = static_cast<std::uint32_t>(p_.iceberg_min + rng_.uniform() * (p_.iceberg_max - p_.iceberg_min));
+    const auto reserve = static_cast<std::uint32_t>(p_.iceberg_min + r().uniform() * (p_.iceberg_max - p_.iceberg_min));
     icebergs_.push_back({side, price, reserve, clock_ + p_.iceberg_life});
   }
 
@@ -13019,8 +13094,23 @@ class EsSimulator {
     }
   }
 
+  // Random streams (separate_streams): indices into streams_; the shared
+  // stream rng_ otherwise. An index, not a pointer: simulators are copied.
+  static constexpr std::size_t kValue = 0, kNoise = 1, kMeta = 2, kMomentum = 3, kShuffle = 4, kMaker = 5, kIceberg = 6, kOwn = 7, kStreams = 8;
+  void use(std::size_t k) noexcept { cur_ = streams_.empty() ? kStreams : k; }
+  [[nodiscard]] std::uint64_t stream_seed(std::uint64_t k, std::uint64_t step) const noexcept {
+    std::uint64_t z = seed_ ^ (0x9E3779B97F4A7C15ull * (k + 1)) ^ (step * 0xD1B54A32D192ED03ull);
+    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;  // splitmix64 finalizer
+    z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
+    return z ^ (z >> 31);
+  }
+  Rng& r() noexcept { return cur_ < streams_.size() ? streams_[cur_] : rng_; }
+
   SimParams p_;
   Rng rng_;
+  std::vector<Rng> streams_;
+  std::size_t cur_ = kStreams;
+  std::uint64_t seed_ = 1, steps_ = 0;
   std::int32_t bid_ = 0, spread_ = 1;
   std::array<std::uint32_t, kLevels> bid_q_{}, ask_q_{};
   double value_ = 0, log_activity_ = 0, clock_ = 0, flow_ = 0, move_avg_ = 0.1;
@@ -20670,7 +20760,7 @@ TEST(Analysis, QuadraticSensitivityRecoversKnownEffects) {
 
 ---
 
-## FILE: tests/orderflow_tests.cpp  (9,302 bytes)
+## FILE: tests/orderflow_tests.cpp  (10,490 bytes)
 
 ```cpp
 // orderflow_tests.cpp — the ES order-flow simulator: book invariants,
@@ -20932,6 +21022,35 @@ TEST(TickScalpEnv, OnlyQuotesThatStayPutReachTheFrontOfTheQueue) {
   }
   EXPECT_GE(persistent, 20u);  // measured 34 (10 + 6 + 10 + 8)
   EXPECT_LE(flickering, 2u);   // measured 0
+}
+
+TEST(EsSimulator, SeparateStreamsKeepTheFairValuePathIndependentOfOurOrders) {
+  // With one stream per exogenous process, our orders can't change the
+  // news shocks. The fair-value *path* also depends on activity, which price
+  // moves excite, so it is independent of our orders only without that
+  // excitation. (Endogenous processes still diverge once the book differs;
+  // see ORDERFLOW.md.)
+  SimParams p;
+  p.separate_streams = true;
+  p.activity_excite = 0;
+  EsSimulator quiet(p, 9), active(p, 9);
+  for (int s = 0; s < 3000; ++s) {
+    if (s % 20 == 0) active.submit_limit(Side::Buy, active.bid(), 1);
+    if (s % 37 == 0) active.market_order(Side::Sell, 2);
+    quiet.step();
+    active.step();
+    ASSERT_EQ(quiet.fair_value(), active.fair_value()) << "step " << s;
+  }
+  // The shared default stream does not have this property.
+  EsSimulator q2(SimParams{.activity_excite = 0}, 9), a2(SimParams{.activity_excite = 0}, 9);
+  bool diverged = false;
+  for (int s = 0; s < 3000 && !diverged; ++s) {
+    if (s % 20 == 0) a2.submit_limit(Side::Buy, a2.bid(), 1);
+    q2.step();
+    a2.step();
+    diverged = q2.fair_value() != a2.fair_value();
+  }
+  EXPECT_TRUE(diverged);
 }
 
 ```
