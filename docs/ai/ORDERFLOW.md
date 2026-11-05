@@ -205,9 +205,13 @@ stale binary (OF4).
    a process's own stream, and activity (which scales fair-value
    volatility) is excited by price moves, so the fair-value path itself is
    endogenous (independent of our orders only with `activity_excite = 0`;
-   tested). Next: fixed-count draws (inverse-CDF Poisson with one uniform)
-   for exogenous processes; until then rely on many fresh episodes, not
-   pairing, for variance reduction.
+   tested). With the streams also re-seeded every step from (seed,
+   process, step) (counter-based, now the behaviour of `separate_streams`),
+   the correlation of the paired runs rises from 0.33 (shared stream) to
+   0.61: paired comparisons have ~40% less variance. Use
+   `separate_streams = true` for paired validation; the rest of the noise
+   is the market's genuine reaction to our orders. Next: fewer
+   state-dependent draw counts inside a step.
 4. **Tick scalper:** action latency in `TickScalpEnv` (opt-in), tick
    diagnostics (no-trade share, spread capture vs carry, own-fill
    markouts), learn the advantage over the rule; success = match or beat

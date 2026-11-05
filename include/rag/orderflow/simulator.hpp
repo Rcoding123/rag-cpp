@@ -163,8 +163,9 @@ class EsSimulator {
   explicit EsSimulator(const SimParams& p = {}, std::uint64_t seed = 1, double start_second = 0) : p_(p), rng_(seed) {
     if (!(p_.dt > 0) || !(p_.cancel_rate >= 0) || !(p_.maker_decay > 0) || !(p_.meta_alpha > 0) || !(p_.fade_tau > 0))
       throw std::invalid_argument("SimParams: dt, maker_decay, meta_alpha and fade_tau must be positive");
+    seed_ = seed;
     if (p_.separate_streams)
-      for (std::uint64_t k = 0; k < kStreams; ++k) streams_.emplace_back(seed ^ (0x9E3779B97F4A7C15ull * (k + 1)));
+      for (std::uint64_t k = 0; k < kStreams; ++k) streams_.emplace_back(stream_seed(k, 0));
     bid_ = p_.start_price;
     value_ = p_.start_price + 0.5;
     clock_ = start_second;
@@ -176,6 +177,11 @@ class EsSimulator {
   void step() {
     trades_.clear();
     fills_.clear();
+    // Counter-based streams: every step re-seeds each process from (seed,
+    // process, step), so a different number of draws in one step (state-
+    // dependent counts) can't shift any later step's randomness.
+    ++steps_;
+    for (std::size_t k = 0; k < streams_.size(); ++k) streams_[k].reseed(stream_seed(k, steps_));
     const double dt = p_.dt;
     t_ns_ += static_cast<std::int64_t>(std::llround(dt * 1e9));
     clock_ += dt;
@@ -527,12 +533,19 @@ class EsSimulator {
   // stream rng_ otherwise. An index, not a pointer: simulators are copied.
   static constexpr std::size_t kValue = 0, kNoise = 1, kMeta = 2, kMomentum = 3, kShuffle = 4, kMaker = 5, kIceberg = 6, kOwn = 7, kStreams = 8;
   void use(std::size_t k) noexcept { cur_ = streams_.empty() ? kStreams : k; }
+  [[nodiscard]] std::uint64_t stream_seed(std::uint64_t k, std::uint64_t step) const noexcept {
+    std::uint64_t z = seed_ ^ (0x9E3779B97F4A7C15ull * (k + 1)) ^ (step * 0xD1B54A32D192ED03ull);
+    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;  // splitmix64 finalizer
+    z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
+    return z ^ (z >> 31);
+  }
   Rng& r() noexcept { return cur_ < streams_.size() ? streams_[cur_] : rng_; }
 
   SimParams p_;
   Rng rng_;
   std::vector<Rng> streams_;
   std::size_t cur_ = kStreams;
+  std::uint64_t seed_ = 1, steps_ = 0;
   std::int32_t bid_ = 0, spread_ = 1;
   std::array<std::uint32_t, kLevels> bid_q_{}, ask_q_{};
   double value_ = 0, log_activity_ = 0, clock_ = 0, flow_ = 0, move_avg_ = 0.1;
