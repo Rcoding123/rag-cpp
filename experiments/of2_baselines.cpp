@@ -8,7 +8,7 @@
 // 2 ticks, so oracles at lower thresholds follow the original rows.
 // Rows appended in OF10 v2 (fade and short-horizon rules, a per-lot table)
 // leave the earlier rows byte-identical.
-// Usage: of2_baselines [episodes=300] [market: default | efficient | discovery | discovery_v1]
+// Usage: of2_baselines [episodes=300] [market: default | default_warm | efficient | discovery | discovery_v1 | discovery_v2]
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>

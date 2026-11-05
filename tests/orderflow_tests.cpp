@@ -464,6 +464,18 @@ TEST(PriceDiscovery, GoldenRunOfDiscoveryV1IsUnchanged) {
   EXPECT_GT(market_preset("discovery").reprice_cancel, 0);
 }
 
+TEST(PriceDiscovery, GoldenRunOfDiscoveryV2IsUnchanged) {
+  // Recorded with the v2 code (commit 4ba0354, then discovery_market()), MSVC x64,
+  // before iteration 3 changed discovery_market(): every v2 number depends on it.
+  const std::uint64_t d = run_fingerprint(discovery_market_v2(), 5);
+#if defined(_MSC_VER) && !defined(__clang__)
+  EXPECT_EQ(d, 7055594995802652644ull) << d;  // = run_fingerprint(discovery_market(), 5) at 4ba0354
+#else
+  EXPECT_NE(d, run_fingerprint(SimParams{}, 5));
+#endif
+  EXPECT_EQ(market_preset("discovery_v2").maker_info, discovery_market_v2().maker_info);
+}
+
 // --- stale-side depletion (v2: SimParams::reprice_cancel, value_impact) -----
 
 TEST(PriceDiscovery, TheV2FieldsAreInertUnlessSwitchedOn) {
@@ -666,12 +678,234 @@ static double imbalance_predicts_next_change(const SimParams& p, std::uint64_t s
 }
 
 TEST(PriceDiscovery, V2ImbalancePredictsTheNextTickAndTheGapNotTheNext30Seconds) {
-  // 2 h, seed 1. Measured (MSVC): corr(g, r 30 s) 0.127 (the 1-tick grid floor ~0.10),
-  // event-time corr(L1 imbalance, next mid change) 0.268 (v1: 0.057).
-  const SimParams d = discovery_market();
-  const double gap = gap_predicts_30s(d, 1, 7200), imb = imbalance_predicts_next_change(d, 1, 7200);
+  // 2 h, seed 1. Measured (MSVC): v2 corr(g, r 30 s) 0.127 (the 1-tick grid floor ~0.10),
+  // event-time corr(L1 imbalance, next mid change) 0.268 (v1: 0.057); v3 (no informed
+  // makers) 0.104 and 0.229.
+  for (const SimParams& d : {discovery_market_v2(), discovery_market()}) {
+    const double gap = gap_predicts_30s(d, 1, 7200), imb = imbalance_predicts_next_change(d, 1, 7200);
+    EXPECT_LT(gap, 0.2) << gap;
+    EXPECT_GT(imb, 0.15) << imb;
+  }
   const double imb_v1 = imbalance_predicts_next_change(discovery_market_v1(), 1, 7200);
-  EXPECT_LT(gap, 0.2) << gap;
-  EXPECT_GT(imb, 0.15) << imb;
   EXPECT_LT(imb_v1, 0.1) << imb_v1;  // v1: the rigid book carried no signal
+}
+
+TEST(EsSimulatorActivity, GoldenRunsOfTheIteration3Presets) {
+  // Recorded with the iteration-3 code (OF10 v3), MSVC x64: every v3 and
+  // default_warm number depends on them.
+  const std::uint64_t w = run_fingerprint(default_warm(), 6), d = run_fingerprint(discovery_market(), 7);
+#if defined(_MSC_VER) && !defined(__clang__)
+  EXPECT_EQ(w, 1844421873489088197ull) << w;
+  EXPECT_EQ(d, 5921645205393397081ull) << d;
+#else
+  EXPECT_NE(w, d);
+#endif
+  EXPECT_EQ(market_preset("discovery").maker_info, 0);
+  EXPECT_EQ(market_preset("discovery").activity_model, 1);
+}
+
+// --- activity model 1 and the warm start (OF10 iteration 3) ------------------
+
+TEST(EsSimulatorActivity, NewFieldsAreInertWithTheLegacyModelAndTheWarmStartNeedsModel1) {
+  SimParams p;
+  p.activity_news_excite = 0.7;  // model 0 ignores it
+  EXPECT_EQ(run_fingerprint(p, 1, 5'000), run_fingerprint(SimParams{}, 1, 5'000));
+  SimParams w = p;
+  w.activity_warm_start = true;
+  EXPECT_THROW(EsSimulator{w}, std::invalid_argument);  // legacy has no interior stationary law
+  SimParams bad = default_warm();
+  bad.activity_model = 2;
+  EXPECT_THROW(EsSimulator{bad}, std::invalid_argument);
+  EXPECT_NE(run_fingerprint(default_warm(), 1, 5'000), run_fingerprint(SimParams{}, 1, 5'000));
+  EXPECT_EQ(market_preset("default_warm").activity_model, 1);
+}
+
+TEST(EsSimulatorActivity, TheWarmStartDrawsTheStationaryLaw) {
+  // Activity in model 1 doesn't depend on the book, so a market without takers
+  // and makers (cheap steps) has the same activity law as default_warm().
+  SimParams p = default_warm();
+  p.noise_rate = p.informed_meta_rate = p.uninformed_meta_rate = p.momentum_rate = 0;
+  p.maker_rate = 0;
+  p.iceberg_rate = 0;
+  const ActivityLaw law = activity_law(p);
+  const int n = 5'000;  // sd of x within 3%: ~3 SE (measured at 20,000: ratio 0.995-0.997, |mean - m0| <= 1.3 SE)
+  std::vector<double> x0, x1;
+  double ratio_num = 0, ratio_den = 0;
+  std::vector<double> ratio;
+  for (int i = 0; i < n; ++i) {
+    EsSimulator sim(p, 5'000'000ull + static_cast<std::uint64_t>(i), 3600);
+    x0.push_back(sim.log_activity());
+    for (int s = 0; s < 3'000; ++s) sim.step();
+    x1.push_back(sim.log_activity());
+    ratio.push_back(sim.activity() / sim.intraday_factor());
+    ratio_num += ratio.back();
+    ratio_den += 1;
+  }
+  auto moments = [](const std::vector<double>& v) {
+    double m = 0, s = 0;
+    for (double x : v) m += x / static_cast<double>(v.size());
+    for (double x : v) s += (x - m) * (x - m);
+    return std::pair<double, double>{m, std::sqrt(s / static_cast<double>(v.size() - 1))};
+  };
+  for (const auto* v : {&x0, &x1}) {
+    const auto [m, sd] = moments(*v);
+    const double se = sd / std::sqrt(static_cast<double>(n));
+    EXPECT_LE(std::abs(m - law.m0), 2 * se) << "mean " << m << " m0 " << law.m0 << " se " << se;
+    EXPECT_NEAR(sd / law.sd, 1.0, 0.03) << "sd " << sd << " analytic " << law.sd;
+  }
+  const auto [rm, rsd] = moments(ratio);  // E[activity / intraday] = 1 (m0 centring)
+  EXPECT_LE(std::abs(rm - 1), 2 * rsd / std::sqrt(static_cast<double>(n))) << rm;
+  EXPECT_NEAR(law.sd, 0.531, 0.01);  // tau / 2 * (vol^2 + k^2 jump_rate), the design's value
+}
+
+// Share of steps at the lower activity clamp in ScalpEnv-built 10-minute episodes after the 150 s warm-up.
+static std::pair<double, double> episode_activity(const SimParams& sim, int episodes) {
+  ScalpParams sp;
+  sp.sim = sim;
+  double low = 0, act = 0, steps = 0;
+  for (int i = 0; i < episodes; ++i) {
+    rag::agent::Rng r(6'000'000ull + static_cast<std::uint64_t>(i));
+    EsSimulator m = ScalpEnv::make_market(sp, r);
+    for (int s = 0; s < 1'500 + 6'000; ++s) {
+      m.step();
+      if (s < 1'500) continue;
+      low += m.log_activity() <= sim.activity_min + 1e-9 ? 1 : 0;
+      act += m.activity() / m.intraday_factor();
+      steps += 1;
+    }
+  }
+  return {low / steps, act / steps};
+}
+
+TEST(EsSimulatorActivity, EpisodesAreNotStuckAtTheLowerClampWithTheWarmStart) {
+  // 40 episodes. Measured (MSVC): legacy default 0.4 of the steps at the lower
+  // clamp (activity / intraday ~0.3); default_warm and discovery v3 0.000
+  // (activity / intraday ~1).
+  const auto [low_def, act_def] = episode_activity(SimParams{}, 40);
+  const auto [low_warm, act_warm] = episode_activity(default_warm(), 40);
+  const auto [low_v3, act_v3] = episode_activity(discovery_market(), 40);
+  EXPECT_GT(low_def, 0.2) << low_def << " " << act_def;
+  EXPECT_LT(low_warm, 0.001) << low_warm;
+  EXPECT_LT(low_v3, 0.001) << low_v3;
+  EXPECT_GT(act_warm, 0.6) << act_warm;
+  EXPECT_GT(act_v3, 0.6) << act_v3;
+}
+
+TEST(EsSimulatorActivity, MakeMarketBuildsTheSameEpisodeAsReset) {
+  for (const SimParams& sim : {default_warm(), discovery_market()}) {
+    ScalpParams sp;
+    sp.sim = sim;
+    ScalpEnv env(sp);
+    rag::agent::Rng r1(77), r2(77);
+    env.reset(r1);
+    EsSimulator m = ScalpEnv::make_market(sp, r2);
+    for (int s = 0; s < 1'500; ++s) m.step();
+    for (int d = 0; d < 10; ++d) {  // 10 flat decisions: 100 steps
+      env.step(1, r1);
+      for (int s = 0; s < 10; ++s) m.step();
+      ASSERT_EQ(env.market().t_ns(), m.t_ns());
+      ASSERT_EQ(env.market().fair_value(), m.fair_value());
+      ASSERT_EQ(env.market().bid(), m.bid());
+      ASSERT_EQ(env.market().quote().bid_size, m.quote().bid_size);
+      ASSERT_EQ(env.market().quote().ask_size, m.quote().ask_size);
+    }
+    TickParams tp;
+    tp.sim = sim;
+    TickScalpEnv tenv(tp);
+    rag::agent::Rng t1(78), t2(78);
+    tenv.reset(t1);
+    EsSimulator tm = TickScalpEnv::make_market(tp, t2);
+    for (int s = 0; s < 1'500; ++s) tm.step();
+    ASSERT_EQ(tenv.market().fair_value(), tm.fair_value());
+    ASSERT_EQ(tenv.market().quote().ask_size, tm.quote().ask_size);
+  }
+}
+
+TEST(EsSimulatorActivity, ForkGivesACopyFreshRandomnessAndLeavesTheOriginalAlone) {
+  for (bool sep : {false, true}) {
+    SimParams p = discovery_market();
+    p.separate_streams = sep;
+    EsSimulator a(p, 9, 3600), b(p, 9, 3600);
+    for (int s = 0; s < 500; ++s) {
+      a.step();
+      b.step();
+    }
+    EsSimulator f1 = a, f2 = a, f3 = a;
+    f1.fork(1);
+    f2.fork(1);
+    f3.fork(2);
+    bool differs = false;
+    for (int s = 0; s < 300; ++s) {
+      a.step();
+      b.step();
+      f1.step();
+      f2.step();
+      f3.step();
+      ASSERT_EQ(a.fair_value(), b.fair_value());  // forking a copy doesn't touch the original
+      ASSERT_EQ(f1.fair_value(), f2.fair_value());  // same salt: same future
+      differs = differs || f1.fair_value() != f3.fair_value() || f1.fair_value() != a.fair_value();
+    }
+    EXPECT_TRUE(differs);
+  }
+}
+
+// Review of iteration 3: the hidden fair value at a fill is diagnostics only.
+// It must not ride in OwnFill (copied by agent-facing step_fills()); the
+// simulator and TickScalpEnv keep it in parallel accessors named as hidden.
+template <class T>
+concept CarriesAValue = requires(T f) { f.value; };
+static_assert(!CarriesAValue<OwnFill>, "OwnFill is agent-facing: keep the hidden value out of it");
+
+TEST(EsSimulatorActivity, HiddenFillValuesStayOutOfOwnFillAndParallelToIt) {
+  TickParams tp;
+  tp.sim = discovery_market();
+  tp.episode_seconds = 120;
+  TickScalpEnv env(tp);
+  rag::agent::Rng r(31);
+  env.reset(r);
+  std::size_t fills = 0;
+  for (;;) {
+    const auto st = env.step(rag::agent::Action{3}, r);  // quote both sides
+    ASSERT_EQ(env.step_fill_hidden_values().size(), env.step_fills().size());
+    ASSERT_EQ(env.market().own_fill_hidden_values().size(), env.market().own_fills().size());
+    fills += env.step_fills().size();
+    if (st.done) break;
+  }
+  EXPECT_GT(fills, 0u);
+}
+
+// The probe's ground-truth path (a longer burn before the same window) uses
+// ScalpEnv::draw_market: the same draws, in the same order, as make_market.
+TEST(EsSimulatorActivity, DrawMarketMatchesMakeMarket) {
+  ScalpParams sp;
+  sp.sim = discovery_market();
+  for (std::uint64_t seed : {3ull, 4ull, 5ull}) {
+    rag::agent::Rng r1(seed), r2(seed);
+    const ScalpEnv::MarketDraw d = ScalpEnv::draw_market(sp, r1);
+    EsSimulator a(sp.sim, d.seed, d.start), b = ScalpEnv::make_market(sp, r2);
+    EXPECT_EQ(r1.next(), r2.next());  // the same number of draws consumed
+    EXPECT_GE(d.start, 0.0);
+    for (int s = 0; s < 200; ++s) {
+      a.step();
+      b.step();
+    }
+    EXPECT_EQ(a.t_ns(), b.t_ns());
+    EXPECT_EQ(a.fair_value(), b.fair_value());
+    EXPECT_EQ(a.quote().bid_size, b.quote().bid_size);
+  }
+}
+
+// Review of iteration 3: with value_impact > 0 a block round trip profits
+// from its own impact (own market orders fill at pre-impact prices), so
+// multi-lot ScalpEnv use is refused on those presets.
+TEST(EsSimulatorActivity, MultiLotScalpingIsRefusedWhereOwnImpactPays) {
+  ScalpParams sp;
+  sp.contracts = 2;
+  EXPECT_NO_THROW(ScalpEnv{sp});  // no value_impact: the old markets are unchanged
+  sp.sim = discovery_market();
+  EXPECT_THROW(ScalpEnv{sp}, std::invalid_argument);
+  sp.sim = discovery_market_v2();
+  EXPECT_THROW(ScalpEnv{sp}, std::invalid_argument);
+  sp.contracts = 1;
+  EXPECT_NO_THROW(ScalpEnv{sp});
 }

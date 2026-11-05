@@ -77,10 +77,19 @@ class TickScalpEnv {
 
   explicit TickScalpEnv(const TickParams& p = {}) : p_(p) {}
 
-  Observation reset(rag::agent::Rng& rng) {
-    const double latest_start = std::max(0.0, p_.sim.session_seconds - p_.episode_seconds - p_.warmup_seconds);
+  // An episode's market before its warm-up: a fresh simulator seeded from
+  // `rng` at a random time of day (or start_second). reset() and the
+  // diagnostics probe (of10_discovery's episode regime) both build episodes
+  // with it, so they see the same markets.
+  [[nodiscard]] static EsSimulator make_market(const TickParams& p, rag::agent::Rng& rng) {
+    const double latest_start = std::max(0.0, p.sim.session_seconds - p.episode_seconds - p.warmup_seconds);
     const double u = rng.uniform();  // drawn either way: episode seeds don't depend on the setting
-    sim_.emplace(p_.sim, rng.next(), p_.start_second >= 0 ? p_.start_second : u * latest_start);
+    const std::uint64_t seed = rng.next();
+    return EsSimulator(p.sim, seed, p.start_second >= 0 ? p.start_second : u * latest_start);
+  }
+
+  Observation reset(rag::agent::Rng& rng) {
+    sim_.emplace(make_market(p_, rng));
     fb_ = FeatureBuilder(p_.sim.dt);
     for (std::uint32_t i = 0; i < steps(p_.warmup_seconds); ++i) advance();
     position_ = 0;
@@ -94,6 +103,7 @@ class TickScalpEnv {
 
   rag::agent::Step<Observation> step(rag::agent::Action a, rag::agent::Rng&) {
     step_fills_.clear();
+    step_fill_values_.clear();
     double fees = 0;
     if (a == 4) {
       mode_ = 0;
@@ -139,6 +149,9 @@ class TickScalpEnv {
   [[nodiscard]] std::uint32_t fills() const noexcept { return fills_; }
   // Passive fills of the last step() (own-fill markouts); flattening market orders are not included.
   [[nodiscard]] const std::vector<OwnFill>& step_fills() const noexcept { return step_fills_; }
+  // DIAGNOSTICS ONLY, hidden state (never an observation): the fair value when
+  // each step_fills()[i] filled (EsSimulator::own_fill_hidden_values()).
+  [[nodiscard]] const std::vector<double>& step_fill_hidden_values() const noexcept { return step_fill_values_; }
   [[nodiscard]] double fees_ticks() const noexcept { return fees_; }
   [[nodiscard]] const EsSimulator& market() const noexcept { return *sim_; }
   [[nodiscard]] const TickParams& params() const noexcept { return p_; }
@@ -170,9 +183,12 @@ class TickScalpEnv {
   // Passive fills from the last simulator step; returns their fees.
   double book_fills() {
     double fees = 0;
-    for (const auto& f : sim_->own_fills()) {
+    const auto& values = sim_->own_fill_hidden_values();
+    for (std::size_t i = 0; i < sim_->own_fills().size(); ++i) {
+      const OwnFill& f = sim_->own_fills()[i];
       on_fill(f.side, f.price, f.size);
       step_fills_.push_back(f);
+      step_fill_values_.push_back(values[i]);
       fees += f.size * p_.fee_dollars / kTickValue;
     }
     fees_ += fees;
@@ -235,6 +251,7 @@ class TickScalpEnv {
   std::uint64_t bid_id_ = 0, ask_id_ = 0;
   std::uint32_t fills_ = 0;
   std::vector<OwnFill> step_fills_;  // passive fills of the last step() (diagnostics)
+  std::vector<double> step_fill_values_;  // step_fill_hidden_values(), parallel to step_fills_
 };
 
 static_assert(rag::agent::Environment<TickScalpEnv>);

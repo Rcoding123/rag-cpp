@@ -18,6 +18,7 @@
 #include <cmath>
 #include <cstdint>
 #include <optional>
+#include <stdexcept>
 
 #include "rag/agent/env.hpp"
 #include "rag/orderflow/features.hpp"
@@ -65,12 +66,40 @@ class ScalpEnv {
     return a;
   }();
 
-  explicit ScalpEnv(const ScalpParams& p = {}) : p_(p) {}
+  // value_impact > 0 (the v2 / v3 discovery presets): own market orders fill
+  // at pre-impact prices and then move fair value by value_impact per lot, so
+  // a block round trip earns from its own impact (of10_discovery --impact:
+  // v3, buy N lots, sell 10 s later, +0.15 tick/lot at N = 30, +1.4 at 60).
+  // Multi-lot ScalpEnv use is blocked there until own impact is fixed.
+  explicit ScalpEnv(const ScalpParams& p = {}) : p_(p) {
+    if (p_.contracts > 1 && p_.sim.value_impact > 0)
+      throw std::invalid_argument("ScalpEnv: contracts > 1 with value_impact > 0 lets block round trips profit from their own impact");
+  }
+
+  // An episode's market before its warm-up: a fresh simulator seeded from
+  // `rng` at a random time of day (or start_second). reset() and the
+  // diagnostics probe (of10_discovery's episode regime) both build episodes
+  // with it, so they see the same markets.
+  [[nodiscard]] static EsSimulator make_market(const ScalpParams& p, rag::agent::Rng& rng) {
+    const MarketDraw d = draw_market(p, rng);
+    return EsSimulator(p.sim, d.seed, d.start);
+  }
+  // make_market's draws (u, then the simulator seed): the second the warm-up
+  // starts and the simulator seed. The probe's ground-truth path (a longer
+  // burn before the same window) shares them.
+  struct MarketDraw {
+    double start;
+    std::uint64_t seed;
+  };
+  [[nodiscard]] static MarketDraw draw_market(const ScalpParams& p, rag::agent::Rng& rng) {
+    const double latest_start = std::max(0.0, p.sim.session_seconds - p.episode_seconds - p.warmup_seconds);
+    const double u = rng.uniform();  // drawn either way: episode seeds don't depend on the setting
+    const std::uint64_t seed = rng.next();
+    return {p.start_second >= 0 ? p.start_second : u * latest_start, seed};
+  }
 
   Observation reset(rag::agent::Rng& rng) {
-    const double latest_start = std::max(0.0, p_.sim.session_seconds - p_.episode_seconds - p_.warmup_seconds);
-    const double u = rng.uniform();  // drawn either way: episode seeds don't depend on the setting
-    sim_.emplace(p_.sim, rng.next(), p_.start_second >= 0 ? p_.start_second : u * latest_start);
+    sim_.emplace(make_market(p_, rng));
     fb_ = FeatureBuilder(p_.sim.dt);
     for (std::uint32_t i = 0; i < steps(p_.warmup_seconds); ++i) advance();
     position_ = 0;

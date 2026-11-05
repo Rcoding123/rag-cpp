@@ -3,7 +3,7 @@
 // episodes. Per strategy: net P&L per episode (ticks, $), t, fills per
 // episode, share of winning episodes, and the gross spread capture vs the
 // adverse selection it suffered (P&L before fees).
-// Usage: of4_tick_baselines [episodes=300] [market: default | efficient | discovery | discovery_v1]
+// Usage: of4_tick_baselines [episodes=300] [market: default | default_warm | efficient | discovery | discovery_v1 | discovery_v2]
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>

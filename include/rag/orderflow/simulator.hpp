@@ -14,7 +14,9 @@
 // contract). Time advances in steps of `dt` seconds. Each step:
 //
 //   1. activity: a log-OU process (volume and volatility clustering),
-//      excited by price moves, times an intraday U-shape;
+//      excited by price moves, times an intraday U-shape (opt-in model 1,
+//      SimParams::activity_model: a centred log-OU with mean-zero news
+//      kicks, stationary from the first step with activity_warm_start);
 //   2. fair value: a hidden random walk with occasional jumps (news);
 //   3. takers, all with heavy-tailed sizes:
 //        noise       balanced single market orders;
@@ -207,7 +209,83 @@ struct SimParams {
   // made impact transient (a unit-gain filter's residuals sum to zero):
   // measured, corr(30 s delta, next 30 s) -0.15, markouts falling after 5 s.
   double value_impact = 0.0, impact_forecast_tau = 10.0, impact_forecast_weight = 0.0;
+  // Activity model (OF10 iteration 3; 0 = legacy, the default: every earlier
+  // result is unchanged). Legacy: the log-OU above plus activity_excite per
+  // tick the mid moved beyond move_avg_, an EWMA (1800 s) of the per-step
+  // move that starts at 0.1 tick. That loop has no stable interior state:
+  // linearised around (log A = 0, move_avg_ = its mean), the trace of its
+  // Jacobian is g - 1/activity_tau - 1/1800 (its determinant is positive),
+  // g = activity_excite * d E[move] / d log A / dt: measured ~0.045/s on full
+  // default sessions (of10_discovery), > 1/300 + 1/1800 = 0.0039/s, so log A
+  // swings between the clamps for hours, and a fresh market starts at the
+  // lower one (ScalpEnv episodes ran at activity ~0.3: 4 trades/s, not ~20).
+  // Model 1: a centred log-OU plus compensated news kicks, x = log A:
+  //   start of a step: x += -(x - m0) / activity_tau * dt + activity_vol * sqrt(dt) * N
+  //   end of a step:   x += activity_news_excite * (|z| 1{value jump} - jump_rate * dt * sqrt(2 / pi))
+  // with z the standardised value jump of the step. The kick's conditional
+  // mean is zero and doesn't depend on the state, so x is a linear AR(1)
+  // driven by i.i.d. noise with a known stationary law (activity_law());
+  // m0 = -log E[exp(x - m0)] makes E[activity] = intraday(t) exactly
+  // (ignoring the clamp; use activity_min/max = -3/3 so it is ~never hit).
+  // activity_excite and move_avg_ are unused: activity no longer depends on
+  // the price path (the fair-value path is exogenous apart from value_impact).
+  // activity_warm_start (model 1 only; it throws with model 0, which has no
+  // interior stationary law): the constructor draws x from that law, from a
+  // random stream of its own (every other draw is unchanged, whatever
+  // separate_streams), so a fresh market is stationary from its first step;
+  // without it x starts at m0.
+  int activity_model = 0;
+  double activity_news_excite = 0.0;
+  bool activity_warm_start = false;
 };
+
+// Model 1's stationary law of x = log activity (SimParams::activity_model = 1,
+// before the clamp): x - m0 = sum_j phi^j eta_(n-j), phi = 1 - dt / tau,
+// eta = vol sqrt(dt) N + k (|Z| 1{J} - p c) i.i.d. with mean 0, p = jump_rate dt,
+// c = sqrt(2 / pi), k = activity_news_excite. m0 = -(gauss_var / 2 + log E[exp(jump part)]),
+// the jump part's log-Laplace transform summed over horizon = ceil(10 tau / dt)
+// lags (exact per lag: E exp(u |Z|) = 2 exp(u^2 / 2) Phi(u)); cached per thread
+// for the last parameters (a construction then costs one comparison).
+struct ActivityLaw {
+  double m0 = 0, sd = 0, skew = 0, gauss_var = 0;  // centre; sd and skewness of x; the Gaussian part's variance
+  double phi = 1, jump_p = 0;                       // AR(1) coefficient; jump probability per step
+  std::uint64_t horizon = 0;                        // lags of the jump part summed (and drawn by the warm start)
+};
+inline ActivityLaw activity_law(const SimParams& p) {
+  constexpr double c = 0.7978845608028654;  // sqrt(2 / pi) = E|Z|
+  ActivityLaw law;
+  law.phi = 1 - p.dt / p.activity_tau;
+  law.jump_p = p.jump_rate * p.dt;
+  law.horizon = static_cast<std::uint64_t>(std::ceil(10 * p.activity_tau / p.dt));
+  const double phi = law.phi, pj = law.jump_p, k = p.activity_news_excite;
+  law.gauss_var = p.activity_vol * p.activity_vol * p.dt / (1 - phi * phi);
+  double lj = 0;
+  if (k > 0 && pj > 0) {
+    struct Cache {
+      double phi = 0, pj = 0, k = 0, lj = 0;
+      std::uint64_t horizon = 0;
+      bool ok = false;
+    };
+    thread_local Cache cache;
+    if (cache.ok && cache.phi == phi && cache.pj == pj && cache.k == k && cache.horizon == law.horizon) {
+      lj = cache.lj;
+    } else {
+      double u = k;
+      for (std::uint64_t j = 0; j < law.horizon; ++j, u *= phi) {
+        const double e_abs = std::exp(0.5 * u * u) * std::erfc(-u / std::sqrt(2.0));  // E exp(u |Z|) = 2 exp(u^2 / 2) Phi(u)
+        lj += std::log1p(pj * (e_abs - 1)) - pj * c * u;
+      }
+      cache = {phi, pj, k, lj, law.horizon, true};
+    }
+  }
+  law.m0 = -(0.5 * law.gauss_var + lj);
+  const double var_y = pj - pj * pj * c * c;                                        // Var(|Z| 1{J})
+  const double k3_y = 2 * c * pj - 3 * c * pj * pj + 2 * c * c * c * pj * pj * pj;  // its third cumulant (E|Z|^3 = 2c)
+  const double var = law.gauss_var + k * k * var_y / (1 - phi * phi);
+  law.sd = std::sqrt(var);
+  law.skew = var > 0 ? k * k * k * k3_y / (1 - phi * phi * phi) / std::pow(var, 1.5) : 0;
+  return law;
+}
 
 // Informed makers: they re-price ahead of informed flow, so *trade* flow no
 // longer predicts the next 30 s (3 seeds x 2 h: corr(30 s delta, next 30 s)
@@ -242,19 +320,10 @@ inline SimParams discovery_market_v1() {
   return p;
 }
 
-// Fast price discovery, iteration 2 (OF10 v2): stale-side depletion and
-// value-side re-pricing (reprice_cancel; band 0.5: a quote is stale as soon
-// as value passes it), permanent impact of unexpected flow (value_impact),
-// and informed makers (maker_info) whose rate tilt now leaks only the
-// within-tick gap, so book imbalance predicts the next tick and nothing
-// after. Fading against the flow is off: the flow's information reaches the
-// price through value_impact (fading too would count it twice). Flow impact
-// makes part of the volatility, so value_vol is lower; fewer, larger
-// uninformed meta-orders keep trade-sign memory; activity excitation is
-// halved (quote re-pricing makes the price move more often). Tuned on
-// diagnostic seeds 1-3 x 2 h, checked on seeds 4-6
-// (experiments/of10_discovery.cpp, of10_results.txt, of10_heldout.txt).
-inline SimParams discovery_market() {
+// Fast price discovery, iteration 2 (OF10 v2, commit 4ba0354; then
+// discovery_market()): kept verbatim to reproduce the v2 numbers (golden
+// hash in the PriceDiscovery tests): market_preset("discovery_v2").
+inline SimParams discovery_market_v2() {
   SimParams p;
   p.reprice_band = 0.5;
   p.reprice_cancel = 15;
@@ -273,13 +342,87 @@ inline SimParams discovery_market() {
   return p;
 }
 
+// Fast price discovery, iteration 3 (OF10 v3; v2 is discovery_market_v2()):
+// v2's stale-side depletion and permanent flow impact, with activity model 1
+// (activity stationary from the first step: measured, episode vs
+// session-weighted long windows agree on activity and the facts; meta-orders
+// and icebergs are NOT warm-started, so episodes hold ~0.6 fewer active
+// meta-orders than long windows, ~5 SE, rising over the episode) and
+// WITHOUT informed makers (maker_info 0: no rate tilt toward the hidden
+// value; book imbalance predicts the next tick
+// through depletion alone, leak corr(I1, g) 0.37). Smaller, more frequent
+// maker orders (a smoother queue; stationary depth 240 lots at the best
+// level vs v2's 180) make the depleting queue visible in
+// L1 imbalance; slower depletion (reprice_cancel 12) and more sniping
+// (reprice_take 0.15) raise price-on-flow R^2; rarer, larger news jumps keep
+// the 1-minute kurtosis with less jump variance; the impact forecast weight
+// is re-tuned so impact has no autocorrelation (markouts flat after 5 s on
+// long windows; not in episodes, below).
+// Tuned on diagnostic seeds 1-3 (400 ScalpEnv-built episodes and 16
+// weighted sessions per seed), checked on seeds 4-6
+// (experiments/of10_discovery.cpp, of10_results.txt, of10_heldout.txt).
+// Known miss: naive two-sided quoting loses ~24 ticks per 5-minute episode
+// (target [-4, 0]): every price change sweeps the back-of-queue quote on
+// the side value passed (~58 stale sweeps per episode, 1 s markout -0.39),
+// which no parameter lever here removes at 15-22 trades/s and a 1-minute
+// sd of 3-4.5 ticks (OF10 iteration 3). Further known misses (seeds 1-3,
+// of10_results.txt): (c) in the episode regime, mk30 - mk5 +0.022 +- 0.009
+// (2.4 SE: FAIL; long windows +0.006 +- 0.009 pass); (b) corr(I1, r 30 s)
+// +0.075 in both regimes (check <= 0.05) and event corr(I5, next mid change)
+// +0.077 (check >= 0.15); leak corr(I1, g) 0.37 passes its <= 0.40 check but
+// is not far below 0.5. Own impact: own market orders fill at pre-impact
+// prices and then move value by value_impact per lot, so a block round trip
+// profits from its own impact (+0.15 tick/lot at 30 lots); ScalpEnv refuses
+// contracts > 1 here.
+inline SimParams discovery_market() {
+  SimParams p = discovery_market_v2();
+  p.maker_info = 0;
+  p.uninformed_meta_rate = 0.27;
+  p.noise_rate = 0.6;
+  p.value_impact = 0.05;
+  p.impact_forecast_weight = 0.3;
+  p.value_vol = 0.07;
+  p.jump_rate = 1.0 / 1200;
+  p.jump_sd = 8;
+  p.maker_size_mean = 3;
+  p.maker_rate = 12;
+  p.cancel_rate = 0.15;
+  p.reprice_cancel = 12;
+  p.reprice_take = 0.15;
+  p.activity_model = 1;
+  p.activity_warm_start = true;
+  p.activity_vol = 0.045;
+  p.activity_tau = 600;
+  p.activity_news_excite = 0.8;
+  p.activity_min = -3;
+  p.activity_max = 3;
+  return p;
+}
+
+// The default market with model 1 activity, stationary from the first step
+// (OF10 iteration 3): every market parameter of SimParams{} is unchanged, so
+// it shows how the old market behaves at realistic activity (~20 trades/s
+// in 10-minute episodes instead of ~4). Not calibrated: reported, not gated.
+inline SimParams default_warm() {
+  SimParams p;
+  p.activity_model = 1;
+  p.activity_warm_start = true;
+  p.activity_vol = 0.04;
+  p.activity_news_excite = 0.5;
+  p.activity_min = -3;
+  p.activity_max = 3;
+  return p;
+}
+
 // The market presets by name, for the command-line tools.
 inline SimParams market_preset(const std::string& name) {
   if (name == "default") return SimParams{};
   if (name == "efficient") return efficient_market();
   if (name == "discovery") return discovery_market();
   if (name == "discovery_v1") return discovery_market_v1();
-  throw std::invalid_argument("unknown market '" + name + "' (default, efficient, discovery or discovery_v1)");
+  if (name == "discovery_v2") return discovery_market_v2();
+  if (name == "default_warm") return default_warm();
+  throw std::invalid_argument("unknown market '" + name + "' (default, default_warm, efficient, discovery, discovery_v1 or discovery_v2)");
 }
 
 struct Fill {
@@ -296,6 +439,11 @@ class EsSimulator {
       throw std::invalid_argument("SimParams: reprice_band must be >= 0 and reprice_snipe in [0, 1]");
     if (!(p_.reprice_cancel >= 0) || !(p_.reprice_take >= 0 && p_.reprice_take <= 1) || !(p_.value_impact >= 0) || !(p_.impact_forecast_tau > 0))
       throw std::invalid_argument("SimParams: reprice_cancel, value_impact >= 0, reprice_take in [0, 1], impact_forecast_tau > 0");
+    if (p_.activity_model != 0 && p_.activity_model != 1) throw std::invalid_argument("SimParams: activity_model must be 0 (legacy) or 1");
+    if (p_.activity_warm_start && p_.activity_model != 1)
+      throw std::invalid_argument("SimParams: activity_warm_start needs activity_model 1 (the legacy loop has no interior stationary law)");
+    if (p_.activity_model == 1 && (!(p_.activity_tau > p_.dt) || !(p_.activity_vol >= 0) || !(p_.activity_news_excite >= 0) || !(p_.activity_min < p_.activity_max)))
+      throw std::invalid_argument("SimParams: activity_model 1 needs activity_tau > dt, activity_vol, activity_news_excite >= 0, activity_min < activity_max");
     seed_ = seed;
     if (p_.separate_streams)
       for (std::uint64_t k = 0; k < kStreams; ++k) streams_.emplace_back(stream_seed(k, 0));
@@ -303,6 +451,27 @@ class EsSimulator {
     value_ = p_.start_price + 0.5;
     clock_ = start_second;
     for (std::size_t i = 0; i < kLevels; ++i) bid_q_[i] = ask_q_[i] = stationary_depth(i);
+    if (p_.activity_model == 1) {
+      const ActivityLaw law = activity_law(p_);
+      m0_ = law.m0;
+      double x = m0_;
+      if (p_.activity_warm_start) {  // an exact draw from the stationary law, on a stream nothing else uses
+        constexpr double c = 0.7978845608028654;  // sqrt(2 / pi)
+        Rng w(stream_seed(kStreams, 0));
+        x += std::sqrt(law.gauss_var) * w.normal();
+        const double k = p_.activity_news_excite, pj = law.jump_p, phi = law.phi;
+        if (k > 0 && pj > 0) {
+          // The kicks of the last `horizon` steps: jump steps form a Bernoulli(pj)
+          // process (geometric gaps: exact), each kick decayed by phi^age.
+          const double lq = std::log1p(-pj);
+          const auto horizon = static_cast<double>(law.horizon);
+          auto gap = [&w, lq] { return std::floor(std::log(1 - w.uniform()) / lq); };  // steps without a jump before the next one
+          for (double j = gap(); j < horizon; j += 1 + gap()) x += k * std::abs(w.normal()) * std::pow(phi, j);
+          x -= k * pj * c * (1 - std::pow(phi, horizon)) / (1 - phi);  // the compensator over the same lags
+        }
+      }
+      log_activity_ = std::clamp(x, p_.activity_min, p_.activity_max);
+    }
     history_.push_back(mid());
   }
 
@@ -310,6 +479,7 @@ class EsSimulator {
   void step() {
     trades_.clear();
     fills_.clear();
+    fill_values_.clear();
     snipes_ = 0;
     cleared_ = 0;
     // Counter-based streams: every step re-seeds each process from (seed,
@@ -323,11 +493,19 @@ class EsSimulator {
     const double mid0 = mid();
     // 1. Activity.
     use(kValue);
-    log_activity_ += -log_activity_ / p_.activity_tau * dt + p_.activity_vol * std::sqrt(dt) * r().normal();
+    if (p_.activity_model == 1)  // centred on m0 (E[activity] = intraday)
+      log_activity_ += -(log_activity_ - m0_) / p_.activity_tau * dt + p_.activity_vol * std::sqrt(dt) * r().normal();
+    else
+      log_activity_ += -log_activity_ / p_.activity_tau * dt + p_.activity_vol * std::sqrt(dt) * r().normal();
     const double a = std::exp(log_activity_) * intraday(clock_);
     // 2. Fair value.
     value_ += p_.value_vol * std::sqrt(a * dt) * r().normal();
-    if (r().uniform() < p_.jump_rate * dt) value_ += p_.jump_sd * r().normal();
+    double jump_abs = 0;  // |standardised value jump| of this step (model 1's news kick)
+    if (r().uniform() < p_.jump_rate * dt) {
+      const double z = r().normal();
+      value_ += p_.jump_sd * z;
+      jump_abs = std::abs(z);
+    }
     // 3. Takers.
     orders_.clear();
     use(kNoise);
@@ -467,9 +645,14 @@ class EsSimulator {
         reprice();
       }
     }
-    const double moved = std::abs(mid() - mid0);
-    move_avg_ += (moved - move_avg_) * std::min(1.0, dt / 1800);
-    log_activity_ = std::clamp(log_activity_ + p_.activity_excite * (moved - move_avg_), p_.activity_min, p_.activity_max);
+    if (p_.activity_model == 1) {  // the compensated news kick: mean zero, state-independent
+      constexpr double c = 0.7978845608028654;  // sqrt(2 / pi) = E|Z|
+      log_activity_ = std::clamp(log_activity_ + p_.activity_news_excite * (jump_abs - p_.jump_rate * dt * c), p_.activity_min, p_.activity_max);
+    } else {
+      const double moved = std::abs(mid() - mid0);
+      move_avg_ += (moved - move_avg_) * std::min(1.0, dt / 1800);
+      log_activity_ = std::clamp(log_activity_ + p_.activity_excite * (moved - move_avg_), p_.activity_min, p_.activity_max);
+    }
     history_.push_back(mid());
     const auto keep = static_cast<std::size_t>(std::ceil(p_.momentum_lookback / dt)) + 1;
     while (history_.size() > keep) history_.pop_front();
@@ -525,6 +708,10 @@ class EsSimulator {
   };
   [[nodiscard]] const std::vector<Resting>& resting() const noexcept { return resting_; }
   [[nodiscard]] const std::vector<OwnFill>& own_fills() const noexcept { return fills_; }
+  // DIAGNOSTICS ONLY, hidden state: the fair value when each own_fills()[i]
+  // filled (was value already past the quote?). Kept out of OwnFill so that
+  // nothing agent-facing that copies fills can carry the hidden value.
+  [[nodiscard]] const std::vector<double>& own_fill_hidden_values() const noexcept { return fill_values_; }
 
   // ---- market state -----------------------------------------------------
   [[nodiscard]] const std::vector<Trade>& trades() const noexcept { return trades_; }
@@ -557,6 +744,19 @@ class EsSimulator {
   // trades() only until the strategy trades (market_order() appends its own prints after them).
   [[nodiscard]] std::size_t sniper_prints() const noexcept { return snipes_; }
   [[nodiscard]] double log_activity() const noexcept { return log_activity_; }  // clamped to [activity_min, activity_max]
+  [[nodiscard]] double activity_center() const noexcept { return m0_; }          // model 1: m0 (0 with model 0)
+  [[nodiscard]] double intraday_factor() const noexcept { return intraday(clock_); }
+  [[nodiscard]] double move_avg() const noexcept { return move_avg_; }  // model 0's EWMA of the per-step move (diagnostics)
+  // Fresh future randomness for a copy of the market (expected-mid oracles:
+  // copy, fork, step ahead). The copy keeps every piece of hidden state (book,
+  // value, activity, meta-orders, icebergs, queues) and draws new news and
+  // arrivals from here on; with separate_streams every process's stream is
+  // re-seeded too. Nothing calls it but an oracle: no effect on any other run.
+  void fork(std::uint64_t salt) noexcept {
+    seed_ = mix64(seed_ ^ mix64(salt + 0x632BE59BD9B4E019ull));
+    rng_.reseed(seed_);
+    for (std::size_t k = 0; k < streams_.size(); ++k) streams_[k].reseed(stream_seed(k, steps_));
+  }
   // v2 diagnostics: fair-value change from flow impact since the start (ticks,
   // signed); stale episodes (races) started; stale lots cancelled (not sniped).
   [[nodiscard]] double flow_impact() const noexcept { return flow_impact_; }
@@ -670,6 +870,7 @@ class EsSimulator {
       const std::uint32_t mine = std::min(take - past, it->qty);
       if (mine > 0) {
         fills_.push_back({it->id, passive, price, mine});
+        fill_values_.push_back(value_);
         it->qty -= mine;
       }
       if (it->qty == 0) {
@@ -695,6 +896,7 @@ class EsSimulator {
       const std::uint32_t mine = std::min(take - past, it->qty);
       if (mine > 0) {
         fills_.push_back({it->id, passive, price, mine});
+        fill_values_.push_back(value_);
         it->qty -= mine;
       }
       if (it->qty == 0) {
@@ -758,6 +960,7 @@ class EsSimulator {
       const bool through = it->side == Side::Sell ? it->price <= bid_ : it->price >= ask();
       if (through) {
         fills_.push_back({it->id, it->side, it->price, it->qty});
+        fill_values_.push_back(value_);
         trades_.push_back({t_ns_, it->price, it->qty, up, false});
         taker_volume_[kSniper] += it->qty;
         ++snipes_;
@@ -990,6 +1193,12 @@ class EsSimulator {
     return z ^ (z >> 31);
   }
   Rng& r() noexcept { return cur_ < streams_.size() ? streams_[cur_] : rng_; }
+  [[nodiscard]] static std::uint64_t mix64(std::uint64_t z) noexcept {  // splitmix64
+    z += 0x9E3779B97F4A7C15ull;
+    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
+    z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
+    return z ^ (z >> 31);
+  }
 
   SimParams p_;
   Rng rng_;
@@ -999,11 +1208,13 @@ class EsSimulator {
   std::int32_t bid_ = 0, spread_ = 1;
   std::array<std::uint32_t, kLevels> bid_q_{}, ask_q_{};
   double value_ = 0, log_activity_ = 0, clock_ = 0, flow_ = 0, move_avg_ = 0.1;
+  double m0_ = 0;  // model 1: the centre of log activity (activity_law())
   std::int64_t t_ns_ = 0;
   std::uint64_t next_id_ = 1;
   std::deque<double> history_;
   std::vector<Trade> trades_;
   std::vector<OwnFill> fills_;
+  std::vector<double> fill_values_;  // own_fill_hidden_values(), parallel to fills_
   std::vector<Order> orders_;
   std::vector<Meta> metas_;
   std::vector<Iceberg> icebergs_;
