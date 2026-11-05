@@ -16,7 +16,11 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
+#include <filesystem>
 #include <vector>
+
+#include "rag/io.hpp"
 
 #include "rag/agent/rng.hpp"
 
@@ -43,6 +47,44 @@ class Mlp {
         w_[off++] = 0.0;  // bias
       }
     }
+  }
+
+  // The network's shape and weights (not the optimizer state) in the
+  // rag::io format: checksummed, crash-safe, validated on load. Enough to
+  // deploy a trained policy elsewhere; training resumes with fresh Adam state.
+  void save(const std::filesystem::path& path) const {
+    io::Writer w(path);
+    w.bytes(kMagic, sizeof kMagic);
+    w.vec(sizes_);
+    w.vec(w_);
+    w.commit();
+  }
+  [[nodiscard]] static Mlp load(const std::filesystem::path& path) {
+    io::Reader r(path);
+    char magic[sizeof kMagic];
+    r.bytes(magic, sizeof magic);
+    if (std::memcmp(magic, kMagic, sizeof magic) != 0) throw io::FormatError("Mlp: not a network file");
+    Mlp m;
+    m.sizes_ = r.vec<std::uint32_t>();
+    auto weights = r.vec<double>();
+    r.finish();
+    if (m.sizes_.size() < 2) throw io::FormatError("Mlp: needs at least two layers");
+    std::size_t n = 0, units = 0;
+    for (std::size_t l = 0; l + 1 < m.sizes_.size(); ++l) {
+      if (m.sizes_[l] == 0 || m.sizes_[l + 1] == 0 || m.sizes_[l] > 1'000'000 || m.sizes_[l + 1] > 1'000'000) throw io::FormatError("Mlp: bad layer size");
+      n += std::size_t{m.sizes_[l] + 1} * m.sizes_[l + 1];
+    }
+    for (auto s : m.sizes_) units += s;
+    if (weights.size() != n) throw io::FormatError("Mlp: weight count does not match the shape");
+    for (double x : weights)
+      if (!std::isfinite(x)) throw io::FormatError("Mlp: non-finite weight");
+    m.w_ = std::move(weights);
+    m.g_.assign(n, 0.0);
+    m.m_.assign(n, 0.0);
+    m.v_.assign(n, 0.0);
+    m.act_.resize(units);
+    m.delta_.resize(units);
+    return m;
   }
 
   [[nodiscard]] std::uint32_t inputs() const noexcept { return sizes_.front(); }
@@ -156,6 +198,7 @@ class Mlp {
     }
   }
 
+  static constexpr char kMagic[8] = {'R', 'A', 'G', 'M', 'L', 'P', '0', '1'};
   std::vector<std::uint32_t> sizes_;
   std::vector<double> w_, g_, m_, v_;  // weights (row per output unit, bias last), gradient, Adam moments
   std::vector<double> act_, delta_;    // training scratch

@@ -168,6 +168,9 @@ class Trainer {
     return evaluate(env_, [&](const auto& o) { return deployed_act(o); }, cfg_.eval_episodes, cfg_.eval_seed).mean;
   }
   [[nodiscard]] bool has_champion() const noexcept { return champion_.has_value(); }
+  // The deployed policy's snapshot (nullptr before the first evaluation);
+  // e.g. champion()->net.save(path) for a NeuralQ agent.
+  [[nodiscard]] const auto* champion() const noexcept { return champion_ ? &*champion_ : nullptr; }
   [[nodiscard]] std::size_t bank_size() const noexcept { return bank_.size(); }
 
   // Held-out greedy score of the agent as it is now.

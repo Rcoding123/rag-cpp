@@ -1,7 +1,7 @@
 // OF3: RL on TickScalpEnv. NeuralQ (Double DQN, weight averaging), trained on
 // fresh simulated ES sessions, champion selected on validation episodes,
 // then scored on the same 300 sealed test episodes as the OF4 baselines.
-// Usage: of5_tick_rl SEED EPISODES [gamma=0.97] [n_step=5] [eps_decay=frac of episodes 0.5]
+// Usage: of5_tick_rl SEED EPISODES [gamma=0.97] [n_step=5] [eps_decay=frac of episodes 0.5] [save_path]
 // Prints progress and a final CSV line: seed,episodes,ticks_per_ep,t,sharpe,orders,win
 #include <cmath>
 #include <cstdio>
@@ -47,6 +47,7 @@ int main(int argc, char** argv) {
     std::fprintf(stderr, "seed %llu: %u episodes, training %.1f ticks/ep, deployed validation %.2f ticks/ep\n", (unsigned long long)seed, done,
                  mean_train / std::max<std::size_t>(1, rep.returns.size()), rep.champion_score);
   }
+  if (argc > 6 && tr.champion()) tr.champion()->net.save(argv[6]);  // the deployed network, for stress tests
   std::vector<double> pnl;
   double orders = 0;
   for (unsigned i = 0; i < 300; ++i) {

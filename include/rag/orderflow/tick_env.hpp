@@ -41,6 +41,7 @@ struct TickParams {
   double decide_seconds = 0.5;
   double episode_seconds = 300;
   double warmup_seconds = 150;
+  double start_second = -1;  // session time of the warm-up start; < 0: random each episode
   int max_position = 1;
   double fee_dollars = 1.5;  // per contract per side, passive or aggressive
 };
@@ -77,7 +78,8 @@ class TickScalpEnv {
 
   Observation reset(rag::agent::Rng& rng) {
     const double latest_start = std::max(0.0, p_.sim.session_seconds - p_.episode_seconds - p_.warmup_seconds);
-    sim_.emplace(p_.sim, rng.next(), rng.uniform() * latest_start);
+    const double u = rng.uniform();  // drawn either way: episode seeds don't depend on the setting
+    sim_.emplace(p_.sim, rng.next(), p_.start_second >= 0 ? p_.start_second : u * latest_start);
     fb_ = FeatureBuilder(p_.sim.dt);
     for (std::uint32_t i = 0; i < steps(p_.warmup_seconds); ++i) advance();
     position_ = 0;

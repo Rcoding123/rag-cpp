@@ -4,6 +4,9 @@
 
 #include <array>
 #include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <vector>
 
 #include "rag/agent/mlp.hpp"
@@ -121,4 +124,31 @@ TEST(NeuralQ, WeightAveragingLeavesTrainingUnchangedAndOnlyAffectsGreedyActing) 
     differ += avg->act(o, false) != plain->act(o, false);
   }
   EXPECT_GT(differ, 0) << "a slow average should act differently from the online network somewhere";
+}
+
+TEST(Mlp, SaveLoadRoundTripAndRejectsCorruptFiles) {
+  Rng rng(12);
+  const Mlp net({4, 9, 3}, rng);
+  const auto path = std::filesystem::path(::testing::TempDir()) / "mlp_roundtrip.net";
+  net.save(path);
+  const Mlp back = Mlp::load(path);
+  EXPECT_EQ(back.parameters(), net.parameters());
+  std::vector<double> s1(net.scratch_size()), s2(back.scratch_size());
+  std::array<double, 3> a{}, b{};
+  const std::array<double, 4> x = {0.1, -1.2, 0.7, 2.0};
+  net.forward(x.data(), a.data(), s1.data());
+  back.forward(x.data(), b.data(), s2.data());
+  EXPECT_EQ(a, b);
+  std::vector<char> bytes;
+  {
+    std::ifstream f(path, std::ios::binary);
+    bytes.assign(std::istreambuf_iterator<char>(f), {});
+  }
+  bytes[bytes.size() / 2] ^= 0x40;
+  {
+    std::ofstream f(path, std::ios::binary | std::ios::trunc);
+    f.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+  }
+  EXPECT_THROW((void)Mlp::load(path), rag::io::FormatError);
+  std::filesystem::remove(path);
 }
