@@ -131,3 +131,26 @@ TEST(ReplayScalpEnv, FillsAtTheRecordedTouchWithFeesAndWindowsTheTape) {
   }
   EXPECT_THROW(env.seek(3), std::out_of_range);
 }
+
+// --- agent memory: NeuralQ allocates no tile tables ------------------------------
+#include "rag/agent/agent.hpp"
+#include "rag/orderflow/tick_env.hpp"
+
+TEST(NeuralQMemory, HighDimensionalEnvironmentsNeedNoTileTables) {
+  // 21 inputs at the default 8 bins would need 9^21 tile cells per table;
+  // NeuralQ never uses them, so construction and snapshots must stay small.
+  TickScalpEnv env;
+  rag::agent::AgentConfig<TickScalpEnv::kStateDims> c;
+  c.learner = rag::agent::LearnerKind::NeuralQ;
+  c.double_q = true;
+  c.nn_polyak = 1e-4;
+  rag::agent::Agent<TickScalpEnv> agent(env, c);
+  const auto snap = agent.snapshot();
+  EXPECT_EQ(snap.q.weights().size(), 0u);
+  EXPECT_EQ(snap.q2.weights().size(), 0u);
+  EXPECT_GT(snap.net.parameters(), 0u);
+  rag::agent::Rng r(1);
+  auto o = env.reset(r);
+  const auto a = agent.act(o, true);
+  EXPECT_LT(a, TickScalpEnv::kNumActions);
+}

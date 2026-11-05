@@ -495,10 +495,14 @@ def main(argv=None) -> int:
             if got >= args.max_pdfs:
                 break
             if it.pdf_url:
+                dest = out / "pdfs" / f"{slug(it.key)}.pdf"
+                if dest.exists() and dest.read_bytes()[:4] == b"%PDF":  # already downloaded: don't fetch again
+                    got += 1
+                    continue
                 url = it.pdf_url.replace("://arxiv.org/", "://export.arxiv.org/")  # arXiv asks bulk clients to use export
                 data = fetcher.get(url, cache=False)
                 if data and data[:4] == b"%PDF":
-                    (out / "pdfs" / f"{slug(it.key)}.pdf").write_bytes(data)
+                    dest.write_bytes(data)
                     got += 1
         print(f"downloaded {got} PDFs", file=sys.stderr)
     print(f"{len(found)} items found, {len(ranked)} kept (score >= {args.min_score}); wrote {out / 'digest.md'}", file=sys.stderr)

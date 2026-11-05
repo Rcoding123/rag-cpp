@@ -137,8 +137,11 @@ class Agent {
       : env_(env), cfg_(defaults(cfg)),
         coder_(Env::kLo, Env::kHi, cfg_.bins, cfg_.tilings),
         embed_(cfg_.kernel_width, cfg_.seed ^ 0xE5BEDull),
-        q_(coder_.size(), cfg_.tilings, static_cast<std::uint32_t>(A), cfg_.alpha, cfg_.init_q),
-        q2_(cfg_.double_q ? q_ : TileQ{}),
+        // NeuralQ uses neither tile table: allocating them anyway costs
+        // (bins + 1)^Dims cells each (2^21 x 8 tilings x 5 actions = 670 MB at
+        // 21 inputs) and every snapshot copies them.
+        q_(cfg_.learner == LearnerKind::NeuralQ ? TileQ{} : TileQ(coder_.size(), cfg_.tilings, static_cast<std::uint32_t>(A), cfg_.alpha, cfg_.init_q)),
+        q2_(cfg_.double_q && cfg_.learner != LearnerKind::NeuralQ ? q_ : TileQ{}),
         critic_(cfg_.learner == LearnerKind::ActorCritic ? TileQ(coder_.size(), cfg_.tilings, 1, cfg_.critic_alpha) : TileQ{}),
         replay_(cfg_.learner == LearnerKind::TileQ ? cfg_.replay_capacity : 0),
         mem_(cfg_.memory),
