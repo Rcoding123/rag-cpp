@@ -143,7 +143,7 @@ building learning systems in general, not just this task.
     of one extra copy of the weights; a fast one (1e-3) didn't. It also made
     the final policy usable without champion selection (E24).
 
-## Trading on order flow (OF1–OF9; ORDERFLOW.md)
+## Trading on order flow (OF1–OF10; ORDERFLOW.md)
 
 32. **A simulator that pays every day is wrong, not good.** The scalping
     agent's annualized Sharpe of ~80 with no losing day measured the
@@ -178,3 +178,31 @@ building learning systems in general, not just this task.
     barely helped (state-dependent draw counts desynchronize streams);
     re-seeding every step from (seed, process, step) doubled the paired
     runs' correlation (0.33 -> 0.61).
+40. **Measure in the regime you trade in.** The stylized facts were
+    measured on 6.5 h windows, but every RL episode starts a fresh
+    simulator whose activity sits at its floor for ~1.5 h (a running mean
+    initialized too high, with an 1,800 s time constant). The agents
+    trained and were scored at ~4 trades/s, not ~20, for every OF2-OF9
+    result, and the OF10 v2 preset was tuned on 2 h windows that leave
+    the floor halfway. Run the fact checks on the exact windows the agents
+    see (OF10 warm-up finding).
+41. **A price that moves without the book makes imbalance useless.** Rigid
+    whole-book quote jumps removed the hidden gap's 30 s predictability
+    (0.57 -> 0.11) and also every signal in the book: imbalance predicted
+    the next mid change at +0.02 instead of +0.33. Information must reach
+    the price through the queues, or order-flow features have nothing to
+    read (OF10 v1).
+42. **Rate tilts leak, depletion informs.** Makers tilting order rates
+    toward a value the price takes 30 s to reach put a 30 s forecast into
+    the book (OF9: L1 imbalance vs the next 30 s return 0.32). Withdrawing
+    quotes that value has already passed moves the price within a tick in
+    ~0.1 s, so the book is still correlated with the gap (0.45) but the gap
+    is gone within seconds: imbalance predicts the next mid change at +0.25
+    and the next 30 s at 0.04-0.05, tail ~0 (OF10 v2). What matters is not
+    whether the book knows the value, but how long the price lags it.
+43. **Check the oracle actually trades.** "No rule beats the oracle"
+    passed in v1 and v2 because the oracles barely traded: the gap was
+    capped at the band (v1), or rarely crossed the pre-registered threshold
+    (v2: 1.4-1.6 lots per episode, net -0.5), while a 2 s clairvoyant made
+    +7 ticks per episode. Report the bound's activity next to it, and
+    keep a clairvoyant beside the oracle (OF10).

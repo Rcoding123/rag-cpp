@@ -43,7 +43,8 @@ and the conclusion; negative results stay in.
 | E26 | Where do the learned policies err? | They over-trade: trading too much costs 3.5–11.2% of the optimal gain vs 0.7–5.8% for too little; the vote removes idiosyncratic errors, not the bias. |
 | E27 | Does a lower-quantile vote fix the bias? | No: better on the selection set (98.1 vs 97.5%), not on fresh scenarios (97.8 vs 97.9%) — selection bias. |
 | E28 | Do strategies survive a different market? (stress suite, sealed seeds) | Fixed strategies (DP plan, learned ensemble) only in their assumed market (−173% when the signal flips); the model-based agent re-learned in 50 episodes keeps 97–100% everywhere. |
-| OF1–OF9 | ES order-flow trading | See ORDERFLOW.md §4: RL scalping beats every rule in the simulator (robust to 9 stresses) but the simulator is too predictable to trust absolute P&L; tick-scalping RL matches, not beats, the rule. |
+| OF1–OF9 | ES order-flow trading | See ORDERFLOW.md §4: RL scalping beats every rule in the simulator (robust to 9 stresses) but the simulator is too predictable to trust absolute P&L; tick-scalping RL matches, not beats, the rule. Caveat (found in OF10): every OF2–OF9 episode ran at the simulator's activity floor (~4 trades/s instead of 15–22). |
+| OF10 | Can the simulator discover prices in seconds? | Partly. Rigid quote jumps (v1) remove the 30 s gap predictability (0.57–0.64 → 0.11) but make book imbalance useless (+0.02). Stale-side depletion (v2) keeps both (gap 0.09–0.11, imbalance → next tick +0.25) but fails the stylized facts and passive quoting (−6.6 to −7.2 ticks); its oracle bound is vacuous. RL episodes run in a quiet warm-up regime; iteration 3 pending. |
 | E19 | Do gap-increasing targets help? | Advantage learning (k = 0.5) lifts TileQ from 65–69% to 70–75% at 40k, and to 76–80% with coarse tiles: the best tile-coded result, still below the neural learner. |
 
 ---
@@ -1459,3 +1460,52 @@ R² = 0.56; effect of +1 standard deviation of each parameter):
 The order-flow series (simulator stylized facts, scalping and
 tick-scalping baselines and RL, stress, daily P&L, efficient market,
 calibration, backtesting) is documented in [ORDERFLOW.md](ORDERFLOW.md) §4.
+Caveat found in OF10: every OF2–OF9 episode ran at the activity floor of
+a freshly started simulator (ORDERFLOW.md §5).
+
+## OF10. Price discovery in seconds (plan item 1; ORDERFLOW.md §4)
+
+* **Question:** can makers re-price fast enough that the hidden value gap
+  stops predicting the next 30 s (it did at 0.57 by default and 0.64 in
+  the efficient market), while book imbalance still predicts the next tick
+  and the facts stay ES-like? Criteria (a)–(f): gap, imbalance, markout,
+  facts, naive rules, oracle bound.
+* **Setup:** probe `experiments/of10_discovery.cpp` (target
+  `of_discovery`), opt-in presets, defaults bit-exact. Diagnostic simulator
+  seeds 1–3 × 2 h (tuning), 4–6 × 2 h (held out), 7–12 × 6 h once (final);
+  block-jackknife SEs; rules on `ScalpEnv`/`TickScalpEnv` episodes; the
+  OF2/OF4 rule tables on 900M/910M. Results `of10_results.txt`,
+  `of10_heldout.txt`, `of10_baselines.txt`, `of10_tick_baselines.txt`,
+  `of10_calibrate_sim.txt` (v1 at `10bfe03`, v2 at `4ba0354`).
+* **v1, rigid quote jumps** (`discovery_v1`): when |value − mid| > 0.65
+  the whole book jumps and snipers take a clip of the stale quotes. Gap →
+  next 30 s 0.11 (floor 0.09–0.10): met. Imbalance → next mid change +0.02
+  (default +0.33): failed, the book moves as a block. Impact R² only via
+  the sniper prints (0.80 vs 0.15 for the rest); 25.9 trades/s (3 h);
+  markout flatness unresolved; the oracle never trades (the gap is capped
+  at the band). Rejected.
+* **v2, stale-side depletion** (`discovery`): stale levels drain lot by
+  lot, nobody joins them, the price ticks when the stale best is empty;
+  flow surprise moves value permanently. (a) gap → 30 s 0.111 / 0.092,
+  within 0.02 of the grid floor: met. (b) imbalance → next mid change
+  +0.25 / +0.24, nothing after: met on 2 h windows; +0.15 in 10-min
+  episode windows. (c) markout 30 s − 5 s −0.08 ± 0.05 on both, final
+  −0.015 ± 0.024: marginal. (d) trades/s 18–28 across seeds, kurtosis
+  4.1–4.5 (target 5–10): failed. (e) quote both sides −6.6 to −7.2 ticks
+  (target ≥ −4; default −2.8): failed. (f) passes only formally: the oracle
+  at θ* = 0.70 trades 1.4–1.6 lots/episode and nets −0.5, while a 2 s
+  clairvoyant makes +6.9 to +7.6. Impact of a 300 s TWAP buy is linear
+  (exponent 0.99) and fully permanent (+54 ticks for 1,200 lots, default
+  +1).
+* **The warm-up finding** (skeptic's runs, not committed:
+  `build-avx512/skeptic/s600.txt`, `s6h.txt`, `sclose.txt`): a fresh
+  simulator's activity collapses to its floor (exp(−1.5)) within seconds
+  and stays there ~1.5 h, because `move_avg_` starts at 0.1 tick/step with
+  an 1,800 s time constant. In 600 s windows after the 150 s warm-up:
+  activity 0.29, 4.2 trades/s (default) and 2.3 (v2), 1-min sd ~2.4. Over
+  6 h: 21.6 and 33.1 trades/s. Every OF2–OF9 RL and rule result ran in the
+  quiet regime; the OF1 facts on long windows. Present since `c808bd4`.
+* **Conclusion:** depletion is the right mechanism for (a) and (b), but
+  the preset was tuned in the wrong regime. Iteration 3: opt-in warm-up
+  fix, retune on 10-min episode windows, final check on seeds 13–18
+  (**pending**), then the RL reruns (**pending**).

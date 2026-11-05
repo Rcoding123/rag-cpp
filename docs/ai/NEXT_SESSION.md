@@ -13,10 +13,16 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > everything runs there, nothing on Linux).
 >
 > **Read first, in this order:** `docs/ai/README.md`, `docs/ai/ORDERFLOW.md`
-> (objectives, architecture, results OF1–OF9, honest status, ranked plan),
+> (objectives, architecture, results OF1–OF10, honest status, ranked plan),
 > `docs/ai/STATUS.md`, `docs/ai/CONVENTIONS.md`, `docs/ai/LESSONS.md`
-> (32–39 are the trading lessons), `docs/ai/NEXT_SESSION.md` (this file:
+> (32–43 are the trading lessons), `docs/ai/NEXT_SESSION.md` (this file:
 > how to organise agents) and `experiments/research_synthesis.md`.
+>
+> **State on 2026-11-04:** iterations 1 and 2 of the goal below are done
+> (OF10: v2 meets the gap and imbalance criteria, fails the facts and
+> passive quoting), and every OF2–OF9 episode turned out to run at the
+> simulator's activity floor (ORDERFLOW.md §5). Continue with iteration 3
+> (ORDERFLOW.md §7 item 1) before any RL rerun.
 >
 > **Goal of this session:** plan item 1 in ORDERFLOW.md §7: fix slow price
 > discovery in `include/rag/orderflow/simulator.hpp`. Makers must re-price
@@ -154,8 +160,12 @@ return { verdict, done, reviews, run, analysis }
 |---|---|
 | run seed (1, 2, ...) | training streams (`Trainer` train_seed) |
 | 700,000,000+ | validation: champion selection |
-| 900,000,000+ | sealed scalping test (OF2, OF3, OF9) |
-| 910,000,000+ | sealed tick-scalping test (OF4, OF5, OF7) — viewed many times: confirm elsewhere |
+| 900,000,000+ | sealed scalping test (OF2, OF3, OF9) — viewed on the discovery market (OF10 v1 and v2: `of2_baselines 300`, the `of_train` smoke tests' episodes): confirm discovery-market edges on 950M+ |
+| 910,000,000+ | sealed tick-scalping test (OF4, OF5, OF7) — viewed many times, also on the discovery market (`of4_tick_baselines 300`, OF10 v1 and v2): confirm elsewhere |
+| diagnostic simulator seeds 1–3 | OF10 tuning (`of_discovery`, 2 h windows; rule episodes 1,000,000 × seed + i): look as often as needed |
+| diagnostic seeds 4–6 | OF10 held-out sanity check (θ* pre-registered on 1–3) — viewed several times (v1, v2, skeptic's 600 s run): no longer held out |
+| diagnostic seeds 7–12 | OF10 v2 final check (6 h, once) — **spent** |
+| **diagnostic seeds 13–18** | **reserved: iteration 3's final check, once, after the preset is frozen** |
 | 920,000,000+ | stress scenarios (OF6) |
 | 930,000,000+ | trading days (OF8) |
 | 940,000,000+ | pairing probes (separate streams) |
@@ -165,6 +175,11 @@ return { verdict, done, reviews, run, analysis }
 ## 5. Red flags (stop and diagnose before reporting a win)
 
 - A learned policy beats the fair-value oracle (OF9).
+- An oracle bound that barely trades (under ~2 lots/episode): "nothing
+  beats it" then means nothing (OF10, LESSONS 43).
+- Facts checked on windows the agents never see: compare trades/s and
+  1-min sd in the episode windows themselves (OF10 warm-up finding,
+  LESSONS 40).
 - Annualized Sharpe above ~5, or no losing day, for a 1-lot directional
   strategy (OF8: ~80 meant a too-easy simulator).
 - A naive rule profits a lot after costs (naive quoting winning every
