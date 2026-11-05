@@ -17,7 +17,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <memory>
+#include <optional>
 
 #include "rag/agent/env.hpp"
 #include "rag/orderflow/features.hpp"
@@ -68,7 +68,7 @@ class ScalpEnv {
 
   Observation reset(rag::agent::Rng& rng) {
     const double latest_start = std::max(0.0, p_.sim.session_seconds - p_.episode_seconds - p_.warmup_seconds);
-    sim_ = std::make_unique<EsSimulator>(p_.sim, rng.next(), rng.uniform() * latest_start);
+    sim_.emplace(p_.sim, rng.next(), rng.uniform() * latest_start);
     fb_ = FeatureBuilder(p_.sim.dt);
     for (std::uint32_t i = 0; i < steps(p_.warmup_seconds); ++i) advance();
     position_ = 0;
@@ -151,7 +151,7 @@ class ScalpEnv {
   }
 
   ScalpParams p_;
-  std::unique_ptr<EsSimulator> sim_;
+  std::optional<EsSimulator> sim_;  // by value: environments are copied (evaluate(), Agent)
   FeatureBuilder fb_{0.1};
   int position_ = 0;
   double cash_ = 0, equity_ = 0, entry_mid_ = 0, elapsed_ = 0, fees_ticks_ = 0;

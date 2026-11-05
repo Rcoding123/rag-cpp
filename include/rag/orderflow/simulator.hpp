@@ -119,6 +119,13 @@ struct SimParams {
   double iceberg_life = 300;            // seconds
   std::int32_t iceberg_max_offset = 4;  // ticks behind the best price
   std::uint32_t max_order = 300;        // size cap for a single order
+  // The strategy's queue position (tick scalping). Cancellations land
+  // mostly at the back of a queue (recent orders get pulled; the front is
+  // long-standing size): of n lots cancelled by others, n * (ahead / others)^
+  // cancel_back_bias come from ahead of our order (1 = uniform). And faster
+  // participants beat a 100 ms order to a level: on joining, a lognormal
+  // number of lots with mean join_ahead_mean lands ahead of it.
+  double cancel_back_bias = 3.0, join_ahead_mean = 120;  // OF4: naive two-sided quoting ~breakeven gross, loses after fees
 };
 
 struct Fill {
@@ -221,6 +228,8 @@ class EsSimulator {
     const std::size_t i = level_index(side, price);
     if (i >= kLevels) return 0;  // too far from the market to simulate
     auto& q = side == Side::Buy ? bid_q_ : ask_q_;
+    const std::uint32_t faster = p_.join_ahead_mean > 0 ? lognormal_size(p_.join_ahead_mean, 0.8) : 0;
+    q[i] += faster;
     resting_.push_back({next_id_, side, price, qty, q[i]});
     q[i] += qty;
     return next_id_++;
@@ -348,7 +357,8 @@ class EsSimulator {
     q[i] -= n;
     for (auto& r : resting_)
       if (r.side == side && level_index(side, r.price) == i && oth > 0)
-        r.ahead -= std::min(r.ahead, static_cast<std::uint32_t>(std::llround(static_cast<double>(n) * r.ahead / oth)));
+        r.ahead -= std::min(r.ahead, static_cast<std::uint32_t>(std::llround(
+                                         static_cast<double>(n) * std::pow(static_cast<double>(r.ahead) / oth, p_.cancel_back_bias))));
   }
 
   Iceberg* iceberg_at(Side side, std::int32_t price) {

@@ -65,7 +65,7 @@ TEST(EsSimulator, MarketOrderTakesTheBestPrices) {
 }
 
 TEST(EsSimulator, LimitOrderFillsOnlyAfterTheQueueAheadTrades) {
-  EsSimulator sim(SimParams{}, 1);
+  EsSimulator sim(SimParams{.join_ahead_mean = 0}, 1);  // no faster participants: we join right behind the visible queue
   const std::int32_t bid = sim.bid();
   const std::uint32_t queue = sim.quote().bid_size[0];
   const std::uint64_t id = sim.submit_limit(Side::Buy, bid, 2);
@@ -188,4 +188,48 @@ TEST(ScalpEnv, TradingEveryStepLosesTheSpreadAndFees) {
   for (int i = 0; i < 60; ++i) env.step(static_cast<rag::agent::Action>(i % 2 == 0 ? 0 : 2), r);  // flip short/long every second
   // ~60 flips of 2 contracts: each pays about a spread (1 tick) per contract plus fees.
   EXPECT_LT(env.net_pnl_ticks(), -40.0);
+}
+
+// --- tick_env.hpp ------------------------------------------------------------
+#include "rag/orderflow/tick_env.hpp"
+
+TEST(TickScalpEnv, InventoryStaysWithinLimitsAndRewardsAddUp) {
+  TickParams p;
+  p.episode_seconds = 120;
+  TickScalpEnv env(p);
+  for (rag::agent::Action mode : {rag::agent::Action{0}, rag::agent::Action{3}, rag::agent::Action{1}}) {
+    rag::agent::Rng r(21);
+    auto o = env.reset(r);
+    double total = 0;
+    for (;;) {
+      const auto st = env.step(mode, r);
+      total += st.reward;
+      o = st.obs;
+      ASSERT_LE(std::abs(o.position), p.max_position);
+      if (st.done) break;
+    }
+    EXPECT_EQ(o.position, 0);
+    EXPECT_NEAR(total, env.net_pnl_ticks(), 1e-6);
+    if (mode == 0) {
+      EXPECT_EQ(env.fills(), 0u);
+      EXPECT_EQ(total, 0.0);
+    } else {
+      EXPECT_GT(env.fills(), 0u);  // two minutes at the touch gets filled
+    }
+  }
+}
+
+TEST(TickScalpEnv, QueuePositionIsObservedWhileQuoting) {
+  TickScalpEnv env;
+  rag::agent::Rng r(5);
+  env.reset(r);
+  const auto st = env.step(3, r);  // quote both sides for 0.5 s
+  // Unless already filled, each side reports a queue position in (0, ~2].
+  if (st.obs.position == 0) {
+    EXPECT_GT(st.obs.bid_queue, 0.0);
+    EXPECT_GT(st.obs.ask_queue, 0.0);
+  }
+  const auto none = env.step(0, r);
+  EXPECT_EQ(none.obs.bid_queue, -1.0);
+  EXPECT_EQ(none.obs.ask_queue, -1.0);
 }
