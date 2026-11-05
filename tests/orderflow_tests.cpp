@@ -909,3 +909,152 @@ TEST(EsSimulatorActivity, MultiLotScalpingIsRefusedWhereOwnImpactPays) {
   sp.contracts = 1;
   EXPECT_NO_THROW(ScalpEnv{sp});
 }
+
+// OF10 iteration 3: the --warmup option of the ScalpEnv programs
+// (rag/orderflow/scalp_run.hpp), opt-in with ScalpEnv's 150 s default.
+#include <algorithm>
+#include <filesystem>
+#include <fstream>
+#include <string>
+
+#include "rag/orderflow/scalp_run.hpp"
+
+TEST(ScalpEnvRun, TheWarmupOptionReachesScalpParamsAndMovesTheEpisodes) {
+  EXPECT_EQ(kDefaultWarmup, ScalpParams{}.warmup_seconds);
+  EXPECT_EQ(scalp_params("default").warmup_seconds, ScalpParams{}.warmup_seconds);
+  ASSERT_TRUE(parse_warmup("1050").has_value());
+  EXPECT_EQ(*parse_warmup("1050"), 1050.0);
+  EXPECT_EQ(*parse_warmup("0"), 0.0);
+  for (const char* bad : {"", "-1", "10x", "nan", "inf", "1e999"}) EXPECT_FALSE(parse_warmup(bad).has_value()) << bad;
+  const ScalpParams p = scalp_params("discovery", *parse_warmup("1050"));
+  EXPECT_EQ(p.warmup_seconds, 1050.0);
+  EXPECT_EQ(p.sim.jump_rate, discovery_market().jump_rate);
+  EXPECT_EQ(p.sim.activity_model, 1);
+  // The warm-up start is uniform on [0, session - episode - warm-up]: every
+  // episode starts >= 1050 s into the session and ends by the close.
+  const double latest = p.sim.session_seconds - p.episode_seconds - p.warmup_seconds;
+  double hi = 0;
+  for (std::uint64_t s = 1; s <= 200; ++s) {
+    rag::agent::Rng r(s);
+    const double start = ScalpEnv::draw_market(p, r).start;
+    EXPECT_GE(start, 0.0);
+    EXPECT_LE(start, latest);
+    hi = std::max(hi, start);
+  }
+  EXPECT_GT(hi, 0.9 * latest);
+  // reset() runs the simulator for the whole warm-up before the first decision.
+  ScalpEnv env(p);
+  rag::agent::Rng r(7);
+  (void)env.reset(r);
+  EXPECT_EQ(env.market().t_ns(), 1'050'000'000'000LL);
+  // At most session - episode (22,800 s): beyond that no episode fits before the close.
+  EXPECT_EQ(warmup_error(p), "");
+  EXPECT_EQ(warmup_error(scalp_params("default", 22'800)), "");
+  EXPECT_NE(warmup_error(scalp_params("default", 22'801)), "");
+  EXPECT_NE(warmup_error(scalp_params("discovery", 1e12)), "");
+}
+
+TEST(ScalpEnvRun, DiscoveryStressListDiffersAndTheLegacyListIsUnchanged) {
+  auto names = [](const std::vector<StressScenario>& v) {
+    std::vector<std::string> n;
+    for (const auto& s : v) n.push_back(s.name);
+    return n;
+  };
+  const std::vector<std::string> legacy = {"nominal",         "latency 300 ms",  "latency 1 s",     "fees $3/side", "informed flow x0.5",
+                                           "uninformed flow x1.5", "volatility x1.5", "quote fading x2", "session open"};
+  EXPECT_EQ(names(stress_scenarios(false)), legacy);
+  const std::vector<std::string> disc = {"nominal",          "latency 300 ms",        "latency 1 s",      "fees $3/side",
+                                         "uninformed flow x1.5", "slower discovery x0.5", "flow impact x1.5", "news x3",
+                                         "informed meta-orders x4", "thinner book x0.5", "session open"};
+  EXPECT_EQ(names(stress_scenarios(true)), disc);
+  // The legacy scenarios change exactly what they did.
+  const auto ls = stress_scenarios(false);
+  ScalpParams q;
+  ls[4].change(q);
+  EXPECT_EQ(q.sim.informed_meta_rate, SimParams{}.informed_meta_rate * 0.5);
+  q = {};
+  ls[7].change(q);
+  EXPECT_EQ(q.sim.fade, SimParams{}.fade * 2);
+  // On discovery every new scenario changes the market (fade x2 would not: fade = 0).
+  const ScalpParams base = scalp_params("discovery", 1050);
+  ScalpParams f = base;
+  ls[7].change(f);
+  EXPECT_EQ(f.sim.fade, base.sim.fade);  // the no-op the discovery list drops
+  const auto ds = stress_scenarios(true);
+  auto changed = [&](std::size_t i) {
+    ScalpParams x = base;
+    ds[i].change(x);
+    if (i < 10) EXPECT_EQ(x.warmup_seconds, 1050.0);  // the run's warm-up survives every scenario but the cold open
+    return x;
+  };
+  EXPECT_EQ(changed(5).sim.reprice_cancel, base.sim.reprice_cancel * 0.5);
+  EXPECT_EQ(changed(5).sim.reprice_take, base.sim.reprice_take * 0.5);
+  EXPECT_EQ(changed(6).sim.value_impact, base.sim.value_impact * 1.5);
+  EXPECT_EQ(changed(7).sim.jump_rate, base.sim.jump_rate * 3);
+  EXPECT_EQ(changed(8).sim.informed_meta_rate, base.sim.informed_meta_rate * 4);
+  EXPECT_EQ(changed(9).sim.maker_rate, base.sim.maker_rate * 0.5);
+  for (std::size_t i = 5; i <= 9; ++i) EXPECT_NO_THROW(EsSimulator(changed(i).sim, 1)) << ds[i].name;
+  // "Session open" is a cold open on both lists, whatever the run's warm-up:
+  // the simulator starts at the open with a 150 s burn (the episode at 150 s),
+  // which at the default warm-up is exactly the legacy start_second = 0.
+  const ScalpParams disc_open = changed(10);
+  ScalpParams legacy_open_1050 = base;
+  ls[8].change(legacy_open_1050);
+  for (const ScalpParams* o : std::initializer_list<const ScalpParams*>{&disc_open, &legacy_open_1050}) {
+    EXPECT_EQ(o->start_second, 0.0);
+    EXPECT_EQ(o->warmup_seconds, kDefaultWarmup);
+    EXPECT_EQ(o->sim.jump_rate, base.sim.jump_rate);
+  }
+  ScalpParams d;
+  ls[8].change(d);
+  ScalpParams legacy_open;
+  legacy_open.start_second = 0;
+  EXPECT_EQ(d.start_second, legacy_open.start_second);
+  EXPECT_EQ(d.warmup_seconds, legacy_open.warmup_seconds);
+}
+
+TEST(ScalpEnvRun, DaySessionsKeepTheirTimeOfDayAndNeverStartBeforeTheOpen) {
+  for (unsigned k = 0; k < 39; ++k) {
+    EXPECT_EQ(day_session_start(k), k * 600.0);  // the committed OF8 days
+    const double s = day_session_start(k, 1050);
+    EXPECT_GE(s, 0.0);
+    EXPECT_EQ(s + 1050, std::max(1050.0, k * 600.0 + 150));  // the episode stays at k * 600 + 150 s (from the open: at 1050 s)
+  }
+}
+
+TEST(ScalpEnvRun, EachNetworkRecordsItsMarketAndWarmupAndAMismatchIsRefused) {
+  const auto dir = std::filesystem::temp_directory_path() / "rag_scalp_run_record_test";
+  std::filesystem::remove_all(dir);
+  std::filesystem::create_directories(dir);
+  const std::string net = (dir / "seed1.net").string(), other = (dir / "seed2.net").string();
+  EXPECT_EQ(record_path_of_net(net), (dir / "seed1.txt").string());
+  EXPECT_EQ(record_path_of_net("a.b/net"), "a.b/net.txt");
+  // No record: a legacy network (of3_rl, an older of_train), trained at 150 s
+  // on an unknown market: fine at 150 s on any market, refused at 1050 s.
+  EXPECT_EQ(check_net(net, "default", 150), "");
+  EXPECT_EQ(check_net(net, "discovery", 150), "");
+  EXPECT_NE(check_net(net, "discovery", 1050), "");
+  ASSERT_TRUE(write_net_record(net, "discovery", 1050, "seeds=12\nseed=1\n"));
+  EXPECT_EQ(net_record_value(net, "market").value_or(""), "discovery");
+  EXPECT_EQ(net_record_value(net, "warmup_seconds").value_or(""), "1050");
+  EXPECT_EQ(net_record_value(net, "seeds").value_or(""), "12");
+  EXPECT_FALSE(net_record_value(net, "warmup").has_value());  // whole keys only
+  EXPECT_EQ(check_net(net, "discovery", 1050), "");
+  EXPECT_NE(check_net(net, "discovery", 150), "");   // another warm-up
+  EXPECT_NE(check_net(net, "default", 1050), "");    // another market
+  EXPECT_NE(check_net(other, "discovery", 1050), "");  // a record vouches for its own network only
+  remove_net_record(net);
+  EXPECT_FALSE(std::filesystem::exists(record_path_of_net(net)));
+  {
+    std::ofstream out(record_path_of_net(net), std::ios::binary);  // CRLF (an edited record) reads the same
+    out << "market=discovery\r\nwarmup_seconds=150\r\n";
+  }
+  EXPECT_EQ(check_net(net, "discovery", 150), "");
+  EXPECT_NE(check_net(net, "discovery", 1050), "");
+  {
+    std::ofstream out(record_path_of_net(net), std::ios::binary);  // a record without a readable warm-up is refused
+    out << "market=discovery\nwarmup_seconds=abc\n";
+  }
+  EXPECT_NE(check_net(net, "discovery", 150), "");
+  std::filesystem::remove_all(dir);
+}

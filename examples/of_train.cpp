@@ -4,9 +4,19 @@
 //
 //   of_train [--seeds 12] [--threads N] [--episodes 2000] [--market default|efficient|discovery]
 //            [--hidden 64] [--gamma 0.97] [--nstep 5] [--batch 32] [--lr 0.001]
-//            [--test 300] [--test-seed 900000000] [--out DIR]
+//            [--test 300] [--test-seed 900000000] [--warmup 150] [--out DIR]
 // --test-seed: first seed of the scoring episodes (900M+ sealed; 950M+ is the
 // once-per-claim fresh confirmation block, see docs/ai/NEXT_SESSION.md).
+// --warmup S: seconds the simulator runs before each episode's first decision
+// (ScalpParams::warmup_seconds) in training, validation AND sealed test
+// episodes; default 150. Episodes then start >= S s into the session
+// (ScalpEnv::draw_market: latest warm-up start = session - episode - S).
+// OF10 v3: RL on --market discovery uses --warmup 1050 (scalp_run.hpp). The
+// run header and the summary print it; each saved network gets a record,
+// DIR/seedK.txt next to DIR/seedK.net (market, warmup_seconds, the training
+// options and the seed; written right after the network), and of6 / of8 /
+// of_trace refuse networks whose record names another market or warm-up
+// than their own (scalp_run.hpp, check_net).
 //
 // --threads defaults to the number of hardware threads (capped at --seeds).
 // Each agent is NeuralQ with Double DQN and weight averaging (the recipe of
@@ -35,6 +45,7 @@
 
 #include "rag/agent/trainer.hpp"
 #include "rag/orderflow/scalp_env.hpp"
+#include "rag/orderflow/scalp_run.hpp"
 
 using namespace rag::agent;
 using namespace rag::orderflow;
@@ -43,7 +54,7 @@ namespace {
 
 struct Options {
   unsigned seeds = 12, threads = 0, episodes = 2000, test = 300, hidden = 64, nstep = 5, batch = 32;
-  double gamma = 0.97, lr = 1e-3;
+  double gamma = 0.97, lr = 1e-3, warmup = kDefaultWarmup;
   std::uint64_t test_seed = 900'000'000;
   std::string market = "default", out = "of_train_out";
 };
@@ -106,6 +117,10 @@ AgentConfig<ScalpEnv::kStateDims> config(const Options& o, std::uint64_t seed) {
 
 int main(int argc, char** argv) {
   Options o;
+  if (argc % 2 == 0) {  // options come in pairs: a trailing flag has no value
+    std::fprintf(stderr, "%s needs a value\n", argv[argc - 1]);
+    return 2;
+  }
   for (int i = 1; i + 1 < argc; i += 2) {
     const std::string k = argv[i], v = argv[i + 1];
     if (k == "--seeds") o.seeds = static_cast<unsigned>(std::max(1, std::atoi(v.c_str())));
@@ -119,6 +134,14 @@ int main(int argc, char** argv) {
     else if (k == "--lr") o.lr = std::atof(v.c_str());
     else if (k == "--market") o.market = v;
     else if (k == "--out") o.out = v;
+    else if (k == "--warmup") {
+      const auto w = parse_warmup(v);
+      if (!w) {
+        std::fprintf(stderr, "--warmup wants a number of seconds >= 0, got %s\n", v.c_str());
+        return 2;
+      }
+      o.warmup = *w;
+    }
     else if (k == "--test-seed") {
       // Must be a whole number in a test block (900M+): a typo parsing to a
       // small seed would score on the training streams (Rng(1..seeds)).
@@ -139,14 +162,23 @@ int main(int argc, char** argv) {
   o.threads = std::min(o.threads, o.seeds);
   ScalpParams p;
   try {
-    p.sim = market_preset(o.market);
+    p = scalp_params(o.market, o.warmup);
   } catch (const std::invalid_argument& e) {
     std::fprintf(stderr, "--market: %s\n", e.what());
     return 2;
   }
+  if (const std::string why = warmup_error(p); !why.empty()) {
+    std::fprintf(stderr, "--warmup: %s\n", why.c_str());
+    return 2;
+  }
   std::filesystem::create_directories(o.out);
-  std::printf("training %u seeds x %u episodes on %u threads (hardware threads: %u), market %s, hidden %u\n", o.seeds, o.episodes, o.threads,
-              std::thread::hardware_concurrency(), o.market.c_str(), o.hidden);
+  // Each saved network's record (DIR/seedK.txt): of6 / of8 / of_trace check market and warm-up against it.
+  char options[512];
+  std::snprintf(options, sizeof options, "seeds=%u\nepisodes=%u\nhidden=%u\ngamma=%.17g\nnstep=%u\nbatch=%u\nlr=%.17g\ntest=%u\ntest_seed=%llu\n",
+                o.seeds, o.episodes, o.hidden, o.gamma, o.nstep, o.batch, o.lr, o.test, static_cast<unsigned long long>(o.test_seed));
+  std::atomic<bool> record_failed{false};
+  std::printf("training %u seeds x %u episodes on %u threads (hardware threads: %u), market %s, warm-up %g s, hidden %u\n", o.seeds, o.episodes,
+              o.threads, std::thread::hardware_concurrency(), o.market.c_str(), o.warmup, o.hidden);
   std::fflush(stdout);
 
   const auto t0 = std::chrono::steady_clock::now();
@@ -166,7 +198,16 @@ int main(int argc, char** argv) {
       const auto rep = tr.run(o.episodes);
       validation[i] = rep.champion_score;
       if (const auto* ch = tr.champion()) {
-        ch->net.save(o.out + "/seed" + std::to_string(seed) + ".net");
+        // The old record goes first and the new one comes right after the
+        // network: a record never vouches for another run's network.
+        const std::string path = o.out + "/seed" + std::to_string(seed) + ".net";
+        remove_net_record(path);
+        ch->net.save(path);
+        if (!write_net_record(path, o.market, o.warmup, options + ("seed=" + std::to_string(seed) + "\n"))) {
+          std::lock_guard lock(print);
+          std::fprintf(stderr, "can't write %s\n", record_path_of_net(path).c_str());
+          record_failed = true;
+        }
         agent->restore(*ch);  // the deployed policy, for scoring and the ensemble
       }
       scores[i] = score(p, [&](const ScalpObs& ob) { return agent->act(ob, false); }, o.test, o.test_seed);
@@ -199,10 +240,12 @@ int main(int argc, char** argv) {
       o.test, o.test_seed);
   double mean_single = 0;
   for (const auto& s : scores) mean_single += s.mean / static_cast<double>(scores.size());
-  std::printf("\nsealed test, %u episodes of 10 min from seed %llu (1 ES contract):\n", o.test, static_cast<unsigned long long>(o.test_seed));
+  std::printf("\nsealed test, %u episodes of 10 min from seed %llu (1 ES contract, market %s, warm-up %g s):\n", o.test,
+              static_cast<unsigned long long>(o.test_seed), o.market.c_str(), o.warmup);
   std::printf("  delta 30 s rule      %+.2f ticks/episode (t %+.1f)\n", rule.mean, rule.t);
   std::printf("  RL, mean of seeds    %+.2f\n", mean_single);
   std::printf("  RL mean-Q ensemble   %+.2f (t %+.1f, %.1f orders, %.0f%% winning) of all %u seeds\n", ens.mean, ens.t, ens.orders, ens.win, o.seeds);
   std::printf("training took %.0f s; networks in %s/\n", secs, o.out.c_str());
   std::printf("note: these are simulator results; replay recorded ticks with of_backtest before trusting any edge.\n");
+  return record_failed ? 1 : 0;
 }

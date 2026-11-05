@@ -9,6 +9,11 @@
 // Rows appended in OF10 v2 (fade and short-horizon rules, a per-lot table)
 // leave the earlier rows byte-identical.
 // Usage: of2_baselines [episodes=300] [market: default | default_warm | efficient | discovery | discovery_v1 | discovery_v2]
+//                      [--warmup S]
+// --warmup S (after the market; default 150 s, ScalpEnv's): the episodes'
+// warm-up (ScalpParams::warmup_seconds; OF10 v3 RL on discovery uses 1050).
+// Episodes then start >= S s into the session (ScalpEnv::draw_market). When
+// given, a line before the table says so; without it the output is unchanged.
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -18,6 +23,7 @@
 #include <vector>
 
 #include "rag/orderflow/scalp_env.hpp"
+#include "rag/orderflow/scalp_run.hpp"
 
 using namespace rag::orderflow;
 using rag::agent::Action;
@@ -30,6 +36,19 @@ int main(int argc, char** argv) {
   } catch (const std::invalid_argument& e) {
     std::fprintf(stderr, "%s\n", e.what());
     return 2;
+  }
+  if (argc > 3) {
+    const auto w = argc == 5 && std::string(argv[3]) == "--warmup" ? parse_warmup(argv[4]) : std::nullopt;
+    if (!w) {
+      std::fprintf(stderr, "usage: of2_baselines [episodes] [market] [--warmup S], S a number of seconds >= 0\n");
+      return 2;
+    }
+    p.warmup_seconds = *w;
+    if (const std::string why = warmup_error(p); !why.empty()) {
+      std::fprintf(stderr, "--warmup: %s\n", why.c_str());
+      return 2;
+    }
+    std::printf("warm-up %g s before each episode (--warmup; ScalpEnv's default %g s)\n", p.warmup_seconds, kDefaultWarmup);
   }
   auto hold = [](const ScalpObs& o) { return static_cast<Action>(o.position + 1); };
   auto signal_rule = [&](std::size_t k, double th, bool reverse) {

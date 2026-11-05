@@ -5,7 +5,16 @@
 // maximum drawdown of cumulative daily P&L, and the annualized Sharpe ratio
 // (mean / sd of daily P&L x sqrt(252)). Strategies: the delta rule, each saved
 // RL agent, and their ensemble (mean of the networks' Q-values, then argmax).
-// Usage: of8_scalp_days DAYS [--market default|efficient|discovery] NET [NET...]
+// Usage: of8_scalp_days DAYS [--market default|efficient|discovery] [--warmup S] NET [NET...]
+// --warmup S (default 150 s): the episodes' warm-up (ScalpParams::
+// warmup_seconds), for networks trained with of_train --warmup S (a network
+// whose record DIR/seedK.txt names another warm-up or market is refused,
+// exit 2; so is one with no record, trained at 150 s, when S is not 150).
+// Session k's episode stays at k * 600 + 150 s of the session (where the
+// default puts it) and its warm-up starts S s earlier, never before the open:
+// with S = 1050 sessions 0 and 1 both run 1050 .. 1650 s (fresh markets,
+// different seeds), the rest are unchanged in time of day
+// (scalp_run.hpp, day_session_start). With --warmup a first line says so.
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -18,6 +27,7 @@
 
 #include "rag/agent/agent.hpp"
 #include "rag/orderflow/scalp_env.hpp"
+#include "rag/orderflow/scalp_run.hpp"
 
 using namespace rag::agent;
 using namespace rag::orderflow;
@@ -26,16 +36,50 @@ int main(int argc, char** argv) {
   if (argc < 3) return 2;
   const unsigned days = static_cast<unsigned>(std::atoi(argv[1]));
   SimParams market;
+  std::string market_name = "default";
+  double warmup = kDefaultWarmup;
+  bool warmup_given = false;
   int first_net = 2;
-  if (argc > 3 && std::string(argv[2]) == "--market") {
-    try {
-      market = market_preset(argv[3]);
-    } catch (const std::invalid_argument& e) {
-      std::fprintf(stderr, "%s\n", e.what());
+  while (first_net + 1 < argc && (std::string(argv[first_net]) == "--market" || std::string(argv[first_net]) == "--warmup")) {
+    if (std::string(argv[first_net]) == "--market") {
+      try {
+        market = market_preset(argv[first_net + 1]);
+        market_name = argv[first_net + 1];
+      } catch (const std::invalid_argument& e) {
+        std::fprintf(stderr, "%s\n", e.what());
+        return 2;
+      }
+    } else {
+      const auto w = parse_warmup(argv[first_net + 1]);
+      if (!w) {
+        std::fprintf(stderr, "--warmup wants a number of seconds >= 0, got %s\n", argv[first_net + 1]);
+        return 2;
+      }
+      warmup = *w;
+      warmup_given = true;
+    }
+    first_net += 2;
+  }
+  {
+    ScalpParams g;
+    g.sim = market;
+    g.warmup_seconds = warmup;
+    if (const std::string why = warmup_error(g); !why.empty()) {
+      std::fprintf(stderr, "--warmup: %s\n", why.c_str());
       return 2;
     }
-    first_net = 4;
   }
+  for (int i = first_net; i < argc; ++i) {
+    if (std::string(argv[i]).rfind("--", 0) == 0) {  // options come first, each with a value
+      std::fprintf(stderr, "%s: unknown option or missing value (options go before the networks)\n", argv[i]);
+      return 2;
+    }
+    if (const std::string why = check_net(argv[i], market_name, warmup); !why.empty()) {
+      std::fprintf(stderr, "%s\n", why.c_str());
+      return 2;
+    }
+  }
+  if (warmup_given) std::printf("warm-up %g s before each episode (--warmup), market %s\n", warmup, market_name.c_str());
   std::vector<std::unique_ptr<Agent<ScalpEnv>>> agents;
   ScalpEnv proto;
   for (int i = first_net; i < argc; ++i) {
@@ -74,7 +118,8 @@ int main(int argc, char** argv) {
       for (unsigned k = 0; k < kSessions; ++k) {
         ScalpParams p;
         p.sim = market;
-        p.start_second = k * 600.0;
+        p.warmup_seconds = warmup;
+        p.start_second = day_session_start(k, warmup);  // k * 600 with the default warm-up
         ScalpEnv env(p);
         Rng r(930'000'000ull + d * 100 + k);  // sealed day episodes
         auto o = env.reset(r);

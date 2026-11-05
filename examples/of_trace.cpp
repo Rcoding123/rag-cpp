@@ -2,7 +2,14 @@
 // (tools/of_viz.py turns the CSV into one self-contained HTML page).
 //
 //   of_trace NET [NET...] [--market default|efficient|discovery] [--episodes 20]
-//            [--seed 960000000] [--out of_trace.csv]
+//            [--seed 960000000] [--warmup 150] [--out of_trace.csv]
+//
+// --warmup S (default 150 s): the episodes' warm-up (ScalpParams::
+// warmup_seconds), so networks trained with of_train --warmup S are replayed
+// on the episodes they learned on. A network whose of_train record
+// (DIR/seedK.txt) names another warm-up or market is refused (exit 2), and so
+// is a network with no record (trained at 150 s) when S is not 150
+// (scalp_run.hpp, check_net). With --warmup the CSV header records it.
 //
 // Runs ScalpEnv episodes with the saved networks (DIR/seedK.net from
 // of_train; several nets act as their mean-Q ensemble, as in of_train) and,
@@ -35,6 +42,7 @@
 
 #include "rag/agent/agent.hpp"
 #include "rag/orderflow/scalp_env.hpp"
+#include "rag/orderflow/scalp_run.hpp"
 
 using namespace rag::agent;
 using namespace rag::orderflow;
@@ -72,6 +80,8 @@ int main(int argc, char** argv) {
   std::string market = "default", out = "of_trace.csv";
   unsigned episodes = 20;
   std::uint64_t first_seed = kVizFirst;
+  double warmup = kDefaultWarmup;
+  bool warmup_given = false;
   for (int i = 1; i < argc; ++i) {
     const std::string k = argv[i];
     if (k.rfind("--", 0) != 0) {
@@ -85,6 +95,15 @@ int main(int argc, char** argv) {
     const std::string v = argv[++i];
     if (k == "--market") market = v;
     else if (k == "--out") out = v;
+    else if (k == "--warmup") {
+      const auto w = parse_warmup(v);
+      if (!w) {
+        std::fprintf(stderr, "--warmup wants a number of seconds >= 0, got %s\n", v.c_str());
+        return 2;
+      }
+      warmup = *w;
+      warmup_given = true;
+    }
     else if (k == "--episodes") episodes = static_cast<unsigned>(std::max(1, std::atoi(v.c_str())));
     else if (k == "--seed") {
       char* end = nullptr;
@@ -101,7 +120,9 @@ int main(int argc, char** argv) {
     }
   }
   if (nets.empty()) {
-    std::fprintf(stderr, "usage: of_trace NET [NET...] [--market default|efficient|discovery] [--episodes 20] [--seed 960000000] [--out of_trace.csv]\n");
+    std::fprintf(stderr,
+                 "usage: of_trace NET [NET...] [--market default|efficient|discovery] [--episodes 20] [--seed 960000000] [--warmup 150] [--out "
+                 "of_trace.csv]\n");
     return 2;
   }
   if (first_seed + episodes > kVizEnd) {
@@ -110,11 +131,20 @@ int main(int argc, char** argv) {
   }
   ScalpParams p;
   try {
-    p.sim = market_preset(market);
+    p = scalp_params(market, warmup);
   } catch (const std::invalid_argument& e) {
     std::fprintf(stderr, "--market: %s\n", e.what());
     return 2;
   }
+  if (const std::string why = warmup_error(p); !why.empty()) {
+    std::fprintf(stderr, "--warmup: %s\n", why.c_str());
+    return 2;
+  }
+  for (const auto& path : nets)  // the networks' own market and warm-up (of_train's records)
+    if (const std::string why = check_net(path, market, warmup); !why.empty()) {
+      std::fprintf(stderr, "%s\n", why.c_str());
+      return 2;
+    }
 
   // The agents: of_train's NeuralQ setup with the saved weights (greedy).
   const ScalpEnv probe(p);
@@ -156,7 +186,9 @@ int main(int argc, char** argv) {
     return 1;
   }
   csv << "# of_trace market=" << market << " nets=" << nets.size() << " oracle_gap=" << kOracleGap << " fee_dollars=" << p.fee_dollars
-      << " tick_value=" << kTickValue << "\n";
+      << " tick_value=" << kTickValue;
+  if (warmup_given) csv << " warmup_seconds=" << p.warmup_seconds;  // opt-in: the default header is unchanged
+  csv << "\n";
   csv << "episode,seed,step,tod_s,bid,ask,mid,fair_value,bid_sz1,ask_sz1,imb_l1";
   for (const char* n : kFeatureNames) csv << ',' << n;
   csv << ",open_pnl,time_left,q_short,q_flat,q_long,action,pos,fill_px,orders,fees,pnl,rule_pos,rule_pnl,oracle_pos,oracle_pnl\n";

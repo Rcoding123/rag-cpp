@@ -50,6 +50,16 @@
 //   --episode-warmup 1050: the same windows after a 15-minute burn (the
 //   simulator starts 900 s earlier): ground truth that the stationary draw
 //   (activity_warm_start) equals a burned-in market.
+//   --scalp-warmup W (default 150 = ScalpEnv's default; OF10 v3 RL reruns on
+//   discovery use 1050): the ScalpEnv geometry is ScalpParams with
+//   warmup_seconds = W. The episode regime then draws its windows exactly as
+//   such a ScalpEnv does (ScalpEnv::make_market / draw_market: warm-up start
+//   uniform on [0, session - 600 - W], so windows start >= W s into the
+//   session) and burns W s (--episode-warmup defaults to W; it must be >= W),
+//   and the session-weighted long regime uses that geometry's time-of-day
+//   coverage w(t) (W in place of 150 above). Rules, EMO, tick rules and
+//   impact keep ScalpEnv's default 150 s (of2_baselines --warmup gives the
+//   rule baselines at W).
 //
 // Standard errors: every correlation, slope, markout and R^2 is accumulated
 // per block (5 minutes on legacy long windows, 1 hour in full sessions: activity
@@ -62,7 +72,7 @@
 //
 // Usage: of_discovery [--markets default,efficient,discovery_v1,discovery]
 //          [--seeds 1-3] [--seconds 7200] [--threads 8] [--long legacy|session|off]
-//          [--sessions 3] [--episodes 0] [--episode-warmup 150] [--rules 0]
+//          [--sessions 3] [--episodes 0] [--episode-warmup 150] [--scalp-warmup 150] [--rules 0]
 //          [--emo 0] [--tick 0] [--impact 0] [--theta [market=]X,...]
 //          [--csv FILE] [--out FILE] [--set name=value,...]
 // --set overrides fields of the discovery preset (tuning), e.g.
@@ -89,6 +99,7 @@
 
 #include "rag/orderflow/features.hpp"
 #include "rag/orderflow/scalp_env.hpp"
+#include "rag/orderflow/scalp_run.hpp"
 #include "rag/orderflow/stylized.hpp"
 #include "rag/orderflow/tick_env.hpp"
 
@@ -124,7 +135,7 @@ constexpr int kO2K = 32;
 struct Options {
   std::vector<std::string> markets{"default", "efficient", "discovery_v1", "discovery"};
   std::vector<std::uint64_t> seeds{1, 2, 3};
-  double seconds = 7200, warmup = 150, trace = -1, episode_warmup = 150;
+  double seconds = 7200, warmup = 150, trace = -1, episode_warmup = 150, scalp_warmup = 150;  // episode_warmup defaults to scalp_warmup
   std::map<std::string, double> theta;  // pre-registered theta* per market ("" = every market)
   unsigned threads = 8, rules = 0, tick = 0, impact = 0, emo = 0, episodes = 0, sessions = 3;
   std::string long_mode = "legacy";  // legacy | session | off
@@ -1475,6 +1486,7 @@ void print_agree(const Market& e, const Market& l) {
 
 int main(int argc, char** argv) {
   Options o;
+  bool episode_warmup_given = false;
   for (int i = 1; i + 1 < argc; i += 2) {
     const std::string k = argv[i], v = argv[i + 1];
     if (k == "--markets") o.markets = split(v);
@@ -1487,7 +1499,18 @@ int main(int argc, char** argv) {
     else if (k == "--impact") o.impact = static_cast<unsigned>(std::max(0, std::atoi(v.c_str())));
     else if (k == "--episodes") o.episodes = static_cast<unsigned>(std::max(0, std::atoi(v.c_str())));
     else if (k == "--sessions") o.sessions = static_cast<unsigned>(std::max(1, std::atoi(v.c_str())));
-    else if (k == "--episode-warmup") o.episode_warmup = std::atof(v.c_str());
+    else if (k == "--episode-warmup" || k == "--scalp-warmup") {
+      const auto w = parse_warmup(v);  // the whole string: "abc" or "1050s" is an error, not 0 / 1050
+      if (!w) {
+        std::fprintf(stderr, "%s wants a number of seconds >= 0, got %s\n", k.c_str(), v.c_str());
+        return 2;
+      }
+      if (k == "--scalp-warmup") o.scalp_warmup = *w;
+      else {
+        o.episode_warmup = *w;
+        episode_warmup_given = true;
+      }
+    }
     else if (k == "--long") o.long_mode = v;
     else if (k == "--theta") {
       for (const auto& kv : split(v)) {
@@ -1518,8 +1541,18 @@ int main(int argc, char** argv) {
     std::fprintf(stderr, "--long wants legacy, session or off\n");
     return 2;
   }
-  if (!(o.episode_warmup >= 150)) {
-    std::fprintf(stderr, "--episode-warmup must be >= 150 s (the windows stay ScalpEnv's; the simulator starts earlier)\n");
+  {
+    ScalpParams g;
+    g.warmup_seconds = o.scalp_warmup;
+    if (const std::string why = warmup_error(g); !why.empty()) {
+      std::fprintf(stderr, "--scalp-warmup: %s\n", why.c_str());
+      return 2;
+    }
+  }
+  if (!episode_warmup_given) o.episode_warmup = o.scalp_warmup;
+  if (!(o.episode_warmup >= o.scalp_warmup)) {
+    std::fprintf(stderr, "--episode-warmup must be >= the ScalpEnv warm-up (--scalp-warmup, %g s): the windows stay ScalpEnv's; the simulator starts earlier\n",
+                 o.scalp_warmup);
     return 2;
   }
   for (const auto& [m, t] : o.theta)
@@ -1574,7 +1607,8 @@ int main(int argc, char** argv) {
   std::vector<RuleRun> rule_out(rule_chunks.size());
   std::vector<TickRun> tick_out(tick_chunks.size());
   std::vector<ImpactRun> impact(o.impact > 0 ? nm * ns : 0);
-  ScalpParams cover;  // the episode geometry the long sessions are weighted by (ScalpEnv's defaults)
+  ScalpParams cover;  // the episode geometry the long sessions are weighted by (ScalpEnv's defaults, warm-up --scalp-warmup)
+  cover.warmup_seconds = o.scalp_warmup;
   const auto per = [](const SimParams& p, double sec) { return static_cast<std::size_t>(std::max(1L, std::lround(sec / p.dt))); };
   std::vector<std::function<void()>> tasks;
   // Expensive tasks first (EMO chunks, long sessions), so the pool ends together.
@@ -1704,9 +1738,14 @@ int main(int argc, char** argv) {
   if (has_ep)
     say("Episode regime: %u windows per seed built as ScalpEnv builds them (ScalpEnv::make_market, Rng(1,000,000 * seed + 800,000 + i)),\n"
         "  %.0f s warm-up%s, 600 s measured + 60 s look-ahead; blocks = episodes\n",
-        o.episodes, o.episode_warmup, o.episode_warmup == 150 ? " (ScalpEnv's)"
+        o.episodes, o.episode_warmup, o.episode_warmup == o.scalp_warmup ? " (ScalpEnv's)"
                                : " (ground truth: the simulator starts earlier, same windows; never before the open: a burn that would\n"
                                  "  start before 0 s starts at 0 s, shorter)");
+  if (o.scalp_warmup != 150 && (has_ep || session))  // opt-in: default runs print exactly what they did
+    say("--scalp-warmup %.0f: ScalpEnv geometry with warmup_seconds = %.0f (episode windows drawn as that ScalpEnv draws them, start\n"
+        "  uniform on [0, session - 600 - %.0f] + %.0f s; long sessions weighted by its time-of-day coverage). Rules, EMO, tick rules and\n"
+        "  impact runs keep ScalpEnv's default 150 s warm-up.\n",
+        o.scalp_warmup, o.scalp_warmup, o.scalp_warmup, o.scalp_warmup);
   say("Columns: pooled value +- jackknife SE (blocks); seed mean +- sd/sqrt(n) [min, max]; pooled check; per-seed check.\n");
   if (!o.set.empty()) {  // tuned runs must say so
     say("--set overrides of the discovery preset:");
@@ -1821,7 +1860,17 @@ int main(int argc, char** argv) {
         bool flag = false;
         for (std::size_t ri = 0; ri < nr; ++ri)
           if (res[ri].ran && res[ri].kind == 0 && res[ri].net > res[best].net + 2 * res[ri].se) {
-            say("  RED FLAG: %s beats the oracle at theta* by > 2 SE\n", strat[ri].name.c_str());
+            // The O1 / O2 rule: a RULE trading < 2 lots/episode makes the comparison vacuous.
+            // Still no PASS for (f) (as O1 / O2: vacuous never passes), just not a red flag.
+            // Oracle vacuity never demotes a flag: a real rule beating an oracle at theta*
+            // that trades < 2 lots/episode means theta* broke the upper bound.
+            if (res[ri].lots < kMinOracleLots)
+              say("  not meaningful (VACUOUS: < 2 lots/episode): %s beats the oracle at theta* by > 2 SE (rule %.1f, oracle %.1f lots/episode)\n",
+                  strat[ri].name.c_str(), res[ri].lots, res[best].lots);
+            else if (res[best].lots < kMinOracleLots)
+              say("  RED FLAG (VACUOUS ORACLE: theta* trades %.1f < 2 lots/episode, no upper bound): %s beats the oracle at theta* by > 2 SE\n",
+                  res[best].lots, strat[ri].name.c_str());
+            else say("  RED FLAG: %s beats the oracle at theta* by > 2 SE\n", strat[ri].name.c_str());
             flag = true;
           }
         say("  (f) every rule <= oracle(theta*) + 2 SE: %s\n", flag ? "FAIL" : "PASS");

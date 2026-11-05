@@ -1,8 +1,32 @@
-// OF6: stress-test saved scalping agents (OF3, saved with of3_rl ... save_path)
-// in markets that differ from the one they learned in, against the best rule
-// (30 s delta momentum) and flat, on 200 sealed episodes per scenario.
-// Usage: of6_scalp_stress [--market default|efficient|discovery] NET [NET...]. Prints CSV:
+// OF6: stress-test saved scalping agents (OF3, saved with of3_rl ... save_path;
+// or of_train's DIR/seedK.net) in markets that differ from the one they
+// learned in, against the best rule (30 s delta momentum) and flat, on 200
+// sealed episodes per scenario (seeds 920M+).
+// Usage: of6_scalp_stress [--market default|efficient|discovery] [--warmup S] NET [NET...]. Prints CSV:
 //   scenario,strategy,ticks_per_ep,t,orders,win
+// (with --warmup, a first line "# warm-up S s ..." precedes the CSV).
+// Scenarios (rag/orderflow/scalp_run.hpp, stress_scenarios(); the measured
+// effect of each new one is noted there):
+//   legacy (every market but discovery; OF6's committed results, unchanged):
+//     nominal, latency 300 ms, latency 1 s, fees $3/side, informed flow x0.5,
+//     uninformed flow x1.5, volatility x1.5, quote fading x2, session open;
+//   --market discovery (v3; fixed in code before any v3 RL network existed,
+//   OF10 iteration 3, pre-registered): nominal, latency 300 ms, latency 1 s,
+//     fees $3/side, uninformed flow x1.5, slower discovery x0.5
+//     (reprice_cancel and reprice_take x0.5), flow impact x1.5 (value_impact),
+//     news x3 (jump_rate), informed meta-orders x4 (informed_meta_rate),
+//     thinner book x0.5 (maker_rate), session open. (Legacy quote fading x2
+//     is a no-op there, fade = 0; volatility x1.5 and informed flow x0.5
+//     barely move it; informed x2, measured, was too weak.)
+// --warmup S (default 150 s): the episodes' warm-up (ScalpParams::
+// warmup_seconds), so networks trained with of_train --warmup S are stressed
+// on the episodes they learned on; random episodes then start >= S s into the
+// session (ScalpEnv::draw_market). "Session open" is a cold open whatever S:
+// the simulator starts at the open with the default 150 s burn, the episode
+// at 150 s (scalp_run.hpp, session_open). A network whose of_train record
+// (DIR/seedK.txt) names another warm-up or market is refused (exit 2), and so
+// is a network with no record (OF3, older of_train: trained at 150 s) when S
+// is not 150.
 #include <cmath>
 #include <cstdio>
 #include <functional>
@@ -13,6 +37,7 @@
 
 #include "rag/agent/agent.hpp"
 #include "rag/orderflow/scalp_env.hpp"
+#include "rag/orderflow/scalp_run.hpp"
 
 using namespace rag::agent;
 using namespace rag::orderflow;
@@ -20,33 +45,54 @@ using namespace rag::orderflow;
 int main(int argc, char** argv) {
   std::vector<std::string> nets(argv + 1, argv + argc);
   SimParams market;  // the scenarios change this market (default unless --market NAME comes first)
-  if (nets.size() >= 2 && nets[0] == "--market") {
-    try {
-      market = market_preset(nets[1]);
-    } catch (const std::invalid_argument& e) {
-      std::fprintf(stderr, "%s\n", e.what());
-      return 2;
+  std::string market_name = "default";
+  double warmup = kDefaultWarmup;
+  bool warmup_given = false;
+  while (nets.size() >= 2 && (nets[0] == "--market" || nets[0] == "--warmup")) {
+    if (nets[0] == "--market") {
+      try {
+        market = market_preset(nets[1]);
+        market_name = nets[1];
+      } catch (const std::invalid_argument& e) {
+        std::fprintf(stderr, "%s\n", e.what());
+        return 2;
+      }
+    } else {
+      const auto w = parse_warmup(nets[1]);
+      if (!w) {
+        std::fprintf(stderr, "--warmup wants a number of seconds >= 0, got %s\n", nets[1].c_str());
+        return 2;
+      }
+      warmup = *w;
+      warmup_given = true;
     }
     nets.erase(nets.begin(), nets.begin() + 2);
   }
-  struct Sc {
-    std::string name;
-    std::function<void(ScalpParams&)> change;
-  };
-  const std::vector<Sc> scenarios = {
-      {"nominal", [](ScalpParams&) {}},
-      {"latency 300 ms", [](ScalpParams& p) { p.latency_steps = 3; }},
-      {"latency 1 s", [](ScalpParams& p) { p.latency_steps = 10; }},
-      {"fees $3/side", [](ScalpParams& p) { p.fee_dollars = 3.0; }},
-      {"informed flow x0.5", [](ScalpParams& p) { p.sim.informed_meta_rate *= 0.5; }},
-      {"uninformed flow x1.5", [](ScalpParams& p) { p.sim.uninformed_meta_rate *= 1.5; }},
-      {"volatility x1.5", [](ScalpParams& p) { p.sim.value_vol *= 1.5; }},
-      {"quote fading x2", [](ScalpParams& p) { p.sim.fade *= 2; }},
-      {"session open", [](ScalpParams& p) { p.start_second = 0; }},
-  };
+  {
+    ScalpParams g;
+    g.sim = market;
+    g.warmup_seconds = warmup;
+    if (const std::string why = warmup_error(g); !why.empty()) {
+      std::fprintf(stderr, "--warmup: %s\n", why.c_str());
+      return 2;
+    }
+  }
+  for (const auto& path : nets) {
+    if (path.rfind("--", 0) == 0) {  // options come first, each with a value
+      std::fprintf(stderr, "%s: unknown option or missing value (options go before the networks)\n", path.c_str());
+      return 2;
+    }
+    if (const std::string why = check_net(path, market_name, warmup); !why.empty()) {
+      std::fprintf(stderr, "%s\n", why.c_str());
+      return 2;
+    }
+  }
+  if (warmup_given) std::printf("# warm-up %g s before each episode (--warmup), market %s\n", warmup, market_name.c_str());
+  const std::vector<StressScenario> scenarios = stress_scenarios(market_name == "discovery");
   for (const auto& sc : scenarios) {
     ScalpParams p;
     p.sim = market;
+    p.warmup_seconds = warmup;
     sc.change(p);
     auto run = [&](const std::string& name, const std::function<Action(const ScalpObs&)>& policy) {
       std::vector<double> pnl;

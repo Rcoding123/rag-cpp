@@ -1537,7 +1537,7 @@ Columns: pooled value +- jackknife SE (blocks); seed mean +- sd/sqrt(n) [min, ma
   O2 EMO 10 s K32 > 1.24            -1.13  -2.20    1.9   -0.466   +0.034   0.267    -2.00  -0.96  -0.43   VACUOUS (< 2 lots/episode)
   EMO 2 s K32 > 1.24 (loose)        -0.10  -0.42    0.1   -0.556   -0.056   1.759    -0.65  -0.02  +0.36   VACUOUS (< 2 lots/episode)
   theta* = 0.60 (pre-registered): oracle net -3.03 +- 0.55, 10.8 lots/episode, edge/lot +0.338
-  RED FLAG: imbalance L1-5 > 0.6 beats the oracle at theta* by > 2 SE
+  not meaningful (VACUOUS: < 2 lots/episode): imbalance L1-5 > 0.6 beats the oracle at theta* by > 2 SE (rule 0.2, oracle 10.8 lots/episode)
   (f) every rule <= oracle(theta*) + 2 SE: FAIL
   (f) PRE-REGISTERED oracles (fixed in code before any v3 RL run; thresholds from costs, fee 0.12 tick/lot/side):
       O1 = zero-latency fair-value taker, |g| > 0.62 (half spread + one fee), latency 0, decide 0.1 s

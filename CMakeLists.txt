@@ -191,6 +191,26 @@ add_executable(of_discovery experiments/of10_discovery.cpp)
 target_link_libraries(of_discovery PRIVATE rag Threads::Threads)
 add_test(NAME of_discovery_smoke COMMAND of_discovery --seconds 120 --seeds 1 --markets discovery --threads 2 --rules 1)
 add_test(NAME of2_baselines_smoke COMMAND of2_baselines 2 discovery)
+# --warmup (OF10 iteration 3, opt-in): of_train records market and warm-up next
+# to each network (DIR/seedK.txt); of6 / of_trace refuse networks recorded with
+# another warm-up or market than their own. The smoke scores on 909,999,000+, a
+# corner of the sealed block no 300-episode run reaches (not the v3 run's seeds).
+add_test(NAME of_train_warmup_smoke COMMAND of_train --seeds 1 --threads 1 --episodes 2 --test 2 --market discovery --warmup 1050
+                                    --test-seed 909999000 --out ${CMAKE_CURRENT_BINARY_DIR}/of_train_warmup_smoke)
+set_tests_properties(of_train_warmup_smoke PROPERTIES FIXTURES_SETUP of_train_warmup_net)
+add_test(NAME of6_rejects_warmup_mismatch COMMAND of6_scalp_stress --market discovery --warmup 150
+                                          ${CMAKE_CURRENT_BINARY_DIR}/of_train_warmup_smoke/seed1.net)
+add_test(NAME of6_rejects_market_mismatch COMMAND of6_scalp_stress --warmup 1050 ${CMAKE_CURRENT_BINARY_DIR}/of_train_warmup_smoke/seed1.net)
+add_test(NAME of_trace_rejects_warmup_mismatch COMMAND of_trace ${CMAKE_CURRENT_BINARY_DIR}/of_train_warmup_smoke/seed1.net --market discovery
+                                               --episodes 1 --out ${CMAKE_CURRENT_BINARY_DIR}/of_train_warmup_smoke/trace.csv)
+add_test(NAME of_train_rejects_bad_warmup COMMAND of_train --warmup -5)
+set_tests_properties(of6_rejects_warmup_mismatch of6_rejects_market_mismatch of_trace_rejects_warmup_mismatch
+                     PROPERTIES FIXTURES_REQUIRED of_train_warmup_net)
+# The refusal message itself (PASS_REGULAR_EXPRESSION ignores the exit code, so
+# a crash or a failed load does not pass for a refusal).
+set_tests_properties(of6_rejects_warmup_mismatch of_trace_rejects_warmup_mismatch PROPERTIES PASS_REGULAR_EXPRESSION "trained with a 1050 s warm-up" TIMEOUT 60)
+set_tests_properties(of6_rejects_market_mismatch PROPERTIES PASS_REGULAR_EXPRESSION "trained on market discovery" TIMEOUT 60)
+set_tests_properties(of_train_rejects_bad_warmup PROPERTIES PASS_REGULAR_EXPRESSION "--warmup wants" TIMEOUT 60)
 
 # PDF support (rag/pdf.hpp, the rag_pdf tool) needs poppler-cpp
 # (Debian/Ubuntu: libpoppler-cpp-dev). The rest of the library does not.
