@@ -151,8 +151,17 @@ rule). RL matches the rule; it doesn't beat it.
 delta no longer predicts (corr −0.02 vs +0.12); markout flat after 5 s
 (+0.57 → +0.56 vs +0.57 → +1.40 by default). Baselines: delta momentum
 −7.2 ticks/episode (t −12), OFI momentum +1.4 (t 2.9: OFI sees the makers'
-re-pricing), oracle +8.8. RL retraining in this market: see
-`experiments/of9_*` when present.
+re-pricing), oracle +8.8. **RL retraining in this market** (4 seeds ×
+2,000, `experiments/of9_rl_results.csv`): +9.7 to +11.2 ticks/episode
+(t 21–24, 95–97% winning), *more* than by default and more than the
+fair-value oracle: a red flag. Diagnosis: the informed makers tilt their
+order rates toward the hidden value while the price adjusts slowly, so the
+book imbalance leaks it (corr with the hidden gap 0.49 vs 0.20 by default;
+L1 imbalance vs next 30 s return 0.32 vs 0.25) and the agent reads it. The
+preset removed trade-flow predictability and moved it into the book. In
+both presets price discovery is far too slow (the hidden gap predicts the
+next 30 s return at 0.58–0.65); real ES prices information in seconds.
+**This is the most important simulator fix** (plan item 1).
 
 **Calibration** (`of_calibrate`): recorded-tick CSV round trip exact;
 in a recovery test (target = informed flow ×0.4) the fit matched
@@ -188,7 +197,11 @@ stale binary (OF4).
 
 ## 7. Plan for the next AI (ranked)
 
-1. **Calibrate to the user's ES ticks:** convert their export to the CSV
+1. **Fix slow price discovery, then calibrate to the user's ES ticks.**
+   First make makers re-price immediately when value moves (quote jumps,
+   not rate tilts), until the hidden gap no longer predicts the next 30 s
+   and book imbalance predicts only the next tick or two (OF9 diagnosis);
+   re-run OF2, OF3, OF6, OF8, OF9. Then **calibrate to the user's ES ticks:** convert their export to the CSV
    format, run `of_calibrate facts`, then `fit` with many seeds and long
    windows on their server; add richer targets first (markout curve at
    more horizons, queue depletion/refill rates; MBO if available). Re-run

@@ -143,10 +143,15 @@ struct SimParams {
   double cancel_back_bias = 3.0, join_ahead_mean = 120;  // OF4: naive two-sided quoting ~breakeven gross, loses after fees
 };
 
-// A more efficient market: informed makers re-price ahead of informed flow,
-// so order flow moves prices at once but no longer predicts the next 30 s
-// (3 seeds x 2 h: corr(30 s delta, next 30 s) -0.02 vs +0.12 by default;
-// markout flat after 5 s: +0.57 at 5 s, +0.56 at 30 s vs +1.40 by default).
+// Informed makers: they re-price ahead of informed flow, so *trade* flow no
+// longer predicts the next 30 s (3 seeds x 2 h: corr(30 s delta, next 30 s)
+// -0.02 vs +0.12 by default; markout flat after 5 s). CAUTION, despite the
+// name: the makers tilt their order *rates* toward the hidden value while
+// the price adjusts slowly, so the *book imbalance* now leaks it (corr with
+// the hidden gap 0.49 vs 0.20; with the next 30 s return 0.32 vs 0.25) and
+// RL scalping earns more here than by default (OF9). Price discovery is too
+// slow in both presets (the hidden gap predicts the next 30 s at 0.58-0.65);
+// a truly efficient market needs makers that re-price (jump quotes) at once.
 inline SimParams efficient_market() {
   SimParams p;
   p.maker_info = 1.0;
