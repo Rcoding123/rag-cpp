@@ -1,0 +1,36 @@
+nominal,flat,0.000,0.00,0.0,0.0
+nominal,delta 30 s rule,1.668,2.64,6.5,57.0
+nominal,RL of3_s1.net,3.768,7.06,13.0,78.0
+nominal,RL of3_s2.net,5.360,11.21,12.3,78.0
+latency 300 ms,flat,0.000,0.00,0.0,0.0
+latency 300 ms,delta 30 s rule,1.911,3.03,6.3,55.5
+latency 300 ms,RL of3_s1.net,4.136,9.81,12.7,77.0
+latency 300 ms,RL of3_s2.net,4.635,9.27,12.4,74.0
+latency 1 s,flat,0.000,0.00,0.0,0.0
+latency 1 s,delta 30 s rule,0.639,0.95,6.5,50.5
+latency 1 s,RL of3_s1.net,3.583,8.09,13.0,72.5
+latency 1 s,RL of3_s2.net,4.243,8.45,12.6,72.5
+fees $3/side,flat,0.000,0.00,0.0,0.0
+fees $3/side,delta 30 s rule,0.336,0.51,6.5,52.5
+fees $3/side,RL of3_s1.net,2.136,3.98,13.0,64.5
+fees $3/side,RL of3_s2.net,3.851,8.03,12.3,67.0
+informed flow x0.5,flat,0.000,0.00,0.0,0.0
+informed flow x0.5,delta 30 s rule,4.150,7.62,5.8,70.5
+informed flow x0.5,RL of3_s1.net,2.464,5.89,12.0,63.5
+informed flow x0.5,RL of3_s2.net,3.058,7.69,11.3,71.0
+uninformed flow x1.5,flat,0.000,0.00,0.0,0.0
+uninformed flow x1.5,delta 30 s rule,0.360,0.48,7.1,48.0
+uninformed flow x1.5,RL of3_s1.net,2.985,6.00,14.0,66.0
+uninformed flow x1.5,RL of3_s2.net,4.576,9.73,14.0,76.0
+volatility x1.5,flat,0.000,0.00,0.0,0.0
+volatility x1.5,delta 30 s rule,4.888,6.95,5.9,66.0
+volatility x1.5,RL of3_s1.net,7.128,13.28,13.6,84.5
+volatility x1.5,RL of3_s2.net,6.514,13.04,12.9,87.5
+quote fading x2,flat,0.000,0.00,0.0,0.0
+quote fading x2,delta 30 s rule,2.593,3.72,6.8,55.5
+quote fading x2,RL of3_s1.net,6.299,11.63,14.6,80.0
+quote fading x2,RL of3_s2.net,5.231,10.38,15.0,80.5
+session open,flat,0.000,0.00,0.0,0.0
+session open,delta 30 s rule,2.678,3.82,6.0,57.0
+session open,RL of3_s1.net,4.935,10.01,12.7,77.5
+session open,RL of3_s2.net,5.291,10.02,12.8,82.5
