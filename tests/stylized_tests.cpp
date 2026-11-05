@@ -92,3 +92,42 @@ TEST(StylizedMeter, SimulatorFactsAreInARealisticRange) {
   EXPECT_GT(f.sign_ac1, 0.05);  // order splitting: long memory in trade signs
   EXPECT_GT(f.impact_r2, 0.1);  // order flow moves prices
 }
+
+// --- replay_env.hpp ------------------------------------------------------------
+#include "rag/orderflow/replay_env.hpp"
+
+TEST(ReplayScalpEnv, FillsAtTheRecordedTouchWithFeesAndWindowsTheTape) {
+  // 20 minutes of a constant market: bid 5000.00 x 50, ask 5000.25 x 50, one print per second.
+  std::ostringstream csv;
+  for (int i = 0; i < 12000; ++i) {
+    const double t = i * 0.1;
+    if (i % 10 == 0) csv << "T," << t << ",5000.25,1,B\n";
+    csv << "Q," << t + 0.0005 << ",5000.00,5000.25,50,50,50,50,50,50,50,50,50,50\n";
+  }
+  std::istringstream in(csv.str());
+  auto tape = std::make_shared<const TickTape>(TickTape::from_stream(in, TickCsvOptions{.time_unit = "s"}));
+  ReplayParams p;
+  p.window_seconds = 300;
+  ReplayScalpEnv env(tape, p);
+  EXPECT_EQ(env.windows(), 3u);  // (1200 s - 150 s warm-up) / 300 s
+  rag::agent::Rng r(1);
+  for (rag::agent::Action a : {rag::agent::Action{1}, rag::agent::Action{2}}) {
+    auto o = env.seek(1);
+    double total = 0;
+    for (;;) {
+      const auto s = env.step(a, r);
+      total += s.reward;
+      o = s.obs;
+      if (s.done) break;
+    }
+    EXPECT_NEAR(total, env.net_pnl_ticks(), 1e-9);
+    if (a == 1) {
+      EXPECT_EQ(env.net_pnl_ticks(), 0.0);
+    } else {
+      // Long once at the ask, out at the bid in an unchanged market: one tick of spread plus two fees.
+      EXPECT_EQ(env.orders(), 2u);
+      EXPECT_NEAR(env.net_pnl_ticks(), -1.0 - 2 * p.fee_dollars / kTickValue, 1e-9);
+    }
+  }
+  EXPECT_THROW(env.seek(3), std::out_of_range);
+}

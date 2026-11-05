@@ -138,6 +138,10 @@ if(RAG_OPTLIBS)
   endif()
 endif()
 
+# Walk-forward backtest of scalping strategies on recorded ticks.
+add_executable(of_backtest examples/of_backtest.cpp)
+target_link_libraries(of_backtest PRIVATE rag)
+
 # Simulator calibration against recorded ticks (examples/of_calibrate.cpp):
 # `facts` and `sim` always; `fit` when NLopt was found above.
 add_executable(of_calibrate examples/of_calibrate.cpp)
