@@ -142,6 +142,11 @@ endif()
 add_executable(of_train examples/of_train.cpp)
 target_link_libraries(of_train PRIVATE rag Threads::Threads)
 add_test(NAME of_train_smoke COMMAND of_train --seeds 2 --threads 2 --episodes 3 --test 2 --out ${CMAKE_CURRENT_BINARY_DIR}/of_train_smoke)
+# --test-seed outside the test blocks (or not a number) must be refused, not
+# silently scored on the training streams.
+add_test(NAME of_train_rejects_training_test_seed COMMAND of_train --test-seed 5)
+add_test(NAME of_train_rejects_bad_test_seed COMMAND of_train --test-seed 9OO000000)
+set_tests_properties(of_train_rejects_training_test_seed of_train_rejects_bad_test_seed PROPERTIES WILL_FAIL TRUE TIMEOUT 60)
 
 # The rule-guided tick-scalping trainer (OF7), one seed per process.
 add_executable(of_tick_train experiments/of7_tick_guided.cpp)
@@ -159,6 +164,18 @@ if(RAG_OF_CALIBRATE_NLOPT)
   target_compile_definitions(of_calibrate PRIVATE RAG_HAVE_NLOPT)
   target_link_libraries(of_calibrate PRIVATE NLopt::nlopt)
 endif()
+
+# Order-flow probes whose results are committed next to them (experiments/):
+# built here so committed tables come from the current code and CI compiles
+# them with the warning flags. OF10 (of_discovery) measures price discovery.
+foreach(p of2_baselines of3_rl of4_tick_baselines of6_scalp_stress of8_scalp_days)
+  add_executable(${p} experiments/${p}.cpp)
+  target_link_libraries(${p} PRIVATE rag Threads::Threads)
+endforeach()
+add_executable(of_discovery experiments/of10_discovery.cpp)
+target_link_libraries(of_discovery PRIVATE rag Threads::Threads)
+add_test(NAME of_discovery_smoke COMMAND of_discovery --seconds 120 --seeds 1 --markets discovery --threads 2 --rules 1)
+add_test(NAME of2_baselines_smoke COMMAND of2_baselines 2 discovery)
 
 # PDF support (rag/pdf.hpp, the rag_pdf tool) needs poppler-cpp
 # (Debian/Ubuntu: libpoppler-cpp-dev). The rest of the library does not.

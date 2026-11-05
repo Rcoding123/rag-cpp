@@ -3,11 +3,12 @@
 // episodes. Per strategy: net P&L per episode (ticks, $), t, fills per
 // episode, share of winning episodes, and the gross spread capture vs the
 // adverse selection it suffered (P&L before fees).
-// Usage: of4_tick_baselines [episodes=300]
+// Usage: of4_tick_baselines [episodes=300] [market: default | efficient | discovery]
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -18,7 +19,13 @@ using rag::agent::Action;
 
 int main(int argc, char** argv) {
   const unsigned episodes = argc > 1 ? static_cast<unsigned>(std::atoi(argv[1])) : 300;
-  const TickParams p;
+  TickParams p;
+  try {
+    if (argc > 2) p.sim = market_preset(argv[2]);
+  } catch (const std::invalid_argument& e) {
+    std::fprintf(stderr, "%s\n", e.what());
+    return 2;
+  }
   auto skew = [](std::size_t k, double th) {
     return [=](const TickObs& o) -> Action { return o.f[k] > th ? 1 : o.f[k] < -th ? 2 : 3; };
   };
@@ -51,9 +58,9 @@ int main(int argc, char** argv) {
     }
     double m = 0, v = 0, wins = 0;
     for (double x : pnl) { m += x; wins += x > 0; }
-    m /= pnl.size();
+    m /= static_cast<double>(pnl.size());
     for (double x : pnl) v += (x - m) * (x - m);
-    const double sd = std::sqrt(v / (pnl.size() - 1));
+    const double sd = std::sqrt(v / static_cast<double>(pnl.size() - 1));
     std::printf("%-26s %+10.2f %+9.1f %+7.2f %7.1f %+8.2f %5.1f%%\n", name.c_str(), m, m * kTickValue, sd > 0 ? m / (sd / std::sqrt(pnl.size())) : 0.0,
                 fills / episodes, gross / episodes, 100 * wins / episodes);
     std::fflush(stdout);

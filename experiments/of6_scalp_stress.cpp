@@ -1,12 +1,13 @@
 // OF6: stress-test saved scalping agents (OF3, saved with of3_rl ... save_path)
 // in markets that differ from the one they learned in, against the best rule
 // (30 s delta momentum) and flat, on 200 sealed episodes per scenario.
-// Usage: of6_scalp_stress NET [NET...]. Prints CSV:
+// Usage: of6_scalp_stress [--market default|efficient|discovery] NET [NET...]. Prints CSV:
 //   scenario,strategy,ticks_per_ep,t,orders,win
 #include <cmath>
 #include <cstdio>
 #include <functional>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -18,6 +19,16 @@ using namespace rag::orderflow;
 
 int main(int argc, char** argv) {
   std::vector<std::string> nets(argv + 1, argv + argc);
+  SimParams market;  // the scenarios change this market (default unless --market NAME comes first)
+  if (nets.size() >= 2 && nets[0] == "--market") {
+    try {
+      market = market_preset(nets[1]);
+    } catch (const std::invalid_argument& e) {
+      std::fprintf(stderr, "%s\n", e.what());
+      return 2;
+    }
+    nets.erase(nets.begin(), nets.begin() + 2);
+  }
   struct Sc {
     std::string name;
     std::function<void(ScalpParams&)> change;
@@ -35,6 +46,7 @@ int main(int argc, char** argv) {
   };
   for (const auto& sc : scenarios) {
     ScalpParams p;
+    p.sim = market;
     sc.change(p);
     auto run = [&](const std::string& name, const std::function<Action(const ScalpObs&)>& policy) {
       std::vector<double> pnl;
@@ -54,9 +66,9 @@ int main(int argc, char** argv) {
       }
       double m = 0, v = 0;
       for (double x : pnl) m += x;
-      m /= pnl.size();
+      m /= static_cast<double>(pnl.size());
       for (double x : pnl) v += (x - m) * (x - m);
-      const double se = std::sqrt(v / (pnl.size() - 1) / pnl.size());
+      const double se = std::sqrt(v / static_cast<double>(pnl.size() - 1) / static_cast<double>(pnl.size()));
       std::printf("%s,%s,%.3f,%.2f,%.1f,%.1f\n", sc.name.c_str(), name.c_str(), m, se > 0 ? m / se : 0.0, orders / 200, 100 * wins / 200);
       std::fflush(stdout);
     };

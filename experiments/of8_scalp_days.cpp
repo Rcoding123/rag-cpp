@@ -5,13 +5,14 @@
 // maximum drawdown of cumulative daily P&L, and the annualized Sharpe ratio
 // (mean / sd of daily P&L x sqrt(252)). Strategies: the delta rule, each saved
 // RL agent, and their ensemble (mean of the networks' Q-values, then argmax).
-// Usage: of8_scalp_days DAYS NET [NET...]
+// Usage: of8_scalp_days DAYS [--market default|efficient|discovery] NET [NET...]
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -24,9 +25,20 @@ using namespace rag::orderflow;
 int main(int argc, char** argv) {
   if (argc < 3) return 2;
   const unsigned days = static_cast<unsigned>(std::atoi(argv[1]));
+  SimParams market;
+  int first_net = 2;
+  if (argc > 3 && std::string(argv[2]) == "--market") {
+    try {
+      market = market_preset(argv[3]);
+    } catch (const std::invalid_argument& e) {
+      std::fprintf(stderr, "%s\n", e.what());
+      return 2;
+    }
+    first_net = 4;
+  }
   std::vector<std::unique_ptr<Agent<ScalpEnv>>> agents;
   ScalpEnv proto;
-  for (int i = 2; i < argc; ++i) {
+  for (int i = first_net; i < argc; ++i) {
     AgentConfig<ScalpEnv::kStateDims> c;
     c.learner = LearnerKind::NeuralQ;
     c.bins.fill(1);
@@ -61,6 +73,7 @@ int main(int argc, char** argv) {
       double day = 0;
       for (unsigned k = 0; k < kSessions; ++k) {
         ScalpParams p;
+        p.sim = market;
         p.start_second = k * 600.0;
         ScalpEnv env(p);
         Rng r(930'000'000ull + d * 100 + k);  // sealed day episodes
@@ -82,10 +95,10 @@ int main(int argc, char** argv) {
       peak = std::max(peak, cum);
       dd = std::max(dd, peak - cum);
     }
-    m /= daily.size();
+    m /= static_cast<double>(daily.size());
     for (double x : daily) v += (x - m) * (x - m);
-    const double sd = std::sqrt(v / (daily.size() - 1));
-    std::printf("%-20s %+9.1f %+9.0f %7.1f %7.0f%% %+10.1f %10.1f %7.2f\n", name.c_str(), m, m * kTickValue, sd, 100 * wins / daily.size(),
+    const double sd = std::sqrt(v / static_cast<double>(daily.size() - 1));
+    std::printf("%-20s %+9.1f %+9.0f %7.1f %7.0f%% %+10.1f %10.1f %7.2f\n", name.c_str(), m, m * kTickValue, sd, 100 * wins / static_cast<double>(daily.size()),
                 *std::min_element(daily.begin(), daily.end()), dd, sd > 0 ? m / sd * std::sqrt(252.0) : 0.0);
     std::fflush(stdout);
   }

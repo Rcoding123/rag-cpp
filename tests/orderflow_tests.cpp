@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 #include "rag/orderflow/simulator.hpp"
@@ -286,4 +287,166 @@ TEST(EsSimulator, SeparateStreamsKeepTheFairValuePathIndependentOfOurOrders) {
     diverged = q2.fair_value() != a2.fair_value();
   }
   EXPECT_TRUE(diverged);
+}
+
+// FNV-1a over every trade and quote of `steps` steps: a fingerprint of a run.
+static std::uint64_t run_fingerprint(const SimParams& p, std::uint64_t seed, int steps = 20'000) {
+  EsSimulator sim(p, seed);
+  std::uint64_t h = 14695981039346656037ull;
+  auto mix = [&h](std::uint64_t v) {
+    for (int b = 0; b < 8; ++b) {
+      h ^= (v >> (8 * b)) & 0xffu;
+      h *= 1099511628211ull;
+    }
+  };
+  for (int s = 0; s < steps; ++s) {
+    sim.step();
+    for (const auto& t : sim.trades()) {
+      mix(static_cast<std::uint64_t>(t.t_ns));
+      mix(static_cast<std::uint64_t>(static_cast<std::int64_t>(t.price)));
+      mix(t.size);
+      mix(t.aggressor == Side::Buy ? 1u : 2u);
+      mix(t.own ? 1u : 0u);
+    }
+    const Quote q = sim.quote();
+    mix(static_cast<std::uint64_t>(static_cast<std::int64_t>(q.bid)));
+    mix(static_cast<std::uint64_t>(static_cast<std::int64_t>(q.ask)));
+    for (std::size_t i = 0; i < kDepth; ++i) {
+      mix(q.bid_size[i]);
+      mix(q.ask_size[i]);
+    }
+  }
+  return h;
+}
+
+TEST(EsSimulator, GoldenRunsOfTheExistingPresetsAreUnchanged) {
+  // Recorded with the code before the quote-jump mechanism (commit e0a4c7a),
+  // MSVC x64. Every OF1-OF9 result depends on these paths staying
+  // bit-identical. Floating-point library functions (exp, log, pow) and FMA
+  // contraction differ between compilers, so the exact values are checked
+  // only where they were recorded; the opt-in test below runs everywhere.
+  SimParams sep;
+  sep.separate_streams = true;
+  const std::uint64_t a = run_fingerprint(SimParams{}, 1), b = run_fingerprint(efficient_market(), 2), c = run_fingerprint(sep, 3);
+#if defined(_MSC_VER) && !defined(__clang__)
+  EXPECT_EQ(a, 275146979745797631ull) << a;
+  EXPECT_EQ(b, 8508263057256671083ull) << b;
+  EXPECT_EQ(c, 12097387368164182254ull) << c;
+#else
+  EXPECT_NE(a, b);
+  EXPECT_NE(a, c);
+#endif
+}
+
+// --- quote jumps (SimParams::reprice_band, discovery_market()) ---------------
+
+TEST(PriceDiscovery, OffByDefaultAndTheSniperSizeAloneChangesNothing) {
+  // reprice_band = 0 switches the mechanism off: no draws, no state change.
+  SimParams p;
+  p.reprice_snipe = 0.5;
+  EXPECT_EQ(run_fingerprint(p, 1, 5'000), run_fingerprint(SimParams{}, 1, 5'000));
+  SimParams on;
+  on.reprice_band = 0.65;
+  EXPECT_NE(run_fingerprint(on, 1, 5'000), run_fingerprint(SimParams{}, 1, 5'000));
+  EXPECT_THROW(EsSimulator(SimParams{.reprice_band = -1}), std::invalid_argument);
+  EXPECT_THROW(EsSimulator(SimParams{.reprice_snipe = 1.5}), std::invalid_argument);
+  EXPECT_THROW(market_preset("fast"), std::invalid_argument);
+  EXPECT_EQ(market_preset("discovery").reprice_band, discovery_market().reprice_band);
+}
+
+TEST(PriceDiscovery, QuotesTrackValueAndRequeuedOrdersSitBehindTheLevel) {
+  SimParams p = discovery_market();
+  p.jump_rate = 1.0;  // news about every 10 steps
+  EsSimulator sim(p, 11);
+  rag::agent::Rng rng(3);
+  std::uint64_t jumps = 0;
+  for (int s = 0; s < 20'000; ++s) {
+    if (s % 7 == 0) {
+      const Side side = rng.uniform() < 0.5 ? Side::Buy : Side::Sell;
+      const auto back = static_cast<std::int32_t>(rng.below(3));
+      sim.submit_limit(side, side == Side::Buy ? sim.bid() - back : sim.ask() + back, 1 + rng.below(3));
+    }
+    if (s % 13 == 0 && !sim.resting().empty()) sim.cancel(sim.resting().front().id);
+    const std::uint64_t before = sim.reprices();
+    sim.step();
+    // Every quote a strategy sees: value within max(band, 0.5) of the mid.
+    ASSERT_LE(std::abs(sim.fair_value() - sim.mid()), std::max(p.reprice_band, 0.5) + 1e-9) << "step " << s;
+    ASSERT_GE(sim.spread(), 1);
+    if (sim.reprices() == before) continue;
+    ++jumps;
+    // Orders that kept their price rejoined the back of the queue there.
+    const Quote q = sim.quote();
+    for (const auto& r : sim.resting()) {
+      const std::int32_t d = r.side == Side::Buy ? sim.bid() - r.price : r.price - sim.ask();
+      ASSERT_GE(d, 0);
+      if (d < static_cast<std::int32_t>(kDepth)) {
+        const auto i = static_cast<std::size_t>(d);
+        ASSERT_LE(r.ahead + r.qty, r.side == Side::Buy ? q.bid_size[i] : q.ask_size[i]) << "step " << s;
+      }
+    }
+  }
+  EXPECT_GT(jumps, 500u);
+}
+
+TEST(PriceDiscovery, AStaleOwnAskIsFilledAtItsPriceWhenValueJumpsThroughIt) {
+  // Takers off, a news jump every step: the book moves only by quote jumps.
+  SimParams p = discovery_market();
+  p.noise_rate = p.informed_meta_rate = p.uninformed_meta_rate = p.momentum_rate = 0;
+  p.jump_rate = 10;
+  p.jump_sd = 4;
+  EsSimulator sim(p, 5);
+  int crossed = 0;
+  for (int s = 0; s < 2'000 && crossed < 20; ++s) {
+    const std::int32_t ask = sim.ask();
+    const std::uint64_t id = sim.submit_limit(Side::Sell, ask, 2);
+    ASSERT_NE(id, 0u);
+    sim.step();
+    if (sim.bid() < ask) {
+      sim.cancel(id);
+      continue;
+    }
+    ++crossed;  // value jumped up through our ask: the snipers took it at our (stale) price
+    std::uint32_t lots = 0;
+    for (const auto& f : sim.own_fills())
+      if (f.id == id) {
+        EXPECT_EQ(f.price, ask);
+        EXPECT_EQ(f.side, Side::Sell);
+        lots += f.size;
+      }
+    EXPECT_EQ(lots, 2u);
+    for (const auto& r : sim.resting()) EXPECT_NE(r.id, id);
+    EXPECT_GT(sim.sniper_prints(), 0u);
+  }
+  EXPECT_GE(crossed, 10);
+}
+
+// corr(fair value - mid, mid change over the next 30 s), over `seconds` of trading.
+static double gap_predicts_30s(const SimParams& p, std::uint64_t seed, double seconds) {
+  EsSimulator sim(p, seed, 3600);
+  const auto n = static_cast<std::size_t>(std::lround(seconds / p.dt)), h = static_cast<std::size_t>(std::lround(30 / p.dt));
+  std::vector<double> g, m;
+  for (std::size_t s = 0; s < n + h; ++s) {
+    sim.step();
+    g.push_back(sim.fair_value() - sim.mid());
+    m.push_back(sim.mid());
+  }
+  double sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
+  for (std::size_t i = 0; i < n; ++i) {
+    const double x = g[i], y = m[i + h] - m[i];
+    sx += x;
+    sy += y;
+    sxx += x * x;
+    syy += y * y;
+    sxy += x * y;
+  }
+  const double k = static_cast<double>(n);
+  return (sxy - sx * sy / k) / std::sqrt((sxx - sx * sx / k) * (syy - sy * sy / k));
+}
+
+TEST(PriceDiscovery, TheHiddenGapNoLongerPredictsTheNext30Seconds) {
+  // 2 h, seed 1. Measured (MSVC): default 0.62, discovery 0.13
+  // (OF10 seeds 1-3: default 0.54-0.62, discovery ~0.1, the 1-tick grid's floor ~0.09-0.12).
+  const double def = gap_predicts_30s(SimParams{}, 1, 7200), disc = gap_predicts_30s(discovery_market(), 1, 7200);
+  EXPECT_GT(def, 0.4) << def;
+  EXPECT_LT(disc, 0.2) << disc;
 }

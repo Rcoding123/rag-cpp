@@ -1,7 +1,7 @@
 // of_calibrate — compare the ES simulator with recorded ES ticks, and fit its
 // parameters so the simulated market has the same stylized facts.
 //
-//   of_calibrate sim [seconds=10800]                 facts of the simulator (default parameters)
+//   of_calibrate sim [seconds=10800] [market]        facts of the simulator (market: default, efficient, discovery)
 //   of_calibrate facts <ticks.csv> [options]         facts of recorded ticks
 //   of_calibrate fit   <ticks.csv> [options]         fit the simulator to them (needs NLopt)
 //   of_calibrate export <out.csv> [seconds=3600] [informed_scale=1]
@@ -16,6 +16,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
@@ -146,7 +147,15 @@ int main(int argc, char** argv) {
   }
   if (mode == "sim") {
     const double seconds = argc > 2 ? std::atof(argv[2]) : 10800;
-    print_facts("simulator, default parameters", simulate_facts(SimParams{}, seconds));
+    const std::string market = argc > 3 ? argv[3] : "default";
+    SimParams p;
+    try {
+      p = market_preset(market);
+    } catch (const std::invalid_argument& e) {
+      std::fprintf(stderr, "%s\n", e.what());
+      return 2;
+    }
+    print_facts(("simulator, " + market + " parameters").c_str(), simulate_facts(p, seconds));
     return 0;
   }
   if ((mode == "facts" || mode == "fit") && argc > 2) {

@@ -2,9 +2,11 @@
 // machine: one seed per thread, then score every agent and their mean-Q
 // ensemble on sealed test episodes against the 30 s delta rule.
 //
-//   of_train [--seeds 12] [--threads N] [--episodes 2000] [--market default|efficient]
+//   of_train [--seeds 12] [--threads N] [--episodes 2000] [--market default|efficient|discovery]
 //            [--hidden 64] [--gamma 0.97] [--nstep 5] [--batch 32] [--lr 0.001]
-//            [--test 300] [--out DIR]
+//            [--test 300] [--test-seed 900000000] [--out DIR]
+// --test-seed: first seed of the scoring episodes (900M+ sealed; 950M+ is the
+// once-per-claim fresh confirmation block, see docs/ai/NEXT_SESSION.md).
 //
 // --threads defaults to the number of hardware threads (capped at --seeds).
 // Each agent is NeuralQ with Double DQN and weight averaging (the recipe of
@@ -18,6 +20,7 @@
 // episodes on 12 cores take about as long as one seed.
 #include <algorithm>
 #include <atomic>
+#include <cerrno>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -25,6 +28,7 @@
 #include <filesystem>
 #include <memory>
 #include <mutex>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
@@ -40,6 +44,7 @@ namespace {
 struct Options {
   unsigned seeds = 12, threads = 0, episodes = 2000, test = 300, hidden = 64, nstep = 5, batch = 32;
   double gamma = 0.97, lr = 1e-3;
+  std::uint64_t test_seed = 900'000'000;
   std::string market = "default", out = "of_train_out";
 };
 
@@ -48,12 +53,12 @@ struct Score {
 };
 
 template <class Policy>
-Score score(const ScalpParams& p, Policy&& policy, unsigned episodes) {
+Score score(const ScalpParams& p, Policy&& policy, unsigned episodes, std::uint64_t first_seed) {
   std::vector<double> pnl;
   double orders = 0;
   for (unsigned i = 0; i < episodes; ++i) {
     ScalpEnv env(p);
-    Rng r(900'000'000ull + i);  // sealed test episodes
+    Rng r(first_seed + i);  // sealed test episodes
     auto o = env.reset(r);
     for (;;) {
       const auto st = env.step(policy(o), r);
@@ -114,6 +119,17 @@ int main(int argc, char** argv) {
     else if (k == "--lr") o.lr = std::atof(v.c_str());
     else if (k == "--market") o.market = v;
     else if (k == "--out") o.out = v;
+    else if (k == "--test-seed") {
+      // Must be a whole number in a test block (900M+): a typo parsing to a
+      // small seed would score on the training streams (Rng(1..seeds)).
+      char* end = nullptr;
+      errno = 0;
+      o.test_seed = std::strtoull(v.c_str(), &end, 10);
+      if (v.empty() || v[0] == '-' || *end != '\0' || errno == ERANGE || o.test_seed < 900'000'000) {
+        std::fprintf(stderr, "--test-seed wants an integer >= 900000000 (a test block, docs/ai/NEXT_SESSION.md), got %s\n", v.c_str());
+        return 2;
+      }
+    }
     else {
       std::fprintf(stderr, "unknown option %s\n", k.c_str());
       return 2;
@@ -122,9 +138,10 @@ int main(int argc, char** argv) {
   if (o.threads == 0) o.threads = std::max(1u, std::thread::hardware_concurrency());
   o.threads = std::min(o.threads, o.seeds);
   ScalpParams p;
-  if (o.market == "efficient") p.sim = efficient_market();
-  else if (o.market != "default") {
-    std::fprintf(stderr, "--market must be default or efficient\n");
+  try {
+    p.sim = market_preset(o.market);
+  } catch (const std::invalid_argument& e) {
+    std::fprintf(stderr, "--market: %s\n", e.what());
     return 2;
   }
   std::filesystem::create_directories(o.out);
@@ -152,7 +169,7 @@ int main(int argc, char** argv) {
         ch->net.save(o.out + "/seed" + std::to_string(seed) + ".net");
         agent->restore(*ch);  // the deployed policy, for scoring and the ensemble
       }
-      scores[i] = score(p, [&](const ScalpObs& ob) { return agent->act(ob, false); }, o.test);
+      scores[i] = score(p, [&](const ScalpObs& ob) { return agent->act(ob, false); }, o.test, o.test_seed);
       {
         std::lock_guard lock(print);
         std::printf("  seed %2llu: validation %+.2f, sealed test %+.2f ticks/episode (t %+.1f, %.1f orders, %.0f%% winning)\n",
@@ -168,7 +185,7 @@ int main(int argc, char** argv) {
   const double secs = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
 
   const Score rule = score(
-      p, [](const ScalpObs& ob) -> Action { return ob.f[1] > 1.5 ? 2 : ob.f[1] < -1.5 ? 0 : static_cast<Action>(ob.position + 1); }, o.test);
+      p, [](const ScalpObs& ob) -> Action { return ob.f[1] > 1.5 ? 2 : ob.f[1] < -1.5 ? 0 : static_cast<Action>(ob.position + 1); }, o.test, o.test_seed);
   const Score ens = score(
       p,
       [&](const ScalpObs& ob) -> Action {
@@ -179,10 +196,10 @@ int main(int argc, char** argv) {
         }
         return static_cast<Action>(std::max_element(sum.begin(), sum.end()) - sum.begin());
       },
-      o.test);
+      o.test, o.test_seed);
   double mean_single = 0;
   for (const auto& s : scores) mean_single += s.mean / static_cast<double>(scores.size());
-  std::printf("\nsealed test, %u episodes of 10 min (1 ES contract):\n", o.test);
+  std::printf("\nsealed test, %u episodes of 10 min from seed %llu (1 ES contract):\n", o.test, static_cast<unsigned long long>(o.test_seed));
   std::printf("  delta 30 s rule      %+.2f ticks/episode (t %+.1f)\n", rule.mean, rule.t);
   std::printf("  RL, mean of seeds    %+.2f\n", mean_single);
   std::printf("  RL mean-Q ensemble   %+.2f (t %+.1f, %.1f orders, %.0f%% winning) of all %u seeds\n", ens.mean, ens.t, ens.orders, ens.win, o.seeds);

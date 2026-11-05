@@ -1,12 +1,13 @@
 // OF3: RL on ScalpEnv. NeuralQ (Double DQN, weight averaging), trained on
 // fresh simulated ES sessions, champion selected on validation episodes,
 // then scored on the same 300 sealed test episodes as the OF2 baselines.
-// Usage: of3_rl SEED EPISODES [gamma=0.97] [n_step=5] [eps_decay=frac of episodes 0.5] [save_path] [market: default | efficient]
+// Usage: of3_rl SEED EPISODES [gamma=0.97] [n_step=5] [eps_decay=frac of episodes 0.5] [save_path] [market: default | efficient | discovery]
 // Prints progress and a final CSV line: seed,episodes,ticks_per_ep,t,sharpe,orders,win
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -24,7 +25,12 @@ int main(int argc, char** argv) {
   const unsigned nstep = argc > 4 ? static_cast<unsigned>(std::atoi(argv[4])) : 5;
   const double decay = argc > 5 ? std::atof(argv[5]) : 0.5;
   ScalpParams p;
-  if (argc > 7 && std::string(argv[7]) == "efficient") p.sim = efficient_market();  // OF9
+  try {
+    if (argc > 7) p.sim = market_preset(argv[7]);  // OF9: efficient; OF10: discovery
+  } catch (const std::invalid_argument& e) {
+    std::fprintf(stderr, "%s\n", e.what());
+    return 2;
+  }
   ScalpEnv env(p);
   AgentConfig<ScalpEnv::kStateDims> c;
   c.seed = seed;
@@ -47,7 +53,7 @@ int main(int argc, char** argv) {
     double mean_train = 0;
     for (double x : rep.returns) mean_train += x;
     std::fprintf(stderr, "seed %llu: %u episodes, training %.1f ticks/ep, deployed validation %.2f ticks/ep\n", (unsigned long long)seed, done,
-                 mean_train / std::max<std::size_t>(1, rep.returns.size()), rep.champion_score);
+                 mean_train / static_cast<double>(std::max<std::size_t>(1, rep.returns.size())), rep.champion_score);
   }
   if (argc > 6 && tr.champion()) tr.champion()->net.save(argv[6]);  // the deployed network, for stress tests
   std::vector<double> pnl;
@@ -66,9 +72,9 @@ int main(int argc, char** argv) {
   }
   double m = 0, v = 0, wins = 0;
   for (double x : pnl) { m += x; wins += x > 0; }
-  m /= pnl.size();
+  m /= static_cast<double>(pnl.size());
   for (double x : pnl) v += (x - m) * (x - m);
-  const double sd = std::sqrt(v / (pnl.size() - 1));
+  const double sd = std::sqrt(v / static_cast<double>(pnl.size() - 1));
   std::printf("%llu,%u,%.3f,%.2f,%.3f,%.1f,%.1f\n", (unsigned long long)seed, episodes, m, m / (sd / std::sqrt(pnl.size())), m / sd, orders / 300,
               100 * wins / 300);
 }
