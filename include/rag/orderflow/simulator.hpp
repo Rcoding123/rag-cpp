@@ -31,9 +31,16 @@
 //   5. icebergs: large passive orders with hidden reserve, placed by players
 //      who know the fair value; aggressive flow into them trades without
 //      moving the price (absorption), and the price tends to turn there;
-//   6. quote jumps (opt-in, SimParams::reprice_band, discovery_market()):
-//      when value has left the mid by more than the band, the whole book
-//      re-prices at once and snipers take part of the stale quotes.
+//   6. re-pricing (opt-in, SimParams::reprice_band):
+//      v1 (discovery_market_v1()): when value has left the mid by more than
+//      the band, the whole book jumps at once and snipers take a clip of the
+//      stale quotes;
+//      v2 (reprice_cancel > 0, discovery_market()): quotes value has passed
+//      are withdrawn lot by lot within a few 100 ms (cancelled, or taken by
+//      snipers), nobody joins them, and when the stale best level is empty
+//      the price ticks and the value side re-prices with it (its shape kept,
+//      spread 1); optionally (value_impact > 0) the unexpected part of taker
+//      flow moves fair value permanently (Kyle / Hasbrouck impact).
 //
 // All parameters are plain numbers in SimParams, meant to be calibrated
 // against recorded ES ticks (experiments/of1_stylized_facts.cpp measures
@@ -160,6 +167,46 @@ struct SimParams {
   // there. A band in (0.5, 1) leaves 2 * band - 1 ticks of hysteresis; after
   // a jump the mid overshoots value by ~(1 - band) and tends to bounce back.
   double reprice_band = 0.0, reprice_snipe = 0.0;
+  // Stale-side depletion (v2; 0 = off: v1 quote jumps when reprice_band > 0,
+  // and nothing changes when reprice_band = 0). A bid at price P is stale when
+  // P - value > reprice_band - 0.5, an ask when value - P > reprice_band - 0.5
+  // (with a 1-tick spread: level j is stale when |value - mid| > band + j).
+  // Each lot at a stale level leaves at reprice_cancel * (1 + over) per
+  // second, over = how many ticks value is past the stale threshold (news
+  // clears a deep stale book in a step or two); a share
+  // reprice_take of the leaving lots at the stale best is taken by snipers
+  // (prints at the stale price, FIFO through the strategy's orders; once only
+  // the strategy's lots are left they are taken at the full rate: a 100 ms
+  // order can't cancel in time), the rest are cancelled (back-biased). No
+  // maker joins a stale price. When the stale best is empty the price ticks
+  // and the value-side makers re-price with it: that side's book moves one
+  // tick toward value with its shape kept, so the spread stays 1 tick and
+  // the book after the tick is balanced (the strategy's orders there keep
+  // their price, at the back of the queue). The spread fill then opens only
+  // quotes that aren't stale. The stale queue shrinks visibly before the
+  // tick, so book imbalance predicts the next mid change, and only that.
+  double reprice_cancel = 0.0, reprice_take = 0.0;
+  // Permanent impact of taker flow on fair value (0 = off; Kyle / Hasbrouck:
+  // only the unexpected part of the flow moves value): value += value_impact
+  // * (x - impact_forecast_weight * fhat * dt) per step, x = the surprise in
+  // the signed lots filled by takers this step: noise takers and the
+  // strategy's market orders (which count in the next step) in full;
+  // uninformed meta-order children weighted by 1 - P(the meta-order goes on
+  // past this child | lots done), Pareto(meta_min, meta_alpha) survival: a
+  // market that knows meta-orders exist but not their size expects the rest
+  // (Farmer, Gerig, Lillo & Waelbroeck 2013), so a meta-order's impact is
+  // permanent, concave, and its predictable continuation doesn't make
+  // prices predictable. Informed meta-orders, momentum takers and snipers
+  // are excluded (their trades follow a price or value that has already
+  // moved; informed traders chasing a value their own flow moves would run
+  // away). fhat = EWMA (impact_forecast_tau seconds) of the meta-order part
+  // of x per second, read before its update: a meta-order's children all
+  // push value one way while it lasts, which the Pareto weights alone leave
+  // partly predictable; the weight corrects that (tuned so that impact has
+  // no autocorrelation). On all flow with weight 1, as first designed, it
+  // made impact transient (a unit-gain filter's residuals sum to zero):
+  // measured, corr(30 s delta, next 30 s) -0.15, markouts falling after 5 s.
+  double value_impact = 0.0, impact_forecast_tau = 10.0, impact_forecast_weight = 0.0;
 };
 
 // Informed makers: they re-price ahead of informed flow, so *trade* flow no
@@ -177,16 +224,14 @@ inline SimParams efficient_market() {
   return p;
 }
 
-// Fast price discovery (OF10): makers re-price (quote jumps) as soon as value
-// moves more than reprice_band from the mid, and snipers take a clip of the
-// stale quotes. The mid then tracks value within 0.65 tick, so the hidden
-// gap, the book and the tape predict only the next tick or two. Informed
-// traders must then trade fast (in the jump step) to be informed at all, so
-// more of the flow is informed meta-orders and less is uninformed; quote
-// jumps excite activity, so noise takers and excitation are scaled down to
-// keep the stylized facts. Tuned on diagnostic seeds 1-3 x 2 h, checked on
-// held-out seeds 4-6 (experiments/of10_discovery.cpp, of10_results.txt).
-inline SimParams discovery_market() {
+// Fast price discovery, iteration 1 (OF10 v1, commit 10bfe03): makers
+// re-price (rigid whole-book quote jumps) as soon as value moves more than
+// reprice_band from the mid, and snipers take a clip of the stale quotes.
+// The hidden gap no longer predicts the next 30 s (0.11, the tick-grid
+// floor), but the book moves rigidly, so book imbalance predicts nothing,
+// and impact R^2 comes from the fixed sniper clip. Kept to reproduce the v1
+// numbers: market_preset("discovery_v1").
+inline SimParams discovery_market_v1() {
   SimParams p;
   p.reprice_band = 0.65;
   p.reprice_snipe = 0.2;
@@ -197,12 +242,44 @@ inline SimParams discovery_market() {
   return p;
 }
 
+// Fast price discovery, iteration 2 (OF10 v2): stale-side depletion and
+// value-side re-pricing (reprice_cancel; band 0.5: a quote is stale as soon
+// as value passes it), permanent impact of unexpected flow (value_impact),
+// and informed makers (maker_info) whose rate tilt now leaks only the
+// within-tick gap, so book imbalance predicts the next tick and nothing
+// after. Fading against the flow is off: the flow's information reaches the
+// price through value_impact (fading too would count it twice). Flow impact
+// makes part of the volatility, so value_vol is lower; fewer, larger
+// uninformed meta-orders keep trade-sign memory; activity excitation is
+// halved (quote re-pricing makes the price move more often). Tuned on
+// diagnostic seeds 1-3 x 2 h, checked on seeds 4-6
+// (experiments/of10_discovery.cpp, of10_results.txt, of10_heldout.txt).
+inline SimParams discovery_market() {
+  SimParams p;
+  p.reprice_band = 0.5;
+  p.reprice_cancel = 15;
+  p.reprice_take = 0.08;
+  p.maker_info = 2.5;
+  p.informed_meta_rate = 3.0;
+  p.uninformed_meta_rate = 0.18;
+  p.meta_min = 60;
+  p.noise_rate = 0.4;
+  p.cancel_rate = 0.2;
+  p.activity_excite = 0.05;
+  p.fade = 0;
+  p.value_impact = 0.045;
+  p.impact_forecast_weight = 0.25;
+  p.value_vol = 0.17;
+  return p;
+}
+
 // The market presets by name, for the command-line tools.
 inline SimParams market_preset(const std::string& name) {
   if (name == "default") return SimParams{};
   if (name == "efficient") return efficient_market();
   if (name == "discovery") return discovery_market();
-  throw std::invalid_argument("unknown market '" + name + "' (default, efficient or discovery)");
+  if (name == "discovery_v1") return discovery_market_v1();
+  throw std::invalid_argument("unknown market '" + name + "' (default, efficient, discovery or discovery_v1)");
 }
 
 struct Fill {
@@ -217,6 +294,8 @@ class EsSimulator {
       throw std::invalid_argument("SimParams: dt, maker_decay, meta_alpha and fade_tau must be positive");
     if (!(p_.reprice_band >= 0) || !(p_.reprice_snipe >= 0 && p_.reprice_snipe <= 1))
       throw std::invalid_argument("SimParams: reprice_band must be >= 0 and reprice_snipe in [0, 1]");
+    if (!(p_.reprice_cancel >= 0) || !(p_.reprice_take >= 0 && p_.reprice_take <= 1) || !(p_.value_impact >= 0) || !(p_.impact_forecast_tau > 0))
+      throw std::invalid_argument("SimParams: reprice_cancel, value_impact >= 0, reprice_take in [0, 1], impact_forecast_tau > 0");
     seed_ = seed;
     if (p_.separate_streams)
       for (std::uint64_t k = 0; k < kStreams; ++k) streams_.emplace_back(stream_seed(k, 0));
@@ -232,6 +311,7 @@ class EsSimulator {
     trades_.clear();
     fills_.clear();
     snipes_ = 0;
+    cleared_ = 0;
     // Counter-based streams: every step re-seeds each process from (seed,
     // process, step), so a different number of draws in one step (state-
     // dependent counts) can't shift any later step's randomness.
@@ -251,25 +331,37 @@ class EsSimulator {
     // 3. Takers.
     orders_.clear();
     use(kNoise);
-    for (std::uint32_t n = poisson(p_.noise_rate * a * dt); n > 0; --n) orders_.push_back({Side::Buy, taker_size(), kNoiseTaker});
-    for (std::uint32_t n = poisson(p_.noise_rate * a * dt); n > 0; --n) orders_.push_back({Side::Sell, taker_size(), kNoiseTaker});
+    for (std::uint32_t n = poisson(p_.noise_rate * a * dt); n > 0; --n) orders_.push_back({Side::Buy, taker_size(), kNoiseTaker, 1.0});
+    for (std::uint32_t n = poisson(p_.noise_rate * a * dt); n > 0; --n) orders_.push_back({Side::Sell, taker_size(), kNoiseTaker, 1.0});
     const double gap = value_ - mid();
     use(kMeta);
     if (std::abs(gap) > 0.5)
       for (std::uint32_t n = poisson(p_.informed_meta_rate * std::min(1.0, std::abs(gap) / p_.informed_scale) * a * dt); n > 0; --n) {
-        metas_.push_back({gap > 0 ? Side::Buy : Side::Sell, meta_size(), true});
+        metas_.push_back({gap > 0 ? Side::Buy : Side::Sell, meta_size(), true, 0});
         ++meta_starts_[0];
       }
     for (std::uint32_t n = poisson(p_.uninformed_meta_rate * a * dt); n > 0; --n) {
-      metas_.push_back({r().uniform() < 0.5 ? Side::Buy : Side::Sell, meta_size(), false});
+      metas_.push_back({r().uniform() < 0.5 ? Side::Buy : Side::Sell, meta_size(), false, 0});
       ++meta_starts_[1];
     }
     for (auto& m : metas_) {
       if (m.informed && sign(m.side) * (value_ - mid()) < -1) m.left = 0;  // the edge is gone: stop
+      // v2: quotes are re-priced within a tick of value, so an informed trader
+      // takes only quotes value has passed (stale ones) and pauses otherwise
+      // (never buying above value).
+      if (m.informed && depletion() && !stale_price(m.side == Side::Buy ? Side::Sell : Side::Buy, m.side == Side::Buy ? ask() : bid_)) continue;
       for (std::uint32_t n = poisson(p_.meta_child_rate * a * dt); n > 0 && m.left > 0; --n) {
         const std::uint32_t c = std::min(m.left, taker_size());
-        orders_.push_back({m.side, c, m.informed ? kInformedMeta : kUninformedMeta});
+        // Impact weight (value_impact): the surprise in this child, 1 - P(the
+        // meta-order goes on past it | lots done) under the Pareto prior.
+        double w = 0;
+        if (p_.value_impact > 0 && !m.informed) {
+          const double done = p_.meta_min + m.done;
+          w = 1 - std::pow(done / (done + c), p_.meta_alpha);
+        }
+        orders_.push_back({m.side, c, m.informed ? kInformedMeta : kUninformedMeta, w});
         m.left -= c;
+        m.done += c;
       }
     }
     std::erase_if(metas_, [](const Meta& m) { return m.left == 0; });
@@ -277,13 +369,22 @@ class EsSimulator {
     const double move = mid() - history_.front();
     if (std::abs(move) >= 1)
       for (std::uint32_t n = poisson(p_.momentum_rate * std::min(1.0, std::abs(move) / p_.momentum_scale) * a * dt); n > 0; --n)
-        orders_.push_back({move > 0 ? Side::Buy : Side::Sell, taker_size(), kMomentumTaker});
+        orders_.push_back({move > 0 ? Side::Buy : Side::Sell, taker_size(), kMomentumTaker, 0.0});
     use(kShuffle);
     for (std::size_t i = orders_.size(); i > 1; --i) std::swap(orders_[i - 1], orders_[r().below(static_cast<std::uint32_t>(i))]);
-    double signed_volume = 0;
+    double signed_volume = 0, surprise = 0, meta_surprise = 0;
     for (const auto& o : orders_) {
-      taker_volume_[o.kind] += execute(o.side, o.size, false).filled;
+      const std::uint32_t filled = execute(o.side, o.size, false).filled;
+      taker_volume_[o.kind] += filled;
       signed_volume += sign(o.side) * o.size;
+      (o.kind == kUninformedMeta ? meta_surprise : surprise) += sign(o.side) * filled * o.weight;
+    }
+    if (p_.value_impact > 0) {  // opt-in: no draws, no state change when off
+      const double impact = p_.value_impact * (surprise + own_flow_ + meta_surprise - p_.impact_forecast_weight * fhat_ * dt);
+      own_flow_ = 0;
+      value_ += impact;
+      flow_impact_ += impact;
+      fhat_ += (meta_surprise / dt - fhat_) * std::min(1.0, dt / p_.impact_forecast_tau);
     }
     flow_ += (signed_volume / dt - flow_) * std::min(1.0, dt / p_.fade_tau);
     // 4. Makers, fading against the flow.
@@ -302,10 +403,13 @@ class EsSimulator {
         ask_add *= info;
       }
     }
+    // v2: nobody joins a stale price (the first stale_* levels of the stale side).
+    std::size_t stale_bids = 0, stale_asks = 0;
+    if (depletion()) (value_ > mid() ? stale_asks : stale_bids) = stale_levels();
     for (std::size_t i = 0; i < kLevels; ++i) {
       const double rate = p_.maker_rate * std::exp(-static_cast<double>(i) / p_.maker_decay) * a * dt;
-      bid_q_[i] += maker_lots(rate * bid_add);
-      ask_q_[i] += maker_lots(rate * ask_add);
+      if (i >= stale_bids) bid_q_[i] += maker_lots(rate * bid_add);
+      if (i >= stale_asks) ask_q_[i] += maker_lots(rate * ask_add);
       cancel_level(Side::Buy, i, poisson(bid_cancel * others(Side::Buy, i) * dt));
       cancel_level(Side::Sell, i, poisson(ask_cancel * others(Side::Sell, i) * dt));
     }
@@ -315,11 +419,53 @@ class EsSimulator {
     manage_icebergs();
     normalize_book();
     use(kMaker);
-    while (spread_ > 1 && r().uniform() < p_.spread_fill_prob) improve(r().uniform() < 0.5 ? Side::Buy : Side::Sell);
+    if (depletion()) {
+      // v2, a spread wider than a tick (a best level was taken or cancelled):
+      // a quote one tick inside that value has passed is never opened. When
+      // only one side's is valid: if the other side's best vanished this step
+      // (a level value had passed), that side's makers re-price into the gap
+      // at once (translate, shape kept: the price ticks toward value as after
+      // depletion); otherwise the vanished side is re-posted at once by a
+      // single maker order (a thin queue: the price moves only when value
+      // does). When both are valid, the side farther from value fills it,
+      // one tick per pass: if its quote is more than 1.5 ticks from value (a
+      // book swept away) its makers re-price (translate), else a single maker
+      // order opens it (with spread_fill_prob per tick, as by default).
+      while (spread_ > 1) {
+        const bool bid_ok = !stale_price(Side::Buy, bid_ + 1), ask_ok = !stale_price(Side::Sell, ask() - 1);
+        if (bid_ok != ask_ok) {
+          const Side s = bid_ok ? Side::Buy : Side::Sell;
+          if (cleared_ & (s == Side::Buy ? 2u : 1u)) {
+            translate(s);
+            ++reprices_;
+            ++reprice_ticks_;
+          } else {
+            improve(s);
+          }
+          continue;
+        }
+        if (!bid_ok) break;
+        const Side far = value_ - bid_ > ask() - value_ ? Side::Buy : Side::Sell;
+        if ((far == Side::Buy ? value_ - bid_ : ask() - value_) > 1.5) {  // a quote far from value (a book swept away): its makers re-price
+          translate(far);
+          continue;
+        }
+        if (!(r().uniform() < p_.spread_fill_prob)) break;
+        improve(far);
+      }
+    } else {
+      while (spread_ > 1 && r().uniform() < p_.spread_fill_prob) improve(r().uniform() < 0.5 ? Side::Buy : Side::Sell);
+    }
     drop_far_orders();
     if (p_.reprice_band > 0) {  // opt-in: no draws and no state change when off
-      use(kValue);
-      reprice();
+      if (p_.reprice_cancel > 0) {
+        use(kSnipe);
+        deplete();
+        clamp_ahead();
+      } else {
+        use(kValue);
+        reprice();
+      }
     }
     const double moved = std::abs(mid() - mid0);
     move_avg_ += (moved - move_avg_) * std::min(1.0, dt / 1800);
@@ -331,7 +477,12 @@ class EsSimulator {
 
   // ---- the strategy's orders --------------------------------------------
   // Take liquidity now; prints are flagged own = true.
-  Fill market_order(Side side, std::uint32_t qty) { return execute(side, qty, true); }
+  // With value_impact > 0 the filled lots join the next step's impact flow.
+  Fill market_order(Side side, std::uint32_t qty) {
+    const Fill f = execute(side, qty, true);
+    if (p_.value_impact > 0) own_flow_ += sign(side) * f.filled;
+    return f;
+  }
 
   // Join the back of the queue at `price`. A price at or through the
   // opposite best is rejected (returns 0): use market_order to take.
@@ -406,17 +557,24 @@ class EsSimulator {
   // trades() only until the strategy trades (market_order() appends its own prints after them).
   [[nodiscard]] std::size_t sniper_prints() const noexcept { return snipes_; }
   [[nodiscard]] double log_activity() const noexcept { return log_activity_; }  // clamped to [activity_min, activity_max]
+  // v2 diagnostics: fair-value change from flow impact since the start (ticks,
+  // signed); stale episodes (races) started; stale lots cancelled (not sniped).
+  [[nodiscard]] double flow_impact() const noexcept { return flow_impact_; }
+  [[nodiscard]] std::uint64_t races() const noexcept { return races_; }
+  [[nodiscard]] std::uint64_t stale_cancelled_lots() const noexcept { return stale_cancelled_; }
 
  private:
   struct Order {
     Side side;
     std::uint32_t size;
     TakerKind kind;
+    double weight;  // its share in the flow that moves value (value_impact)
   };
   struct Meta {
     Side side;
     std::uint32_t left;
     bool informed;
+    std::uint32_t done;  // lots sent so far
   };
   struct Iceberg {
     Side side;  // Buy: a hidden bid
@@ -475,17 +633,19 @@ class EsSimulator {
   }
 
   // Others cancel `n` lots at a level; the strategy's queue position improves
-  // in proportion (cancellations land uniformly in the queue).
-  void cancel_level(Side side, std::size_t i, std::uint32_t n) {
+  // in proportion (cancellations land uniformly in the queue). Returns the
+  // lots cancelled.
+  std::uint32_t cancel_level(Side side, std::size_t i, std::uint32_t n) {
     const std::uint32_t oth = others(side, i);
     n = std::min(n, oth);
-    if (n == 0) return;
+    if (n == 0) return 0;
     auto& q = side == Side::Buy ? bid_q_ : ask_q_;
     q[i] -= n;
     for (auto& r : resting_)
       if (r.side == side && level_index(side, r.price) == i && oth > 0)
         r.ahead -= std::min(r.ahead, static_cast<std::uint32_t>(std::llround(
                                          static_cast<double>(n) * std::pow(static_cast<double>(r.ahead) / oth, p_.cancel_back_bias))));
+    return n;
   }
 
   Iceberg* iceberg_at(Side side, std::int32_t price) {
@@ -620,6 +780,115 @@ class EsSimulator {
     reprice_ticks_ += static_cast<std::uint64_t>(mag);
   }
 
+  // v2 on: re-pricing (reprice_band) by stale-side depletion (reprice_cancel).
+  [[nodiscard]] bool depletion() const noexcept { return p_.reprice_band > 0 && p_.reprice_cancel > 0; }
+  // v2 staleness (reprice_cancel > 0): value has passed a quote at `price`.
+  [[nodiscard]] bool stale_price(Side side, std::int32_t price) const noexcept {
+    const double over = side == Side::Buy ? price - value_ : value_ - price;
+    return over > p_.reprice_band - 0.5;
+  }
+  // Stale levels on the side value has passed, counted from that side's best.
+  [[nodiscard]] std::size_t stale_levels() const noexcept {
+    const Side stale = value_ > mid() ? Side::Sell : Side::Buy;
+    std::size_t n = 0;
+    while (n < kLevels && stale_price(stale, stale == Side::Sell ? ask() + static_cast<std::int32_t>(n) : bid_ - static_cast<std::int32_t>(n))) ++n;
+    return n;
+  }
+
+  // Stale-side depletion and value-side re-pricing (v2): see SimParams.
+  void deplete() {
+    const Side stale = value_ > mid() ? Side::Sell : Side::Buy, up = stale == Side::Sell ? Side::Buy : Side::Sell;
+    const std::size_t nst = stale_levels();
+    if (nst == 0) {
+      in_race_ = false;
+      return;
+    }
+    if (!in_race_ || race_side_ != stale) ++races_;
+    in_race_ = true;
+    race_side_ = stale;
+    // Informed icebergs whose price value has passed are pulled (otherwise
+    // they'd hold the stale price and the gap would leak through absorption).
+    std::erase_if(icebergs_, [&](const Iceberg& ib) { return ib.side == stale && stale_price(stale, ib.price); });
+    clamp_ahead();
+    auto& sq = stale == Side::Sell ? ask_q_ : bid_q_;
+    for (std::size_t j = 0; j < nst; ++j) {
+      // Per-lot departure probability this step: the further value has passed
+      // the quote (`over` ticks beyond the threshold), the faster it goes.
+      const auto off = static_cast<std::int32_t>(j);
+      const double over = (stale == Side::Sell ? value_ - (ask() + off) : (bid_ - off) - value_) - (p_.reprice_band - 0.5);
+      const double h = 1 - std::exp(-p_.reprice_cancel * (1 + over) * p_.dt);
+      const std::uint32_t oth = others(stale, j);
+      if (j == 0) {  // snipers take at the stale best only (no trade-throughs), FIFO
+        const std::int32_t px = stale == Side::Sell ? ask() : bid_;
+        const std::uint32_t own = sq[0] - std::min(sq[0], oth);
+        const double lots = p_.reprice_take * static_cast<double>(oth) + (oth == 0 ? static_cast<double>(own) : 0.0);
+        std::uint32_t take = std::min(sq[0], poisson(h * lots));
+        while (take > 0) {
+          const std::uint32_t c = std::min(take, taker_size());
+          consume_at(stale, 0, px, c);
+          trades_.push_back({t_ns_, px, c, up, false});
+          taker_volume_[kSniper] += c;
+          ++snipes_;
+          take -= c;
+        }
+      }
+      const double cancel_share = j == 0 ? 1 - p_.reprice_take : 1.0;
+      stale_cancelled_ += cancel_level(stale, j, poisson(h * cancel_share * static_cast<double>(oth)));
+    }
+    // An empty stale best: the price ticks, and the value side re-prices with it.
+    for (std::size_t guard = 0; guard < kLevels; ++guard) {
+      const std::int32_t best = stale == Side::Sell ? ask() : bid_;
+      if (sq[0] > 0 || iceberg_at(stale, best) || !stale_price(stale, best)) break;
+      shift_out(up);  // the stale best is gone: the next stale level becomes best
+      translate(up);  // the value side moves one tick toward value: spread 1 again
+      ++reprices_;
+      ++reprice_ticks_;
+    }
+  }
+
+  // The makers on `side` re-price one tick toward the other side, the shape
+  // of their book kept (spread - 1). The strategy's orders there keep their
+  // price and rejoin at the back of its queue; beyond the simulated depth
+  // they are dropped.
+  void translate(Side side) {
+    auto& q = side == Side::Buy ? bid_q_ : ask_q_;
+    bool own = false;
+    for (const auto& o : resting_)
+      if (o.side == side) {
+        const std::size_t i = level_index(side, o.price);
+        if (i < kLevels) q[i] -= std::min(q[i], o.qty);
+        own = true;
+      }
+    if (side == Side::Buy) ++bid_;  // ask() = bid_ + spread_: moving the ask down is --spread_ alone
+    --spread_;
+    if (!own) return;
+    for (auto it = resting_.begin(); it != resting_.end();) {
+      if (it->side != side) {
+        ++it;
+        continue;
+      }
+      const std::size_t i = level_index(side, it->price);
+      if (i >= kLevels) {
+        it = resting_.erase(it);
+        continue;
+      }
+      it->ahead = q[i];
+      q[i] += it->qty;
+      ++it;
+    }
+  }
+
+  // Rounded back-biased cancellations can leave an order's `ahead` above the
+  // lots that are actually there; the queue can't hold more than it shows.
+  void clamp_ahead() noexcept {
+    for (auto& r : resting_) {
+      const std::size_t i = level_index(r.side, r.price);
+      if (i >= kLevels) continue;
+      const std::uint32_t lvl = r.side == Side::Buy ? bid_q_[i] : ask_q_[i];
+      r.ahead = std::min(r.ahead, lvl - std::min(lvl, r.qty));
+    }
+  }
+
   // Take liquidity: a Buy consumes asks, a Sell consumes bids, level by level.
   Fill execute(Side side, std::uint32_t qty, bool own) {
     Fill f;
@@ -637,6 +906,7 @@ class EsSimulator {
           continue;
         }
         shift_out(side);
+        cleared_ |= side == Side::Buy ? 2u : 1u;  // the v2 spread fill reads it
         continue;
       }
       const std::uint32_t take = std::min(left, q[0]);
@@ -671,8 +941,14 @@ class EsSimulator {
 
   // Cancellations can empty the best level; the price then moves to the next.
   void normalize_book() {
-    for (int g = 0; g < 4 && bid_q_[0] == 0 && !iceberg_at(Side::Buy, bid_); ++g) shift_out(Side::Sell);
-    for (int g = 0; g < 4 && ask_q_[0] == 0 && !iceberg_at(Side::Sell, ask()); ++g) shift_out(Side::Buy);
+    for (int g = 0; g < 4 && bid_q_[0] == 0 && !iceberg_at(Side::Buy, bid_); ++g) {
+      shift_out(Side::Sell);
+      cleared_ |= 1u;
+    }
+    for (int g = 0; g < 4 && ask_q_[0] == 0 && !iceberg_at(Side::Sell, ask()); ++g) {
+      shift_out(Side::Buy);
+      cleared_ |= 2u;
+    }
   }
 
   // Own orders pushed beyond the simulated depth are cancelled.
@@ -705,7 +981,7 @@ class EsSimulator {
 
   // Random streams (separate_streams): indices into streams_; the shared
   // stream rng_ otherwise. An index, not a pointer: simulators are copied.
-  static constexpr std::size_t kValue = 0, kNoise = 1, kMeta = 2, kMomentum = 3, kShuffle = 4, kMaker = 5, kIceberg = 6, kOwn = 7, kStreams = 8;
+  static constexpr std::size_t kValue = 0, kNoise = 1, kMeta = 2, kMomentum = 3, kShuffle = 4, kMaker = 5, kIceberg = 6, kOwn = 7, kSnipe = 8, kStreams = 9;
   void use(std::size_t k) noexcept { cur_ = streams_.empty() ? kStreams : k; }
   [[nodiscard]] std::uint64_t stream_seed(std::uint64_t k, std::uint64_t step) const noexcept {
     std::uint64_t z = seed_ ^ (0x9E3779B97F4A7C15ull * (k + 1)) ^ (step * 0xD1B54A32D192ED03ull);
@@ -736,6 +1012,11 @@ class EsSimulator {
   std::array<std::uint64_t, 2> meta_starts_{};  // informed, uninformed
   std::uint64_t reprices_ = 0, reprice_ticks_ = 0;
   std::size_t snipes_ = 0;
+  double own_flow_ = 0, fhat_ = 0, flow_impact_ = 0;  // value_impact
+  std::uint64_t races_ = 0, stale_cancelled_ = 0;    // deplete()
+  bool in_race_ = false;
+  std::uint32_t cleared_ = 0;  // this step a best level vanished (taken or cancelled): bid (1), ask (2)
+  Side race_side_ = Side::Buy;
 };
 
 }  // namespace rag::orderflow

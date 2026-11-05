@@ -1,7 +1,7 @@
 simulator, discovery parameters (3.0 hours)
-  activity     25.9 trades/s, 3.83 contracts/trade, 5959 contracts/min
-  book         spread = 1 tick 99.7%, mean best-level size 408
-  returns      1-min sd 4.12 ticks, excess kurtosis 8.73, lag-1 autocorr +0.024, |r| lag-1 +0.219
-  trade signs  autocorr lag 1 +0.388, lag 10 +0.273, lag 100 +0.055
-  order flow   R^2(10 s mid change ~ 10 s delta) 0.245, corr(30 s delta, next 30 s) -0.091
-  markouts     after an aggressive print: 1 s -0.081, 5 s -0.118, 30 s -0.114 ticks; mid changes 22.8 per minute
+  activity     22.7 trades/s, 3.81 contracts/trade, 5190 contracts/min
+  book         spread = 1 tick 100.0%, mean best-level size 154
+  returns      1-min sd 4.17 ticks, excess kurtosis 4.23, lag-1 autocorr -0.042, |r| lag-1 +0.360
+  trade signs  autocorr lag 1 +0.386, lag 10 +0.278, lag 100 +0.053
+  order flow   R^2(10 s mid change ~ 10 s delta) 0.338, corr(30 s delta, next 30 s) -0.079
+  markouts     after an aggressive print: 1 s +0.326, 5 s +0.333, 30 s +0.123 ticks; mid changes 22.4 per minute

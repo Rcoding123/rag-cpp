@@ -29,6 +29,7 @@
 #include <cmath>
 #include <cstdint>
 #include <optional>
+#include <vector>
 
 #include "rag/agent/env.hpp"
 #include "rag/orderflow/features.hpp"
@@ -92,6 +93,7 @@ class TickScalpEnv {
   }
 
   rag::agent::Step<Observation> step(rag::agent::Action a, rag::agent::Rng&) {
+    step_fills_.clear();
     double fees = 0;
     if (a == 4) {
       mode_ = 0;
@@ -135,6 +137,8 @@ class TickScalpEnv {
 
   [[nodiscard]] double net_pnl_ticks() const noexcept { return equity_ - fees_; }
   [[nodiscard]] std::uint32_t fills() const noexcept { return fills_; }
+  // Passive fills of the last step() (own-fill markouts); flattening market orders are not included.
+  [[nodiscard]] const std::vector<OwnFill>& step_fills() const noexcept { return step_fills_; }
   [[nodiscard]] double fees_ticks() const noexcept { return fees_; }
   [[nodiscard]] const EsSimulator& market() const noexcept { return *sim_; }
   [[nodiscard]] const TickParams& params() const noexcept { return p_; }
@@ -168,6 +172,7 @@ class TickScalpEnv {
     double fees = 0;
     for (const auto& f : sim_->own_fills()) {
       on_fill(f.side, f.price, f.size);
+      step_fills_.push_back(f);
       fees += f.size * p_.fee_dollars / kTickValue;
     }
     fees_ += fees;
@@ -229,6 +234,7 @@ class TickScalpEnv {
   double cash_ = 0, equity_ = 0, fees_ = 0, elapsed_ = 0, entry_ = 0;
   std::uint64_t bid_id_ = 0, ask_id_ = 0;
   std::uint32_t fills_ = 0;
+  std::vector<OwnFill> step_fills_;  // passive fills of the last step() (diagnostics)
 };
 
 static_assert(rag::agent::Environment<TickScalpEnv>);

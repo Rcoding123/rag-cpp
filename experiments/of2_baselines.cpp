@@ -6,7 +6,9 @@
 // The oracle sees the hidden fair value: an upper reference, not a strategy.
 // With fast price discovery (the discovery market) the gap rarely exceeds
 // 2 ticks, so oracles at lower thresholds follow the original rows.
-// Usage: of2_baselines [episodes=300] [market: default | efficient | discovery]
+// Rows appended in OF10 v2 (fade and short-horizon rules, a per-lot table)
+// leave the earlier rows byte-identical.
+// Usage: of2_baselines [episodes=300] [market: default | efficient | discovery | discovery_v1]
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -56,6 +58,14 @@ int main(int argc, char** argv) {
       {"oracle (gap > 0.5)", oracle(0.5)},
       {"oracle (gap > 0.75)", oracle(0.75)},
       {"oracle (gap > 1)", oracle(1.0)},
+      // Appended (OF10 v2): fade and short-horizon rules, a tighter oracle. Rows above are unchanged.
+      {"fade delta 5 s > 1.5", signal_rule(0, 1.5, true)},
+      {"fade OFI 5 s > 1.5", signal_rule(3, 1.5, true)},
+      {"fade return 5 s > 1", signal_rule(8, 1.0, true)},
+      {"fade imbalance L1 > 0.6", signal_rule(6, 1.2, true)},
+      {"delta 5 s > 1.5", signal_rule(0, 1.5, false)},
+      {"imbalance L1-5 > 0.6", signal_rule(7, 1.2, false)},
+      {"oracle (gap > 0.55)", oracle(0.55)},
   };
   // NaN (flat: sd 0) prints as "-nan" with every C library, as in the committed tables.
   auto num = [](int width, int decimals, double x) {
@@ -65,9 +75,14 @@ int main(int argc, char** argv) {
     return std::string(b);
   };
   std::printf("%-26s %10s %9s %7s %8s %8s %6s\n", "strategy", "ticks/ep", "$/ep", "t", "Sharpe", "orders", "win%");
+  struct PerLot {
+    std::string name;
+    double lots, gross;  // per episode
+  };
+  std::vector<PerLot> per_lot;
   for (auto& [name, policy] : strategies) {
     std::vector<double> pnl;
-    double orders = 0;
+    double orders = 0, fees = 0;
     for (unsigned i = 0; i < episodes; ++i) {
       ScalpEnv env(p);
       rag::agent::Rng r(900'000'000ull + i);  // sealed test episodes
@@ -79,6 +94,7 @@ int main(int argc, char** argv) {
       }
       pnl.push_back(env.net_pnl_ticks());
       orders += env.orders();
+      fees += env.fees_ticks();
     }
     const auto n = static_cast<double>(pnl.size());
     double m = 0, v = 0, wins = 0;
@@ -92,5 +108,14 @@ int main(int argc, char** argv) {
     std::printf("%-26s %+10.2f %+9.1f %s %s %8.1f %5.1f%%\n", name.c_str(), m, m * kTickValue, num(7, 2, m / (sd / std::sqrt(n))).c_str(),
                 num(8, 3, m / sd).c_str(), orders / episodes, 100 * wins / episodes);
     std::fflush(stdout);
+    const double lots = fees / (p.fee_dollars / kTickValue);  // a +1 -> -1 flip is 2 lots
+    per_lot.push_back({name, lots / episodes, (m * n + fees) / episodes});
+  }
+  // Appended (OF10 v2): per lot, not per order (a flip is 2 lots). gross: before fees,
+  // after the spread; edge = gross + 0.5 tick (the half spread: ~0 without information).
+  std::printf("\n%-26s %8s %9s %9s\n", "per lot", "lots/ep", "gross/lot", "edge/lot");
+  for (const auto& r : per_lot) {
+    const double g = r.lots > 0 ? r.gross / r.lots : std::nan("");
+    std::printf("%-26s %8.1f %s %s\n", r.name.c_str(), r.lots, num(9, 3, g).c_str(), num(9, 3, g + 0.5).c_str());
   }
 }

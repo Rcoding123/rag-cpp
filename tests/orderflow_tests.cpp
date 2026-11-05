@@ -355,7 +355,7 @@ TEST(PriceDiscovery, OffByDefaultAndTheSniperSizeAloneChangesNothing) {
 }
 
 TEST(PriceDiscovery, QuotesTrackValueAndRequeuedOrdersSitBehindTheLevel) {
-  SimParams p = discovery_market();
+  SimParams p = discovery_market_v1();
   p.jump_rate = 1.0;  // news about every 10 steps
   EsSimulator sim(p, 11);
   rag::agent::Rng rng(3);
@@ -390,7 +390,7 @@ TEST(PriceDiscovery, QuotesTrackValueAndRequeuedOrdersSitBehindTheLevel) {
 
 TEST(PriceDiscovery, AStaleOwnAskIsFilledAtItsPriceWhenValueJumpsThroughIt) {
   // Takers off, a news jump every step: the book moves only by quote jumps.
-  SimParams p = discovery_market();
+  SimParams p = discovery_market_v1();
   p.noise_rate = p.informed_meta_rate = p.uninformed_meta_rate = p.momentum_rate = 0;
   p.jump_rate = 10;
   p.jump_sd = 4;
@@ -444,9 +444,234 @@ static double gap_predicts_30s(const SimParams& p, std::uint64_t seed, double se
 }
 
 TEST(PriceDiscovery, TheHiddenGapNoLongerPredictsTheNext30Seconds) {
-  // 2 h, seed 1. Measured (MSVC): default 0.62, discovery 0.13
+  // 2 h, seed 1. Measured (MSVC): default 0.62, discovery v1 0.13
   // (OF10 seeds 1-3: default 0.54-0.62, discovery ~0.1, the 1-tick grid's floor ~0.09-0.12).
-  const double def = gap_predicts_30s(SimParams{}, 1, 7200), disc = gap_predicts_30s(discovery_market(), 1, 7200);
+  const double def = gap_predicts_30s(SimParams{}, 1, 7200), disc = gap_predicts_30s(discovery_market_v1(), 1, 7200);
   EXPECT_GT(def, 0.4) << def;
   EXPECT_LT(disc, 0.2) << disc;
+}
+
+TEST(PriceDiscovery, GoldenRunOfDiscoveryV1IsUnchanged) {
+  // Recorded with the v1 code (commit 10bfe03, then discovery_market()), MSVC x64:
+  // every v1 number in the OF10 history depends on it.
+  const std::uint64_t d = run_fingerprint(discovery_market_v1(), 4);
+#if defined(_MSC_VER) && !defined(__clang__)
+  EXPECT_EQ(d, 13558066813598808490ull) << d;
+#else
+  EXPECT_NE(d, run_fingerprint(SimParams{}, 4));
+#endif
+  EXPECT_EQ(market_preset("discovery_v1").reprice_snipe, discovery_market_v1().reprice_snipe);
+  EXPECT_GT(market_preset("discovery").reprice_cancel, 0);
+}
+
+// --- stale-side depletion (v2: SimParams::reprice_cancel, value_impact) -----
+
+TEST(PriceDiscovery, TheV2FieldsAreInertUnlessSwitchedOn) {
+  // reprice_cancel needs reprice_band > 0; impact needs value_impact > 0.
+  SimParams p;
+  p.reprice_cancel = 5;
+  p.reprice_take = 0.3;
+  p.impact_forecast_tau = 3;
+  p.impact_forecast_weight = 0.5;
+  EXPECT_EQ(run_fingerprint(p, 1, 5'000), run_fingerprint(SimParams{}, 1, 5'000));
+  SimParams v1 = discovery_market_v1();
+  v1.reprice_take = 0.3;
+  v1.impact_forecast_tau = 3;
+  EXPECT_EQ(run_fingerprint(v1, 4, 5'000), run_fingerprint(discovery_market_v1(), 4, 5'000));
+  SimParams sep;  // reprice_take alone (no reprice_band / reprice_cancel) is inert with separate streams too
+  sep.separate_streams = true;
+  SimParams sep2 = sep;
+  sep2.reprice_take = 0.5;
+  EXPECT_EQ(run_fingerprint(sep, 3, 5'000), run_fingerprint(sep2, 3, 5'000));
+  {  // with separate streams, depletion (and its own random stream) leaves the value path alone
+    SimParams on = sep;  // (activity_excite off: it feeds mid moves back into the value volatility)
+    on.activity_excite = 0;
+    on.reprice_band = 0.5;
+    on.reprice_cancel = 15;
+    on.reprice_take = 0.1;
+    SimParams off = on;
+    off.reprice_cancel = 0;
+    EsSimulator a(on, 3), b(off, 3);
+    for (int s = 0; s < 5'000; ++s) {
+      a.step();
+      b.step();
+      ASSERT_EQ(a.fair_value(), b.fair_value()) << "step " << s;
+    }
+    EXPECT_GT(a.stale_cancelled_lots(), 0u);  // depletion did run
+    EXPECT_EQ(b.stale_cancelled_lots(), 0u);
+  }
+  SimParams imp;
+  imp.value_impact = 0.004;
+  EXPECT_NE(run_fingerprint(imp, 1, 5'000), run_fingerprint(SimParams{}, 1, 5'000));
+  EXPECT_THROW(EsSimulator(SimParams{.reprice_cancel = -1}), std::invalid_argument);
+  EXPECT_THROW(EsSimulator(SimParams{.reprice_take = 1.5}), std::invalid_argument);
+  EXPECT_THROW(EsSimulator(SimParams{.value_impact = -1}), std::invalid_argument);
+}
+
+// Takers, diffusion and icebergs off, news jumps: the book moves only by depletion.
+static SimParams jumps_only(double jump_rate) {
+  SimParams p = discovery_market();
+  p.noise_rate = p.informed_meta_rate = p.uninformed_meta_rate = p.momentum_rate = 0;
+  p.value_vol = 0;
+  p.iceberg_rate = 0;
+  p.jump_rate = jump_rate;
+  p.jump_sd = 4;
+  return p;
+}
+
+TEST(PriceDiscovery, AfterNewsTheStaleSideDrainsNobodyJoinsItAndTheBookCatchesUp) {
+  const SimParams p = jumps_only(0.3);
+  EsSimulator sim(p, 7);
+  int jumps = 0, slow = 0;
+  double v = sim.fair_value();
+  int since = -1;  // steps since the last jump, while the book hasn't caught up
+  Quote before = sim.quote();
+  for (int s = 0; s < 40'000; ++s) {
+    sim.step();
+    const Quote q = sim.quote();
+    const double g = sim.fair_value() - sim.mid();
+    // Nobody joins a stale price: while value has passed the best and the
+    // price didn't move, the stale best only shrinks.
+    if (q.bid == before.bid && q.ask == before.ask && sim.fair_value() == v) {
+      if (sim.fair_value() - q.ask > p.reprice_band - 0.5) ASSERT_LE(q.ask_size[0], before.ask_size[0]) << "step " << s;
+      if (q.bid - sim.fair_value() > p.reprice_band - 0.5) ASSERT_LE(q.bid_size[0], before.bid_size[0]) << "step " << s;
+    }
+    if (sim.fair_value() != v) {
+      v = sim.fair_value();
+      since = 0;
+      ++jumps;
+    } else if (since >= 0) {
+      ++since;
+    }
+    if (since >= 0 && std::abs(g) <= p.reprice_band) {
+      EXPECT_EQ(sim.spread(), 1) << "step " << s;  // caught up, with a 1-tick spread
+      if (since > 20) ++slow;
+      since = -1;
+    }
+    before = q;
+  }
+  EXPECT_GT(jumps, 300);
+  EXPECT_LE(slow, jumps / 50) << slow;  // catch-up beyond 2 s is rare
+  EXPECT_GT(sim.races(), 300u);
+  EXPECT_GT(sim.stale_cancelled_lots(), 0u);
+  EXPECT_GT(sim.taker_volume(EsSimulator::kSniper), 0u);
+}
+
+TEST(PriceDiscovery, AStaleOwnAskAtTheBackIsFilledOnlyAfterTheLotsAheadOfIt) {
+  SimParams p = jumps_only(0.2);
+  p.jump_sd = 1.5;  // small news: the stale queue drains over a few steps
+  EsSimulator sim(p, 9);
+  int cases = 0, fills = 0, queued = 0, early = 0;
+  for (int s = 0; s < 200'000 && cases < 15; ++s) {
+    if (!sim.resting().empty()) {
+      sim.step();
+      continue;
+    }
+    const std::int32_t ask = sim.ask();
+    const std::uint64_t id = sim.submit_limit(Side::Sell, ask, 1);
+    ASSERT_NE(id, 0u);
+    sim.step();
+    const bool stale = sim.fair_value() - ask > p.reprice_band - 0.5;
+    for (const auto& f : sim.own_fills())
+      if (stale && f.id == id) ++early;  // FIFO: the first depletion step can't reach the back of the queue
+    if (!stale || sim.ask() != ask || sim.resting().empty()) {  // not stale: next try
+      sim.cancel(id);
+      continue;
+    }
+    // Stale: value passed our ask. We joined at the back (behind the level and
+    // the faster participants), so the first depletion step didn't reach us.
+    ++cases;
+    ASSERT_EQ(sim.resting().front().id, id);
+    std::uint32_t ahead = sim.resting().front().ahead;
+    if (ahead > 0) ++queued;  // lots still ahead of us after the first depletion step
+    bool filled = false;
+    for (int k = 0; k < 100 && !filled; ++k) {
+      sim.step();
+      for (const auto& f : sim.own_fills())
+        if (f.id == id) {
+          EXPECT_EQ(f.price, ask);
+          filled = true;
+        }
+      if (filled) break;
+      ASSERT_FALSE(sim.resting().empty()) << "order vanished without a fill";
+      ASSERT_LE(sim.resting().front().ahead, ahead);  // the queue ahead only shrinks
+      ahead = sim.resting().front().ahead;
+      ASSERT_EQ(sim.ask(), ask);                                      // the price can't tick past our unfilled order
+      if (!(sim.fair_value() - ask > p.reprice_band - 0.5)) break;  // news back down: no longer stale
+    }
+    if (filled) ++fills;
+    else sim.cancel(id);
+  }
+  EXPECT_GE(cases, 10);
+  EXPECT_GE(fills, cases / 2);
+  EXPECT_GE(queued, cases / 2);
+  EXPECT_EQ(early, 0);
+}
+
+TEST(PriceDiscovery, V2BookInvariantsHoldUnderFrequentNews) {
+  SimParams p = discovery_market();
+  p.jump_rate = 1.0;
+  EsSimulator sim(p, 11);
+  rag::agent::Rng rng(3);
+  for (int s = 0; s < 20'000; ++s) {
+    if (s % 7 == 0) {
+      const Side side = rng.uniform() < 0.5 ? Side::Buy : Side::Sell;
+      const auto back = static_cast<std::int32_t>(rng.below(3));
+      sim.submit_limit(side, side == Side::Buy ? sim.bid() - back : sim.ask() + back, 1 + rng.below(3));
+    }
+    if (s % 13 == 0 && !sim.resting().empty()) sim.cancel(sim.resting().front().id);
+    if (s % 17 == 0) sim.market_order(rng.uniform() < 0.5 ? Side::Buy : Side::Sell, 1);
+    sim.step();
+    ASSERT_GE(sim.spread(), 1);
+    const Quote q = sim.quote();
+    for (const auto& r : sim.resting()) {
+      const std::int32_t d = r.side == Side::Buy ? sim.bid() - r.price : r.price - sim.ask();
+      ASSERT_GE(d, 0) << "step " << s;
+      if (d < static_cast<std::int32_t>(kDepth)) {
+        const auto i = static_cast<std::size_t>(d);
+        ASSERT_LE(r.ahead + r.qty, r.side == Side::Buy ? q.bid_size[i] : q.ask_size[i]) << "step " << s;
+      }
+    }
+  }
+  EXPECT_GT(sim.reprices(), 500u);
+}
+
+// Event time: corr(L1 imbalance, the next mid change), over `seconds` of trading.
+static double imbalance_predicts_next_change(const SimParams& p, std::uint64_t seed, double seconds) {
+  EsSimulator sim(p, seed, 3600);
+  const auto n = static_cast<std::size_t>(std::lround(seconds / p.dt));
+  std::vector<double> x, m;
+  for (std::size_t s = 0; s < n; ++s) {
+    sim.step();
+    const Quote q = sim.quote();
+    const double b = q.bid_size[0], a = q.ask_size[0];
+    x.push_back(b + a > 0 ? (b - a) / (b + a) : 0);
+    m.push_back(sim.mid());
+  }
+  double sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, k = 0;
+  std::size_t c = 1;
+  for (std::size_t i = 0; i < n; ++i) {
+    if (c <= i) c = i + 1;
+    while (c < n && m[c] == m[i]) ++c;
+    if (c >= n) break;
+    const double y = m[c] - m[i];
+    sx += x[i];
+    sy += y;
+    sxx += x[i] * x[i];
+    syy += y * y;
+    sxy += x[i] * y;
+    k += 1;
+  }
+  return (sxy - sx * sy / k) / std::sqrt((sxx - sx * sx / k) * (syy - sy * sy / k));
+}
+
+TEST(PriceDiscovery, V2ImbalancePredictsTheNextTickAndTheGapNotTheNext30Seconds) {
+  // 2 h, seed 1. Measured (MSVC): corr(g, r 30 s) 0.127 (the 1-tick grid floor ~0.10),
+  // event-time corr(L1 imbalance, next mid change) 0.268 (v1: 0.057).
+  const SimParams d = discovery_market();
+  const double gap = gap_predicts_30s(d, 1, 7200), imb = imbalance_predicts_next_change(d, 1, 7200);
+  const double imb_v1 = imbalance_predicts_next_change(discovery_market_v1(), 1, 7200);
+  EXPECT_LT(gap, 0.2) << gap;
+  EXPECT_GT(imb, 0.15) << imb;
+  EXPECT_LT(imb_v1, 0.1) << imb_v1;  // v1: the rigid book carried no signal
 }
