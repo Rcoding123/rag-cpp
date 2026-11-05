@@ -148,6 +148,21 @@ add_test(NAME of_train_rejects_training_test_seed COMMAND of_train --test-seed 5
 add_test(NAME of_train_rejects_bad_test_seed COMMAND of_train --test-seed 9OO000000)
 set_tests_properties(of_train_rejects_training_test_seed of_train_rejects_bad_test_seed PROPERTIES WILL_FAIL TRUE TIMEOUT 60)
 
+# Step-by-step trace of saved agents (CSV; tools/of_viz.py makes the HTML viewer).
+add_executable(of_trace examples/of_trace.cpp)
+target_link_libraries(of_trace PRIVATE rag)
+add_test(NAME of_trace_train COMMAND of_train --seeds 1 --threads 1 --episodes 3 --test 2 --out ${CMAKE_CURRENT_BINARY_DIR}/of_trace_smoke)
+add_test(NAME of_trace_smoke COMMAND of_trace ${CMAKE_CURRENT_BINARY_DIR}/of_trace_smoke/seed1.net --episodes 1
+                                     --out ${CMAKE_CURRENT_BINARY_DIR}/of_trace_smoke/trace.csv)
+set_tests_properties(of_trace_train PROPERTIES FIXTURES_SETUP of_trace_net)
+set_tests_properties(of_trace_smoke PROPERTIES FIXTURES_REQUIRED of_trace_net FIXTURES_SETUP of_trace_csv)
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+  add_test(NAME of_viz_smoke COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/tools/of_viz.py
+                                     ${CMAKE_CURRENT_BINARY_DIR}/of_trace_smoke/trace.csv ${CMAKE_CURRENT_BINARY_DIR}/of_trace_smoke/trace.html)
+  set_tests_properties(of_viz_smoke PROPERTIES FIXTURES_REQUIRED of_trace_csv)
+endif()
+
 # The rule-guided tick-scalping trainer (OF7), one seed per process.
 add_executable(of_tick_train experiments/of7_tick_guided.cpp)
 target_link_libraries(of_tick_train PRIVATE rag)
