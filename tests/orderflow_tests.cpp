@@ -233,3 +233,28 @@ TEST(TickScalpEnv, QueuePositionIsObservedWhileQuoting) {
   EXPECT_EQ(none.obs.bid_queue, -1.0);
   EXPECT_EQ(none.obs.ask_queue, -1.0);
 }
+
+// Why OF5's agent never learned to quote (and why OF7 guides exploration):
+// a fill needs the quote to stay put while the ~120 lots ahead of it trade
+// or cancel, and uniformly random modes cancel a side at most decisions, so
+// the order rejoins at the back again and again. Measured on 120 s episodes
+// (seeds 31-38): quoting both sides throughout got 6-14 fills each, uniform
+// random modes got 0 every time (300 s validation episodes: 24.3 vs 0.10 per
+// episode).
+TEST(TickScalpEnv, OnlyQuotesThatStayPutReachTheFrontOfTheQueue) {
+  TickParams p;
+  p.episode_seconds = 120;
+  std::uint32_t persistent = 0, flickering = 0;
+  for (std::uint64_t seed = 31; seed < 35; ++seed) {
+    for (const bool random_modes : {false, true}) {
+      TickScalpEnv env(p);
+      rag::agent::Rng r(seed), pick(seed + 1000);
+      env.reset(r);
+      while (!env.step(random_modes ? pick.below(5) : rag::agent::Action{3}, r).done) {
+      }
+      (random_modes ? flickering : persistent) += env.fills();
+    }
+  }
+  EXPECT_GE(persistent, 20u);  // measured 34 (10 + 6 + 10 + 8)
+  EXPECT_LE(flickering, 2u);   // measured 0
+}
