@@ -1,12 +1,13 @@
 // OF3: RL on ScalpEnv. NeuralQ (Double DQN, weight averaging), trained on
 // fresh simulated ES sessions, champion selected on validation episodes,
 // then scored on the same 300 sealed test episodes as the OF2 baselines.
-// Usage: of3_rl SEED EPISODES [gamma=0.97] [n_step=5] [eps_decay=frac of episodes 0.5] [save_path]
+// Usage: of3_rl SEED EPISODES [gamma=0.97] [n_step=5] [eps_decay=frac of episodes 0.5] [save_path] [market: default | efficient]
 // Prints progress and a final CSV line: seed,episodes,ticks_per_ep,t,sharpe,orders,win
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "rag/agent/trainer.hpp"
@@ -22,7 +23,8 @@ int main(int argc, char** argv) {
   const double gamma = argc > 3 ? std::atof(argv[3]) : 0.97;
   const unsigned nstep = argc > 4 ? static_cast<unsigned>(std::atoi(argv[4])) : 5;
   const double decay = argc > 5 ? std::atof(argv[5]) : 0.5;
-  const ScalpParams p;
+  ScalpParams p;
+  if (argc > 7 && std::string(argv[7]) == "efficient") p.sim = efficient_market();  // OF9
   ScalpEnv env(p);
   AgentConfig<ScalpEnv::kStateDims> c;
   c.seed = seed;

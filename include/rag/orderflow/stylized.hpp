@@ -13,9 +13,11 @@
 //   sign_ac1, sign_ac10, sign_ac100                      trade-sign autocorrelation (long memory)
 //   impact_r2                                            R^2 of 10 s mid change on 10 s delta
 //   delta_predict                                        corr(30 s delta, next 30 s mid change)
-//   markout_5s                                           mean mid change 5 s after an aggressive
-//                                                        print, signed by its side (ticks; the
-//                                                        adverse selection a passive fill suffers)
+//   markout_1s, markout_5s, markout_30s                  mean mid change 1/5/30 s after an
+//                                                        aggressive print, signed by its side
+//                                                        (ticks; the adverse selection a passive
+//                                                        fill suffers, as a curve)
+//   mid_changes_per_min                                  how often the mid moves (queue depletion)
 #pragma once
 
 #include <algorithm>
@@ -34,6 +36,7 @@ struct StylizedFacts {
   double ret1m_sd = 0, ret1m_kurtosis = 0, ret1m_ac1 = 0, absret1m_ac1 = 0;
   double sign_ac1 = 0, sign_ac10 = 0, sign_ac100 = 0;
   double impact_r2 = 0, delta_predict = 0, markout_5s = 0;
+  double markout_1s = 0, markout_30s = 0, mid_changes_per_min = 0;
 };
 
 namespace detail {
@@ -142,13 +145,21 @@ class StylizedMeter {
     const double c = corr(d10, r10);
     f.impact_r2 = c * c;
     f.delta_predict = corr(d30, f30);
-    double mk = 0, cnt = 0;
-    for (std::size_t i = 0; i + b5 < n; ++i)
-      if (marks_[i] != 0) {
-        mk += marks_[i] * (mids_[i + b5] - mids_[i]);
-        cnt += std::abs(marks_[i]);
-      }
-    f.markout_5s = cnt > 0 ? mk / cnt : 0;
+    auto markout = [&](std::size_t h) {
+      double mk = 0, cnt = 0;
+      for (std::size_t i = 0; i + h < n; ++i)
+        if (marks_[i] != 0) {
+          mk += marks_[i] * (mids_[i + h] - mids_[i]);
+          cnt += std::abs(marks_[i]);
+        }
+      return cnt > 0 ? mk / cnt : 0.0;
+    };
+    f.markout_1s = markout(per(1));
+    f.markout_5s = markout(b5);
+    f.markout_30s = markout(b30);
+    double changes = 0;
+    for (std::size_t i = 1; i < n; ++i) changes += mids_[i] != mids_[i - 1];
+    f.mid_changes_per_min = changes / f.seconds * 60;
     return f;
   }
 

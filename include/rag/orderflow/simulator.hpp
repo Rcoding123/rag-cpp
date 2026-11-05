@@ -113,6 +113,14 @@ struct SimParams {
   // matters: uncapped, fading feeds back on itself (the hit side vanishes,
   // the price runs, momentum adds flow) and the book blows up.
   double fade = 0.5, fade_norm = 25, fade_tau = 3, fade_max = 2.5;
+  // Informed makers (0 = off, the default): liquidity providers that infer
+  // where value is going re-price before the flow arrives. With g = fair
+  // value - mid in ticks, the side the price is heading toward cancels at
+  // cancel_rate * L and the other side's arrivals grow by L,
+  // L = min(maker_info_max, exp(maker_info * |g| / informed_scale)). Prices
+  // then move ahead of informed flow, so order flow predicts less (faster
+  // price discovery, flatter markout curve).
+  double maker_info = 0.0, maker_info_max = 4.0;
   double spread_fill_prob = 0.6;  // per step: an order inside a wide spread (repeats while it succeeds)
   // Icebergs.
   double iceberg_rate = 1.0 / 90, iceberg_min = 300, iceberg_max = 1500, iceberg_peak = 20;
@@ -127,6 +135,16 @@ struct SimParams {
   // number of lots with mean join_ahead_mean lands ahead of it.
   double cancel_back_bias = 3.0, join_ahead_mean = 120;  // OF4: naive two-sided quoting ~breakeven gross, loses after fees
 };
+
+// A more efficient market: informed makers re-price ahead of informed flow,
+// so order flow moves prices at once but no longer predicts the next 30 s
+// (3 seeds x 2 h: corr(30 s delta, next 30 s) -0.02 vs +0.12 by default;
+// markout flat after 5 s: +0.57 at 5 s, +0.56 at 30 s vs +1.40 by default).
+inline SimParams efficient_market() {
+  SimParams p;
+  p.maker_info = 1.0;
+  return p;
+}
 
 struct Fill {
   std::uint32_t filled = 0;
@@ -191,8 +209,19 @@ class EsSimulator {
     flow_ += (signed_volume / dt - flow_) * std::min(1.0, dt / p_.fade_tau);
     // 4. Makers, fading against the flow.
     const double lean = std::min(p_.fade_max, std::exp(p_.fade * std::abs(flow_) / p_.fade_norm));
-    const double bid_cancel = p_.cancel_rate * (flow_ < 0 ? lean : 1.0), ask_cancel = p_.cancel_rate * (flow_ > 0 ? lean : 1.0);
-    const double bid_add = flow_ > 0 ? lean : 1.0, ask_add = flow_ < 0 ? lean : 1.0;
+    double bid_cancel = p_.cancel_rate * (flow_ < 0 ? lean : 1.0), ask_cancel = p_.cancel_rate * (flow_ > 0 ? lean : 1.0);
+    double bid_add = flow_ > 0 ? lean : 1.0, ask_add = flow_ < 0 ? lean : 1.0;
+    if (p_.maker_info > 0) {
+      const double g = value_ - mid();
+      const double info = std::min(p_.maker_info_max, std::exp(p_.maker_info * std::abs(g) / p_.informed_scale));
+      if (g > 0) {  // value above the price: asks get pulled, bids get added
+        ask_cancel *= info;
+        bid_add *= info;
+      } else {
+        bid_cancel *= info;
+        ask_add *= info;
+      }
+    }
     for (std::size_t i = 0; i < kLevels; ++i) {
       const double rate = p_.maker_rate * std::exp(-static_cast<double>(i) / p_.maker_decay) * a * dt;
       bid_q_[i] += maker_lots(rate * bid_add);

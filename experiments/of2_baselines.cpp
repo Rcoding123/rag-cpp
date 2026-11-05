@@ -4,7 +4,7 @@
 // episode in ticks and dollars, its t-statistic, per-episode Sharpe,
 // orders per episode, share of winning episodes.
 // The oracle sees the hidden fair value: an upper reference, not a strategy.
-// Usage: of2_baselines [episodes=300]
+// Usage: of2_baselines [episodes=300] [market: default | efficient]
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -19,7 +19,8 @@ using rag::agent::Action;
 
 int main(int argc, char** argv) {
   const unsigned episodes = argc > 1 ? static_cast<unsigned>(std::atoi(argv[1])) : 300;
-  const ScalpParams p;
+  ScalpParams p;
+  if (argc > 2 && std::string(argv[2]) == "efficient") p.sim = efficient_market();
   auto hold = [](const ScalpObs& o) { return static_cast<Action>(o.position + 1); };
   auto signal_rule = [&](std::size_t k, double th, bool reverse) {
     return [=](const ScalpObs& o, const ScalpEnv&) -> Action {

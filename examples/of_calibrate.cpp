@@ -35,8 +35,9 @@ void print_facts(const char* label, const StylizedFacts& f) {
   std::printf("  returns      1-min sd %.2f ticks, excess kurtosis %.2f, lag-1 autocorr %+.3f, |r| lag-1 %+.3f\n", f.ret1m_sd, f.ret1m_kurtosis,
               f.ret1m_ac1, f.absret1m_ac1);
   std::printf("  trade signs  autocorr lag 1 %+.3f, lag 10 %+.3f, lag 100 %+.3f\n", f.sign_ac1, f.sign_ac10, f.sign_ac100);
-  std::printf("  order flow   R^2(10 s mid change ~ 10 s delta) %.3f, corr(30 s delta, next 30 s) %+.3f, 5 s markout %+.3f ticks\n", f.impact_r2,
-              f.delta_predict, f.markout_5s);
+  std::printf("  order flow   R^2(10 s mid change ~ 10 s delta) %.3f, corr(30 s delta, next 30 s) %+.3f\n", f.impact_r2, f.delta_predict);
+  std::printf("  markouts     after an aggressive print: 1 s %+.3f, 5 s %+.3f, 30 s %+.3f ticks; mid changes %.1f per minute\n", f.markout_1s,
+              f.markout_5s, f.markout_30s, f.mid_changes_per_min);
 }
 
 struct Options {
@@ -76,6 +77,8 @@ double loss(const StylizedFacts& sim, const StylizedFacts& real) {
          1.0 * abs2(sim.spread1_share, real.spread1_share, 0.05) + 1.0 * abs2(sim.sign_ac1, real.sign_ac1, 0.05) +
          1.0 * abs2(sim.sign_ac100, real.sign_ac100, 0.05) + 2.0 * abs2(sim.impact_r2, real.impact_r2, 0.05) +
          4.0 * abs2(sim.delta_predict, real.delta_predict, 0.03) + 2.0 * abs2(sim.markout_5s, real.markout_5s, 0.1) +
+         1.0 * abs2(sim.markout_1s, real.markout_1s, 0.1) + 1.0 * abs2(sim.markout_30s, real.markout_30s, 0.2) +
+         1.0 * rel(sim.mid_changes_per_min, real.mid_changes_per_min, 1) +
          0.5 * abs2(std::log1p(std::max(0.0, sim.ret1m_kurtosis)), std::log1p(std::max(0.0, real.ret1m_kurtosis)), 0.5) +
          1.0 * abs2(sim.ret1m_ac1, real.ret1m_ac1, 0.05);
 }
@@ -100,6 +103,9 @@ StylizedFacts averaged_facts(const SimParams& p, double seconds, int seeds, std:
     a.impact_r2 += f.impact_r2 / seeds;
     a.delta_predict += f.delta_predict / seeds;
     a.markout_5s += f.markout_5s / seeds;
+    a.markout_1s += f.markout_1s / seeds;
+    a.markout_30s += f.markout_30s / seeds;
+    a.mid_changes_per_min += f.mid_changes_per_min / seeds;
   }
   return a;
 }
