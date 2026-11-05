@@ -32,6 +32,9 @@ python3 tools/make_context_pack.py --with-source   # docs + all headers, tests, 
     agents, backtester, calibration, results OF1–OF9, ranked plan). Start
     here to continue the trading work; `../../experiments/research_synthesis.md`
     maps the literature onto it.
+14. `NEXT_SESSION.md`: the prompt to start a new Claude Code session with,
+    and how that session should organise its agents (roles, file
+    ownership, a workflow template, the seed ledger, red flags).
 
 ## Ground rules for an AI working on this code
 

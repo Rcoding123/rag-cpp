@@ -35,6 +35,7 @@ DOCS = [
     "docs/ai/CONVENTIONS.md",
     "docs/ai/STATUS.md",
     "docs/ai/ORDERFLOW.md",
+    "docs/ai/NEXT_SESSION.md",
     "experiments/research_synthesis.md",
     "README.md",
 ]

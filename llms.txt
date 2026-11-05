@@ -12,6 +12,7 @@
 - [RAG engine internals](docs/ai/RAG_ENGINE.md): data flow, invariants, concurrency, file format, performance
 - [Agent architecture](docs/agent.md): environment, encoders, learners, supervision, lessons
 - [ES order-flow trading](docs/ai/ORDERFLOW.md): simulator, scalping and tick-scalping agents, backtester, calibration, results OF1-OF9, plan
+- [Next session](docs/ai/NEXT_SESSION.md): the prompt for a new Claude Code session, its agent architecture and workflow template, seed ledger, red flags
 - [Research synthesis](experiments/research_synthesis.md): what 595 crawled papers say about the order-flow work, ranked changes
 - [Windows build](docs/WINDOWS.md): Visual Studio 2022 / MSVC build, test and run steps, optimization flags
 - [Lessons](docs/ai/LESSONS.md): 27 cross-cutting lessons from the experiments, each with its evidence
