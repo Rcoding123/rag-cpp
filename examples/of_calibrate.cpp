@@ -9,13 +9,15 @@
 //                                                    (sample data; calibration self-tests)
 //
 // options: --tick 0.25  --time ns|us|ms|s  --evals 150  --seconds 10800
-//          --seeds 2 (simulator runs averaged per evaluation: the facts of one
-//          short run are noisy, and the fit chases the noise)
+//          --seeds 2 (simulator runs averaged per evaluation, in parallel
+//          threads: the facts of one short run are noisy, and the fit chases
+//          the noise; on a 24-thread machine use e.g. --seeds 12 --seconds 21600)
 // The CSV format is documented in rag/orderflow/tick_csv.hpp.
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "rag/orderflow/stylized.hpp"
@@ -82,11 +84,16 @@ double loss(const StylizedFacts& sim, const StylizedFacts& real) {
          0.5 * abs2(std::log1p(std::max(0.0, sim.ret1m_kurtosis)), std::log1p(std::max(0.0, real.ret1m_kurtosis)), 0.5) +
          1.0 * abs2(sim.ret1m_ac1, real.ret1m_ac1, 0.05);
 }
-// Facts averaged over several simulator seeds.
+// Facts averaged over several simulator seeds, run in parallel threads (on
+// a many-core machine more seeds cost no extra wall-clock time).
 StylizedFacts averaged_facts(const SimParams& p, double seconds, int seeds, std::uint64_t first_seed) {
+  std::vector<StylizedFacts> runs(static_cast<std::size_t>(seeds));
+  std::vector<std::thread> pool;
+  for (int i = 0; i < seeds; ++i)
+    pool.emplace_back([&, i] { runs[static_cast<std::size_t>(i)] = simulate_facts(p, seconds, first_seed + static_cast<std::uint64_t>(i)); });
+  for (auto& t : pool) t.join();
   StylizedFacts a;
-  for (int i = 0; i < seeds; ++i) {
-    const StylizedFacts f = simulate_facts(p, seconds, first_seed + static_cast<std::uint64_t>(i));
+  for (const auto& f : runs) {
     a.seconds += f.seconds;
     a.trades_per_sec += f.trades_per_sec / seeds;
     a.mean_trade_size += f.mean_trade_size / seeds;

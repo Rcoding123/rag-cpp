@@ -150,7 +150,7 @@ target_link_libraries(of_backtest PRIVATE rag)
 # Simulator calibration against recorded ticks (examples/of_calibrate.cpp):
 # `facts` and `sim` always; `fit` when NLopt was found above.
 add_executable(of_calibrate examples/of_calibrate.cpp)
-target_link_libraries(of_calibrate PRIVATE rag)
+target_link_libraries(of_calibrate PRIVATE rag Threads::Threads)
 if(RAG_OF_CALIBRATE_NLOPT)
   target_compile_definitions(of_calibrate PRIVATE RAG_HAVE_NLOPT)
   target_link_libraries(of_calibrate PRIVATE NLopt::nlopt)
