@@ -162,6 +162,17 @@ if(Python3_Interpreter_FOUND)
                                      ${CMAKE_CURRENT_BINARY_DIR}/of_trace_smoke/trace.csv ${CMAKE_CURRENT_BINARY_DIR}/of_trace_smoke/trace.html)
   set_tests_properties(of_viz_smoke PROPERTIES FIXTURES_REQUIRED of_trace_csv)
 endif()
+# Live training animation: checkpoints as JSON lines (tools/of_train_live.py serves or bakes the page).
+add_executable(of_train_live examples/of_train_live.cpp)
+target_link_libraries(of_train_live PRIVATE rag)
+add_test(NAME of_train_live_smoke COMMAND of_train_live --episodes 4 --every 2 --probe 1 --out ${CMAKE_CURRENT_BINARY_DIR}/of_train_live_smoke.jsonl
+                                          --net ${CMAKE_CURRENT_BINARY_DIR}/of_train_live_smoke.net)
+set_tests_properties(of_train_live_smoke PROPERTIES FIXTURES_SETUP of_train_live_jsonl)
+if(Python3_Interpreter_FOUND)
+  add_test(NAME of_train_live_bake_smoke COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/tools/of_train_live.py bake
+                                         ${CMAKE_CURRENT_BINARY_DIR}/of_train_live_smoke.jsonl ${CMAKE_CURRENT_BINARY_DIR}/of_train_live_smoke.html)
+  set_tests_properties(of_train_live_bake_smoke PROPERTIES FIXTURES_REQUIRED of_train_live_jsonl)
+endif()
 
 # The rule-guided tick-scalping trainer (OF7), one seed per process.
 add_executable(of_tick_train experiments/of7_tick_guided.cpp)
