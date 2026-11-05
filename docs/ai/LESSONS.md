@@ -206,3 +206,26 @@ building learning systems in general, not just this task.
     (v2: 1.4-1.6 lots per episode, net -0.5), while a 2 s clairvoyant made
     +7 ticks per episode. Report the bound's activity next to it, and
     keep a clairvoyant beside the oracle (OF10).
+44. **Check a feedback loop has a stable steady state before warm-starting
+    it.** The warm-up looked like a bad initial value (`move_avg_` started
+    too high), but the activity loop itself was unstable (loop gain
+    0.045/s, R = 11.5): 10 h runs swung between the clamps, so no starting
+    value could have helped. Derive the stationary law first (activity
+    model 1 has an exact one), then draw the warm start from it (OF10 v3).
+45. **Warm every slow state, and check it in the regime the agent sees.**
+    With activity fixed, an episode-vs-long-window comparison of every
+    statistic (the AGREE table) still found the meta-order population 5%
+    short after the 150 s warm-up (5-6 SE on three seed sets); a 1,050 s
+    burn matched. Compare the agent's windows with long windows on every
+    population, not just the one you repaired (OF10 v3).
+46. **A wide gate fails by chance; gate on core rows.** With ~29 rows at
+    2 SE, about one row fails per run by chance; v3's one (c) miss (2.4 SE
+    on tuning-seed episodes only) passed on two fresh seed sets. Decide
+    the core rows before the run, and confirm an isolated miss on fresh
+    seeds instead of retuning to it (OF10 v3).
+47. **An edge that vanishes when the simulator gets efficient belonged to the
+    simulator.** The OF3 recipe beat every rule on the slow-discovery market
+    (OF3, OF8); on v3, which discovers prices in under a second at realistic
+    activity, all 24 seeds lose on sealed episodes and the ensemble stops
+    trading (OF11). Fix the market's known leaks first, and only then read
+    an RL profit (OF10, OF11).

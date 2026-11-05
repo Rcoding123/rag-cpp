@@ -20,6 +20,7 @@ docs/ai/CONVENTIONS.md
 docs/ai/DECISIONS.md
 docs/ai/EXPERIMENTS.md
 docs/ai/LESSONS.md
+docs/ai/NEXT_SESSION.md
 docs/ai/OBJECTIVES.md
 docs/ai/ORDERFLOW.md
 docs/ai/PROJECT_MAP.md
@@ -33,6 +34,7 @@ examples/agent_demo.cpp
 examples/demo.cpp
 examples/of_backtest.cpp
 examples/of_calibrate.cpp
+examples/of_trace.cpp
 examples/of_train.cpp
 examples/rag_pdf.cpp
 examples/train_ensemble.cpp
@@ -114,6 +116,17 @@ experiments/mb_probe.cpp
 experiments/mb_seeds.cpp
 experiments/mis_probe.cpp
 experiments/mlp_check.cpp
+experiments/of10_baselines.txt
+experiments/of10_calibrate_sim.txt
+experiments/of10_discovery.cpp
+experiments/of10_discovery.csv
+experiments/of10_heldout.csv
+experiments/of10_heldout.txt
+experiments/of10_regen.sh
+experiments/of10_results.txt
+experiments/of10_tick_baselines.txt
+experiments/of10_warmup_check.txt
+experiments/of11_regen.sh
 experiments/of1_stylized_facts.cpp
 experiments/of2_baselines.cpp
 experiments/of2_results.txt
@@ -175,6 +188,7 @@ include/rag/ivf_index.hpp
 include/rag/orderflow/features.hpp
 include/rag/orderflow/replay_env.hpp
 include/rag/orderflow/scalp_env.hpp
+include/rag/orderflow/scalp_run.hpp
 include/rag/orderflow/simulator.hpp
 include/rag/orderflow/stylized.hpp
 include/rag/orderflow/tick_csv.hpp
@@ -216,6 +230,7 @@ tests/synthetic.hpp
 tests/test_util.hpp
 tests/text_clean_tests.cpp
 tools/make_context_pack.py
+tools/of_viz.py
 tools/research_crawler.py
 tools/test_research_crawler.py
 ```
@@ -243,91 +258,94 @@ tools/test_research_crawler.py
 19. experiments/research_synthesis.md
 20. README.md
 21. CMakeLists.txt
-22. .github/workflows/ci.yml
-23. include/rag/agent/agent.hpp
-24. include/rag/agent/analysis.hpp
-25. include/rag/agent/drift.hpp
-26. include/rag/agent/env.hpp
-27. include/rag/agent/evaluate.hpp
-28. include/rag/agent/execution_dp.hpp
-29. include/rag/agent/features.hpp
-30. include/rag/agent/learners.hpp
-31. include/rag/agent/market_making.hpp
-32. include/rag/agent/mlp.hpp
-33. include/rag/agent/model_based.hpp
-34. include/rag/agent/ope.hpp
-35. include/rag/agent/policy_table.hpp
-36. include/rag/agent/rng.hpp
-37. include/rag/agent/trainer.hpp
-38. include/rag/agent/tuning.hpp
-39. include/rag/agent/validation.hpp
-40. include/rag/agent/variance_reduction.hpp
-41. include/rag/arena.hpp
-42. include/rag/bm25.hpp
-43. include/rag/chunker.hpp
-44. include/rag/common.hpp
-45. include/rag/embedder.hpp
-46. include/rag/engine.hpp
-47. include/rag/epoch.hpp
-48. include/rag/fusion.hpp
-49. include/rag/io.hpp
-50. include/rag/ivf_index.hpp
-51. include/rag/orderflow/features.hpp
-52. include/rag/orderflow/replay_env.hpp
-53. include/rag/orderflow/scalp_env.hpp
-54. include/rag/orderflow/simulator.hpp
-55. include/rag/orderflow/stylized.hpp
-56. include/rag/orderflow/tick_csv.hpp
-57. include/rag/orderflow/tick_env.hpp
-58. include/rag/pdf.hpp
-59. include/rag/prompt.hpp
-60. include/rag/simd.hpp
-61. include/rag/text_clean.hpp
-62. include/rag/tokenizer.hpp
-63. include/rag/topk.hpp
-64. include/rag/vector_store.hpp
-65. include/rag.hpp
-66. examples/agent_demo.cpp
-67. examples/demo.cpp
-68. examples/of_backtest.cpp
-69. examples/of_calibrate.cpp
-70. examples/of_train.cpp
-71. examples/rag_pdf.cpp
-72. examples/train_ensemble.cpp
-73. examples/tune_agent.cpp
-74. bench/latency.cpp
-75. bench/rag_bench.cpp
-76. bench/fixtures.hpp
-77. tests/agent_coverage_tests.cpp
-78. tests/agent_edge_case_tests.cpp
-79. tests/agent_tests.cpp
-80. tests/api_examples_tests.cpp
-81. tests/forgery_tests.cpp
-82. tests/market_making_tests.cpp
-83. tests/mlp_tests.cpp
-84. tests/model_based_tests.cpp
-85. tests/optional_libs_tests.cpp
-86. tests/orderflow_tests.cpp
-87. tests/pdf_tests.cpp
-88. tests/policy_table_tests.cpp
-89. tests/rag_property_tests.cpp
-90. tests/rag_tests.cpp
-91. tests/reference_tests.cpp
-92. tests/stress.cpp
-93. tests/stylized_tests.cpp
-94. tests/text_clean_tests.cpp
-95. tests/pdf_writer.hpp
-96. tests/pid.hpp
-97. tests/synthetic.hpp
-98. tests/test_util.hpp
-99. tests/fuzz/fuzz_common.hpp
-100. tests/fuzz/fuzz_load.cpp
-101. tests/fuzz/fuzz_policy_table.cpp
-102. tests/fuzz/fuzz_text.cpp
-103. tests/fuzz/make_seeds.cpp
-104. tools/make_context_pack.py
-105. tools/research_crawler.py
-106. tools/test_research_crawler.py
+22. .github\workflows\ci.yml
+23. include\rag\agent\agent.hpp
+24. include\rag\agent\analysis.hpp
+25. include\rag\agent\drift.hpp
+26. include\rag\agent\env.hpp
+27. include\rag\agent\evaluate.hpp
+28. include\rag\agent\execution_dp.hpp
+29. include\rag\agent\features.hpp
+30. include\rag\agent\learners.hpp
+31. include\rag\agent\market_making.hpp
+32. include\rag\agent\mlp.hpp
+33. include\rag\agent\model_based.hpp
+34. include\rag\agent\ope.hpp
+35. include\rag\agent\policy_table.hpp
+36. include\rag\agent\rng.hpp
+37. include\rag\agent\trainer.hpp
+38. include\rag\agent\tuning.hpp
+39. include\rag\agent\validation.hpp
+40. include\rag\agent\variance_reduction.hpp
+41. include\rag\arena.hpp
+42. include\rag\bm25.hpp
+43. include\rag\chunker.hpp
+44. include\rag\common.hpp
+45. include\rag\embedder.hpp
+46. include\rag\engine.hpp
+47. include\rag\epoch.hpp
+48. include\rag\fusion.hpp
+49. include\rag\io.hpp
+50. include\rag\ivf_index.hpp
+51. include\rag\orderflow\features.hpp
+52. include\rag\orderflow\replay_env.hpp
+53. include\rag\orderflow\scalp_env.hpp
+54. include\rag\orderflow\scalp_run.hpp
+55. include\rag\orderflow\simulator.hpp
+56. include\rag\orderflow\stylized.hpp
+57. include\rag\orderflow\tick_csv.hpp
+58. include\rag\orderflow\tick_env.hpp
+59. include\rag\pdf.hpp
+60. include\rag\prompt.hpp
+61. include\rag\simd.hpp
+62. include\rag\text_clean.hpp
+63. include\rag\tokenizer.hpp
+64. include\rag\topk.hpp
+65. include\rag\vector_store.hpp
+66. include\rag.hpp
+67. examples\agent_demo.cpp
+68. examples\demo.cpp
+69. examples\of_backtest.cpp
+70. examples\of_calibrate.cpp
+71. examples\of_trace.cpp
+72. examples\of_train.cpp
+73. examples\rag_pdf.cpp
+74. examples\train_ensemble.cpp
+75. examples\tune_agent.cpp
+76. bench\latency.cpp
+77. bench\rag_bench.cpp
+78. bench\fixtures.hpp
+79. tests\agent_coverage_tests.cpp
+80. tests\agent_edge_case_tests.cpp
+81. tests\agent_tests.cpp
+82. tests\api_examples_tests.cpp
+83. tests\forgery_tests.cpp
+84. tests\market_making_tests.cpp
+85. tests\mlp_tests.cpp
+86. tests\model_based_tests.cpp
+87. tests\optional_libs_tests.cpp
+88. tests\orderflow_tests.cpp
+89. tests\pdf_tests.cpp
+90. tests\policy_table_tests.cpp
+91. tests\rag_property_tests.cpp
+92. tests\rag_tests.cpp
+93. tests\reference_tests.cpp
+94. tests\stress.cpp
+95. tests\stylized_tests.cpp
+96. tests\text_clean_tests.cpp
+97. tests\pdf_writer.hpp
+98. tests\pid.hpp
+99. tests\synthetic.hpp
+100. tests\test_util.hpp
+101. tests\fuzz\fuzz_common.hpp
+102. tests\fuzz\fuzz_load.cpp
+103. tests\fuzz\fuzz_policy_table.cpp
+104. tests\fuzz\fuzz_text.cpp
+105. tests\fuzz\make_seeds.cpp
+106. tools\make_context_pack.py
+107. tools\of_viz.py
+108. tools\research_crawler.py
+109. tools\test_research_crawler.py
 
 
 ---
@@ -368,7 +386,7 @@ tools/test_research_crawler.py
 
 ---
 
-## FILE: docs/ai/README.md  (2,523 bytes)
+## FILE: docs/ai/README.md  (2,616 bytes)
 
 # Hand-off pack for an AI assistant
 
@@ -413,7 +431,8 @@ python3 tools/make_context_pack.py --with-source   # docs + all headers, tests, 
 * **Measure, don't assume.** Every number in these docs came from a run.
   If you change code, re-measure before quoting.
 * **Run the checks.** Run the full test matrix (CONVENTIONS.md) before
-  claiming something works. CI runs 8 jobs.
+  claiming something works. The gate is the full MSVC build and
+  test suite on the user's Windows server (CI runs `msvc-windows` only).
 * **Keep the guarantees.** Hot paths must not allocate. Batched queries are
   bit-identical to single ones. Loaders validate every field. Tests enforce
   all three.
@@ -545,7 +564,7 @@ documents alone.
 
 ---
 
-## FILE: docs/ai/PROJECT_MAP.md  (11,057 bytes)
+## FILE: docs/ai/PROJECT_MAP.md  (11,064 bytes)
 
 # Project map
 
@@ -664,7 +683,7 @@ rag-cpp/
 ├── experiments/                 the probe programs behind EXPERIMENTS.md and OF1-OF9 (snapshots; only of7 is built,
 │                                as of_tick_train), their result files, and research_synthesis.md
 ├── llms.txt                     index of this pack for language models
-└── .github/workflows/ci.yml     8 CI jobs
+└── .github/workflows/ci.yml     CI: msvc-windows
 ```
 
 ## Dependency layers (lower layers never include higher ones)
@@ -710,7 +729,7 @@ CMake options: `RAG_ARCH` (`-march` value, default `native`), `RAG_SANITIZE`
 
 ---
 
-## FILE: docs/ai/SPECS.md  (7,812 bytes)
+## FILE: docs/ai/SPECS.md  (7,665 bytes)
 
 # Specs: toolchain, machine, libraries, build
 
@@ -837,17 +856,16 @@ unless they reproduce.
 
 ## Test and CI matrix
 
+Windows only since 2026-11-04 (the user's decision). The authoritative gate
+is the full AVX-512 build and `ctest` on the user's server; GitHub CI keeps
+one job. The Linux jobs (GCC native/AVX2/scalar, Clang, ASan+UBSan with
+both compilers, TSan, libFuzzer smoke) were removed; `e0a4c7a`'s `ci.yml`
+has them.
+
 | Job | Compiler | Flags | What it checks |
 |---|---|---|---|
-| gcc-native | GCC | Release, `-march=native` | everything, AVX-512 path |
-| gcc-avx2 | GCC | Release, `x86-64-v3` | AVX2 path |
-| gcc-scalar | GCC | Release, `x86-64` | scalar fallback |
-| clang-native | Clang | Release | second compiler |
-| gcc-asan-ubsan | GCC | Debug, ASan + UBSan | memory and UB errors |
-| clang-asan-ubsan | Clang | Debug, ASan + UBSan | catches UB GCC's UBSan misses (R12) |
-| gcc-tsan | GCC | RelWithDebInfo, TSan | data races (skips single-threaded learning suites) |
-| fuzz-smoke | Clang | libFuzzer | the loaders and text pipeline under fuzzing |
-| msvc-windows | MSVC (VS 2022) | Release, `/arch:AVX2` | Windows build, full test suite, demos, latency probe |
+| user's server (local gate) | MSVC | Release, AVX-512 preset | full build, full test suite |
+| msvc-windows (GitHub) | MSVC (VS 2022) | Release, `/arch:AVX2` | Windows build, full test suite, demos, latency probe, AVX-512 compile |
 
 `ctest` registers every GoogleTest case plus `stress_all_modes` (the
 concurrent stress run) and `rag_pdf_cli_smoke`. STATUS.md has the current
@@ -2256,7 +2274,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (10,633 bytes)
+## FILE: docs/ai/LESSONS.md  (14,161 bytes)
 
 # Lessons, distilled
 
@@ -2403,7 +2421,7 @@ building learning systems in general, not just this task.
     of one extra copy of the weights; a fast one (1e-3) didn't. It also made
     the final policy usable without champion selection (E24).
 
-## Trading on order flow (OF1–OF9; ORDERFLOW.md)
+## Trading on order flow (OF1–OF10; ORDERFLOW.md)
 
 32. **A simulator that pays every day is wrong, not good.** The scalping
     agent's annualized Sharpe of ~80 with no losing day measured the
@@ -2438,6 +2456,57 @@ building learning systems in general, not just this task.
     barely helped (state-dependent draw counts desynchronize streams);
     re-seeding every step from (seed, process, step) doubled the paired
     runs' correlation (0.33 -> 0.61).
+40. **Measure in the regime you trade in.** The stylized facts were
+    measured on 6.5 h windows, but every RL episode starts a fresh
+    simulator whose activity sits at its floor for ~1.5 h (a running mean
+    initialized too high, with an 1,800 s time constant). The agents
+    trained and were scored at ~4 trades/s, not ~20, for every OF2-OF9
+    result, and the OF10 v2 preset was tuned on 2 h windows that leave
+    the floor halfway. Run the fact checks on the exact windows the agents
+    see (OF10 warm-up finding).
+41. **A price that moves without the book makes imbalance useless.** Rigid
+    whole-book quote jumps removed the hidden gap's 30 s predictability
+    (0.57 -> 0.11) and also every signal in the book: imbalance predicted
+    the next mid change at +0.02 instead of +0.33. Information must reach
+    the price through the queues, or order-flow features have nothing to
+    read (OF10 v1).
+42. **Rate tilts leak, depletion informs.** Makers tilting order rates
+    toward a value the price takes 30 s to reach put a 30 s forecast into
+    the book (OF9: L1 imbalance vs the next 30 s return 0.32). Withdrawing
+    quotes that value has already passed moves the price within a tick in
+    ~0.1 s, so the book is still correlated with the gap (0.45) but the gap
+    is gone within seconds: imbalance predicts the next mid change at +0.25
+    and the next 30 s at 0.04-0.05, tail ~0 (OF10 v2). What matters is not
+    whether the book knows the value, but how long the price lags it.
+43. **Check the oracle actually trades.** "No rule beats the oracle"
+    passed in v1 and v2 because the oracles barely traded: the gap was
+    capped at the band (v1), or rarely crossed the pre-registered threshold
+    (v2: 1.4-1.6 lots per episode, net -0.5), while a 2 s clairvoyant made
+    +7 ticks per episode. Report the bound's activity next to it, and
+    keep a clairvoyant beside the oracle (OF10).
+44. **Check a feedback loop has a stable steady state before warm-starting
+    it.** The warm-up looked like a bad initial value (`move_avg_` started
+    too high), but the activity loop itself was unstable (loop gain
+    0.045/s, R = 11.5): 10 h runs swung between the clamps, so no starting
+    value could have helped. Derive the stationary law first (activity
+    model 1 has an exact one), then draw the warm start from it (OF10 v3).
+45. **Warm every slow state, and check it in the regime the agent sees.**
+    With activity fixed, an episode-vs-long-window comparison of every
+    statistic (the AGREE table) still found the meta-order population 5%
+    short after the 150 s warm-up (5-6 SE on three seed sets); a 1,050 s
+    burn matched. Compare the agent's windows with long windows on every
+    population, not just the one you repaired (OF10 v3).
+46. **A wide gate fails by chance; gate on core rows.** With ~29 rows at
+    2 SE, about one row fails per run by chance; v3's one (c) miss (2.4 SE
+    on tuning-seed episodes only) passed on two fresh seed sets. Decide
+    the core rows before the run, and confirm an isolated miss on fresh
+    seeds instead of retuning to it (OF10 v3).
+47. **An edge that vanishes when the simulator gets efficient belonged to the
+    simulator.** The OF3 recipe beat every rule on the slow-discovery market
+    (OF3, OF8); on v3, which discovers prices in under a second at realistic
+    activity, all 24 seeds lose on sealed episodes and the ensemble stops
+    trading (OF11). Fix the market's known leaks first, and only then read
+    an RL profit (OF10, OF11).
 
 
 
@@ -2850,7 +2919,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (83,864 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (93,330 bytes)
 
 # RL experiment log
 
@@ -2897,7 +2966,8 @@ and the conclusion; negative results stay in.
 | E26 | Where do the learned policies err? | They over-trade: trading too much costs 3.5–11.2% of the optimal gain vs 0.7–5.8% for too little; the vote removes idiosyncratic errors, not the bias. |
 | E27 | Does a lower-quantile vote fix the bias? | No: better on the selection set (98.1 vs 97.5%), not on fresh scenarios (97.8 vs 97.9%) — selection bias. |
 | E28 | Do strategies survive a different market? (stress suite, sealed seeds) | Fixed strategies (DP plan, learned ensemble) only in their assumed market (−173% when the signal flips); the model-based agent re-learned in 50 episodes keeps 97–100% everywhere. |
-| OF1–OF9 | ES order-flow trading | See ORDERFLOW.md §4: RL scalping beats every rule in the simulator (robust to 9 stresses) but the simulator is too predictable to trust absolute P&L; tick-scalping RL matches, not beats, the rule. |
+| OF1–OF9 | ES order-flow trading | See ORDERFLOW.md §4: RL scalping beats every rule in the simulator (robust to 9 stresses) but the simulator is too predictable to trust absolute P&L; tick-scalping RL matches, not beats, the rule. Caveat (found in OF10): every OF2–OF9 episode ran at the simulator's activity floor (~4 trades/s instead of 15–22). |
+| OF10 | Can the simulator discover prices in seconds? | Partly. Rigid quote jumps (v1) remove the 30 s gap predictability (0.57–0.64 → 0.11) but make book imbalance useless (+0.02). Stale-side depletion (v2) keeps both (gap 0.09–0.11, imbalance → next tick +0.25) but fails the stylized facts and passive quoting (−6.6 to −7.2 ticks); its oracle bound is vacuous. v3 (stationary activity model, no informed makers) meets the gap, imbalance (marginally), the facts and naive-rule breakeven, and its pre-registered oracles trade; it fails passive quoting (−24 to −27 ticks, stale sweeps), and meta-orders are 5% short after the 150 s warm-up (a 1,050 s warm-up fixes it: 29/29 AGREE). OF11: RL on v3 finds no edge (every seed negative on sealed episodes; ensemble flat). |
 | E19 | Do gap-increasing targets help? | Advantage learning (k = 0.5) lifts TileQ from 65–69% to 70–75% at 40k, and to 76–80% with coarse tiles: the best tile-coded result, still below the neural learner. |
 
 ---
@@ -4313,12 +4383,146 @@ R² = 0.56; effect of +1 standard deviation of each parameter):
 The order-flow series (simulator stylized facts, scalping and
 tick-scalping baselines and RL, stress, daily P&L, efficient market,
 calibration, backtesting) is documented in [ORDERFLOW.md](ORDERFLOW.md) §4.
+Caveat found in OF10: every OF2–OF9 episode ran at the activity floor of
+a freshly started simulator (ORDERFLOW.md §5). Iteration 3 fixed this only
+for the opt-in presets (activity model 1); the legacy results stand as
+results at ~4 trades/s.
+
+## OF10. Price discovery in seconds (plan item 1; ORDERFLOW.md §4)
+
+* **Question:** can makers re-price fast enough that the hidden value gap
+  stops predicting the next 30 s (it did at 0.57 by default and 0.64 in
+  the efficient market), while book imbalance still predicts the next tick
+  and the facts stay ES-like? Criteria (a)–(f): gap, imbalance, markout,
+  facts, naive rules, oracle bound.
+* **Setup:** probe `experiments/of10_discovery.cpp` (target
+  `of_discovery`), opt-in presets, defaults bit-exact. Diagnostic simulator
+  seeds 1–3 × 2 h (tuning), 4–6 × 2 h (held out), 7–12 × 6 h once (final);
+  block-jackknife SEs; rules on `ScalpEnv`/`TickScalpEnv` episodes; the
+  OF2/OF4 rule tables on 900M/910M. Results `of10_results.txt`,
+  `of10_heldout.txt`, `of10_baselines.txt`, `of10_tick_baselines.txt`,
+  `of10_calibrate_sim.txt` (v1 at `10bfe03`, v2 at `4ba0354`).
+* **v1, rigid quote jumps** (`discovery_v1`): when |value − mid| > 0.65
+  the whole book jumps and snipers take a clip of the stale quotes. Gap →
+  next 30 s 0.11 (floor 0.09–0.10): met. Imbalance → next mid change +0.02
+  (default +0.33): failed, the book moves as a block. Impact R² only via
+  the sniper prints (0.80 vs 0.15 for the rest); 25.9 trades/s (3 h);
+  markout flatness unresolved; the oracle never trades (the gap is capped
+  at the band). Rejected.
+* **v2, stale-side depletion** (`discovery`): stale levels drain lot by
+  lot, nobody joins them, the price ticks when the stale best is empty;
+  flow surprise moves value permanently. (a) gap → 30 s 0.111 / 0.092,
+  within 0.02 of the grid floor: met. (b) imbalance → next mid change
+  +0.25 / +0.24, nothing after: met on 2 h windows; +0.15 in 10-min
+  episode windows. (c) markout 30 s − 5 s −0.08 ± 0.05 on both, final
+  −0.015 ± 0.024: marginal. (d) trades/s 18–28 across seeds, kurtosis
+  4.1–4.5 (target 5–10): failed. (e) quote both sides −6.6 to −7.2 ticks
+  (target ≥ −4; default −2.8): failed. (f) passes only formally: the oracle
+  at θ* = 0.70 trades 1.4–1.6 lots/episode and nets −0.5, while a 2 s
+  clairvoyant makes +6.9 to +7.6. Impact of a 300 s TWAP buy is linear
+  (exponent 0.99) and fully permanent (+54 ticks for 1,200 lots, default
+  +1).
+* **The warm-up finding** (skeptic's runs, not committed:
+  `build-avx512/skeptic/s600.txt`, `s6h.txt`, `sclose.txt`): a fresh
+  simulator's activity collapses to its floor (exp(−1.5)) within seconds
+  and stays there ~1.5 h, because `move_avg_` starts at 0.1 tick/step with
+  an 1,800 s time constant. In 600 s windows after the 150 s warm-up:
+  activity 0.29, 4.2 trades/s (default) and 2.3 (v2), 1-min sd ~2.4. Over
+  6 h: 21.6 and 33.1 trades/s. Every OF2–OF9 RL and rule result ran in the
+  quiet regime; the OF1 facts on long windows. Present since `c808bd4`.
+* **Conclusion (v2):** depletion is the right mechanism for (a) and (b),
+  but the preset was tuned in the wrong regime.
+* **Iteration 3** (`e229af4`; `of10_results.txt` seeds 1–3,
+  `of10_heldout.txt` seeds 4–6 sanity, `of10_warmup_check.txt`; final
+  check on 13–18 once by the acceptance agent, skeptic on fresh 19–21;
+  every statistic in the episode regime (400 ScalpEnv-built 10-min
+  windows per seed) and on 16 session-weighted sessions per seed, with an
+  AGREE table between them):
+  * *Warm-up root cause:* the legacy activity loop is unstable (loop gain
+    0.045/s, R = 11.5 on default sessions); 10 h runs swing between the
+    clamps, default episodes spend 41% of steps at the lower clamp (4.5
+    trades/s). A correct `move_avg_` start cannot fix it. Fix: opt-in
+    `activity_model 1` (centred log-OU, compensated news kicks, exact
+    stationary law; warm start on a dedicated stream, `kStreams` = 9).
+    Model 0 byte-identical; `default_warm()` = `SimParams{}` + model 1.
+  * *v3 preset* (`discovery_market()`; v2 kept as `discovery_v2`):
+    `maker_info 0`, retuned depletion, sniping, maker sizes and jumps.
+  * (a) gap → 30 s minus floor +0.017 … +0.019 (≤ 0.02): pass. (b)
+    imbalance → next mid change 0.206–0.216 (one seed 0.193 on 19–21),
+    tail ≤ 0.024, leak corr(I1, g) 0.37 (≤ 0.40): marginal pass;
+    corr(I1, r 30 s) ~0.07 misses the probe's own 0.05 line (not gated).
+    (c) mk30 − mk5 fails only on tuning-seed episodes (+0.022 ± 0.009,
+    2.4 SE), passes on 13–18, 19–21 and 4–6: chance-level per the
+    skeptic. (d) all bands pass: 18.4–18.7 trades/s, 1-min sd 3.9–4.05,
+    kurtosis 5.5–7.2, |r| ac1 0.19–0.22, R² 0.33–0.35.
+  * (e) no naive rule nets > 0 after costs: pass. **Quote both sides
+    FAILS:** −24 to −27 ticks/episode, adverse −0.17 … −0.20; ~60
+    fills/episode are stale sweeps (1 s markout −0.38) vs ~25 flow fills
+    (+0.30). Structural: snipers take the agent's lone stale lots before
+    the price ticks (L1 queue ~108 lots); no parameter lever removed it.
+  * (f1) pre-registered oracles trade and win: O1 (|g| > 0.62, latency 0)
+    +24 … +30 ticks/episode on ~86–98 lots; O2 (EMO H 10 s, K 32, θ 1.24,
+    decide 1 s, latency 100 ms) +5.4 … +7.2 on ~15–17.5 lots. (f2)
+    untested: the RL smoke run collapsed to flat.
+  * **AGREE fails on active meta-orders:** 10.46–10.59 in episodes vs
+    11.07–11.18 on long windows (5–6 SE, all three seed sets); a 1,050 s
+    burn gives 11.13. Activity is warm after 150 s, the meta-order
+    population is not.
+  * *Negative and side results:* fair value is not a martingale (10 s
+    value change → next 10 s +0.013 ± 0.003, permanent-impact momentum;
+    delta 5 s grosses +0.235/lot and loses only on costs). Own impact is
+    linear and permanent: round trips of ≥ 30 lots profit from it, so
+    `ScalpEnv` refuses `contracts > 1` with `value_impact > 0`. On
+    `default_warm` naive rules profit strongly (OF2 delta 5 s > 1.5
+    +15.19, t 22.8; imbalance L1–5 +7.31, t 10.9; quote both +1.3): the
+    slow-discovery leak is real at realistic activity. Legacy OF6 stresses
+    are partly empty on discovery (fade ×2 no-op, vol ×1.5 weak, informed
+    ×0.5 ~4% of volume).
+* **Conclusion (iteration 3):** accepted for market-order RL (OF3, OF6,
+  OF8) with a 1,050 s warm-up; not a calibrated market for tick
+  environments (A62–A66).
+* **Pre-RL check** (`5bb7be3`, `experiments/of11_probe1050.txt`, fresh
+  seeds 22–24, `--scalp-warmup 1050`): episode and long regimes agree on
+  29/29 rows (active meta-orders 11.15 vs 11.18); (a)–(d) pass; (c) +0.000
+  ± 0.008. Still outside the gate in both regimes: corr(I1, r 30 s) 0.076
+  (probe line 0.05) and event corr(I5) 0.080. The held-out runs are now
+  committed: `of10_final13_18.txt` (13–18) and `of10_skeptic19_21.txt`
+  (19–21), reproduced from committed code by `of11_regen.sh`.
+
+## OF11. RL reruns on the fixed market (OF10 v3, warm-up 1,050 s)
+
+`bash experiments/of11_regen.sh` (`1a73bd6`; ~40 min), all on
+`--market discovery --warmup 1050`:
+
+* **OF3 recipe** (`of11_train.txt`, of_train 24 seeds × 2,000 episodes,
+  NeuralQ + Double DQN, champion on validation, 300 sealed episodes): every
+  seed negative, −0.15 … −1.50 ticks/episode (mean −0.54, t −1.0 … −5.0,
+  0.4–3.3 orders); validation highs (+0.74) did not carry over. The mean-Q
+  ensemble makes 0.0 orders. 30 s delta rule −1.39 (t −2.0).
+* **OF2 rules** (`of11_baselines.txt`): none > 0 by 2 SE (best delta
+  120 s > 2, +0.38, t 0.75); "oracle (sees fair value)" −0.21 on 0.3 lots.
+* **OF6 stresses** (`of11_stress.txt`, the discovery list pre-registered
+  in `5bb7be3`, nets seed1/seed2): all strategies ≤ 0 in all 11 scenarios;
+  the nets lose less than the rule (best: seed1 on thinner book +0.007,
+  t 0.03). Worst: session open (rule −5.7, nets −1.9 / −3.1).
+* **OF8 days** (`of11_days.txt`, 20 days × 39 sessions): rule −88
+  ticks/day (Sharpe −16.7), nets −9.1 / −24.8, ensemble −3.3 (55% winning
+  days, Sharpe −3.1).
+* **(f):** no learned policy comes near the pre-registered references (O2
+  +5.4 … +7.7 ticks/episode on the probe's episodes; O1 +24 … +30; not
+  paired, and both read the hidden state). No red flag; no edge, so the
+  950M+ confirmation block stays unused.
+* **Conclusion:** once prices are discovered in under a second at
+  realistic activity, the OF3 recipe finds nothing after costs. The OF3 /
+  OF8 profits came from the slow-discovery leak, which is real at realistic
+  activity too (`default_warm`: naive delta 5 s > 1.5 +15.2 ticks/episode).
+  The pre-registered gate (f) holds non-vacuously.
 
 
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (19,966 bytes)
+## FILE: docs/ai/DECISIONS.md  (25,173 bytes)
 
 # Decision log
 
@@ -4418,12 +4622,23 @@ the code looks the way it does.
 | A53 | NeuralQ allocates no tile tables | They were unused but (bins+1)^Dims: 3.8 GB per agent with two snapshots at 21 inputs; OOM-killed training (2 MB now). |
 | A54 | Tick scalper trained off-policy from rule-guided episodes; deployed greedy or rule-anchored | Plain exploration never gets filled (0.1 fills/episode); guided training quotes; anchored deployment matches the rule, greedy loses (OF7). |
 | A55 | Train many seeds in parallel threads (`of_train`, `of_calibrate --seeds`), not on GPUs | The networks are 2 x 64 units: per-update work is microseconds, so cores, not GPUs, are the bottleneck; results don't depend on the thread count. |
+| A56 | OF10 v1 (opt-in rigid whole-book quote jumps, `discovery_market_v1()`) is not the final price-discovery design | It fixed the gap (corr with the next 30 s 0.57–0.64 → 0.11, floor 0.09–0.10) but decoupled the price from the book: imbalance → next mid change +0.02 vs +0.33 by default; impact R² only through the fixed sniper clip (0.80 vs 0.15); the gap never exceeds the band, so the oracle bound is vacuous (OF10). |
+| A57 | OF10 v2: stale-side depletion (quotes value has passed drain lot by lot, nobody joins them, the price ticks when the stale best is empty) plus permanent impact of flow surprise; chosen over the "efficient-price quoting" design | The judge's reasons: in the alternative, an EWMA of flow surprise telescopes into transient impact, which is the predictable fade the fix must remove; and its rate ramp toward the efficient price is the OF9 rate tilt that leaked value into the book. Depletion kept imbalance informative for the next tick only (+0.25, tail ~0) with the gap at the grid floor (OF10). |
+| A58 | `discovery_market_v1()` stays reproducible (`market_preset("discovery_v1")`, golden hash `GoldenRunOfDiscoveryV1IsUnchanged`); `SimParams{}`, `efficient_market()` and `separate_streams` keep their golden hashes from `e0a4c7a`; `discovery_market()` (v2) gets one when iteration 3 freezes it (done at `e229af4`: v2 as `discovery_market_v2()` / `discovery_v2`, `GoldenRunOfDiscoveryV2IsUnchanged`; v3 and `default_warm()` in `GoldenRunsOfTheIteration3Presets`) | Every OF1–OF10 number depends on these paths staying bit-identical. The hashes are recorded with MSVC x64 (library `exp`/`log` and FMA contraction differ between compilers); elsewhere the tests only check that the presets differ. |
+| A59 | Long experiments run from a snapshot copy of the executables, not from `build-avx512\Release\` | Two agents share one tree: one rebuilds while the other runs sweeps. A rebuild under a running sweep would mix binaries in one results file, the stale-binary failure of LESSONS 37 in another form. |
+| A60 | CI is Windows only (`msvc-windows`); `main` moves when the full AVX-512 build and ctest pass on the user's server | The user's decision (`71ca8d6`): the project is built and run with MSVC on their server. The 8 Linux jobs (GCC native/AVX2/scalar, Clang, ASan+UBSan ×2, TSan, fuzz-smoke) are removed; they are in `e0a4c7a`'s `ci.yml`. |
+| A61 | `of_train --test-seed` must be a whole number ≥ 900,000,000 (a test block), or the tool stops | A typo or a small number would score agents on training or validation episodes without any warning. ctest `of_train_rejects_training_test_seed` and `of_train_rejects_bad_test_seed`. |
+| A62 | Activity model 1 (centred log-OU, compensated news kicks, exact stationary law) with a warm start drawn on a dedicated stream (`kStreams` = 9) is opt-in (`activity_model`, `activity_warm_start`; presets `discovery_market()` v3 and `default_warm()`); the legacy model 0 stays byte-identical | The legacy loop has no stable steady state (loop gain 0.045/s, R = 11.5 on default sessions; 10 h runs swing between the clamps; default 10-min episodes spend 41% of steps at the lower clamp, 4.5 trades/s), so initialising `move_avg_` correctly cannot fix it. Model 1 has no clamp time and agrees between episodes and long windows on activity and the facts. Model 0 is kept so OF1–OF10 reproduce (goldens) (OF10 v3). |
+| A63 | RL reruns on `discovery` use a `ScalpEnv` warm-up of 1,050 s (new `--warmup` flag), pre-registered before any v3 net is trained | After the 150 s warm-up the meta-order population is ~5% short (10.46–10.59 active vs 11.07–11.18 on long windows, 5–6 SE in all three seed sets); a 1,050 s burn gives 11.13, matching long windows (`of10_warmup_check.txt`). Ground truth, not a tuned value (OF10 v3). |
+| A64 | The quote-both (e) failure of v3 is waived only for market-order environments (OF3, OF6, OF8); no tick-environment (OF4, OF5, OF7) rerun claims a calibrated market until the stale-sweep mechanism is redesigned | Quoting both sides loses −24 to −27 ticks/episode (target −4 … 0): ~60 fills/episode are stale sweeps (1 s markout −0.38) vs ~25 flow fills (+0.30). Structural (snipers take the agent's lone stale lots before the price ticks; L1 queue ~108 lots); no parameter lever removed it at 15–22 trades/s. Market-order environments never rest quotes (OF10 v3). |
+| A65 | OF6 on `discovery` gets its own stress list, pre-registered (fixed in code or docs) before any v3 net exists | The legacy stresses are partly empty on discovery: fade ×2 is a no-op (fading off), vol ×1.5 is weak, informed ×0.5 touches ~4% of volume. Choosing stresses after seeing a net's results would select them (OF10 v3). |
+| A66 | The pre-registered oracles O1 (zero-latency fair-value taker, \|g\| > 0.62) and O2 (EMO H 10 s, K 32, θ 1.24, decide 1 s, latency 100 ms) are references, not upper bounds; RL > O2 + 2 SE (paired on the same episodes) or RL > O1 triggers a leak audit | Both trade and win (O1 +24 … +30 ticks/episode on ~86–98 lots, O2 +5.4 … +7.2 on ~15–17.5 lots), so the bound is not vacuous (LESSONS 43); but each reads one fixed signal, so beating one is a reason to look, not proof of a bug (OF9, OF10 v3). |
 
 
 
 ---
 
-## FILE: docs/ai/CONVENTIONS.md  (3,324 bytes)
+## FILE: docs/ai/CONVENTIONS.md  (3,641 bytes)
 
 # Conventions and working rules
 
@@ -4477,10 +4692,14 @@ every claim in the docs measurable and every change verifiable.
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctest --test-dir build -j4
 ```
 
-1. **Before pushing**, run the same 7 jobs as CI: gcc native, AVX2
-   (`-DRAG_ARCH=x86-64-v3`) and scalar (`-DRAG_ARCH=x86-64`); clang; ASan+UBSan
-   with both gcc and clang (`-DRAG_SANITIZE=ON`); and TSan (`-DRAG_TSAN=ON`).
-   All use `-DCMAKE_CXX_FLAGS=-Werror`.
+1. **Windows only (since 2026-11-04, the user's decision).** The project is
+   built and run with MSVC on the user's Windows server. The gate is the
+   full build and test suite there (`cmake --preset windows-msvc-avx512`,
+   `cmake --build --preset windows-avx512-release --parallel`,
+   `ctest --preset windows-avx512-release`) with no MSVC warnings. GitHub CI
+   runs only `msvc-windows`; the Linux GCC/Clang/sanitizer/fuzz jobs were
+   removed (restore them from `e0a4c7a`'s `ci.yml` if Linux matters again).
+   Portable C++ is still the habit, but GCC/Clang are no longer verified.
 2. **For loader or parser changes**, fuzz:
    `-DRAG_FUZZ=ON -DCMAKE_CXX_COMPILER=clang++`, `make_seeds`, then run
    `fuzz_load` / `fuzz_text` for a few minutes.
@@ -4489,8 +4708,8 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ## Git
 
-* Work on a branch. Push, wait for the 8 GitHub CI jobs, then fast-forward
-  `main` to the green commit.
+* Work on a branch. Fast-forward `main` to a commit whose full gate passed
+  on the Windows server.
 * Commit messages explain what changed and why, with measured results.
 
 ## Documentation
@@ -4504,7 +4723,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (8,291 bytes)
+## FILE: docs/ai/STATUS.md  (9,298 bytes)
 
 # Status, limitations and next steps
 
@@ -4521,9 +4740,22 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
   plan: price discovery is too slow in the simulator (the hidden value
   gap predicts the next 30 s at ~0.6), so RL profits there are inflated;
   the "efficient" preset leaks value through the book (OF9).
+  **Order-flow status (2026-11-05):** OF10 iteration 3 is done
+  (`e229af4`): an opt-in stationary activity model fixes the warm-up (the
+  legacy activity loop is unstable), and the v3 `discovery` preset passes
+  the gap, imbalance (marginally), stylized-fact and naive-rule criteria
+  with oracles that trade, on tuning, held-out (13–18, once) and fresh
+  skeptic seeds. It fails passive quoting (−24 to −27 ticks/episode, stale
+  sweeps), so it is accepted for market-order RL only, and meta-orders
+  need a 1,050 s warm-up (A62–A66). The RL reruns (OF11, `1a73bd6`) find no edge on `discovery`:
+  every seed negative on sealed episodes, ensemble flat, all stresses and
+  trading days ≤ 0. **Caveat:** the legacy
+  activity model is unchanged, so every OF2–OF9 result still ran at ~4
+  trades/s instead of 15–22 (ORDERFLOW.md §5).
 
-* **Platforms:** Linux (GCC 13, Clang 18; seven CI jobs including
-  sanitizers and fuzzing) and Windows (Visual Studio 2022 / MSVC, AVX2;
+* **Platforms:** Windows only since 2026-11-04 (Linux CI removed; GCC 13 and
+  Clang 18 with sanitizers and fuzzing last passed at `10bfe03`, except a
+  gcc-avx2 NLopt configure failure); Windows (Visual Studio 2022 / MSVC, AVX2;
   CI job `msvc-windows`: the AVX2 build's full test suite, demos, latency
   probe, and an AVX-512 compile; the AVX-512 build passed 285/285 on a
   Ryzen 9 9900X under Windows Server 2025, where `train_ensemble`
@@ -4576,7 +4808,8 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
   regions. Their schedule fixes may shift the online-gain numbers of E8,
   E11 and E15 slightly; those were measured before the fixes.
 * **Testing:**
-  * the CI matrix covers SIMD levels, sanitizers and fuzzing;
+  * the full suite runs on the user's AVX-512 server and in CI's
+    `msvc-windows` (the sanitizer and fuzz jobs were Linux-only and are gone);
   * 287 ctest cases: 272 in `rag_tests`, 4 in `rag_optlib_tests`, 9 PDF tests (Poppler), the
     stress run and a `rag_pdf` CLI smoke test.
   * The TSan CI job skips the single-threaded learning suites (`Agent*`,
@@ -4655,15 +4888,20 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/ORDERFLOW.md  (15,901 bytes)
+## FILE: docs/ai/ORDERFLOW.md  (34,333 bytes)
 
 # ES order-flow trading: simulator, agents, validation, plan
 
 The order-flow trading work, in one place: what it is for, how it is
-built, how to run it (Linux and the user's Windows server), every result
-with its caveats, and what to do next. Experiment numbers (OF1–OF9) refer
-to probes in `experiments/`; detailed numbers for each are in the probe's
-results file and summarized here.
+built, how to run it (on the user's Windows server; Windows only since
+2026-11-04), every result with its caveats, and what to do next.
+Experiment numbers (OF1–OF10) refer to probes in `experiments/`; detailed
+numbers for each are in the probe's results file and summarized here.
+
+> **Read first (found 2026-11-04):** every OF2–OF9 RL and rule result ran
+> in a quiet market far below the stylized facts of OF1 (the activity
+> warm-up, §5). They are comparisons within that regime, not ES-like
+> evidence.
 
 ## 1. Objectives (from the user)
 
@@ -4699,14 +4937,15 @@ results file and summarized here.
                                    │                          │                          │
                      rag::agent learners (NeuralQ + Double DQN + weight averaging), Trainer, champion selection
                                    │
-     tools: of_train (parallel seeds)  of_backtest (walk-forward on ticks)  of_calibrate (facts, fit)  probes OF1–OF9
+     tools: of_train (parallel seeds)  of_backtest (walk-forward on ticks)  of_calibrate (facts, fit)  probes OF1–OF10
+            of_trace → tools/of_viz.py (episode viewer)
 ```
 
 | File | What it is |
 |---|---|
-| `include/rag/orderflow/simulator.hpp` | `EsSimulator`: L2 book (16 levels/side, 5 exposed), 100 ms steps; noise takers, informed and uninformed meta-orders (power-law sizes, child orders), momentum takers, makers with capped quote fading, optional informed makers (`maker_info`), icebergs (hidden reserve: absorption); activity log-OU + intraday U-shape + mean-zero excitation; fair value with activity-scaled volatility and jumps. Strategy orders: `market_order`, `submit_limit`/`cancel` with FIFO queue position (cancellations biased to the back, faster participants joining ahead). `efficient_market()` preset. |
+| `include/rag/orderflow/simulator.hpp` | `EsSimulator`: L2 book (16 levels/side, 5 exposed), 100 ms steps; noise takers, informed and uninformed meta-orders (power-law sizes, child orders), momentum takers, makers with capped quote fading, optional informed makers (`maker_info`), icebergs (hidden reserve: absorption); activity log-OU + intraday U-shape + mean-zero excitation; fair value with activity-scaled volatility and jumps. Strategy orders: `market_order`, `submit_limit`/`cancel` with FIFO queue position (cancellations biased to the back, faster participants joining ahead). Opt-in re-pricing (OF10): v1 rigid quote jumps (`reprice_band`, `reprice_snipe`), v2 stale-side depletion (`reprice_cancel`, `reprice_take`) with permanent impact of flow surprise (`value_impact`, `impact_forecast_*`). Opt-in activity model 1 (`activity_model`, `activity_warm_start`; OF10 v3): centred log-OU with compensated news kicks and an exact stationary law, warm start drawn on its own stream. Presets `efficient_market()`, `discovery_market_v1()`, `discovery_market_v2()`, `discovery_market()` (v3), `default_warm()`; `market_preset(name)` for the tools. |
 | `include/rag/orderflow/features.hpp` | `FeatureBuilder`: delta 5/30/120 s, OFI 5/30 s, relative volume, L1 and L1-5 imbalance, returns 5/30/120 s, VWAP distance, absorption (volume traded at a holding best level beyond the size displayed). Running window sums; self-normalized by a running RMS (works on any market without hand scales). |
-| `include/rag/orderflow/scalp_env.hpp` | `ScalpEnv`: target position short/flat/long every 1 s, market orders with 100 ms latency, real fills, $1.50/side fees, reward = mark-to-market change net of fees, ends flat, fresh market and random time of day per episode (10 min + 150 s warm-up). |
+| `include/rag/orderflow/scalp_env.hpp` | `ScalpEnv`: target position short/flat/long every 1 s, market orders with 100 ms latency, real fills, $1.50/side fees, reward = mark-to-market change net of fees, ends flat, fresh market and random time of day per episode (10 min + 150 s warm-up; a fresh market sits at the activity floor for ~1.5 h, so episodes are quiet: §5). |
 | `include/rag/orderflow/tick_env.hpp` | `TickScalpEnv`: quote none/bid/ask/both or flatten every 0.5 s; 1-lot at the touch, rejoining at the back when the price moves; inventory ±1; FIFO fills; queue position in the observation; 5-min episodes. |
 | `include/rag/orderflow/tick_csv.hpp` | `replay_tick_csv`: recorded ticks (`T,time,price,size,B|S` / `Q,time,bid,ask[,5+5 sizes]`) replayed in buckets into any `add_trade`/`end_bucket` sink. |
 | `include/rag/orderflow/replay_env.hpp` | `TickTape` + `ReplayScalpEnv`: the scalping environment on recorded ticks (same observations, so simulator-trained agents run unchanged); fills at the recorded touch walking recorded depth; `seek(k)` for walk-forward windows. |
@@ -4714,7 +4953,9 @@ results file and summarized here.
 | `examples/of_train.cpp` | Parallel training of scalping agents (one seed per thread), sealed scoring, mean-Q ensemble. |
 | `examples/of_backtest.cpp` | Walk-forward backtest of flat, the delta rule and saved agents on a tick CSV. |
 | `examples/of_calibrate.cpp` | `sim`, `facts <csv>`, `export <csv>`, `fit <csv>` (NLopt; seeds averaged in parallel threads). |
-| `experiments/of*.cpp` | Probes OF1–OF9 (below), results files next to them. |
+| `examples/of_trace.cpp` + `tools/of_viz.py` | Episode viewer. `of_trace` runs saved nets (mean-Q if several) on `ScalpEnv` episodes from the visualization block 960M+, with the 30 s delta rule and the fair-value oracle on the same seeds, and writes one CSV row per decision (book, hidden fair value for display, imbalance, the 13 features, Q-values, action, position, fills, fees, cumulative P&L). `of_viz.py` (stdlib only) turns the CSV into one self-contained HTML page: per-episode price/fills/fair value, positions, signals, Q-values, P&L; over all episodes a policy map, action shares, holding times, P&L per round trip. |
+| `experiments/of*.cpp` | Probes OF1–OF10 (below), results files next to them. |
+| `experiments/of10_discovery.cpp` (target `of_discovery`) | OF10 price-discovery diagnostics: every criterion (a)–(f) of plan item 1 per market and seed in one run: the hidden gap against an ideal 1-tick grid on the same value path, stale-quote races, imbalance and features in clock and event time, markouts (sniper vs other prints), stylized facts, rules / oracles / clairvoyants on `ScalpEnv` (`--rules`), tick rules on `TickScalpEnv` (`--tick`), a paired TWAP impact test (`--impact`). Block-jackknife SEs (5-min blocks). `experiments/of10_regen.sh` regenerates every OF10 file. |
 | `experiments/research_synthesis.md` | Literature synthesis from the research crawl, with a ranked change list. |
 | `tools/research_crawler.py` | Anonymous, polite crawler (arXiv, OpenAlex, Semantic Scholar, Hacker News) → `research_corpus/` (gitignored) indexable with `rag_pdf`. |
 
@@ -4724,22 +4965,46 @@ round trip, replay fills, NeuralQ memory).
 
 ## 3. How to run
 
-Linux (from the repository root, after `cmake -S . -B build && cmake --build build -j`):
+Windows only (the user's server; Linux CI was removed on 2026-11-04,
+DECISIONS A60). From `C:\rag-cpp` in Developer PowerShell, AVX-512 build
+(`docs/WINDOWS.md`): build with
+`cmake --build --preset windows-avx512-release --parallel`; the tools are
+in `build-avx512\Release\`.
 
-```bash
-./build/of_train --seeds 12 --episodes 2000 --market default --out nets/   # parallel training
-./build/of_backtest es_ticks.csv --time ns nets/seed1.net nets/seed2.net   # recorded ticks
-./build/of_calibrate facts es_ticks.csv --time ns                           # real vs simulated facts
-./build/of_calibrate fit es_ticks.csv --time ns --seeds 12 --seconds 21600 --evals 300
-./build/of_calibrate export sample.csv 3600                                 # example of the CSV format
+```powershell
+.\build-avx512\Release\of_train.exe --seeds 12 --episodes 2000 --market discovery --out nets\   # parallel training
+.\build-avx512\Release\of_backtest.exe es_ticks.csv --time ns nets\seed1.net nets\seed2.net    # recorded ticks
+.\build-avx512\Release\of_calibrate.exe facts es_ticks.csv --time ns                           # real vs simulated facts
+.\build-avx512\Release\of_calibrate.exe fit es_ticks.csv --time ns --seeds 12 --seconds 21600 --evals 300
+.\build-avx512\Release\of_calibrate.exe sim 10800 discovery                                    # simulated facts, one preset
+.\build-avx512\Release\of_calibrate.exe export sample.csv 3600                                 # example of the CSV format
+.\build-avx512\Release\of_trace.exe nets\seed1.net nets\seed2.net --market discovery --episodes 20 --out trace.csv
+python tools\of_viz.py trace.csv trace.html                                                    # episode viewer (one HTML page)
 ```
 
-Windows server (Developer PowerShell, AVX-512 build; see `docs/WINDOWS.md`):
-the same tools are in `build-avx512\Release\` (`of_train.exe`, ...). The
-tick-scalping trainer (OF7) is the target `of_tick_train`; run one process
-per seed in parallel, e.g.
-`1..12 | % { Start-Process -NoNewWindow .\build-avx512\Release\of_tick_train.exe "$_ 2000 0.99 0.5 0.25 0.02 200 100 tick_seed$_.net" }`
-(Linux: `./build/of_tick_train SEED 2000 0.99 0.5 0.25 0.02 200 100 out.net`).
+**Markets** (`--market` in `of_train`, `of_trace`, `of8_scalp_days`;
+second argument of `of2_baselines`, `of4_tick_baselines`, `of_calibrate
+sim`; `--markets` list in `of_discovery`): `default` (OF1–OF8),
+`efficient` (OF9), `discovery` (OF10 v3, `discovery_market()`),
+`discovery_v2` and `discovery_v1` (OF10 v2 and v1, kept to reproduce their
+numbers) and `default_warm` (`SimParams{}` with activity model 1: the old
+market at realistic activity, not calibrated). All go through
+`market_preset(name)`.
+`of_train --test-seed` must be ≥ 900,000,000 (a test block), or it stops
+(A61).
+
+OF10 diagnostics (Git Bash; builds first, warning-free, then regenerates
+every OF10 file): `bash experiments/of10_regen.sh`. One probe run by hand:
+`build-avx512/Release/of_discovery.exe --markets default,discovery --seeds 1-3 --episodes 400 --long session --sessions 16 --rules 100 --emo 40 --tick 100 --impact 30 --threads 16 --out out.txt`
+(iteration 3: both regimes, the AGREE table, O1/O2; `--episode-warmup 1050`
+replaces ScalpEnv's 150 s warm-up with a 15-min burn)
+(`--set name=value,...` overrides fields of the discovery preset for
+tuning). Long runs go from a copy of the executables, not from
+`build-avx512\Release\` (A59).
+
+The tick-scalping trainer (OF7) is the target `of_tick_train`; run one
+process per seed in parallel, e.g.
+`1..12 | % { Start-Process -NoNewWindow .\build-avx512\Release\of_tick_train.exe "$_ 2000 0.99 0.5 0.25 0.02 200 100 tick_seed$_.net" }`.
 
 Hardware notes: the networks are small (2 × 64 units); a GPU does not
 help at this size (per-update work is microseconds). Scale with cores:
@@ -4752,7 +5017,22 @@ would need a GPU framework fed by this simulator: not built yet.
 
 Seed blocks: training = trainer streams seeded by the run seed; validation
 = 700M+i; sealed tests: scalping 900M+i (OF2, OF3, OF9), tick scalping
-910M+i (OF4, OF5, OF7), stress 920M+i (OF6), days 930M+i (OF8).
+910M+i (OF4, OF5, OF7), stress 920M+i (OF6), days 930M+i (OF8). OF10
+diagnostics use simulator seeds 1–18 (tuning, held out, final; ledger in
+NEXT_SESSION.md §4).
+
+**Caveat on OF2–OF9 (the warm-up finding, 2026-11-04).** `ScalpEnv` and
+`TickScalpEnv` start a fresh simulator for every episode and warm it up
+for 150 s. A fresh simulator sits at the activity floor (§5): the
+skeptic's runs measured, on the default market, activity ~0.29, 4.2
+trades/s and a 1-min sd of 2.5 ticks in 10-min windows after the warm-up
+(6 seeds), against ~20 trades/s and
+3.4–4.4 ticks in OF1's 6.5 h windows. So every OF2–OF9 rule, RL, stress
+and daily result below was measured in this quiet regime, while the OF1
+facts (and `of_calibrate sim`) describe long windows. The comparisons
+between strategies stand within that regime; none of them shows behaviour
+in an ES-like market. Present since the simulator's first commit
+(`c808bd4`).
 
 **OF1 — stylized facts** (`of1_stylized_facts.cpp`, 3 × 6.5 h): ~20
 trades/s, 3.8 lots/trade, ~4,500 contracts/min, spread 1 tick 97%,
@@ -4820,7 +5100,171 @@ L1 imbalance vs next 30 s return 0.32 vs 0.25) and the agent reads it. The
 preset removed trade-flow predictability and moved it into the book. In
 both presets price discovery is far too slow (the hidden gap predicts the
 next 30 s return at 0.58–0.65); real ES prices information in seconds.
-**This is the most important simulator fix** (plan item 1).
+**This is the most important simulator fix** (plan item 1; OF10).
+
+**OF10 — price discovery** (`of10_discovery.cpp`, target `of_discovery`;
+plan item 1; iteration 3 done at `e229af4`, RL reruns next). Criteria (NEXT_SESSION.md §1): (a) the hidden
+gap g = fair value − mid no longer predicts the next 30 s; (b) book
+imbalance predicts the next tick or two and nothing after; (c) the markout
+curve is flat after a few seconds; (d) the stylized facts stay ES-like;
+(e) naive rules are near breakeven after costs; (f) nothing beats the
+fair-value oracle. Tuning on diagnostic simulator seeds 1–3 × 2 h,
+checked on 4–6 × 2 h, final check once on 7–12 × 6 h. Each window starts
+at 3,600 s of the session after a 150 s warm-up. Rule checks run on
+`ScalpEnv`/`TickScalpEnv` episodes (seeds 1,000,000 × seed + i). Both
+versions are opt-in presets: `SimParams{}`, `efficient_market()` and
+`separate_streams` stay bit-exact with `e0a4c7a` (golden hashes, A58).
+Files: `of10_results.txt` (tuning), `of10_heldout.txt`, `of10_baselines.txt`
+(OF2 rules, 900M), `of10_tick_baselines.txt` (OF4 rules, 910M),
+`of10_calibrate_sim.txt` (3 h); v1 numbers at commit `10bfe03`, v2 at
+`4ba0354`, v3 at `e229af4` (plus `of10_warmup_check.txt`; in v3
+`of10_heldout.txt` is the seeds 4–6 sanity run, not held out).
+
+*v1: rigid quote jumps* (`discovery_market_v1()`, `10bfe03`). When
+|value − mid| > 0.65 tick the whole book jumps round(gap) ticks, and
+snipers take a clip of the stale quotes. What it fixed: corr(g, next 30 s)
+fell from 0.57 (default) and 0.64 (efficient) to 0.11 (tuning and held
+out), against a tick-grid floor of 0.09–0.10 (a). What failed:
+- (b) the book moves as a block, so imbalance predicts nothing: event-time
+  corr(L1 imbalance, next mid change) +0.02, against +0.33 by default.
+- (d) price-on-flow R² 0.32 came from the fixed sniper clip (re-measured
+  in the v2 probe: R² 0.80 on sniper delta, 0.15 on the rest); 25.9
+  trades/s in `of_calibrate sim` (3 h), above 15–22.
+- (c) markout 30 s − 5 s +0.14, seeds −0.01 … +0.35: unresolved at 3 × 2 h.
+- (e) every rule loses (delta 30 s −8.8 ticks/episode on 900M; quote both
+  sides −6.7 on 910M).
+- (f) vacuous: the gap never exceeds the band (max 0.65), so the gap > 0.75
+  and > 1 oracles never trade; gap > 0.5 loses −7.4. Re-run with per-lot
+  accounting in the v2 probe, two rules beat the oracle at θ* = 0.60 by
+  more than 2 SE: FAIL.
+- Probe bug: edge was counted per order, not per lot (a flip counted
+  once); fixed in v2.
+
+Rejected as the final design, kept as `discovery_v1` (A56).
+
+*v2: stale-side depletion* (`discovery_market()`, `4ba0354`). When value
+passes a quote, that level is withdrawn lot by lot within a few 100 ms
+(92% cancelled, the rest taken by snipers in FIFO order), nobody joins a
+stale price, and the price ticks only when the stale best level is empty;
+the value side moves with it (shape kept, spread 1). The unexpected part
+of taker flow moves fair value permanently (`value_impact 0.045`), and
+informed makers (`maker_info 2.5`) tilt their rates by the within-tick gap
+only. Fading is off (the flow's information reaches the price through
+`value_impact`). Results: tuning / held out (pooled ± block-jackknife SE),
+final from the `4ba0354` commit message:
+- (a) **met.** corr(g, next 30 s) 0.111 / 0.092, 0.017 / 0.020 above the
+  ideal grid's floor (0.094 / 0.072); after a value jump the mid is within
+  a tick in 0.10–0.13 s (median), p95 0.2–0.3 s. Final: 0.10–0.11, within
+  ~0.02 of the floor.
+- (b) **met on long windows.** Event-time corr(L1 imbalance, next mid
+  change) +0.25 / +0.24, then +0.09 for the second change; 30 s tail
+  +0.000 / −0.008. Imbalance reads the within-tick gap, by design: corr(I1,
+  g) 0.45 / 0.44 (default 0.19). In 10-min episode windows (skeptic, 6 ×
+  600 s) the next-change correlation is +0.15, below the 0.20 target.
+- (c) **marginal.** Markout 30 s − 5 s −0.075 ± 0.054 / −0.077 ± 0.048
+  (seeds −0.23 … +0.12); final −0.015 ± 0.024.
+- (d) **FAIL.** 20.1 trades/s on tuning but seeds 18.0–22.3; held out 23.1
+  (20.4–27.9); `of_calibrate sim` 22.7. Excess kurtosis 4.5 / 4.1 / 4.2
+  (target 5–10); 1-min sd 4.2 / 4.5 ticks with seeds above 4.5; L1 size
+  1.06 / 1.40 × default's (one held-out seed 1.58, limit 1.5). The windows
+  run hotter the longer they are: in the skeptic's 3 × 6 h, 33.1 trades/s,
+  L1 191, 1-min sd 4.9.
+- (e) **FAIL for passive quoting.** Quote both sides −7.2 / −6.7 / −6.6
+  (910M) ticks per 5 min, against the target −4 … 0 (default −2.8): fills
+  are picked off past the half spread (adverse −0.07). Directional rules no
+  longer win: delta 30 s −2.0 (tuning) and −2.4 on 900M (t −4.7; default
+  +1.8); OFI 30 s −4.5 / −5.0; L1 imbalance −25 to −28 (costs).
+- (f) **formal pass only.** Every rule stays below the oracle at the
+  pre-registered θ* = 0.70 + 2 SE, but that oracle trades 1.4–1.6 lots per
+  episode and nets −0.5; the gap > 0.8 and > 1.0 oracles trade under 1 lot.
+  Information is there: a clairvoyant that sees the mid 2 s ahead makes
+  +7.6 / +6.9 ticks/episode, a fair-value quoter with 0.1 s latency +2.3 /
+  +2.0. A bound that never trades bounds nothing (LESSONS 43).
+- Impact (measured, not a criterion): a paired TWAP buy over 300 s moves
+  the mid +13.7 ticks for 300 lots and +54.0 for 1,200 (exponent 0.99), all
+  of it still there 300 s later. Default: +0.29 / +0.98, none left.
+  Linear and fully permanent impact is not ES-like (real impact is concave
+  and partly transient); to check in iteration 3.
+
+**Skeptic's verdict on v2: not ready for RL.** Main finding (verified in
+the code): the episodes RL trains on run at the activity floor (§5). The
+v2 tuning used 2 h windows, which begin in that floor and leave it during
+the window, while its rule checks (e, f) ran on quiet episodes.
+
+*v3: stationary activity and a retuned depletion market*
+(`discovery_market()`, `e229af4`; v2 kept verbatim as `discovery_v2`).
+- **Warm-up fix.** The legacy activity loop has no stable steady state:
+  loop gain 0.045/s, R = 11.5 on default sessions; 10 h runs swing between
+  the clamps, and default 10-min episodes spent 41% of their steps at the
+  lower clamp (4.5 trades/s). Initialising `move_avg_` correctly cannot fix
+  that. Opt-in `activity_model 1`: a centred log-OU with compensated
+  (mean-zero) news kicks, whose stationary law is exact; with
+  `activity_warm_start` the first state is drawn from it on a dedicated
+  stream (`kStreams` = 9). Model 0 is byte-identical (golden hashes);
+  `default_warm()` = `SimParams{}` + model 1; v3 and `default_warm` have
+  golden hashes (`GoldenRunsOfTheIteration3Presets`).
+- **Preset.** v2's depletion and permanent flow impact without informed
+  makers (`maker_info 0`), smaller and more frequent maker orders, slower
+  depletion (`reprice_cancel 12`), more sniping (`reprice_take 0.15`),
+  rarer larger jumps, `value_impact 0.05`; comment above
+  `discovery_market()` in `simulator.hpp`.
+- **Probe.** Every statistic in both regimes: 400 ScalpEnv-built 10-min
+  episodes per seed (150 s warm-up) and 16 session-weighted full sessions
+  per seed, an AGREE table between them, pre-registered oracles O1/O2, a
+  quote-both decomposition by cause.
+- **Acceptance** on seeds 1–3 (tuning), 13–18 (held out, used once) and
+  19–21 (skeptic, fresh), both regimes:
+  - (a) **met.** corr(g, r 30 s) − floor +0.017 … +0.019 (gate ≤ 0.02).
+  - (b) **met, marginal.** Event corr(I1, next mid change) 0.206–0.216
+    (one seed 0.193 on 19–21); tail ≤ 0.024; leak corr(I1, g) 0.37 (≤
+    0.40). Outside the gate, corr(I1, r 30 s) ~0.07 misses the probe's own
+    0.05 line.
+  - (c) **met except one cell.** mk30 − mk5 fails only on tuning-seed
+    episodes, +0.022 ± 0.009 (2.4 SE; long +0.006 ± 0.009); passes on
+    13–18 and 19–21 (and 4–6). The skeptic judged it chance-level.
+  - (d) **met.** 18.4–18.7 trades/s, 1-min sd 3.9–4.05 ticks, excess
+    kurtosis 5.5–7.2, |r| ac1 0.19–0.22, R² 0.33–0.35; no clamp time.
+  - (e) **met for naive rules, FAIL for quote-both.** No naive `ScalpEnv`
+    rule nets > 0 after costs. Quoting both sides loses −24 to −27
+    ticks/episode, adverse −0.17 … −0.20: ~60 fills/episode are stale
+    sweeps (1 s markout −0.38) against ~25 flow fills (+0.30). Structural:
+    snipers take the agent's lone stale lots before the price ticks, with
+    a small L1 queue (~108 lots); no parameter lever removed it at 15–22
+    trades/s.
+  - (f1) **oracles bite.** O1 (|g| > 0.62, latency 0) +24 … +30
+    ticks/episode on ~86–98 lots; O2 (EMO H 10 s, K 32, θ 1.24, decide 1 s,
+    latency 100 ms) +5.4 … +7.2 on ~15–17.5 lots. (f2) untested: the RL
+    smoke run collapsed to flat.
+  - **AGREE FAIL:** active meta-orders 10.46–10.59 in episodes vs
+    11.07–11.18 on long windows, 5–6 SE in all three seed sets: the
+    meta-order population is not warm after 150 s. A 1,050 s burn gives
+    11.13 (`of10_warmup_check.txt`), matching long windows.
+- **Other findings.** Fair value is not a martingale: the 10 s value
+  change predicts the next 10 s at +0.013 ± 0.003 (permanent-impact
+  momentum; delta 5 s has gross +0.235/lot and loses only on costs). Own
+  impact is linear and permanent: block round trips of ≥ 30 lots profit
+  from their own impact (+0.15 tick/lot at 30), so `ScalpEnv` refuses
+  `contracts > 1` when `value_impact > 0`. On `default_warm` (the old
+  slow-discovery market at realistic activity) naive rules profit
+  strongly (OF2 delta 5 s > 1.5 +15.19, t 22.8; imbalance L1–5 +7.31, t
+  10.9; quote both +1.3): the slow-discovery leak is real, not an artefact
+  of the activity bug. The legacy OF6 stresses are partly empty on
+  discovery (fade ×2 is a no-op with fading off, vol ×1.5 weak, informed
+  ×0.5 touches ~4% of volume).
+- **Decisions for the reruns** (A62–A66): RL on discovery uses a
+  pre-registered 1,050 s `ScalpEnv` warm-up (`--warmup`); the quote-both
+  failure is waived for market-order environments only (OF3, OF6, OF8), and
+  no tick-environment (OF4, OF5, OF7) rerun claims a calibrated market;
+  OF6 gets a discovery-specific stress list fixed before any v3 net
+  exists; O1/O2 are references, and RL > O2 + 2 SE or RL > O1 triggers a
+  leak audit.
+
+**OF11 (RL reruns, `1a73bd6`): no edge.** 24 seeds × 2,000 episodes at
+warm-up 1,050 s: every seed loses on 300 sealed episodes (mean −0.54
+ticks/episode) and the ensemble learns not to trade; OF6 (pre-registered
+discovery stresses): every strategy ≤ 0 in all 11 scenarios; OF8: ensemble
+−3.3 ticks/day (Sharpe −3.1), rule −88; no OF2 rule > 0 by 2 SE. Gate (f)
+holds non-vacuously (EXPERIMENTS.md OF11).
 
 **Calibration** (`of_calibrate`): recorded-tick CSV round trip exact;
 in a recovery test (target = informed flow ×0.4) the fit matched
@@ -4835,6 +5279,37 @@ reproduces the agents' in-simulator Sharpe per window (0.74/0.70 vs
 
 ## 5. Honest status
 
+- **The warm-up finding (2026-11-04, skeptic's runs; verified in the
+  code).** `EsSimulator::move_avg_` (the running mean of |mid move| that
+  activity excitation is measured against) starts at 0.1 tick per step and
+  adapts with an 1,800 s time constant. Real moves are smaller, so the
+  excitation is negative step after step: activity collapses to
+  exp(`activity_min`) = exp(−1.5) within seconds and stays there for
+  ~1.5 h. Every `ScalpEnv`/`TickScalpEnv` episode starts a fresh simulator
+  with a 150 s warm-up, so it runs in this floor. Skeptic's runs (seeds 1–6,
+  600 s after the warm-up, `build-avx512/skeptic/s600.txt`, not committed):
+  activity 0.29, 4.2 trades/s on the default market and 2.3 on discovery
+  v2 (target 15–22), 1-min sd 2.4–2.5 ticks, excess kurtosis −0.6 / +0.6,
+  sign autocorrelation 0.16 (default). On long windows the same presets
+  look ES-like or hotter (3 × 6 h, `s6h.txt`: default 21.6 trades/s,
+  discovery 33.1; to the close, `sclose.txt`: 20.8 / 31.2). So the OF1
+  facts were measured on long windows and every OF2–OF9 RL and rule
+  result in the quiet regime; OF10's (a)–(d) on 2 h windows that cross
+  from one to the other. Present since `c808bd4` (the first simulator
+  commit). **Resolved for the opt-in presets (iteration 3, `e229af4`):**
+  the root cause is an unstable loop (gain 0.045/s, R = 11.5), not only
+  the initial value; activity model 1 with a stationary warm start (in
+  `discovery` and `default_warm`) has no clamp time and agrees between
+  episodes and long windows on activity and the facts. The legacy model
+  is unchanged, so **the old OF2–OF9 results still ran at ~4 trades/s**
+  and stand only as results in that regime. Still not warm after 150 s:
+  the meta-order population (~5% short, 5–6 SE); the RL reruns use a
+  1,050 s warm-up (A63).
+- **Price discovery (plan item 1): iteration 3 accepted for market-order
+  RL.** v3 meets (a), (b) (marginally), (d), naive-rule (e) and (f1); (c)
+  misses in one cell at 2.4 SE (chance-level). It fails passive quoting
+  (−24 to −27 ticks/episode, stale sweeps), so tick-environment results
+  on it are not calibrated (A64). **RL on it finds no edge (OF11).**
 - The RL scalping agent beats every rule *in the simulator*, robustly.
   Its absolute P&L is a property of a simulator that is still too
   predictable (OF8). Nothing here shows it makes money in real ES.
@@ -4852,15 +5327,30 @@ up); absorption feature measuring ordinary flow; tile tables of 8^16
 cells for NeuralQ (bad_alloc) and 3.8 GB snapshots at 21 inputs (OOM);
 unspecified argument-evaluation order in `reset()` (episodes differed
 between compilers); a non-copyable environment; results committed from a
-stale binary (OF4).
+stale binary (OF4); the OF10 v1 probe counting edge per order instead of
+per lot (fixed in v2); the activity warm-up (§5: an unstable activity
+loop, fixed opt-in by activity model 1 in iteration 3); block round trips
+profiting from their own permanent impact (`ScalpEnv` refuses
+`contracts > 1` with `value_impact > 0`).
 
 ## 7. Plan for the next AI (ranked)
 
 1. **Fix slow price discovery, then calibrate to the user's ES ticks.**
-   First make makers re-price immediately when value moves (quote jumps,
-   not rate tilts), until the hidden gap no longer predicts the next 30 s
-   and book imbalance predicts only the next tick or two (OF9 diagnosis);
-   re-run OF2, OF3, OF6, OF8, OF9. Then **calibrate to the user's ES ticks:** convert their export to the CSV
+   Iterations 1 (rigid quote jumps, rejected) and 2 (stale-side depletion:
+   (a), (b) met, (c) marginal, (d), (e) fail) are done (OF10).
+   **Iteration 3 is done** (`e229af4`, §4 OF10 v3): activity model 1 with
+   a stationary warm start; v3 frozen with a golden hash and checked once
+   on seeds 13–18; (a), (b), (d), naive (e), (f1) pass; quote-both fails
+   structurally (stale sweeps); impact still linear and fully permanent.
+   **Next, the RL reruns:** OF2, OF3, OF6, OF8, OF9 on `discovery` with
+   the pre-registered 1,050 s `ScalpEnv` warm-up (`--warmup`, A63), on the
+   sealed blocks as before; OF6 with the discovery stress list fixed
+   before any v3 net exists (A65); compare RL with O1/O2 paired (A66). No
+   tick-environment (OF4, OF5, OF7) rerun claims a calibrated market until
+   the stale-sweep mechanism is redesigned (A64). 900M and 910M were
+   viewed on the discovery market (v2 and an iteration-3 smoke;
+   NEXT_SESSION.md §4), so confirm any edge once on 950M+. **Done (OF11, `1a73bd6`): no
+   edge** (OF2/OF9 rules: `of11_baselines.txt`); 950M+ unused. Then **calibrate to the user's ES ticks:** convert their export to the CSV
    format, run `of_calibrate facts`, then `fit` with many seeds and long
    windows on their server; add richer targets first (markout curve at
    more horizons, queue depletion/refill rates; MBO if available). Re-run
@@ -4898,7 +5388,7 @@ stale binary (OF4).
 
 ---
 
-## FILE: docs/ai/NEXT_SESSION.md  (11,947 bytes)
+## FILE: docs/ai/NEXT_SESSION.md  (14,169 bytes)
 
 # Continuing the work: the prompt and the Claude Code agent architecture
 
@@ -4911,13 +5401,23 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 
 > Continue the ES order-flow trading work in the repository
 > Rcoding123/rag-cpp, branch `research/rl` (`main` is fast-forwarded
-> only after all 9 CI jobs pass).
+> only after the full build and tests pass on the user's Windows server;
+> everything runs there, nothing on Linux).
 >
 > **Read first, in this order:** `docs/ai/README.md`, `docs/ai/ORDERFLOW.md`
-> (objectives, architecture, results OF1–OF9, honest status, ranked plan),
+> (objectives, architecture, results OF1–OF10, honest status, ranked plan),
 > `docs/ai/STATUS.md`, `docs/ai/CONVENTIONS.md`, `docs/ai/LESSONS.md`
-> (32–39 are the trading lessons), `docs/ai/NEXT_SESSION.md` (this file:
+> (32–47 are the trading lessons), `docs/ai/NEXT_SESSION.md` (this file:
 > how to organise agents) and `experiments/research_synthesis.md`.
+>
+> **State on 2026-11-05:** iterations 1–3 of the goal below are done
+> (OF10 v3 at `e229af4`: stationary activity model fixes the warm-up; the
+> v3 `discovery` preset passes (a), (b), (d), naive (e) and (f1), fails
+> passive quoting, and needs a 1,050 s warm-up for its meta-orders;
+> A62–A66). Every OF2–OF9 episode ran at the legacy activity floor
+> (ORDERFLOW.md §5). The RL reruns on `discovery` are done (OF11,
+> `1a73bd6`): no edge; the 950M+ block is unused. Next: ORDERFLOW.md §7
+> item 2 onward.
 >
 > **Goal of this session:** plan item 1 in ORDERFLOW.md §7: fix slow price
 > discovery in `include/rag/orderflow/simulator.hpp`. Makers must re-price
@@ -5055,16 +5555,29 @@ return { verdict, done, reviews, run, analysis }
 |---|---|
 | run seed (1, 2, ...) | training streams (`Trainer` train_seed) |
 | 700,000,000+ | validation: champion selection |
-| 900,000,000+ | sealed scalping test (OF2, OF3, OF9) |
-| 910,000,000+ | sealed tick-scalping test (OF4, OF5, OF7) — viewed many times: confirm elsewhere |
-| 920,000,000+ | stress scenarios (OF6) |
-| 930,000,000+ | trading days (OF8) |
+| 900,000,000+ | sealed scalping test (OF2, OF3, OF9) — viewed on the discovery market (OF10 v1, v2 and an iteration-3 smoke: `of2_baselines 300`, the `of_train` smoke tests' episodes): confirm discovery-market edges once on 950M+; OF11 scored all 24 v3 nets on the first 300 at warm-up 1,050 s (pre-RL smoke: the first 100) |
+| 910,000,000+ | sealed tick-scalping test (OF4, OF5, OF7) — viewed many times, also on the discovery market (`of4_tick_baselines 300`, OF10 v1, v2 and an iteration-3 smoke): confirm once on 950M+ |
+| diagnostic simulator seeds 1–3 | OF10 tuning (`of_discovery`; v1/v2 on 2 h windows, v3 on 400 episodes + 16 sessions per seed; rule episodes 1,000,000 × seed + i): look as often as needed |
+| diagnostic seeds 4–6 | OF10 held-out sanity check (θ* pre-registered on 1–3) — viewed several times (v1, v2, skeptic's 600 s run): no longer held out |
+| diagnostic seeds 7–12 | OF10 v2 final check (6 h, once) — **spent** |
+| diagnostic seeds 13–18 | OF10 iteration 3 final check (v3 frozen, once, acceptance agent) — **spent** |
+| diagnostic seeds 19–21 | OF10 iteration 3 skeptic's fresh check — viewed: no longer fresh |
+| **diagnostic seeds 22–24** | **reserved: the pre-RL warm-up check (1,050 s `ScalpEnv` warm-up, A63), once** |
+| diagnostic seeds 25+ | free |
+| 920,000,000+ | stress scenarios (OF6; OF11 on discovery v3 at warm-up 1,050 s) |
+| 930,000,000+ | trading days (OF8; OF11 on discovery v3 at warm-up 1,050 s) |
 | 940,000,000+ | pairing probes (separate streams) |
+| 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it |
 | **950,000,000+** | **fresh confirmation: unused; use once per claimed edge, then record it here** |
 
 ## 5. Red flags (stop and diagnose before reporting a win)
 
 - A learned policy beats the fair-value oracle (OF9).
+- An oracle bound that barely trades (under ~2 lots/episode): "nothing
+  beats it" then means nothing (OF10, LESSONS 43).
+- Facts checked on windows the agents never see: compare trades/s and
+  1-min sd in the episode windows themselves (OF10 warm-up finding,
+  LESSONS 40).
 - Annualized Sharpe above ~5, or no losing day, for a 1-lot directional
   strategy (OF8: ~80 meant a too-easy simulator).
 - A naive rule profits a lot after costs (naive quoting winning every
@@ -5860,7 +6373,7 @@ jobs build with `-Werror`:
 
 ---
 
-## FILE: CMakeLists.txt  (9,489 bytes)
+## FILE: CMakeLists.txt  (13,830 bytes)
 
 ```cmake
 cmake_minimum_required(VERSION 3.20)
@@ -6007,6 +6520,26 @@ endif()
 add_executable(of_train examples/of_train.cpp)
 target_link_libraries(of_train PRIVATE rag Threads::Threads)
 add_test(NAME of_train_smoke COMMAND of_train --seeds 2 --threads 2 --episodes 3 --test 2 --out ${CMAKE_CURRENT_BINARY_DIR}/of_train_smoke)
+# --test-seed outside the test blocks (or not a number) must be refused, not
+# silently scored on the training streams.
+add_test(NAME of_train_rejects_training_test_seed COMMAND of_train --test-seed 5)
+add_test(NAME of_train_rejects_bad_test_seed COMMAND of_train --test-seed 9OO000000)
+set_tests_properties(of_train_rejects_training_test_seed of_train_rejects_bad_test_seed PROPERTIES WILL_FAIL TRUE TIMEOUT 60)
+
+# Step-by-step trace of saved agents (CSV; tools/of_viz.py makes the HTML viewer).
+add_executable(of_trace examples/of_trace.cpp)
+target_link_libraries(of_trace PRIVATE rag)
+add_test(NAME of_trace_train COMMAND of_train --seeds 1 --threads 1 --episodes 3 --test 2 --out ${CMAKE_CURRENT_BINARY_DIR}/of_trace_smoke)
+add_test(NAME of_trace_smoke COMMAND of_trace ${CMAKE_CURRENT_BINARY_DIR}/of_trace_smoke/seed1.net --episodes 1
+                                     --out ${CMAKE_CURRENT_BINARY_DIR}/of_trace_smoke/trace.csv)
+set_tests_properties(of_trace_train PROPERTIES FIXTURES_SETUP of_trace_net)
+set_tests_properties(of_trace_smoke PROPERTIES FIXTURES_REQUIRED of_trace_net FIXTURES_SETUP of_trace_csv)
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+  add_test(NAME of_viz_smoke COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/tools/of_viz.py
+                                     ${CMAKE_CURRENT_BINARY_DIR}/of_trace_smoke/trace.csv ${CMAKE_CURRENT_BINARY_DIR}/of_trace_smoke/trace.html)
+  set_tests_properties(of_viz_smoke PROPERTIES FIXTURES_REQUIRED of_trace_csv)
+endif()
 
 # The rule-guided tick-scalping trainer (OF7), one seed per process.
 add_executable(of_tick_train experiments/of7_tick_guided.cpp)
@@ -6024,6 +6557,38 @@ if(RAG_OF_CALIBRATE_NLOPT)
   target_compile_definitions(of_calibrate PRIVATE RAG_HAVE_NLOPT)
   target_link_libraries(of_calibrate PRIVATE NLopt::nlopt)
 endif()
+
+# Order-flow probes whose results are committed next to them (experiments/):
+# built here so committed tables come from the current code and CI compiles
+# them with the warning flags. OF10 (of_discovery) measures price discovery.
+foreach(p of2_baselines of3_rl of4_tick_baselines of6_scalp_stress of8_scalp_days)
+  add_executable(${p} experiments/${p}.cpp)
+  target_link_libraries(${p} PRIVATE rag Threads::Threads)
+endforeach()
+add_executable(of_discovery experiments/of10_discovery.cpp)
+target_link_libraries(of_discovery PRIVATE rag Threads::Threads)
+add_test(NAME of_discovery_smoke COMMAND of_discovery --seconds 120 --seeds 1 --markets discovery --threads 2 --rules 1)
+add_test(NAME of2_baselines_smoke COMMAND of2_baselines 2 discovery)
+# --warmup (OF10 iteration 3, opt-in): of_train records market and warm-up next
+# to each network (DIR/seedK.txt); of6 / of_trace refuse networks recorded with
+# another warm-up or market than their own. The smoke scores on 909,999,000+, a
+# corner of the sealed block no 300-episode run reaches (not the v3 run's seeds).
+add_test(NAME of_train_warmup_smoke COMMAND of_train --seeds 1 --threads 1 --episodes 2 --test 2 --market discovery --warmup 1050
+                                    --test-seed 909999000 --out ${CMAKE_CURRENT_BINARY_DIR}/of_train_warmup_smoke)
+set_tests_properties(of_train_warmup_smoke PROPERTIES FIXTURES_SETUP of_train_warmup_net)
+add_test(NAME of6_rejects_warmup_mismatch COMMAND of6_scalp_stress --market discovery --warmup 150
+                                          ${CMAKE_CURRENT_BINARY_DIR}/of_train_warmup_smoke/seed1.net)
+add_test(NAME of6_rejects_market_mismatch COMMAND of6_scalp_stress --warmup 1050 ${CMAKE_CURRENT_BINARY_DIR}/of_train_warmup_smoke/seed1.net)
+add_test(NAME of_trace_rejects_warmup_mismatch COMMAND of_trace ${CMAKE_CURRENT_BINARY_DIR}/of_train_warmup_smoke/seed1.net --market discovery
+                                               --episodes 1 --out ${CMAKE_CURRENT_BINARY_DIR}/of_train_warmup_smoke/trace.csv)
+add_test(NAME of_train_rejects_bad_warmup COMMAND of_train --warmup -5)
+set_tests_properties(of6_rejects_warmup_mismatch of6_rejects_market_mismatch of_trace_rejects_warmup_mismatch
+                     PROPERTIES FIXTURES_REQUIRED of_train_warmup_net)
+# The refusal message itself (PASS_REGULAR_EXPRESSION ignores the exit code, so
+# a crash or a failed load does not pass for a refusal).
+set_tests_properties(of6_rejects_warmup_mismatch of_trace_rejects_warmup_mismatch PROPERTIES PASS_REGULAR_EXPRESSION "trained with a 1050 s warm-up" TIMEOUT 60)
+set_tests_properties(of6_rejects_market_mismatch PROPERTIES PASS_REGULAR_EXPRESSION "trained on market discovery" TIMEOUT 60)
+set_tests_properties(of_train_rejects_bad_warmup PROPERTIES PASS_REGULAR_EXPRESSION "--warmup wants" TIMEOUT 60)
 
 # PDF support (rag/pdf.hpp, the rag_pdf tool) needs poppler-cpp
 # (Debian/Ubuntu: libpoppler-cpp-dev). The rest of the library does not.
@@ -6059,7 +6624,7 @@ endif()
 
 ---
 
-## FILE: .github/workflows/ci.yml  (6,226 bytes)
+## FILE: .github\workflows\ci.yml  (1,696 bytes)
 
 ```yaml
 name: CI
@@ -6076,81 +6641,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Windows only (the user's decision, 2026-11-04): the project is built and run
+# with MSVC on Windows. The Linux GCC/Clang/sanitizer/fuzz jobs were removed;
+# see git history (e0a4c7a) to restore them. The authoritative gate is the
+# full build + ctest on the user's AVX-512 server; this job is a second check.
 jobs:
-  test:
-    name: ${{ matrix.name }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # GitHub-hosted runners vary (some have AVX-512, some don't), so the
-          # SIMD paths are pinned with explicit -march levels. "native" covers
-          # whatever the runner has, including AVX-512 when present.
-          - { name: gcc-native,        cxx: g++,     arch: native,    build: Release }
-          - { name: gcc-avx2,          cxx: g++,     arch: x86-64-v3, build: Release }
-          - { name: gcc-scalar,        cxx: g++,     arch: x86-64,    build: Release }
-          - { name: clang-native,      cxx: clang++, arch: native,    build: Release }
-          - { name: gcc-asan-ubsan,    cxx: g++,     arch: native,    build: Debug,          flags: -DRAG_SANITIZE=ON }
-          # Clang's UBSan also checks arithmetic on null pointers, which GCC's doesn't.
-          - { name: clang-asan-ubsan,  cxx: clang++, arch: native,    build: Debug,          flags: -DRAG_SANITIZE=ON }
-          # TSan only needs code that runs threads: the single-threaded agent and
-          # reference suites are excluded here (they run in every other job).
-          - { name: gcc-tsan,          cxx: g++,     arch: native,    build: RelWithDebInfo, flags: -DRAG_TSAN=ON,
-              ctest_args: '-E "^(Agent|ModelBased|ExecutionCosts|OffPolicy|MarketMaking|Reference|ApiExamples)"' }
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q libgtest-dev libbenchmark-dev libpoppler-cpp-dev libeigen3-dev libnlopt-cxx-dev
-
-      - name: Runner CPU
-        run: |
-          lscpu | grep -E 'Model name'
-          grep -o -w -E 'avx2|avx512f|avx512bw|avx512_vnni|fma' /proc/cpuinfo | sort -u | tr '\n' ' '; echo
-
-      # Ubuntu 24.04 kernels use 32 bits of mmap ASLR, which TSan's shadow
-      # memory layout cannot handle ("unexpected memory mapping").
-      - name: Reduce ASLR entropy for TSan
-        if: contains(matrix.flags, 'RAG_TSAN')
-        run: sudo sysctl -w vm.mmap_rnd_bits=28
-
-      - name: Configure
-        run: >
-          cmake -S . -B build
-          -DCMAKE_BUILD_TYPE=${{ matrix.build }}
-          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
-          -DCMAKE_CXX_FLAGS=-Werror
-          -DRAG_ARCH=${{ matrix.arch }}
-          ${{ matrix.flags }}
-
-      - name: Build
-        run: cmake --build build -j"$(nproc)"
-
-      - name: Test
-        env:
-          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
-          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
-          TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
-        run: ctest --test-dir build --output-on-failure -j"$(nproc)" ${{ matrix.ctest_args }}
-
-      - name: Repeat concurrency tests
-        if: contains(matrix.flags, 'RAG_TSAN')
-        env:
-          TSAN_OPTIONS: halt_on_error=1
-        run: |
-          ./build/rag_tests --gtest_filter='*Concurrent*' --gtest_repeat=25
-          ./build/rag_stress 10   # 10 s per dense mode: ingest/commit/save vs queries/batches/pins
-
-      - name: Demo and benchmark smoke run
-        if: matrix.name == 'gcc-native'
-        run: |
-          ./build/rag_demo
-          ./build/rag_bench --benchmark_filter='Dot|TopK|Query/' --benchmark_min_time=0.05s
-
   windows:
     name: msvc-windows
     runs-on: windows-2022
@@ -6172,7 +6667,7 @@ jobs:
         run: ctest --preset windows-release
 
       # The runner's CPU (Zen 3) has no AVX-512: compile the AVX-512 preset
-      # so MSVC accepts those kernels; they run on Linux CI and on AVX-512 PCs.
+      # so MSVC accepts those kernels; they run on AVX-512 PCs (the user's server runs the full suite).
       - name: Build the AVX-512 preset (compile only)
         run: |
           cmake --preset windows-msvc-avx512
@@ -6185,52 +6680,12 @@ jobs:
           ./build/Release/agent_demo.exe | tail -n 25
           ./build/Release/rag_latency.exe
 
-  fuzz:
-    name: fuzz-smoke
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q libgtest-dev libclang-rt-18-dev
-
-      - name: Build fuzzers
-        run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=clang++ -DRAG_FUZZ=ON
-          cmake --build build --target fuzz_load fuzz_text fuzz_policy_table make_seeds -j"$(nproc)"
-
-      - name: Seed corpora
-        run: |
-          ./build/make_seeds corpus/load corpus/policy
-          mkdir -p corpus/text
-          printf 'The limit order book. VWAP.\nqueue position' > corpus/text/a
-          printf '\x05\x02\x09caf\xc3\xa9 ZX81Q the of and' > corpus/text/b
-
-      - name: Fuzz index loading (60 s)
-        run: ./build/fuzz_load -max_total_time=60 -rss_limit_mb=2048 -timeout=10 -artifact_prefix=crash-load- corpus/load
-
-      - name: Fuzz text pipeline (60 s)
-        run: ./build/fuzz_text -max_total_time=60 -rss_limit_mb=2048 -timeout=10 -max_len=4096 -artifact_prefix=crash-text- corpus/text
-
-      - name: Fuzz policy-table loading (30 s)
-        run: ./build/fuzz_policy_table -max_total_time=30 -rss_limit_mb=2048 -timeout=10 -artifact_prefix=crash-policy- corpus/policy
-
-      - name: Upload crashing inputs
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: fuzz-crashes
-          path: crash-*
-
 ```
 
 
 ---
 
-## FILE: include/rag/agent/agent.hpp  (27,499 bytes)
+## FILE: include\rag\agent\agent.hpp  (27,499 bytes)
 
 ```cpp
 // rag/agent/agent.hpp — the decision-making core of a self-learning agent.
@@ -6868,7 +7323,7 @@ class Agent {
 
 ---
 
-## FILE: include/rag/agent/analysis.hpp  (3,365 bytes)
+## FILE: include\rag\agent\analysis.hpp  (3,365 bytes)
 
 ```cpp
 // rag/agent/analysis.hpp — data analysis with Eigen (optional dependency:
@@ -6946,7 +7401,7 @@ inline Sensitivity quadratic_sensitivity(const std::vector<std::vector<double>>&
 
 ---
 
-## FILE: include/rag/agent/drift.hpp  (4,900 bytes)
+## FILE: include\rag\agent\drift.hpp  (4,900 bytes)
 
 ```cpp
 // rag/agent/drift.hpp — change detection on a stream of per-episode
@@ -7073,7 +7528,7 @@ class DriftDetector {
 
 ---
 
-## FILE: include/rag/agent/env.hpp  (10,570 bytes)
+## FILE: include\rag\agent\env.hpp  (10,570 bytes)
 
 ```cpp
 // rag/agent/env.hpp — the agent's world: the Environment concept and two
@@ -7330,7 +7785,7 @@ static_assert(Environment<ExecutionEnv>);
 
 ---
 
-## FILE: include/rag/agent/evaluate.hpp  (5,050 bytes)
+## FILE: include\rag\agent\evaluate.hpp  (5,050 bytes)
 
 ```cpp
 // rag/agent/evaluate.hpp — policy evaluation on common random numbers.
@@ -7466,7 +7921,7 @@ inline Interval bootstrap_mean(const std::vector<double>& values, std::uint32_t 
 
 ---
 
-## FILE: include/rag/agent/execution_dp.hpp  (12,216 bytes)
+## FILE: include\rag\agent\execution_dp.hpp  (12,216 bytes)
 
 ```cpp
 // rag/agent/execution_dp.hpp — the optimal policy for ExecutionEnv, solved
@@ -7740,7 +8195,7 @@ class ExecutionDP {
 
 ---
 
-## FILE: include/rag/agent/features.hpp  (5,029 bytes)
+## FILE: include\rag\agent\features.hpp  (5,029 bytes)
 
 ```cpp
 // rag/agent/features.hpp — perception: turning an observation into features
@@ -7874,7 +8329,7 @@ class RandomFourierEncoder {
 
 ---
 
-## FILE: include/rag/agent/learners.hpp  (9,748 bytes)
+## FILE: include\rag\agent\learners.hpp  (9,748 bytes)
 
 ```cpp
 // rag/agent/learners.hpp — memory and learning.
@@ -8126,7 +8581,7 @@ class EpisodicMemory {
 
 ---
 
-## FILE: include/rag/agent/market_making.hpp  (13,560 bytes)
+## FILE: include\rag\agent\market_making.hpp  (13,560 bytes)
 
 ```cpp
 // rag/agent/market_making.hpp — a second task for the same agent: market
@@ -8458,7 +8913,7 @@ inline std::vector<double> train_model_based(ModelBasedMarketMaker& agent, Marke
 
 ---
 
-## FILE: include/rag/agent/mlp.hpp  (8,352 bytes)
+## FILE: include\rag\agent\mlp.hpp  (8,352 bytes)
 
 ```cpp
 // rag/agent/mlp.hpp — a small multilayer perceptron with backpropagation and
@@ -8676,7 +9131,7 @@ class Mlp {
 
 ---
 
-## FILE: include/rag/agent/model_based.hpp  (22,832 bytes)
+## FILE: include\rag\agent\model_based.hpp  (22,832 bytes)
 
 ```cpp
 // rag/agent/model_based.hpp — a model-based agent for ExecutionEnv:
@@ -9156,7 +9611,7 @@ inline void train_model_based(ModelBasedExecutionAgent& agent, ExecutionEnv& env
 
 ---
 
-## FILE: include/rag/agent/ope.hpp  (3,894 bytes)
+## FILE: include\rag\agent\ope.hpp  (3,894 bytes)
 
 ```cpp
 // rag/agent/ope.hpp — off-policy evaluation: estimate a target policy's value
@@ -9262,7 +9717,7 @@ OpeEstimates off_policy_estimates(const std::vector<LoggedEpisode<Obs>>& logs, T
 
 ---
 
-## FILE: include/rag/agent/policy_table.hpp  (7,418 bytes)
+## FILE: include\rag\agent\policy_table.hpp  (7,418 bytes)
 
 ```cpp
 // rag/agent/policy_table.hpp — compile an execution policy into a lookup
@@ -9427,7 +9882,7 @@ class ExecutionPolicyTable {
 
 ---
 
-## FILE: include/rag/agent/rng.hpp  (2,442 bytes)
+## FILE: include\rag\agent\rng.hpp  (2,442 bytes)
 
 ```cpp
 // rag/agent/rng.hpp — fast, deterministic random numbers for simulation and
@@ -9515,7 +9970,7 @@ class Rng {
 
 ---
 
-## FILE: include/rag/agent/trainer.hpp  (13,369 bytes)
+## FILE: include\rag\agent\trainer.hpp  (13,369 bytes)
 
 ```cpp
 // rag/agent/trainer.hpp — the supervisor around a learning agent: training
@@ -9824,7 +10279,7 @@ class Trainer {
 
 ---
 
-## FILE: include/rag/agent/tuning.hpp  (4,997 bytes)
+## FILE: include\rag\agent\tuning.hpp  (4,997 bytes)
 
 ```cpp
 // rag/agent/tuning.hpp — hyperparameter optimization with NLopt (optional
@@ -9956,7 +10411,7 @@ inline Result maximize_global(const std::vector<Param>& space, const std::vector
 
 ---
 
-## FILE: include/rag/agent/validation.hpp  (4,928 bytes)
+## FILE: include\rag\agent\validation.hpp  (4,928 bytes)
 
 ```cpp
 // rag/agent/validation.hpp — out-of-sample validation of execution
@@ -10078,7 +10533,7 @@ Metrics measure(const ExecutionParams& p, Policy&& policy, std::uint32_t episode
 
 ---
 
-## FILE: include/rag/agent/variance_reduction.hpp  (2,838 bytes)
+## FILE: include\rag\agent\variance_reduction.hpp  (2,838 bytes)
 
 ```cpp
 // rag/agent/variance_reduction.hpp — remove known-zero-mean noise from
@@ -10162,7 +10617,7 @@ static_assert(Environment<InnovationControlledEnv>);
 
 ---
 
-## FILE: include/rag/arena.hpp  (2,549 bytes)
+## FILE: include\rag\arena.hpp  (2,549 bytes)
 
 ```cpp
 // rag/arena.hpp — monotonic (bump-pointer) arena for document text.
@@ -10243,7 +10698,7 @@ class Arena {
 
 ---
 
-## FILE: include/rag/bm25.hpp  (9,870 bytes)
+## FILE: include\rag\bm25.hpp  (9,870 bytes)
 
 ```cpp
 // rag/bm25.hpp — lexical retrieval: BM25 over a frozen, impact-scored
@@ -10515,7 +10970,7 @@ class Bm25Builder {
 
 ---
 
-## FILE: include/rag/chunker.hpp  (2,108 bytes)
+## FILE: include\rag\chunker.hpp  (2,108 bytes)
 
 ```cpp
 // rag/chunker.hpp — sliding-window chunking over token boundaries.
@@ -10577,7 +11032,7 @@ constexpr void chunk_tokens(std::string_view text, std::span<const Token> toks, 
 
 ---
 
-## FILE: include/rag/common.hpp  (4,456 bytes)
+## FILE: include\rag\common.hpp  (4,456 bytes)
 
 ```cpp
 // rag/common.hpp — shared primitives: cache-line constants, aligned buffers, hints.
@@ -10702,7 +11157,7 @@ template <class T>
 
 ---
 
-## FILE: include/rag/embedder.hpp  (2,718 bytes)
+## FILE: include\rag\embedder.hpp  (2,718 bytes)
 
 ```cpp
 // rag/embedder.hpp — the Embedder concept plus a deterministic, model-free
@@ -10784,7 +11239,7 @@ static_assert(Embedder<HashingEmbedder<384>>);
 
 ---
 
-## FILE: include/rag/engine.hpp  (32,781 bytes)
+## FILE: include\rag\engine.hpp  (32,781 bytes)
 
 ```cpp
 // rag/engine.hpp — the RAG pipeline: ingest -> chunk -> embed -> index,
@@ -11498,7 +11953,7 @@ class RagEngine {
 
 ---
 
-## FILE: include/rag/epoch.hpp  (4,505 bytes)
+## FILE: include\rag\epoch.hpp  (4,505 bytes)
 
 ```cpp
 // rag/epoch.hpp — epoch-based reclamation (EBR) for immutable snapshots.
@@ -11627,7 +12082,7 @@ class EpochDomain {
 
 ---
 
-## FILE: include/rag/fusion.hpp  (1,568 bytes)
+## FILE: include\rag\fusion.hpp  (1,568 bytes)
 
 ```cpp
 // rag/fusion.hpp — Reciprocal Rank Fusion of dense and lexical rankings.
@@ -11681,7 +12136,7 @@ constexpr void rrf_fuse(std::span<const Hit> dense, std::span<const Hit> lexical
 
 ---
 
-## FILE: include/rag/io.hpp  (7,881 bytes)
+## FILE: include\rag\io.hpp  (7,881 bytes)
 
 ```cpp
 // rag/io.hpp — binary index file I/O (cold path only).
@@ -11908,7 +12363,7 @@ class Reader {
 
 ---
 
-## FILE: include/rag/ivf_index.hpp  (11,140 bytes)
+## FILE: include\rag\ivf_index.hpp  (11,140 bytes)
 
 ```cpp
 // rag/ivf_index.hpp — IVF-Flat approximate nearest-neighbour index
@@ -12170,7 +12625,7 @@ class IvfIndex {
 
 ---
 
-## FILE: include/rag/orderflow/features.hpp  (6,788 bytes)
+## FILE: include\rag\orderflow\features.hpp  (6,788 bytes)
 
 ```cpp
 // rag/orderflow/features.hpp — order-flow features from a tick stream.
@@ -12355,7 +12810,7 @@ class FeatureBuilder {
 
 ---
 
-## FILE: include/rag/orderflow/replay_env.hpp  (8,679 bytes)
+## FILE: include\rag\orderflow\replay_env.hpp  (8,679 bytes)
 
 ```cpp
 // rag/orderflow/replay_env.hpp — the scalping environment on recorded ticks
@@ -12581,7 +13036,7 @@ static_assert(rag::agent::Environment<ReplayScalpEnv>);
 
 ---
 
-## FILE: include/rag/orderflow/scalp_env.hpp  (6,571 bytes)
+## FILE: include\rag\orderflow\scalp_env.hpp  (8,049 bytes)
 
 ```cpp
 // rag/orderflow/scalp_env.hpp — directional order-flow scalping on the ES
@@ -12604,6 +13059,7 @@ static_assert(rag::agent::Environment<ReplayScalpEnv>);
 #include <cmath>
 #include <cstdint>
 #include <optional>
+#include <stdexcept>
 
 #include "rag/agent/env.hpp"
 #include "rag/orderflow/features.hpp"
@@ -12651,12 +13107,40 @@ class ScalpEnv {
     return a;
   }();
 
-  explicit ScalpEnv(const ScalpParams& p = {}) : p_(p) {}
+  // value_impact > 0 (the v2 / v3 discovery presets): own market orders fill
+  // at pre-impact prices and then move fair value by value_impact per lot, so
+  // a block round trip earns from its own impact (of10_discovery --impact:
+  // v3, buy N lots, sell 10 s later, +0.15 tick/lot at N = 30, +1.4 at 60).
+  // Multi-lot ScalpEnv use is blocked there until own impact is fixed.
+  explicit ScalpEnv(const ScalpParams& p = {}) : p_(p) {
+    if (p_.contracts > 1 && p_.sim.value_impact > 0)
+      throw std::invalid_argument("ScalpEnv: contracts > 1 with value_impact > 0 lets block round trips profit from their own impact");
+  }
+
+  // An episode's market before its warm-up: a fresh simulator seeded from
+  // `rng` at a random time of day (or start_second). reset() and the
+  // diagnostics probe (of10_discovery's episode regime) both build episodes
+  // with it, so they see the same markets.
+  [[nodiscard]] static EsSimulator make_market(const ScalpParams& p, rag::agent::Rng& rng) {
+    const MarketDraw d = draw_market(p, rng);
+    return EsSimulator(p.sim, d.seed, d.start);
+  }
+  // make_market's draws (u, then the simulator seed): the second the warm-up
+  // starts and the simulator seed. The probe's ground-truth path (a longer
+  // burn before the same window) shares them.
+  struct MarketDraw {
+    double start;
+    std::uint64_t seed;
+  };
+  [[nodiscard]] static MarketDraw draw_market(const ScalpParams& p, rag::agent::Rng& rng) {
+    const double latest_start = std::max(0.0, p.sim.session_seconds - p.episode_seconds - p.warmup_seconds);
+    const double u = rng.uniform();  // drawn either way: episode seeds don't depend on the setting
+    const std::uint64_t seed = rng.next();
+    return {p.start_second >= 0 ? p.start_second : u * latest_start, seed};
+  }
 
   Observation reset(rag::agent::Rng& rng) {
-    const double latest_start = std::max(0.0, p_.sim.session_seconds - p_.episode_seconds - p_.warmup_seconds);
-    const double u = rng.uniform();  // drawn either way: episode seeds don't depend on the setting
-    sim_.emplace(p_.sim, rng.next(), p_.start_second >= 0 ? p_.start_second : u * latest_start);
+    sim_.emplace(make_market(p_, rng));
     fb_ = FeatureBuilder(p_.sim.dt);
     for (std::uint32_t i = 0; i < steps(p_.warmup_seconds); ++i) advance();
     position_ = 0;
@@ -12755,7 +13239,262 @@ static_assert(rag::agent::Environment<ScalpEnv>);
 
 ---
 
-## FILE: include/rag/orderflow/simulator.hpp  (26,776 bytes)
+## FILE: include\rag\orderflow\scalp_run.hpp  (13,123 bytes)
+
+```cpp
+// rag/orderflow/scalp_run.hpp — pieces the ScalpEnv programs share
+// (examples/of_train.cpp, examples/of_trace.cpp, experiments/of2_baselines.cpp,
+// of6_scalp_stress.cpp, of8_scalp_days.cpp, of10_discovery.cpp): the
+// --warmup option, the record of_train writes next to each network (so a
+// stress, day or trace run can check it uses the network's market and
+// warm-up), OF8's session starts and OF6's stress scenarios.
+//
+// --warmup S (OF10 iteration 3, opt-in; default 150 s = ScalpParams{}):
+// seconds the simulator runs before an episode's first decision. On the v3
+// discovery market a 150 s burn leaves the meta-order population ~5% short
+// of the long-window level (of10_warmup_check.txt); 1050 s matches it, so RL
+// reruns on discovery use --warmup 1050. A longer warm-up also moves the
+// episodes: ScalpEnv::draw_market starts the warm-up uniformly in
+// [0, session - episode - warm-up], so every episode starts >= S s into the
+// session (and ends by the close). S may be at most session - episode
+// (22,800 s): beyond that no episode fits (warmup_error).
+#pragma once
+
+#include <algorithm>
+#include <cerrno>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <functional>
+#include <optional>
+#include <string>
+#include <system_error>
+#include <vector>
+
+#include "rag/orderflow/scalp_env.hpp"
+
+namespace rag::orderflow {
+
+inline constexpr double kDefaultWarmup = 150;  // ScalpParams{}.warmup_seconds: every committed result
+
+// A --warmup value: a finite number of seconds >= 0 (the whole string), else nullopt.
+inline std::optional<double> parse_warmup(const std::string& v) {
+  char* end = nullptr;
+  errno = 0;
+  const double x = std::strtod(v.c_str(), &end);
+  if (v.empty() || *end != '\0' || errno == ERANGE || !std::isfinite(x) || x < 0) return std::nullopt;
+  return x;
+}
+
+// Empty if p's warm-up leaves room for an episode before the close
+// (warm-up <= session - episode), else the reason. Larger values would put
+// every episode after the close (draw_market clamps the latest start to 0).
+inline std::string warmup_error(const ScalpParams& p) {
+  const double room = p.sim.session_seconds - p.episode_seconds;
+  if (!(p.warmup_seconds >= 0) || p.warmup_seconds > room) {
+    char b[160];
+    std::snprintf(b, sizeof b, "warm-up %g s leaves no room for a %g s episode in a %g s session (at most %g s)", p.warmup_seconds,
+                  p.episode_seconds, p.sim.session_seconds, room);
+    return b;
+  }
+  return {};
+}
+
+// The ScalpParams of a run: the market preset, warmed up `warmup` seconds.
+inline ScalpParams scalp_params(const std::string& market, double warmup = kDefaultWarmup) {
+  ScalpParams p;
+  p.sim = market_preset(market);
+  p.warmup_seconds = warmup;
+  return p;
+}
+
+// of_train's per-network record: DIR/seedK.txt next to DIR/seedK.net
+// (key=value lines: market, warmup_seconds, then the training options and the
+// seed). One record per network, written right after that network is saved
+// (the old record removed first), so a record never vouches for a network
+// another run left in the same directory: a seed with no champion in a rerun
+// keeps its old network AND its old record.
+inline std::string record_path_of_net(const std::string& net_path) {
+  const std::size_t slash = net_path.find_last_of("/\\");
+  const std::size_t dot = net_path.find_last_of('.');
+  const bool ext = dot != std::string::npos && (slash == std::string::npos || dot > slash);
+  return (ext ? net_path.substr(0, dot) : net_path) + ".txt";
+}
+
+// Removes the record of `net_path` (before the network is overwritten).
+inline void remove_net_record(const std::string& net_path) {
+  std::error_code ec;
+  std::filesystem::remove(record_path_of_net(net_path), ec);
+}
+
+// Writes the record of `net_path`: market, warmup_seconds, then `extra` (more
+// key=value lines, each ending in '\n'). False if the file can't be written.
+inline bool write_net_record(const std::string& net_path, const std::string& market, double warmup, const std::string& extra = {}) {
+  std::FILE* f = std::fopen(record_path_of_net(net_path).c_str(), "w");
+  if (!f) return false;
+  std::fprintf(f, "market=%s\nwarmup_seconds=%.17g\n%s", market.c_str(), warmup, extra.c_str());
+  return std::fclose(f) == 0;
+}
+
+// The value of `key` in the record of `net_path`; nullopt if there is no
+// record (networks from of3_rl or an older of_train) or no such key.
+inline std::optional<std::string> net_record_value(const std::string& net_path, const std::string& key) {
+  std::ifstream in(record_path_of_net(net_path));
+  if (!in) return std::nullopt;
+  for (std::string line; std::getline(in, line);) {
+    if (!line.empty() && line.back() == '\r') line.pop_back();
+    if (line.size() > key.size() && line.compare(0, key.size(), key) == 0 && line[key.size()] == '=') return line.substr(key.size() + 1);
+  }
+  return std::nullopt;
+}
+
+// Empty if `net_path` may run on `market` with `warmup` seconds of warm-up,
+// else the reason. A network with no record is a legacy one (of3_rl, an older
+// of_train): trained with ScalpEnv's default 150 s warm-up, so it is refused
+// at any other warm-up; its market is unknown and not checked. A recorded
+// network is refused on another warm-up or another market.
+inline std::string check_net(const std::string& net_path, const std::string& market, double warmup) {
+  char b[200];
+  if (!std::filesystem::exists(record_path_of_net(net_path))) {
+    if (warmup == kDefaultWarmup) return {};
+    std::snprintf(b, sizeof b, ": no of_train record (%s): a legacy network, trained with the default %g s warm-up; this run uses %g s (--warmup)",
+                  record_path_of_net(net_path).c_str(), kDefaultWarmup, warmup);
+    return net_path + b;
+  }
+  const auto v = net_record_value(net_path, "warmup_seconds");
+  const auto w = v ? parse_warmup(*v) : std::nullopt;
+  if (!w) return net_path + ": missing or unreadable warmup_seconds in " + record_path_of_net(net_path);
+  if (*w != warmup) {
+    std::snprintf(b, sizeof b, ": trained with a %g s warm-up (%s), this run uses %g s (--warmup)", *w, record_path_of_net(net_path).c_str(), warmup);
+    return net_path + b;
+  }
+  if (const auto m = net_record_value(net_path, "market"); m && *m != market)
+    return net_path + ": trained on market " + *m + " (" + record_path_of_net(net_path) + "), this run uses market " + market + " (--market)";
+  return {};
+}
+
+// OF8's k-th 10-minute session of a day: the session second the warm-up
+// starts. The episode stays where a 150 s warm-up puts it (k * 600 + 150 s)
+// and the warm-up starts `warmup` s before it, never before the open (then
+// the episode starts `warmup` s into the session: with 1050 s, sessions 0 and
+// 1 both start at 1050 s). With 150 s this is k * 600 exactly.
+inline double day_session_start(unsigned k, double warmup = kDefaultWarmup) {
+  return std::max(0.0, k * 600.0 + (kDefaultWarmup - warmup));
+}
+
+// OF6 stress scenarios: a change of the episode's ScalpParams.
+struct StressScenario {
+  std::string name;
+  std::function<void(ScalpParams&)> change;
+};
+
+// The legacy list (default and efficient markets; OF6's committed results)
+// and, for the v3 discovery market, a list FIXED HERE BEFORE ANY v3 RL
+// NETWORK EXISTED (OF10 iteration 3, pre-registered). On discovery v3 three
+// legacy stresses are empty or weak: quote fading x2 is a no-op (fade = 0;
+// measured: output byte-identical to nominal), volatility x1.5 scales only
+// value_vol (~22% of the 10 s value change; ~77% is flow impact; measured:
+// R^2 0.31 +- 0.015 vs 0.34, 1-min sd 3.90 vs 3.96, sd(g) 0.332 vs 0.334),
+// informed flow x0.5 acts on ~4% of the volume (measured: informed volume
+// 2.1% vs 3.8%, gap statistics unchanged). The discovery list keeps nominal,
+// the latencies, fees, uninformed flow x1.5 and the (cold) session open, and
+// replaces those three with five stresses that bite there.
+// Measured on diagnostic seeds 22-24, before any v3 network existed:
+//   of_discovery --markets discovery --seeds 22-24 --episodes 400 --long off
+//                --scalp-warmup 1050 --set <the change>
+// episode regime (ScalpEnv episodes, 1050 s warm-up), 1,200 windows, pooled
+// value (+- jackknife SE where the probe gives one), nominal -> stressed.
+// Nominal: sd(g) 0.334, corr(g, r 30 s) - ideal floor 0.018, race to the tick
+// median 0.30 s, event corr(I1, next mid change) 0.209 +- 0.003, leak
+// corr(I1, g) 0.362 +- 0.004, markout 1 s 0.252 +- 0.008, R^2(10 s mid
+// change ~ delta) 0.340 +- 0.008, flow-impact share of the 10 s value change
+// 0.78, 1-min sd 3.96 +- 0.07, kurtosis 5.6 +- 0.6, trades/s 18.5, mean L1
+// 106 lots, informed volume share 3.8%, active meta-orders 11.2.
+// Informed meta-orders x2 (also measured) was too weak to keep: informed
+// volume 6.4%, active meta-orders 16.3, but the market barely moved (sd(g)
+// 0.330, race median 0.295 s, event corr(I1, next change) 0.209, markout
+// 1 s 0.260 +- 0.009, kurtosis 5.2): x4 is the smallest factor tried that
+// moves the facts.
+// "Session open" (both lists) is a cold open: the simulator starts at the
+// open with ScalpEnv's default 150 s burn, so the episode runs 150 .. 750 s
+// whatever the run's --warmup. With the default warm-up this is exactly the
+// legacy scenario (start_second = 0; OF6's committed results unchanged). It
+// does NOT keep the run's warm-up: with 1050 s, start_second = 0 alone would
+// put the episode at 1050 .. 1650 s, the earliest window training already
+// draws (in distribution, hardly a stress). Activity (intraday factor
+// 1 + 1.5 exp(-t / 1800 s) + exp(-(session - t) / 1800 s), episode mean):
+// 2.17 at 150 .. 750 s vs 1.71 at 1050 .. 1650 s and ~1.13 over the 1050 s
+// training windows; the 150 s burn also leaves the discovery meta-order
+// population ~5% short (of10_warmup_check.txt), as a real open would. Not
+// measured with the probe (of_discovery cannot place a window at the open):
+// computed, not tuned.
+inline void session_open(ScalpParams& p) {
+  p.start_second = 0;
+  p.warmup_seconds = kDefaultWarmup;
+}
+
+inline std::vector<StressScenario> stress_scenarios(bool discovery) {
+  if (!discovery)
+    return {
+        {"nominal", [](ScalpParams&) {}},
+        {"latency 300 ms", [](ScalpParams& p) { p.latency_steps = 3; }},
+        {"latency 1 s", [](ScalpParams& p) { p.latency_steps = 10; }},
+        {"fees $3/side", [](ScalpParams& p) { p.fee_dollars = 3.0; }},
+        {"informed flow x0.5", [](ScalpParams& p) { p.sim.informed_meta_rate *= 0.5; }},
+        {"uninformed flow x1.5", [](ScalpParams& p) { p.sim.uninformed_meta_rate *= 1.5; }},
+        {"volatility x1.5", [](ScalpParams& p) { p.sim.value_vol *= 1.5; }},
+        {"quote fading x2", [](ScalpParams& p) { p.sim.fade *= 2; }},
+        {"session open", session_open},
+    };
+  return {
+      {"nominal", [](ScalpParams&) {}},
+      {"latency 300 ms", [](ScalpParams& p) { p.latency_steps = 3; }},
+      {"latency 1 s", [](ScalpParams& p) { p.latency_steps = 10; }},
+      {"fees $3/side", [](ScalpParams& p) { p.fee_dollars = 3.0; }},
+      {"uninformed flow x1.5", [](ScalpParams& p) { p.sim.uninformed_meta_rate *= 1.5; }},
+      // Stale quotes leave at half the rate, half as much of them sniped:
+      // race to the tick median 0.30 -> 0.40 s, time in a race 6.4% -> 9.0%,
+      // sd(g) 0.334 -> 0.353, corr(g, r 30 s) - floor 0.018 -> 0.026, sniper
+      // volume 7.7% -> 3.2%, event corr(I1, next change) 0.209 -> 0.236,
+      // markout 1 s 0.252 -> 0.223, trades/s 18.5 -> 16.6.
+      {"slower discovery x0.5", [](ScalpParams& p) {
+         p.sim.reprice_cancel *= 0.5;
+         p.sim.reprice_take *= 0.5;
+       }},
+      // Taker flow moves value 1.5x as much: flow-impact share 0.78 -> 0.89,
+      // 1-min sd 3.96 -> 5.70, R^2 0.340 -> 0.396, markout 1 s 0.252 -> 0.326,
+      // sd(g) 0.334 -> 0.367, mid changes/min 18.4 -> 25.8, leak corr(I1, g)
+      // 0.362 -> 0.410.
+      {"flow impact x1.5", [](ScalpParams& p) { p.sim.value_impact *= 1.5; }},
+      // Three times the news jumps: flow-impact share 0.78 -> 0.54, R^2
+      // 0.340 -> 0.258, 1-min sd 3.96 -> 4.66, kurtosis 5.6 -> 8.8, event
+      // corr(I1, next change) 0.209 -> 0.171, corr(I1, r 30 s) 0.076 -> 0.051,
+      // markout 1 s 0.252 -> 0.308.
+      {"news x3", [](ScalpParams& p) { p.sim.jump_rate *= 3; }},
+      // Four times the informed meta-order starts: informed volume 3.8% ->
+      // 10.3%, active meta-orders 11.2 -> 26.1, markout 1 s 0.252 -> 0.315,
+      // kurtosis 5.6 -> 9.1, race median 0.30 -> 0.27 s, leak corr(I1, g)
+      // 0.362 -> 0.327, trades/s 18.5 -> 20.0.
+      {"informed meta-orders x4", [](ScalpParams& p) { p.sim.informed_meta_rate *= 4; }},
+      // Half the maker arrivals (a thinner book; attacks the depletion
+      // signal in L1 imbalance): mean L1 106 -> 35 lots, leak corr(I1, g)
+      // 0.362 -> 0.214, event corr(I1, next change) 0.209 -> 0.161, markout
+      // 1 s 0.252 -> 0.159, R^2 0.340 -> 0.285, sniper volume 7.7% -> 2.5%.
+      {"thinner book x0.5", [](ScalpParams& p) { p.sim.maker_rate *= 0.5; }},
+      {"session open", session_open},
+  };
+}
+
+}  // namespace rag::orderflow
+
+```
+
+
+---
+
+## FILE: include\rag\orderflow\simulator.hpp  (62,205 bytes)
 
 ```cpp
 // rag/orderflow/simulator.hpp — a synthetic ES futures market at tick level.
@@ -12774,7 +13513,9 @@ static_assert(rag::agent::Environment<ScalpEnv>);
 // contract). Time advances in steps of `dt` seconds. Each step:
 //
 //   1. activity: a log-OU process (volume and volatility clustering),
-//      excited by price moves, times an intraday U-shape;
+//      excited by price moves, times an intraday U-shape (opt-in model 1,
+//      SimParams::activity_model: a centred log-OU with mean-zero news
+//      kicks, stationary from the first step with activity_warm_start);
 //   2. fair value: a hidden random walk with occasional jumps (news);
 //   3. takers, all with heavy-tailed sizes:
 //        noise       balanced single market orders;
@@ -12790,7 +13531,17 @@ static_assert(rag::agent::Environment<ScalpEnv>);
 //      carries information of its own;
 //   5. icebergs: large passive orders with hidden reserve, placed by players
 //      who know the fair value; aggressive flow into them trades without
-//      moving the price (absorption), and the price tends to turn there.
+//      moving the price (absorption), and the price tends to turn there;
+//   6. re-pricing (opt-in, SimParams::reprice_band):
+//      v1 (discovery_market_v1()): when value has left the mid by more than
+//      the band, the whole book jumps at once and snipers take a clip of the
+//      stale quotes;
+//      v2 (reprice_cancel > 0, discovery_market()): quotes value has passed
+//      are withdrawn lot by lot within a few 100 ms (cancelled, or taken by
+//      snipers), nobody joins them, and when the stale best level is empty
+//      the price ticks and the value side re-prices with it (its shape kept,
+//      spread 1); optionally (value_impact > 0) the unexpected part of taker
+//      flow moves fair value permanently (Kyle / Hasbrouck impact).
 //
 // All parameters are plain numbers in SimParams, meant to be calibrated
 // against recorded ES ticks (experiments/of1_stylized_facts.cpp measures
@@ -12803,6 +13554,7 @@ static_assert(rag::agent::Environment<ScalpEnv>);
 #include <cstdint>
 #include <deque>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "rag/agent/rng.hpp"
@@ -12901,7 +13653,138 @@ struct SimParams {
   // default: the shared stream reproduces every earlier result exactly.
   bool separate_streams = false;
   double cancel_back_bias = 3.0, join_ahead_mean = 120;  // OF4: naive two-sided quoting ~breakeven gross, loses after fees
+  // Quote jumps (0 = off, the default: every earlier result is unchanged).
+  // A stale-quote race (Budish, Cramton & Shim 2015): when |fair value - mid|
+  // exceeds reprice_band ticks at the end of a step, every maker re-prices
+  // at once, so the whole book moves k = round(value - mid) ticks (shape and
+  // spread kept) instead of drifting there through order rates. Fast takers
+  // (snipers) first take a clip of reprice_snipe x the stationary best-level
+  // size (at most the level) at each stale level the new book would cross,
+  // printing in the direction of the jump (taker-sized prints; kept out of
+  // the flow makers fade against: it is already priced). The sniped makers'
+  // lots are re-posted by those who won the race, so the book keeps its shape.
+  // The strategy's orders are too slow to move: crossed ones are filled at
+  // their stale price, the rest keep their price at the back of the queue
+  // there. A band in (0.5, 1) leaves 2 * band - 1 ticks of hysteresis; after
+  // a jump the mid overshoots value by ~(1 - band) and tends to bounce back.
+  double reprice_band = 0.0, reprice_snipe = 0.0;
+  // Stale-side depletion (v2; 0 = off: v1 quote jumps when reprice_band > 0,
+  // and nothing changes when reprice_band = 0). A bid at price P is stale when
+  // P - value > reprice_band - 0.5, an ask when value - P > reprice_band - 0.5
+  // (with a 1-tick spread: level j is stale when |value - mid| > band + j).
+  // Each lot at a stale level leaves at reprice_cancel * (1 + over) per
+  // second, over = how many ticks value is past the stale threshold (news
+  // clears a deep stale book in a step or two); a share
+  // reprice_take of the leaving lots at the stale best is taken by snipers
+  // (prints at the stale price, FIFO through the strategy's orders; once only
+  // the strategy's lots are left they are taken at the full rate: a 100 ms
+  // order can't cancel in time), the rest are cancelled (back-biased). No
+  // maker joins a stale price. When the stale best is empty the price ticks
+  // and the value-side makers re-price with it: that side's book moves one
+  // tick toward value with its shape kept, so the spread stays 1 tick and
+  // the book after the tick is balanced (the strategy's orders there keep
+  // their price, at the back of the queue). The spread fill then opens only
+  // quotes that aren't stale. The stale queue shrinks visibly before the
+  // tick, so book imbalance predicts the next mid change, and only that.
+  double reprice_cancel = 0.0, reprice_take = 0.0;
+  // Permanent impact of taker flow on fair value (0 = off; Kyle / Hasbrouck:
+  // only the unexpected part of the flow moves value): value += value_impact
+  // * (x - impact_forecast_weight * fhat * dt) per step, x = the surprise in
+  // the signed lots filled by takers this step: noise takers and the
+  // strategy's market orders (which count in the next step) in full;
+  // uninformed meta-order children weighted by 1 - P(the meta-order goes on
+  // past this child | lots done), Pareto(meta_min, meta_alpha) survival: a
+  // market that knows meta-orders exist but not their size expects the rest
+  // (Farmer, Gerig, Lillo & Waelbroeck 2013), so a meta-order's impact is
+  // permanent, concave, and its predictable continuation doesn't make
+  // prices predictable. Informed meta-orders, momentum takers and snipers
+  // are excluded (their trades follow a price or value that has already
+  // moved; informed traders chasing a value their own flow moves would run
+  // away). fhat = EWMA (impact_forecast_tau seconds) of the meta-order part
+  // of x per second, read before its update: a meta-order's children all
+  // push value one way while it lasts, which the Pareto weights alone leave
+  // partly predictable; the weight corrects that (tuned so that impact has
+  // no autocorrelation). On all flow with weight 1, as first designed, it
+  // made impact transient (a unit-gain filter's residuals sum to zero):
+  // measured, corr(30 s delta, next 30 s) -0.15, markouts falling after 5 s.
+  double value_impact = 0.0, impact_forecast_tau = 10.0, impact_forecast_weight = 0.0;
+  // Activity model (OF10 iteration 3; 0 = legacy, the default: every earlier
+  // result is unchanged). Legacy: the log-OU above plus activity_excite per
+  // tick the mid moved beyond move_avg_, an EWMA (1800 s) of the per-step
+  // move that starts at 0.1 tick. That loop has no stable interior state:
+  // linearised around (log A = 0, move_avg_ = its mean), the trace of its
+  // Jacobian is g - 1/activity_tau - 1/1800 (its determinant is positive),
+  // g = activity_excite * d E[move] / d log A / dt: measured ~0.045/s on full
+  // default sessions (of10_discovery), > 1/300 + 1/1800 = 0.0039/s, so log A
+  // swings between the clamps for hours, and a fresh market starts at the
+  // lower one (ScalpEnv episodes ran at activity ~0.3: 4 trades/s, not ~20).
+  // Model 1: a centred log-OU plus compensated news kicks, x = log A:
+  //   start of a step: x += -(x - m0) / activity_tau * dt + activity_vol * sqrt(dt) * N
+  //   end of a step:   x += activity_news_excite * (|z| 1{value jump} - jump_rate * dt * sqrt(2 / pi))
+  // with z the standardised value jump of the step. The kick's conditional
+  // mean is zero and doesn't depend on the state, so x is a linear AR(1)
+  // driven by i.i.d. noise with a known stationary law (activity_law());
+  // m0 = -log E[exp(x - m0)] makes E[activity] = intraday(t) exactly
+  // (ignoring the clamp; use activity_min/max = -3/3 so it is ~never hit).
+  // activity_excite and move_avg_ are unused: activity no longer depends on
+  // the price path (the fair-value path is exogenous apart from value_impact).
+  // activity_warm_start (model 1 only; it throws with model 0, which has no
+  // interior stationary law): the constructor draws x from that law, from a
+  // random stream of its own (every other draw is unchanged, whatever
+  // separate_streams), so a fresh market is stationary from its first step;
+  // without it x starts at m0.
+  int activity_model = 0;
+  double activity_news_excite = 0.0;
+  bool activity_warm_start = false;
 };
+
+// Model 1's stationary law of x = log activity (SimParams::activity_model = 1,
+// before the clamp): x - m0 = sum_j phi^j eta_(n-j), phi = 1 - dt / tau,
+// eta = vol sqrt(dt) N + k (|Z| 1{J} - p c) i.i.d. with mean 0, p = jump_rate dt,
+// c = sqrt(2 / pi), k = activity_news_excite. m0 = -(gauss_var / 2 + log E[exp(jump part)]),
+// the jump part's log-Laplace transform summed over horizon = ceil(10 tau / dt)
+// lags (exact per lag: E exp(u |Z|) = 2 exp(u^2 / 2) Phi(u)); cached per thread
+// for the last parameters (a construction then costs one comparison).
+struct ActivityLaw {
+  double m0 = 0, sd = 0, skew = 0, gauss_var = 0;  // centre; sd and skewness of x; the Gaussian part's variance
+  double phi = 1, jump_p = 0;                       // AR(1) coefficient; jump probability per step
+  std::uint64_t horizon = 0;                        // lags of the jump part summed (and drawn by the warm start)
+};
+inline ActivityLaw activity_law(const SimParams& p) {
+  constexpr double c = 0.7978845608028654;  // sqrt(2 / pi) = E|Z|
+  ActivityLaw law;
+  law.phi = 1 - p.dt / p.activity_tau;
+  law.jump_p = p.jump_rate * p.dt;
+  law.horizon = static_cast<std::uint64_t>(std::ceil(10 * p.activity_tau / p.dt));
+  const double phi = law.phi, pj = law.jump_p, k = p.activity_news_excite;
+  law.gauss_var = p.activity_vol * p.activity_vol * p.dt / (1 - phi * phi);
+  double lj = 0;
+  if (k > 0 && pj > 0) {
+    struct Cache {
+      double phi = 0, pj = 0, k = 0, lj = 0;
+      std::uint64_t horizon = 0;
+      bool ok = false;
+    };
+    thread_local Cache cache;
+    if (cache.ok && cache.phi == phi && cache.pj == pj && cache.k == k && cache.horizon == law.horizon) {
+      lj = cache.lj;
+    } else {
+      double u = k;
+      for (std::uint64_t j = 0; j < law.horizon; ++j, u *= phi) {
+        const double e_abs = std::exp(0.5 * u * u) * std::erfc(-u / std::sqrt(2.0));  // E exp(u |Z|) = 2 exp(u^2 / 2) Phi(u)
+        lj += std::log1p(pj * (e_abs - 1)) - pj * c * u;
+      }
+      cache = {phi, pj, k, lj, law.horizon, true};
+    }
+  }
+  law.m0 = -(0.5 * law.gauss_var + lj);
+  const double var_y = pj - pj * pj * c * c;                                        // Var(|Z| 1{J})
+  const double k3_y = 2 * c * pj - 3 * c * pj * pj + 2 * c * c * c * pj * pj * pj;  // its third cumulant (E|Z|^3 = 2c)
+  const double var = law.gauss_var + k * k * var_y / (1 - phi * phi);
+  law.sd = std::sqrt(var);
+  law.skew = var > 0 ? k * k * k * k3_y / (1 - phi * phi * phi) / std::pow(var, 1.5) : 0;
+  return law;
+}
 
 // Informed makers: they re-price ahead of informed flow, so *trade* flow no
 // longer predicts the next 30 s (3 seeds x 2 h: corr(30 s delta, next 30 s)
@@ -12918,6 +13801,129 @@ inline SimParams efficient_market() {
   return p;
 }
 
+// Fast price discovery, iteration 1 (OF10 v1, commit 10bfe03): makers
+// re-price (rigid whole-book quote jumps) as soon as value moves more than
+// reprice_band from the mid, and snipers take a clip of the stale quotes.
+// The hidden gap no longer predicts the next 30 s (0.11, the tick-grid
+// floor), but the book moves rigidly, so book imbalance predicts nothing,
+// and impact R^2 comes from the fixed sniper clip. Kept to reproduce the v1
+// numbers: market_preset("discovery_v1").
+inline SimParams discovery_market_v1() {
+  SimParams p;
+  p.reprice_band = 0.65;
+  p.reprice_snipe = 0.2;
+  p.informed_meta_rate = 6.0;
+  p.uninformed_meta_rate = 0.15;
+  p.noise_rate = 1.2;
+  p.activity_excite = 0.08;
+  return p;
+}
+
+// Fast price discovery, iteration 2 (OF10 v2, commit 4ba0354; then
+// discovery_market()): kept verbatim to reproduce the v2 numbers (golden
+// hash in the PriceDiscovery tests): market_preset("discovery_v2").
+inline SimParams discovery_market_v2() {
+  SimParams p;
+  p.reprice_band = 0.5;
+  p.reprice_cancel = 15;
+  p.reprice_take = 0.08;
+  p.maker_info = 2.5;
+  p.informed_meta_rate = 3.0;
+  p.uninformed_meta_rate = 0.18;
+  p.meta_min = 60;
+  p.noise_rate = 0.4;
+  p.cancel_rate = 0.2;
+  p.activity_excite = 0.05;
+  p.fade = 0;
+  p.value_impact = 0.045;
+  p.impact_forecast_weight = 0.25;
+  p.value_vol = 0.17;
+  return p;
+}
+
+// Fast price discovery, iteration 3 (OF10 v3; v2 is discovery_market_v2()):
+// v2's stale-side depletion and permanent flow impact, with activity model 1
+// (activity stationary from the first step: measured, episode vs
+// session-weighted long windows agree on activity and the facts; meta-orders
+// and icebergs are NOT warm-started, so episodes hold ~0.6 fewer active
+// meta-orders than long windows, ~5 SE, rising over the episode) and
+// WITHOUT informed makers (maker_info 0: no rate tilt toward the hidden
+// value; book imbalance predicts the next tick
+// through depletion alone, leak corr(I1, g) 0.37). Smaller, more frequent
+// maker orders (a smoother queue; stationary depth 240 lots at the best
+// level vs v2's 180) make the depleting queue visible in
+// L1 imbalance; slower depletion (reprice_cancel 12) and more sniping
+// (reprice_take 0.15) raise price-on-flow R^2; rarer, larger news jumps keep
+// the 1-minute kurtosis with less jump variance; the impact forecast weight
+// is re-tuned so impact has no autocorrelation (markouts flat after 5 s on
+// long windows; not in episodes, below).
+// Tuned on diagnostic seeds 1-3 (400 ScalpEnv-built episodes and 16
+// weighted sessions per seed), checked on seeds 4-6
+// (experiments/of10_discovery.cpp, of10_results.txt, of10_heldout.txt).
+// Known miss: naive two-sided quoting loses ~24 ticks per 5-minute episode
+// (target [-4, 0]): every price change sweeps the back-of-queue quote on
+// the side value passed (~58 stale sweeps per episode, 1 s markout -0.39),
+// which no parameter lever here removes at 15-22 trades/s and a 1-minute
+// sd of 3-4.5 ticks (OF10 iteration 3). Further known misses (seeds 1-3,
+// of10_results.txt): (c) in the episode regime, mk30 - mk5 +0.022 +- 0.009
+// (2.4 SE: FAIL; long windows +0.006 +- 0.009 pass); (b) corr(I1, r 30 s)
+// +0.075 in both regimes (check <= 0.05) and event corr(I5, next mid change)
+// +0.077 (check >= 0.15); leak corr(I1, g) 0.37 passes its <= 0.40 check but
+// is not far below 0.5. Own impact: own market orders fill at pre-impact
+// prices and then move value by value_impact per lot, so a block round trip
+// profits from its own impact (+0.15 tick/lot at 30 lots); ScalpEnv refuses
+// contracts > 1 here.
+inline SimParams discovery_market() {
+  SimParams p = discovery_market_v2();
+  p.maker_info = 0;
+  p.uninformed_meta_rate = 0.27;
+  p.noise_rate = 0.6;
+  p.value_impact = 0.05;
+  p.impact_forecast_weight = 0.3;
+  p.value_vol = 0.07;
+  p.jump_rate = 1.0 / 1200;
+  p.jump_sd = 8;
+  p.maker_size_mean = 3;
+  p.maker_rate = 12;
+  p.cancel_rate = 0.15;
+  p.reprice_cancel = 12;
+  p.reprice_take = 0.15;
+  p.activity_model = 1;
+  p.activity_warm_start = true;
+  p.activity_vol = 0.045;
+  p.activity_tau = 600;
+  p.activity_news_excite = 0.8;
+  p.activity_min = -3;
+  p.activity_max = 3;
+  return p;
+}
+
+// The default market with model 1 activity, stationary from the first step
+// (OF10 iteration 3): every market parameter of SimParams{} is unchanged, so
+// it shows how the old market behaves at realistic activity (~20 trades/s
+// in 10-minute episodes instead of ~4). Not calibrated: reported, not gated.
+inline SimParams default_warm() {
+  SimParams p;
+  p.activity_model = 1;
+  p.activity_warm_start = true;
+  p.activity_vol = 0.04;
+  p.activity_news_excite = 0.5;
+  p.activity_min = -3;
+  p.activity_max = 3;
+  return p;
+}
+
+// The market presets by name, for the command-line tools.
+inline SimParams market_preset(const std::string& name) {
+  if (name == "default") return SimParams{};
+  if (name == "efficient") return efficient_market();
+  if (name == "discovery") return discovery_market();
+  if (name == "discovery_v1") return discovery_market_v1();
+  if (name == "discovery_v2") return discovery_market_v2();
+  if (name == "default_warm") return default_warm();
+  throw std::invalid_argument("unknown market '" + name + "' (default, default_warm, efficient, discovery, discovery_v1 or discovery_v2)");
+}
+
 struct Fill {
   std::uint32_t filled = 0;
   double avg_price = 0;  // ticks
@@ -12928,6 +13934,15 @@ class EsSimulator {
   explicit EsSimulator(const SimParams& p = {}, std::uint64_t seed = 1, double start_second = 0) : p_(p), rng_(seed) {
     if (!(p_.dt > 0) || !(p_.cancel_rate >= 0) || !(p_.maker_decay > 0) || !(p_.meta_alpha > 0) || !(p_.fade_tau > 0))
       throw std::invalid_argument("SimParams: dt, maker_decay, meta_alpha and fade_tau must be positive");
+    if (!(p_.reprice_band >= 0) || !(p_.reprice_snipe >= 0 && p_.reprice_snipe <= 1))
+      throw std::invalid_argument("SimParams: reprice_band must be >= 0 and reprice_snipe in [0, 1]");
+    if (!(p_.reprice_cancel >= 0) || !(p_.reprice_take >= 0 && p_.reprice_take <= 1) || !(p_.value_impact >= 0) || !(p_.impact_forecast_tau > 0))
+      throw std::invalid_argument("SimParams: reprice_cancel, value_impact >= 0, reprice_take in [0, 1], impact_forecast_tau > 0");
+    if (p_.activity_model != 0 && p_.activity_model != 1) throw std::invalid_argument("SimParams: activity_model must be 0 (legacy) or 1");
+    if (p_.activity_warm_start && p_.activity_model != 1)
+      throw std::invalid_argument("SimParams: activity_warm_start needs activity_model 1 (the legacy loop has no interior stationary law)");
+    if (p_.activity_model == 1 && (!(p_.activity_tau > p_.dt) || !(p_.activity_vol >= 0) || !(p_.activity_news_excite >= 0) || !(p_.activity_min < p_.activity_max)))
+      throw std::invalid_argument("SimParams: activity_model 1 needs activity_tau > dt, activity_vol, activity_news_excite >= 0, activity_min < activity_max");
     seed_ = seed;
     if (p_.separate_streams)
       for (std::uint64_t k = 0; k < kStreams; ++k) streams_.emplace_back(stream_seed(k, 0));
@@ -12935,6 +13950,27 @@ class EsSimulator {
     value_ = p_.start_price + 0.5;
     clock_ = start_second;
     for (std::size_t i = 0; i < kLevels; ++i) bid_q_[i] = ask_q_[i] = stationary_depth(i);
+    if (p_.activity_model == 1) {
+      const ActivityLaw law = activity_law(p_);
+      m0_ = law.m0;
+      double x = m0_;
+      if (p_.activity_warm_start) {  // an exact draw from the stationary law, on a stream nothing else uses
+        constexpr double c = 0.7978845608028654;  // sqrt(2 / pi)
+        Rng w(stream_seed(kStreams, 0));
+        x += std::sqrt(law.gauss_var) * w.normal();
+        const double k = p_.activity_news_excite, pj = law.jump_p, phi = law.phi;
+        if (k > 0 && pj > 0) {
+          // The kicks of the last `horizon` steps: jump steps form a Bernoulli(pj)
+          // process (geometric gaps: exact), each kick decayed by phi^age.
+          const double lq = std::log1p(-pj);
+          const auto horizon = static_cast<double>(law.horizon);
+          auto gap = [&w, lq] { return std::floor(std::log(1 - w.uniform()) / lq); };  // steps without a jump before the next one
+          for (double j = gap(); j < horizon; j += 1 + gap()) x += k * std::abs(w.normal()) * std::pow(phi, j);
+          x -= k * pj * c * (1 - std::pow(phi, horizon)) / (1 - phi);  // the compensator over the same lags
+        }
+      }
+      log_activity_ = std::clamp(x, p_.activity_min, p_.activity_max);
+    }
     history_.push_back(mid());
   }
 
@@ -12942,6 +13978,9 @@ class EsSimulator {
   void step() {
     trades_.clear();
     fills_.clear();
+    fill_values_.clear();
+    snipes_ = 0;
+    cleared_ = 0;
     // Counter-based streams: every step re-seeds each process from (seed,
     // process, step), so a different number of draws in one step (state-
     // dependent counts) can't shift any later step's randomness.
@@ -12953,29 +13992,53 @@ class EsSimulator {
     const double mid0 = mid();
     // 1. Activity.
     use(kValue);
-    log_activity_ += -log_activity_ / p_.activity_tau * dt + p_.activity_vol * std::sqrt(dt) * r().normal();
+    if (p_.activity_model == 1)  // centred on m0 (E[activity] = intraday)
+      log_activity_ += -(log_activity_ - m0_) / p_.activity_tau * dt + p_.activity_vol * std::sqrt(dt) * r().normal();
+    else
+      log_activity_ += -log_activity_ / p_.activity_tau * dt + p_.activity_vol * std::sqrt(dt) * r().normal();
     const double a = std::exp(log_activity_) * intraday(clock_);
     // 2. Fair value.
     value_ += p_.value_vol * std::sqrt(a * dt) * r().normal();
-    if (r().uniform() < p_.jump_rate * dt) value_ += p_.jump_sd * r().normal();
+    double jump_abs = 0;  // |standardised value jump| of this step (model 1's news kick)
+    if (r().uniform() < p_.jump_rate * dt) {
+      const double z = r().normal();
+      value_ += p_.jump_sd * z;
+      jump_abs = std::abs(z);
+    }
     // 3. Takers.
     orders_.clear();
     use(kNoise);
-    for (std::uint32_t n = poisson(p_.noise_rate * a * dt); n > 0; --n) orders_.push_back({Side::Buy, taker_size()});
-    for (std::uint32_t n = poisson(p_.noise_rate * a * dt); n > 0; --n) orders_.push_back({Side::Sell, taker_size()});
+    for (std::uint32_t n = poisson(p_.noise_rate * a * dt); n > 0; --n) orders_.push_back({Side::Buy, taker_size(), kNoiseTaker, 1.0});
+    for (std::uint32_t n = poisson(p_.noise_rate * a * dt); n > 0; --n) orders_.push_back({Side::Sell, taker_size(), kNoiseTaker, 1.0});
     const double gap = value_ - mid();
     use(kMeta);
     if (std::abs(gap) > 0.5)
-      for (std::uint32_t n = poisson(p_.informed_meta_rate * std::min(1.0, std::abs(gap) / p_.informed_scale) * a * dt); n > 0; --n)
-        metas_.push_back({gap > 0 ? Side::Buy : Side::Sell, meta_size(), true});
-    for (std::uint32_t n = poisson(p_.uninformed_meta_rate * a * dt); n > 0; --n)
-      metas_.push_back({r().uniform() < 0.5 ? Side::Buy : Side::Sell, meta_size(), false});
+      for (std::uint32_t n = poisson(p_.informed_meta_rate * std::min(1.0, std::abs(gap) / p_.informed_scale) * a * dt); n > 0; --n) {
+        metas_.push_back({gap > 0 ? Side::Buy : Side::Sell, meta_size(), true, 0});
+        ++meta_starts_[0];
+      }
+    for (std::uint32_t n = poisson(p_.uninformed_meta_rate * a * dt); n > 0; --n) {
+      metas_.push_back({r().uniform() < 0.5 ? Side::Buy : Side::Sell, meta_size(), false, 0});
+      ++meta_starts_[1];
+    }
     for (auto& m : metas_) {
       if (m.informed && sign(m.side) * (value_ - mid()) < -1) m.left = 0;  // the edge is gone: stop
+      // v2: quotes are re-priced within a tick of value, so an informed trader
+      // takes only quotes value has passed (stale ones) and pauses otherwise
+      // (never buying above value).
+      if (m.informed && depletion() && !stale_price(m.side == Side::Buy ? Side::Sell : Side::Buy, m.side == Side::Buy ? ask() : bid_)) continue;
       for (std::uint32_t n = poisson(p_.meta_child_rate * a * dt); n > 0 && m.left > 0; --n) {
         const std::uint32_t c = std::min(m.left, taker_size());
-        orders_.push_back({m.side, c});
+        // Impact weight (value_impact): the surprise in this child, 1 - P(the
+        // meta-order goes on past it | lots done) under the Pareto prior.
+        double w = 0;
+        if (p_.value_impact > 0 && !m.informed) {
+          const double done = p_.meta_min + m.done;
+          w = 1 - std::pow(done / (done + c), p_.meta_alpha);
+        }
+        orders_.push_back({m.side, c, m.informed ? kInformedMeta : kUninformedMeta, w});
         m.left -= c;
+        m.done += c;
       }
     }
     std::erase_if(metas_, [](const Meta& m) { return m.left == 0; });
@@ -12983,13 +14046,22 @@ class EsSimulator {
     const double move = mid() - history_.front();
     if (std::abs(move) >= 1)
       for (std::uint32_t n = poisson(p_.momentum_rate * std::min(1.0, std::abs(move) / p_.momentum_scale) * a * dt); n > 0; --n)
-        orders_.push_back({move > 0 ? Side::Buy : Side::Sell, taker_size()});
+        orders_.push_back({move > 0 ? Side::Buy : Side::Sell, taker_size(), kMomentumTaker, 0.0});
     use(kShuffle);
     for (std::size_t i = orders_.size(); i > 1; --i) std::swap(orders_[i - 1], orders_[r().below(static_cast<std::uint32_t>(i))]);
-    double signed_volume = 0;
+    double signed_volume = 0, surprise = 0, meta_surprise = 0;
     for (const auto& o : orders_) {
-      execute(o.side, o.size, false);
+      const std::uint32_t filled = execute(o.side, o.size, false).filled;
+      taker_volume_[o.kind] += filled;
       signed_volume += sign(o.side) * o.size;
+      (o.kind == kUninformedMeta ? meta_surprise : surprise) += sign(o.side) * filled * o.weight;
+    }
+    if (p_.value_impact > 0) {  // opt-in: no draws, no state change when off
+      const double impact = p_.value_impact * (surprise + own_flow_ + meta_surprise - p_.impact_forecast_weight * fhat_ * dt);
+      own_flow_ = 0;
+      value_ += impact;
+      flow_impact_ += impact;
+      fhat_ += (meta_surprise / dt - fhat_) * std::min(1.0, dt / p_.impact_forecast_tau);
     }
     flow_ += (signed_volume / dt - flow_) * std::min(1.0, dt / p_.fade_tau);
     // 4. Makers, fading against the flow.
@@ -13008,10 +14080,13 @@ class EsSimulator {
         ask_add *= info;
       }
     }
+    // v2: nobody joins a stale price (the first stale_* levels of the stale side).
+    std::size_t stale_bids = 0, stale_asks = 0;
+    if (depletion()) (value_ > mid() ? stale_asks : stale_bids) = stale_levels();
     for (std::size_t i = 0; i < kLevels; ++i) {
       const double rate = p_.maker_rate * std::exp(-static_cast<double>(i) / p_.maker_decay) * a * dt;
-      bid_q_[i] += maker_lots(rate * bid_add);
-      ask_q_[i] += maker_lots(rate * ask_add);
+      if (i >= stale_bids) bid_q_[i] += maker_lots(rate * bid_add);
+      if (i >= stale_asks) ask_q_[i] += maker_lots(rate * ask_add);
       cancel_level(Side::Buy, i, poisson(bid_cancel * others(Side::Buy, i) * dt));
       cancel_level(Side::Sell, i, poisson(ask_cancel * others(Side::Sell, i) * dt));
     }
@@ -13021,11 +14096,62 @@ class EsSimulator {
     manage_icebergs();
     normalize_book();
     use(kMaker);
-    while (spread_ > 1 && r().uniform() < p_.spread_fill_prob) improve(r().uniform() < 0.5 ? Side::Buy : Side::Sell);
+    if (depletion()) {
+      // v2, a spread wider than a tick (a best level was taken or cancelled):
+      // a quote one tick inside that value has passed is never opened. When
+      // only one side's is valid: if the other side's best vanished this step
+      // (a level value had passed), that side's makers re-price into the gap
+      // at once (translate, shape kept: the price ticks toward value as after
+      // depletion); otherwise the vanished side is re-posted at once by a
+      // single maker order (a thin queue: the price moves only when value
+      // does). When both are valid, the side farther from value fills it,
+      // one tick per pass: if its quote is more than 1.5 ticks from value (a
+      // book swept away) its makers re-price (translate), else a single maker
+      // order opens it (with spread_fill_prob per tick, as by default).
+      while (spread_ > 1) {
+        const bool bid_ok = !stale_price(Side::Buy, bid_ + 1), ask_ok = !stale_price(Side::Sell, ask() - 1);
+        if (bid_ok != ask_ok) {
+          const Side s = bid_ok ? Side::Buy : Side::Sell;
+          if (cleared_ & (s == Side::Buy ? 2u : 1u)) {
+            translate(s);
+            ++reprices_;
+            ++reprice_ticks_;
+          } else {
+            improve(s);
+          }
+          continue;
+        }
+        if (!bid_ok) break;
+        const Side far = value_ - bid_ > ask() - value_ ? Side::Buy : Side::Sell;
+        if ((far == Side::Buy ? value_ - bid_ : ask() - value_) > 1.5) {  // a quote far from value (a book swept away): its makers re-price
+          translate(far);
+          continue;
+        }
+        if (!(r().uniform() < p_.spread_fill_prob)) break;
+        improve(far);
+      }
+    } else {
+      while (spread_ > 1 && r().uniform() < p_.spread_fill_prob) improve(r().uniform() < 0.5 ? Side::Buy : Side::Sell);
+    }
     drop_far_orders();
-    const double moved = std::abs(mid() - mid0);
-    move_avg_ += (moved - move_avg_) * std::min(1.0, dt / 1800);
-    log_activity_ = std::clamp(log_activity_ + p_.activity_excite * (moved - move_avg_), p_.activity_min, p_.activity_max);
+    if (p_.reprice_band > 0) {  // opt-in: no draws and no state change when off
+      if (p_.reprice_cancel > 0) {
+        use(kSnipe);
+        deplete();
+        clamp_ahead();
+      } else {
+        use(kValue);
+        reprice();
+      }
+    }
+    if (p_.activity_model == 1) {  // the compensated news kick: mean zero, state-independent
+      constexpr double c = 0.7978845608028654;  // sqrt(2 / pi) = E|Z|
+      log_activity_ = std::clamp(log_activity_ + p_.activity_news_excite * (jump_abs - p_.jump_rate * dt * c), p_.activity_min, p_.activity_max);
+    } else {
+      const double moved = std::abs(mid() - mid0);
+      move_avg_ += (moved - move_avg_) * std::min(1.0, dt / 1800);
+      log_activity_ = std::clamp(log_activity_ + p_.activity_excite * (moved - move_avg_), p_.activity_min, p_.activity_max);
+    }
     history_.push_back(mid());
     const auto keep = static_cast<std::size_t>(std::ceil(p_.momentum_lookback / dt)) + 1;
     while (history_.size() > keep) history_.pop_front();
@@ -13033,7 +14159,12 @@ class EsSimulator {
 
   // ---- the strategy's orders --------------------------------------------
   // Take liquidity now; prints are flagged own = true.
-  Fill market_order(Side side, std::uint32_t qty) { return execute(side, qty, true); }
+  // With value_impact > 0 the filled lots join the next step's impact flow.
+  Fill market_order(Side side, std::uint32_t qty) {
+    const Fill f = execute(side, qty, true);
+    if (p_.value_impact > 0) own_flow_ += sign(side) * f.filled;
+    return f;
+  }
 
   // Join the back of the queue at `price`. A price at or through the
   // opposite best is rejected (returns 0): use market_order to take.
@@ -13076,6 +14207,10 @@ class EsSimulator {
   };
   [[nodiscard]] const std::vector<Resting>& resting() const noexcept { return resting_; }
   [[nodiscard]] const std::vector<OwnFill>& own_fills() const noexcept { return fills_; }
+  // DIAGNOSTICS ONLY, hidden state: the fair value when each own_fills()[i]
+  // filled (was value already past the quote?). Kept out of OwnFill so that
+  // nothing agent-facing that copies fills can carry the hidden value.
+  [[nodiscard]] const std::vector<double>& own_fill_hidden_values() const noexcept { return fill_values_; }
 
   // ---- market state -----------------------------------------------------
   [[nodiscard]] const std::vector<Trade>& trades() const noexcept { return trades_; }
@@ -13098,16 +14233,47 @@ class EsSimulator {
   [[nodiscard]] double activity() const noexcept { return std::exp(log_activity_) * intraday(clock_); }
   [[nodiscard]] std::size_t active_icebergs() const noexcept { return icebergs_.size(); }
   [[nodiscard]] std::size_t active_meta_orders() const noexcept { return metas_.size(); }
+  // Diagnostics (no effect on the market): who traded, how often quotes jumped.
+  enum TakerKind : std::uint8_t { kNoiseTaker, kInformedMeta, kUninformedMeta, kMomentumTaker, kSniper, kTakerKinds };
+  [[nodiscard]] std::uint64_t taker_volume(TakerKind k) const noexcept { return taker_volume_[k]; }  // lots filled since the start
+  [[nodiscard]] std::uint64_t meta_starts(bool informed) const noexcept { return meta_starts_[informed ? 0 : 1]; }
+  [[nodiscard]] std::uint64_t reprices() const noexcept { return reprices_; }            // quote jumps since the start
+  [[nodiscard]] std::uint64_t reprice_ticks() const noexcept { return reprice_ticks_; }  // sum of |jump| in ticks
+  // Prints of the last step() made by snipers: they are the last sniper_prints() entries of
+  // trades() only until the strategy trades (market_order() appends its own prints after them).
+  [[nodiscard]] std::size_t sniper_prints() const noexcept { return snipes_; }
+  [[nodiscard]] double log_activity() const noexcept { return log_activity_; }  // clamped to [activity_min, activity_max]
+  [[nodiscard]] double activity_center() const noexcept { return m0_; }          // model 1: m0 (0 with model 0)
+  [[nodiscard]] double intraday_factor() const noexcept { return intraday(clock_); }
+  [[nodiscard]] double move_avg() const noexcept { return move_avg_; }  // model 0's EWMA of the per-step move (diagnostics)
+  // Fresh future randomness for a copy of the market (expected-mid oracles:
+  // copy, fork, step ahead). The copy keeps every piece of hidden state (book,
+  // value, activity, meta-orders, icebergs, queues) and draws new news and
+  // arrivals from here on; with separate_streams every process's stream is
+  // re-seeded too. Nothing calls it but an oracle: no effect on any other run.
+  void fork(std::uint64_t salt) noexcept {
+    seed_ = mix64(seed_ ^ mix64(salt + 0x632BE59BD9B4E019ull));
+    rng_.reseed(seed_);
+    for (std::size_t k = 0; k < streams_.size(); ++k) streams_[k].reseed(stream_seed(k, steps_));
+  }
+  // v2 diagnostics: fair-value change from flow impact since the start (ticks,
+  // signed); stale episodes (races) started; stale lots cancelled (not sniped).
+  [[nodiscard]] double flow_impact() const noexcept { return flow_impact_; }
+  [[nodiscard]] std::uint64_t races() const noexcept { return races_; }
+  [[nodiscard]] std::uint64_t stale_cancelled_lots() const noexcept { return stale_cancelled_; }
 
  private:
   struct Order {
     Side side;
     std::uint32_t size;
+    TakerKind kind;
+    double weight;  // its share in the flow that moves value (value_impact)
   };
   struct Meta {
     Side side;
     std::uint32_t left;
     bool informed;
+    std::uint32_t done;  // lots sent so far
   };
   struct Iceberg {
     Side side;  // Buy: a hidden bid
@@ -13166,17 +14332,19 @@ class EsSimulator {
   }
 
   // Others cancel `n` lots at a level; the strategy's queue position improves
-  // in proportion (cancellations land uniformly in the queue).
-  void cancel_level(Side side, std::size_t i, std::uint32_t n) {
+  // in proportion (cancellations land uniformly in the queue). Returns the
+  // lots cancelled.
+  std::uint32_t cancel_level(Side side, std::size_t i, std::uint32_t n) {
     const std::uint32_t oth = others(side, i);
     n = std::min(n, oth);
-    if (n == 0) return;
+    if (n == 0) return 0;
     auto& q = side == Side::Buy ? bid_q_ : ask_q_;
     q[i] -= n;
     for (auto& r : resting_)
       if (r.side == side && level_index(side, r.price) == i && oth > 0)
         r.ahead -= std::min(r.ahead, static_cast<std::uint32_t>(std::llround(
                                          static_cast<double>(n) * std::pow(static_cast<double>(r.ahead) / oth, p_.cancel_back_bias))));
+    return n;
   }
 
   Iceberg* iceberg_at(Side side, std::int32_t price) {
@@ -13201,6 +14369,7 @@ class EsSimulator {
       const std::uint32_t mine = std::min(take - past, it->qty);
       if (mine > 0) {
         fills_.push_back({it->id, passive, price, mine});
+        fill_values_.push_back(value_);
         it->qty -= mine;
       }
       if (it->qty == 0) {
@@ -13208,6 +14377,217 @@ class EsSimulator {
       } else {
         ++it;
       }
+    }
+  }
+
+  // consume_best at any level: take `take` lots from level `level` (price
+  // `price`) of the passive side, FIFO through the strategy's orders there.
+  void consume_at(Side passive, std::size_t level, std::int32_t price, std::uint32_t take) {
+    auto& q = passive == Side::Buy ? bid_q_ : ask_q_;
+    q[level] -= std::min(q[level], take);
+    for (auto it = resting_.begin(); it != resting_.end();) {
+      if (it->side != passive || it->price != price) {
+        ++it;
+        continue;
+      }
+      const std::uint32_t past = std::min(take, it->ahead);
+      it->ahead -= past;
+      const std::uint32_t mine = std::min(take - past, it->qty);
+      if (mine > 0) {
+        fills_.push_back({it->id, passive, price, mine});
+        fill_values_.push_back(value_);
+        it->qty -= mine;
+      }
+      if (it->qty == 0) {
+        it = resting_.erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
+
+  // Quote jumps (reprice_band > 0): see SimParams. Runs at the end of a step,
+  // so every quote a strategy sees has |fair value - mid| <= max(band, 0.5).
+  void reprice() {
+    const double g = value_ - mid();
+    if (!(std::abs(g) > p_.reprice_band)) return;
+    const auto k = static_cast<std::int32_t>(std::lround(g));
+    if (k == 0) return;
+    const Side up = k > 0 ? Side::Buy : Side::Sell;      // the snipers' side
+    const Side stale = k > 0 ? Side::Sell : Side::Buy;  // the quotes value just passed
+    // The makers' lots per level (the strategy's taken out): the shape that moves.
+    std::array<std::uint32_t, kLevels> mb = bid_q_, ma = ask_q_;
+    for (const auto& o : resting_) {
+      const std::size_t i = level_index(o.side, o.price);
+      if (i >= kLevels) continue;
+      auto& q = o.side == Side::Buy ? mb : ma;
+      q[i] -= std::min(q[i], o.qty);
+    }
+    // Snipers race the cancels at each stale level the moved book would
+    // cross; FIFO, so the strategy's orders there fill by queue position.
+    const std::int32_t mag = k > 0 ? k : -k;
+    const auto crossed = static_cast<std::size_t>(std::clamp<std::int32_t>(mag - spread_ + 1, 0, static_cast<std::int32_t>(kLevels)));
+    const auto& sq = stale == Side::Sell ? ask_q_ : bid_q_;
+    // Snipers take a fixed clip per level (reprice_snipe x the stationary
+    // best-level size; their size is set by their risk limits, not by the
+    // queue), so their prints scale with the jump, not with the book.
+    const auto clip = static_cast<std::uint32_t>(std::llround(p_.reprice_snipe * static_cast<double>(stationary_depth(0))));
+    for (std::size_t j = 0; j < crossed; ++j) {
+      const auto off = static_cast<std::int32_t>(j);
+      const std::int32_t px = stale == Side::Sell ? ask() + off : bid_ - off;
+      auto take = std::min(sq[j], clip);
+      while (take > 0) {
+        const std::uint32_t c = std::min(take, taker_size());
+        consume_at(stale, j, px, c);
+        trades_.push_back({t_ns_, px, c, up, false});
+        taker_volume_[kSniper] += c;
+        ++snipes_;
+        take -= c;
+      }
+    }
+    // Every maker order moves k ticks (sniped lots are re-posted by the
+    // makers who won the race: the shape is kept).
+    bid_q_ = mb;
+    ask_q_ = ma;
+    bid_ += k;
+    // Informed icebergs that value passed are pulled.
+    std::erase_if(icebergs_, [&](const Iceberg& ib) { return ib.side == stale && (stale == Side::Sell ? ib.price <= bid_ : ib.price >= ask()); });
+    // The strategy's orders keep their price: crossed ones are filled there
+    // by the snipers; the rest rejoin at the back of the queue at their
+    // price; beyond the simulated depth they are dropped.
+    for (auto it = resting_.begin(); it != resting_.end();) {
+      const bool through = it->side == Side::Sell ? it->price <= bid_ : it->price >= ask();
+      if (through) {
+        fills_.push_back({it->id, it->side, it->price, it->qty});
+        fill_values_.push_back(value_);
+        trades_.push_back({t_ns_, it->price, it->qty, up, false});
+        taker_volume_[kSniper] += it->qty;
+        ++snipes_;
+        it = resting_.erase(it);
+        continue;
+      }
+      // Beyond the simulated depth, or left inside a wide spread (rare: the
+      // spread is 1 tick > 99% of the time), the order is cancelled.
+      const std::size_t i = level_index(it->side, it->price);
+      if (i >= kLevels) {
+        it = resting_.erase(it);
+        continue;
+      }
+      auto& q = it->side == Side::Buy ? bid_q_ : ask_q_;
+      it->ahead = q[i];
+      q[i] += it->qty;
+      ++it;
+    }
+    ++reprices_;
+    reprice_ticks_ += static_cast<std::uint64_t>(mag);
+  }
+
+  // v2 on: re-pricing (reprice_band) by stale-side depletion (reprice_cancel).
+  [[nodiscard]] bool depletion() const noexcept { return p_.reprice_band > 0 && p_.reprice_cancel > 0; }
+  // v2 staleness (reprice_cancel > 0): value has passed a quote at `price`.
+  [[nodiscard]] bool stale_price(Side side, std::int32_t price) const noexcept {
+    const double over = side == Side::Buy ? price - value_ : value_ - price;
+    return over > p_.reprice_band - 0.5;
+  }
+  // Stale levels on the side value has passed, counted from that side's best.
+  [[nodiscard]] std::size_t stale_levels() const noexcept {
+    const Side stale = value_ > mid() ? Side::Sell : Side::Buy;
+    std::size_t n = 0;
+    while (n < kLevels && stale_price(stale, stale == Side::Sell ? ask() + static_cast<std::int32_t>(n) : bid_ - static_cast<std::int32_t>(n))) ++n;
+    return n;
+  }
+
+  // Stale-side depletion and value-side re-pricing (v2): see SimParams.
+  void deplete() {
+    const Side stale = value_ > mid() ? Side::Sell : Side::Buy, up = stale == Side::Sell ? Side::Buy : Side::Sell;
+    const std::size_t nst = stale_levels();
+    if (nst == 0) {
+      in_race_ = false;
+      return;
+    }
+    if (!in_race_ || race_side_ != stale) ++races_;
+    in_race_ = true;
+    race_side_ = stale;
+    // Informed icebergs whose price value has passed are pulled (otherwise
+    // they'd hold the stale price and the gap would leak through absorption).
+    std::erase_if(icebergs_, [&](const Iceberg& ib) { return ib.side == stale && stale_price(stale, ib.price); });
+    clamp_ahead();
+    auto& sq = stale == Side::Sell ? ask_q_ : bid_q_;
+    for (std::size_t j = 0; j < nst; ++j) {
+      // Per-lot departure probability this step: the further value has passed
+      // the quote (`over` ticks beyond the threshold), the faster it goes.
+      const auto off = static_cast<std::int32_t>(j);
+      const double over = (stale == Side::Sell ? value_ - (ask() + off) : (bid_ - off) - value_) - (p_.reprice_band - 0.5);
+      const double h = 1 - std::exp(-p_.reprice_cancel * (1 + over) * p_.dt);
+      const std::uint32_t oth = others(stale, j);
+      if (j == 0) {  // snipers take at the stale best only (no trade-throughs), FIFO
+        const std::int32_t px = stale == Side::Sell ? ask() : bid_;
+        const std::uint32_t own = sq[0] - std::min(sq[0], oth);
+        const double lots = p_.reprice_take * static_cast<double>(oth) + (oth == 0 ? static_cast<double>(own) : 0.0);
+        std::uint32_t take = std::min(sq[0], poisson(h * lots));
+        while (take > 0) {
+          const std::uint32_t c = std::min(take, taker_size());
+          consume_at(stale, 0, px, c);
+          trades_.push_back({t_ns_, px, c, up, false});
+          taker_volume_[kSniper] += c;
+          ++snipes_;
+          take -= c;
+        }
+      }
+      const double cancel_share = j == 0 ? 1 - p_.reprice_take : 1.0;
+      stale_cancelled_ += cancel_level(stale, j, poisson(h * cancel_share * static_cast<double>(oth)));
+    }
+    // An empty stale best: the price ticks, and the value side re-prices with it.
+    for (std::size_t guard = 0; guard < kLevels; ++guard) {
+      const std::int32_t best = stale == Side::Sell ? ask() : bid_;
+      if (sq[0] > 0 || iceberg_at(stale, best) || !stale_price(stale, best)) break;
+      shift_out(up);  // the stale best is gone: the next stale level becomes best
+      translate(up);  // the value side moves one tick toward value: spread 1 again
+      ++reprices_;
+      ++reprice_ticks_;
+    }
+  }
+
+  // The makers on `side` re-price one tick toward the other side, the shape
+  // of their book kept (spread - 1). The strategy's orders there keep their
+  // price and rejoin at the back of its queue; beyond the simulated depth
+  // they are dropped.
+  void translate(Side side) {
+    auto& q = side == Side::Buy ? bid_q_ : ask_q_;
+    bool own = false;
+    for (const auto& o : resting_)
+      if (o.side == side) {
+        const std::size_t i = level_index(side, o.price);
+        if (i < kLevels) q[i] -= std::min(q[i], o.qty);
+        own = true;
+      }
+    if (side == Side::Buy) ++bid_;  // ask() = bid_ + spread_: moving the ask down is --spread_ alone
+    --spread_;
+    if (!own) return;
+    for (auto it = resting_.begin(); it != resting_.end();) {
+      if (it->side != side) {
+        ++it;
+        continue;
+      }
+      const std::size_t i = level_index(side, it->price);
+      if (i >= kLevels) {
+        it = resting_.erase(it);
+        continue;
+      }
+      it->ahead = q[i];
+      q[i] += it->qty;
+      ++it;
+    }
+  }
+
+  // Rounded back-biased cancellations can leave an order's `ahead` above the
+  // lots that are actually there; the queue can't hold more than it shows.
+  void clamp_ahead() noexcept {
+    for (auto& r : resting_) {
+      const std::size_t i = level_index(r.side, r.price);
+      if (i >= kLevels) continue;
+      const std::uint32_t lvl = r.side == Side::Buy ? bid_q_[i] : ask_q_[i];
+      r.ahead = std::min(r.ahead, lvl - std::min(lvl, r.qty));
     }
   }
 
@@ -13228,6 +14608,7 @@ class EsSimulator {
           continue;
         }
         shift_out(side);
+        cleared_ |= side == Side::Buy ? 2u : 1u;  // the v2 spread fill reads it
         continue;
       }
       const std::uint32_t take = std::min(left, q[0]);
@@ -13262,8 +14643,14 @@ class EsSimulator {
 
   // Cancellations can empty the best level; the price then moves to the next.
   void normalize_book() {
-    for (int g = 0; g < 4 && bid_q_[0] == 0 && !iceberg_at(Side::Buy, bid_); ++g) shift_out(Side::Sell);
-    for (int g = 0; g < 4 && ask_q_[0] == 0 && !iceberg_at(Side::Sell, ask()); ++g) shift_out(Side::Buy);
+    for (int g = 0; g < 4 && bid_q_[0] == 0 && !iceberg_at(Side::Buy, bid_); ++g) {
+      shift_out(Side::Sell);
+      cleared_ |= 1u;
+    }
+    for (int g = 0; g < 4 && ask_q_[0] == 0 && !iceberg_at(Side::Sell, ask()); ++g) {
+      shift_out(Side::Buy);
+      cleared_ |= 2u;
+    }
   }
 
   // Own orders pushed beyond the simulated depth are cancelled.
@@ -13296,7 +14683,7 @@ class EsSimulator {
 
   // Random streams (separate_streams): indices into streams_; the shared
   // stream rng_ otherwise. An index, not a pointer: simulators are copied.
-  static constexpr std::size_t kValue = 0, kNoise = 1, kMeta = 2, kMomentum = 3, kShuffle = 4, kMaker = 5, kIceberg = 6, kOwn = 7, kStreams = 8;
+  static constexpr std::size_t kValue = 0, kNoise = 1, kMeta = 2, kMomentum = 3, kShuffle = 4, kMaker = 5, kIceberg = 6, kOwn = 7, kSnipe = 8, kStreams = 9;
   void use(std::size_t k) noexcept { cur_ = streams_.empty() ? kStreams : k; }
   [[nodiscard]] std::uint64_t stream_seed(std::uint64_t k, std::uint64_t step) const noexcept {
     std::uint64_t z = seed_ ^ (0x9E3779B97F4A7C15ull * (k + 1)) ^ (step * 0xD1B54A32D192ED03ull);
@@ -13305,6 +14692,12 @@ class EsSimulator {
     return z ^ (z >> 31);
   }
   Rng& r() noexcept { return cur_ < streams_.size() ? streams_[cur_] : rng_; }
+  [[nodiscard]] static std::uint64_t mix64(std::uint64_t z) noexcept {  // splitmix64
+    z += 0x9E3779B97F4A7C15ull;
+    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
+    z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
+    return z ^ (z >> 31);
+  }
 
   SimParams p_;
   Rng rng_;
@@ -13314,15 +14707,26 @@ class EsSimulator {
   std::int32_t bid_ = 0, spread_ = 1;
   std::array<std::uint32_t, kLevels> bid_q_{}, ask_q_{};
   double value_ = 0, log_activity_ = 0, clock_ = 0, flow_ = 0, move_avg_ = 0.1;
+  double m0_ = 0;  // model 1: the centre of log activity (activity_law())
   std::int64_t t_ns_ = 0;
   std::uint64_t next_id_ = 1;
   std::deque<double> history_;
   std::vector<Trade> trades_;
   std::vector<OwnFill> fills_;
+  std::vector<double> fill_values_;  // own_fill_hidden_values(), parallel to fills_
   std::vector<Order> orders_;
   std::vector<Meta> metas_;
   std::vector<Iceberg> icebergs_;
   std::vector<Resting> resting_;
+  std::array<std::uint64_t, kTakerKinds> taker_volume_{};
+  std::array<std::uint64_t, 2> meta_starts_{};  // informed, uninformed
+  std::uint64_t reprices_ = 0, reprice_ticks_ = 0;
+  std::size_t snipes_ = 0;
+  double own_flow_ = 0, fhat_ = 0, flow_impact_ = 0;  // value_impact
+  std::uint64_t races_ = 0, stale_cancelled_ = 0;    // deplete()
+  bool in_race_ = false;
+  std::uint32_t cleared_ = 0;  // this step a best level vanished (taken or cancelled): bid (1), ask (2)
+  Side race_side_ = Side::Buy;
 };
 
 }  // namespace rag::orderflow
@@ -13332,7 +14736,7 @@ class EsSimulator {
 
 ---
 
-## FILE: include/rag/orderflow/stylized.hpp  (7,151 bytes)
+## FILE: include\rag\orderflow\stylized.hpp  (7,151 bytes)
 
 ```cpp
 // rag/orderflow/stylized.hpp — the stylized facts of a tick stream, measured
@@ -13527,7 +14931,7 @@ inline StylizedFacts simulate_facts(const SimParams& p, double seconds, std::uin
 
 ---
 
-## FILE: include/rag/orderflow/tick_csv.hpp  (4,780 bytes)
+## FILE: include\rag\orderflow\tick_csv.hpp  (4,780 bytes)
 
 ```cpp
 // rag/orderflow/tick_csv.hpp — read recorded ticks from a simple CSV and
@@ -13667,7 +15071,7 @@ TickCsvStats replay_tick_csv(const std::string& path, Sink& sink, const TickCsvO
 
 ---
 
-## FILE: include/rag/orderflow/tick_env.hpp  (8,929 bytes)
+## FILE: include\rag\orderflow\tick_env.hpp  (10,293 bytes)
 
 ```cpp
 // rag/orderflow/tick_env.hpp — tick scalping (passive, queue-based) on the
@@ -13701,6 +15105,7 @@ TickCsvStats replay_tick_csv(const std::string& path, Sink& sink, const TickCsvO
 #include <cmath>
 #include <cstdint>
 #include <optional>
+#include <vector>
 
 #include "rag/agent/env.hpp"
 #include "rag/orderflow/features.hpp"
@@ -13748,10 +15153,19 @@ class TickScalpEnv {
 
   explicit TickScalpEnv(const TickParams& p = {}) : p_(p) {}
 
-  Observation reset(rag::agent::Rng& rng) {
-    const double latest_start = std::max(0.0, p_.sim.session_seconds - p_.episode_seconds - p_.warmup_seconds);
+  // An episode's market before its warm-up: a fresh simulator seeded from
+  // `rng` at a random time of day (or start_second). reset() and the
+  // diagnostics probe (of10_discovery's episode regime) both build episodes
+  // with it, so they see the same markets.
+  [[nodiscard]] static EsSimulator make_market(const TickParams& p, rag::agent::Rng& rng) {
+    const double latest_start = std::max(0.0, p.sim.session_seconds - p.episode_seconds - p.warmup_seconds);
     const double u = rng.uniform();  // drawn either way: episode seeds don't depend on the setting
-    sim_.emplace(p_.sim, rng.next(), p_.start_second >= 0 ? p_.start_second : u * latest_start);
+    const std::uint64_t seed = rng.next();
+    return EsSimulator(p.sim, seed, p.start_second >= 0 ? p.start_second : u * latest_start);
+  }
+
+  Observation reset(rag::agent::Rng& rng) {
+    sim_.emplace(make_market(p_, rng));
     fb_ = FeatureBuilder(p_.sim.dt);
     for (std::uint32_t i = 0; i < steps(p_.warmup_seconds); ++i) advance();
     position_ = 0;
@@ -13764,6 +15178,8 @@ class TickScalpEnv {
   }
 
   rag::agent::Step<Observation> step(rag::agent::Action a, rag::agent::Rng&) {
+    step_fills_.clear();
+    step_fill_values_.clear();
     double fees = 0;
     if (a == 4) {
       mode_ = 0;
@@ -13807,6 +15223,11 @@ class TickScalpEnv {
 
   [[nodiscard]] double net_pnl_ticks() const noexcept { return equity_ - fees_; }
   [[nodiscard]] std::uint32_t fills() const noexcept { return fills_; }
+  // Passive fills of the last step() (own-fill markouts); flattening market orders are not included.
+  [[nodiscard]] const std::vector<OwnFill>& step_fills() const noexcept { return step_fills_; }
+  // DIAGNOSTICS ONLY, hidden state (never an observation): the fair value when
+  // each step_fills()[i] filled (EsSimulator::own_fill_hidden_values()).
+  [[nodiscard]] const std::vector<double>& step_fill_hidden_values() const noexcept { return step_fill_values_; }
   [[nodiscard]] double fees_ticks() const noexcept { return fees_; }
   [[nodiscard]] const EsSimulator& market() const noexcept { return *sim_; }
   [[nodiscard]] const TickParams& params() const noexcept { return p_; }
@@ -13838,8 +15259,12 @@ class TickScalpEnv {
   // Passive fills from the last simulator step; returns their fees.
   double book_fills() {
     double fees = 0;
-    for (const auto& f : sim_->own_fills()) {
+    const auto& values = sim_->own_fill_hidden_values();
+    for (std::size_t i = 0; i < sim_->own_fills().size(); ++i) {
+      const OwnFill& f = sim_->own_fills()[i];
       on_fill(f.side, f.price, f.size);
+      step_fills_.push_back(f);
+      step_fill_values_.push_back(values[i]);
       fees += f.size * p_.fee_dollars / kTickValue;
     }
     fees_ += fees;
@@ -13901,6 +15326,8 @@ class TickScalpEnv {
   double cash_ = 0, equity_ = 0, fees_ = 0, elapsed_ = 0, entry_ = 0;
   std::uint64_t bid_id_ = 0, ask_id_ = 0;
   std::uint32_t fills_ = 0;
+  std::vector<OwnFill> step_fills_;  // passive fills of the last step() (diagnostics)
+  std::vector<double> step_fill_values_;  // step_fill_hidden_values(), parallel to step_fills_
 };
 
 static_assert(rag::agent::Environment<TickScalpEnv>);
@@ -13912,7 +15339,7 @@ static_assert(rag::agent::Environment<TickScalpEnv>);
 
 ---
 
-## FILE: include/rag/pdf.hpp  (3,964 bytes)
+## FILE: include\rag\pdf.hpp  (3,964 bytes)
 
 ```cpp
 // rag/pdf.hpp — PDF ingestion: text extraction (Poppler), cleanup
@@ -14023,7 +15450,7 @@ IngestResult ingest_pdf(Engine& engine, const std::filesystem::path& path, std::
 
 ---
 
-## FILE: include/rag/prompt.hpp  (5,725 bytes)
+## FILE: include\rag\prompt.hpp  (5,725 bytes)
 
 ```cpp
 // rag/prompt.hpp — context assembly into a caller-owned, fixed-size buffer.
@@ -14187,7 +15614,7 @@ PromptResult build_prompt(std::string_view question, std::span<const Hit> hits, 
 
 ---
 
-## FILE: include/rag/simd.hpp  (10,022 bytes)
+## FILE: include\rag\simd.hpp  (10,022 bytes)
 
 ```cpp
 // rag/simd.hpp — similarity kernels: fp32 dot, 4-row register-blocked dot,
@@ -14426,7 +15853,7 @@ inline void normalize(float* v, std::size_t n) noexcept {
 
 ---
 
-## FILE: include/rag/text_clean.hpp  (10,790 bytes)
+## FILE: include\rag\text_clean.hpp  (10,790 bytes)
 
 ```cpp
 // rag/text_clean.hpp — cleanup for text extracted from paginated documents
@@ -14698,7 +16125,7 @@ inline PagedText join_pages(const std::vector<std::string>& pages) {
 
 ---
 
-## FILE: include/rag/tokenizer.hpp  (5,203 bytes)
+## FILE: include\rag\tokenizer.hpp  (5,203 bytes)
 
 ```cpp
 // rag/tokenizer.hpp — allocation-free ASCII/UTF-8 word tokenizer with
@@ -14839,7 +16266,7 @@ static_assert(is_stopword(hash_term("The")) && !is_stopword(hash_term("orderbook
 
 ---
 
-## FILE: include/rag/topk.hpp  (3,473 bytes)
+## FILE: include\rag\topk.hpp  (3,473 bytes)
 
 ```cpp
 // rag/topk.hpp — fixed-capacity top-K selection on the stack.
@@ -14946,7 +16373,7 @@ class TopK {
 
 ---
 
-## FILE: include/rag/vector_store.hpp  (6,303 bytes)
+## FILE: include\rag\vector_store.hpp  (6,303 bytes)
 
 ```cpp
 // rag/vector_store.hpp — fixed-capacity, append-only embedding store with
@@ -15091,7 +16518,7 @@ class VectorStore {
 
 ---
 
-## FILE: include/rag.hpp  (69 bytes)
+## FILE: include\rag.hpp  (69 bytes)
 
 ```cpp
 // rag.hpp — umbrella header.
@@ -15103,7 +16530,7 @@ class VectorStore {
 
 ---
 
-## FILE: examples/agent_demo.cpp  (9,086 bytes)
+## FILE: examples\agent_demo.cpp  (9,086 bytes)
 
 ```cpp
 // agent_demo — a self-learning execution agent, end to end.
@@ -15282,7 +16709,7 @@ int main() {
 
 ---
 
-## FILE: examples/demo.cpp  (1,952 bytes)
+## FILE: examples\demo.cpp  (1,952 bytes)
 
 ```cpp
 // demo.cpp — end-to-end usage: ingest, commit, query, hand prompt to a generator.
@@ -15333,7 +16760,7 @@ int main() {
 
 ---
 
-## FILE: examples/of_backtest.cpp  (4,488 bytes)
+## FILE: examples\of_backtest.cpp  (4,488 bytes)
 
 ```cpp
 // of_backtest — walk-forward backtest of order-flow scalping strategies on
@@ -15446,13 +16873,13 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: examples/of_calibrate.cpp  (10,503 bytes)
+## FILE: examples\of_calibrate.cpp  (10,788 bytes)
 
 ```cpp
 // of_calibrate — compare the ES simulator with recorded ES ticks, and fit its
 // parameters so the simulated market has the same stylized facts.
 //
-//   of_calibrate sim [seconds=10800]                 facts of the simulator (default parameters)
+//   of_calibrate sim [seconds=10800] [market]        facts of the simulator (market: default, efficient, discovery)
 //   of_calibrate facts <ticks.csv> [options]         facts of recorded ticks
 //   of_calibrate fit   <ticks.csv> [options]         fit the simulator to them (needs NLopt)
 //   of_calibrate export <out.csv> [seconds=3600] [informed_scale=1]
@@ -15467,6 +16894,7 @@ int main(int argc, char** argv) {
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
@@ -15597,7 +17025,15 @@ int main(int argc, char** argv) {
   }
   if (mode == "sim") {
     const double seconds = argc > 2 ? std::atof(argv[2]) : 10800;
-    print_facts("simulator, default parameters", simulate_facts(SimParams{}, seconds));
+    const std::string market = argc > 3 ? argv[3] : "default";
+    SimParams p;
+    try {
+      p = market_preset(market);
+    } catch (const std::invalid_argument& e) {
+      std::fprintf(stderr, "%s\n", e.what());
+      return 2;
+    }
+    print_facts(("simulator, " + market + " parameters").c_str(), simulate_facts(p, seconds));
     return 0;
   }
   if ((mode == "facts" || mode == "fit") && argc > 2) {
@@ -15655,16 +17091,292 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: examples/of_train.cpp  (7,828 bytes)
+## FILE: examples\of_trace.cpp  (11,387 bytes)
+
+```cpp
+// of_trace — step-by-step trace of saved scalping agents, for visualization
+// (tools/of_viz.py turns the CSV into one self-contained HTML page).
+//
+//   of_trace NET [NET...] [--market default|efficient|discovery] [--episodes 20]
+//            [--seed 960000000] [--warmup 150] [--out of_trace.csv]
+//
+// --warmup S (default 150 s): the episodes' warm-up (ScalpParams::
+// warmup_seconds), so networks trained with of_train --warmup S are replayed
+// on the episodes they learned on. A network whose of_train record
+// (DIR/seedK.txt) names another warm-up or market is refused (exit 2), and so
+// is a network with no record (trained at 150 s) when S is not 150
+// (scalp_run.hpp, check_net). With --warmup the CSV header records it.
+//
+// Runs ScalpEnv episodes with the saved networks (DIR/seedK.net from
+// of_train; several nets act as their mean-Q ensemble, as in of_train) and,
+// on the same episode seeds, the 30 s delta rule and the fair-value oracle
+// (gap > 2 ticks, as in OF2). Each strategy has its own environment (our
+// orders move the market, so the three paths can drift apart by a tick or
+// so); the market columns are the agent's.
+//
+// One CSV row per 1 s decision. Market columns (time of day: session seconds
+// since the 09:30 open; bid, ask, mid, hidden
+// fair value, L1 sizes and imbalance), the 13 observation features and the
+// Q-values describe the state the agent saw when it chose; position, fill,
+// orders, fees and P&L are after the step. The fair value is for display
+// only: the agent never sees it (only the oracle does).
+//
+// Seeds: 960,000,000+ is the visualization block (docs/ai/NEXT_SESSION.md
+// section 4): look at these episodes as often as you like, but never select
+// or score anything on them.
+#include <algorithm>
+#include <array>
+#include <cerrno>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <fstream>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+#include "rag/agent/agent.hpp"
+#include "rag/orderflow/scalp_env.hpp"
+#include "rag/orderflow/scalp_run.hpp"
+
+using namespace rag::agent;
+using namespace rag::orderflow;
+
+namespace {
+
+constexpr std::uint64_t kVizFirst = 960'000'000, kVizEnd = 970'000'000;
+constexpr double kOracleGap = 2.0;  // ticks, OF2's "oracle (sees fair value)"
+constexpr std::array<const char*, kFeatures> kFeatureNames = {"f_delta5",  "f_delta30", "f_delta120", "f_ofi5",  "f_ofi30",
+                                                              "f_relvol",  "f_imb_l1",  "f_imb_l5",   "f_ret5",  "f_ret30",
+                                                              "f_ret120",  "f_vwap",    "f_absorb"};
+
+Action hold(const ScalpObs& o) { return static_cast<Action>(o.position + 1); }
+Action delta_rule(const ScalpObs& o) { return o.f[1] > 1.5 ? 2 : o.f[1] < -1.5 ? 0 : hold(o); }
+Action oracle(const ScalpObs& o, const ScalpEnv& e) {
+  const double gap = e.market().fair_value() - e.market().mid();
+  return gap > kOracleGap ? 2 : gap < -kOracleGap ? 0 : hold(o);
+}
+
+// Strategy cash (ticks) recovered from the environment's public statistics:
+// equity = cash + position * mid, net P&L = equity - fees.
+double cash(const ScalpEnv& e, int position) { return e.net_pnl_ticks() + e.fees_ticks() - position * e.market().mid(); }
+
+std::string fmt(double x, const char* f = "%.6g") {
+  if (!std::isfinite(x)) return "";
+  char b[48];
+  std::snprintf(b, sizeof b, f, x);
+  return b;
+}
+
+}  // namespace
+
+int main(int argc, char** argv) {
+  std::vector<std::string> nets;
+  std::string market = "default", out = "of_trace.csv";
+  unsigned episodes = 20;
+  std::uint64_t first_seed = kVizFirst;
+  double warmup = kDefaultWarmup;
+  bool warmup_given = false;
+  for (int i = 1; i < argc; ++i) {
+    const std::string k = argv[i];
+    if (k.rfind("--", 0) != 0) {
+      nets.push_back(k);
+      continue;
+    }
+    if (i + 1 >= argc) {
+      std::fprintf(stderr, "%s needs a value\n", k.c_str());
+      return 2;
+    }
+    const std::string v = argv[++i];
+    if (k == "--market") market = v;
+    else if (k == "--out") out = v;
+    else if (k == "--warmup") {
+      const auto w = parse_warmup(v);
+      if (!w) {
+        std::fprintf(stderr, "--warmup wants a number of seconds >= 0, got %s\n", v.c_str());
+        return 2;
+      }
+      warmup = *w;
+      warmup_given = true;
+    }
+    else if (k == "--episodes") episodes = static_cast<unsigned>(std::max(1, std::atoi(v.c_str())));
+    else if (k == "--seed") {
+      char* end = nullptr;
+      errno = 0;
+      first_seed = std::strtoull(v.c_str(), &end, 10);
+      if (v.empty() || v[0] == '-' || *end != '\0' || errno == ERANGE || first_seed < kVizFirst || first_seed >= kVizEnd) {
+        std::fprintf(stderr, "--seed wants an integer in the visualization block [960000000, 970000000) (docs/ai/NEXT_SESSION.md), got %s\n",
+                     v.c_str());
+        return 2;
+      }
+    } else {
+      std::fprintf(stderr, "unknown option %s\n", k.c_str());
+      return 2;
+    }
+  }
+  if (nets.empty()) {
+    std::fprintf(stderr,
+                 "usage: of_trace NET [NET...] [--market default|efficient|discovery] [--episodes 20] [--seed 960000000] [--warmup 150] [--out "
+                 "of_trace.csv]\n");
+    return 2;
+  }
+  if (first_seed + episodes > kVizEnd) {
+    std::fprintf(stderr, "--episodes runs past the visualization block\n");
+    return 2;
+  }
+  ScalpParams p;
+  try {
+    p = scalp_params(market, warmup);
+  } catch (const std::invalid_argument& e) {
+    std::fprintf(stderr, "--market: %s\n", e.what());
+    return 2;
+  }
+  if (const std::string why = warmup_error(p); !why.empty()) {
+    std::fprintf(stderr, "--warmup: %s\n", why.c_str());
+    return 2;
+  }
+  for (const auto& path : nets)  // the networks' own market and warm-up (of_train's records)
+    if (const std::string why = check_net(path, market, warmup); !why.empty()) {
+      std::fprintf(stderr, "%s\n", why.c_str());
+      return 2;
+    }
+
+  // The agents: of_train's NeuralQ setup with the saved weights (greedy).
+  const ScalpEnv probe(p);
+  std::vector<std::unique_ptr<Agent<ScalpEnv>>> agents;
+  for (const auto& path : nets) {
+    AgentConfig<ScalpEnv::kStateDims> c;
+    c.learner = LearnerKind::NeuralQ;
+    c.bins.fill(1);
+    c.double_q = true;
+    c.nn_polyak = 1e-4;
+    auto a = std::make_unique<Agent<ScalpEnv>>(probe, c);
+    auto s = a->snapshot();
+    try {
+      s.net = Mlp::load(path);
+    } catch (const std::exception& e) {
+      std::fprintf(stderr, "%s: %s\n", path.c_str(), e.what());
+      return 1;
+    }
+    if (s.net.inputs() != ScalpEnv::kStateDims || s.net.outputs() != ScalpEnv::kNumActions) {
+      std::fprintf(stderr, "%s: network has %u inputs and %u outputs, ScalpEnv needs %zu and %zu\n", path.c_str(), s.net.inputs(), s.net.outputs(),
+                   ScalpEnv::kStateDims, ScalpEnv::kNumActions);
+      return 1;
+    }
+    a->restore(s);
+    agents.push_back(std::move(a));
+  }
+  auto mean_q = [&](const ScalpObs& o) {
+    std::array<double, ScalpEnv::kNumActions> sum{}, q{};
+    for (const auto& a : agents) {
+      a->q_values(o, q.data());
+      for (std::size_t k = 0; k < q.size(); ++k) sum[k] += q[k] / static_cast<double>(agents.size());
+    }
+    return sum;
+  };
+
+  std::ofstream csv(out);
+  if (!csv) {
+    std::fprintf(stderr, "cannot write %s\n", out.c_str());
+    return 1;
+  }
+  csv << "# of_trace market=" << market << " nets=" << nets.size() << " oracle_gap=" << kOracleGap << " fee_dollars=" << p.fee_dollars
+      << " tick_value=" << kTickValue;
+  if (warmup_given) csv << " warmup_seconds=" << p.warmup_seconds;  // opt-in: the default header is unchanged
+  csv << "\n";
+  csv << "episode,seed,step,tod_s,bid,ask,mid,fair_value,bid_sz1,ask_sz1,imb_l1";
+  for (const char* n : kFeatureNames) csv << ',' << n;
+  csv << ",open_pnl,time_left,q_short,q_flat,q_long,action,pos,fill_px,orders,fees,pnl,rule_pos,rule_pnl,oracle_pos,oracle_pnl\n";
+
+  std::printf("%-8s %10s %10s %10s %8s\n", "episode", "agent", "rule", "oracle", "orders");
+  double tot_agent = 0, tot_rule = 0, tot_oracle = 0;
+  for (unsigned ep = 0; ep < episodes; ++ep) {
+    const std::uint64_t seed = first_seed + ep;
+    ScalpEnv ea(p), er(p), eo(p);
+    Rng ra(seed), rr(seed), ro(seed);
+    // Session second of the simulator's start, drawn as ScalpEnv::reset draws
+    // it (the simulator's own clock counts from its construction).
+    const double start_second = [&] {
+      if (p.start_second >= 0) return p.start_second;
+      Rng r(seed);
+      return r.uniform() * std::max(0.0, p.sim.session_seconds - p.episode_seconds - p.warmup_seconds);
+    }();
+    ScalpObs oa = ea.reset(ra), orule = er.reset(rr), oor = eo.reset(ro);
+    for (unsigned step = 0;; ++step) {
+      const auto& m = ea.market();
+      const Quote qt = m.quote();
+      const double bsz = qt.bid_size[0], asz = qt.ask_size[0];
+      const auto q = mean_q(oa);
+      const auto act = static_cast<Action>(std::max_element(q.begin(), q.end()) - q.begin());
+      const double cash0 = cash(ea, oa.position);
+      const std::uint32_t orders0 = ea.orders();
+
+      std::string row = std::to_string(ep) + ',' + std::to_string(seed) + ',' + std::to_string(step) + ',' +
+                        fmt(start_second + static_cast<double>(m.t_ns()) * 1e-9, "%.1f") + ',' + std::to_string(m.bid()) + ',' + std::to_string(m.ask()) + ',' +
+                        fmt(m.mid(), "%.1f") + ',' + fmt(m.fair_value(), "%.3f") + ',' + fmt(bsz, "%.0f") + ',' + fmt(asz, "%.0f") + ',' +
+                        fmt(bsz + asz > 0 ? (bsz - asz) / (bsz + asz) : 0.0, "%.4f");
+      for (double f : oa.f) row += ',' + fmt(f, "%.4f");
+      row += ',' + fmt(oa.open_pnl, "%.2f") + ',' + fmt(oa.time_left, "%.4f");
+      for (double x : q) row += ',' + fmt(x, "%.4f");
+
+      const auto sa = ea.step(act, ra);
+      const auto sr = er.step(delta_rule(orule), rr);
+      const auto so = eo.step(oracle(oor, eo), ro);
+      // The fill price of this step's market order, recovered from the cash
+      // change; empty without an order, or with two (the end-of-episode close
+      // after a change: their prices can't be separated).
+      double fill = std::nan("");
+      const int dpos = sa.obs.position - oa.position;
+      if (ea.orders() - orders0 == 1 && dpos != 0) fill = -(cash(ea, sa.obs.position) - cash0) / dpos;
+      oa = sa.obs;
+      orule = sr.obs;
+      oor = so.obs;
+      row += ',' + std::to_string(act) + ',' + std::to_string(oa.position) + ',' + fmt(fill, "%.2f") + ',' + std::to_string(ea.orders()) + ',' +
+             fmt(ea.fees_ticks(), "%.2f") + ',' + fmt(ea.net_pnl_ticks(), "%.2f") + ',' + std::to_string(orule.position) + ',' +
+             fmt(er.net_pnl_ticks(), "%.2f") + ',' + std::to_string(oor.position) + ',' + fmt(eo.net_pnl_ticks(), "%.2f") + '\n';
+      csv << row;
+      if (sa.done) break;
+    }
+    tot_agent += ea.net_pnl_ticks();
+    tot_rule += er.net_pnl_ticks();
+    tot_oracle += eo.net_pnl_ticks();
+    std::printf("%-8u %+10.2f %+10.2f %+10.2f %8u\n", ep, ea.net_pnl_ticks(), er.net_pnl_ticks(), eo.net_pnl_ticks(), ea.orders());
+  }
+  const double n = episodes;
+  std::printf("%-8s %+10.2f %+10.2f %+10.2f   ticks/episode, market %s, seeds %llu+ (visualization block: not a score)\n", "mean", tot_agent / n,
+              tot_rule / n, tot_oracle / n, market.c_str(), static_cast<unsigned long long>(first_seed));
+  std::printf("wrote %s\n", out.c_str());
+  return csv.good() ? 0 : 1;
+}
+
+```
+
+
+---
+
+## FILE: examples\of_train.cpp  (11,156 bytes)
 
 ```cpp
 // of_train — train order-flow scalping agents in parallel on a many-core
 // machine: one seed per thread, then score every agent and their mean-Q
 // ensemble on sealed test episodes against the 30 s delta rule.
 //
-//   of_train [--seeds 12] [--threads N] [--episodes 2000] [--market default|efficient]
+//   of_train [--seeds 12] [--threads N] [--episodes 2000] [--market default|efficient|discovery]
 //            [--hidden 64] [--gamma 0.97] [--nstep 5] [--batch 32] [--lr 0.001]
-//            [--test 300] [--out DIR]
+//            [--test 300] [--test-seed 900000000] [--warmup 150] [--out DIR]
+// --test-seed: first seed of the scoring episodes (900M+ sealed; 950M+ is the
+// once-per-claim fresh confirmation block, see docs/ai/NEXT_SESSION.md).
+// --warmup S: seconds the simulator runs before each episode's first decision
+// (ScalpParams::warmup_seconds) in training, validation AND sealed test
+// episodes; default 150. Episodes then start >= S s into the session
+// (ScalpEnv::draw_market: latest warm-up start = session - episode - S).
+// OF10 v3: RL on --market discovery uses --warmup 1050 (scalp_run.hpp). The
+// run header and the summary print it; each saved network gets a record,
+// DIR/seedK.txt next to DIR/seedK.net (market, warmup_seconds, the training
+// options and the seed; written right after the network), and of6 / of8 /
+// of_trace refuse networks whose record names another market or warm-up
+// than their own (scalp_run.hpp, check_net).
 //
 // --threads defaults to the number of hardware threads (capped at --seeds).
 // Each agent is NeuralQ with Double DQN and weight averaging (the recipe of
@@ -15678,6 +17390,7 @@ int main(int argc, char** argv) {
 // episodes on 12 cores take about as long as one seed.
 #include <algorithm>
 #include <atomic>
+#include <cerrno>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -15685,12 +17398,14 @@ int main(int argc, char** argv) {
 #include <filesystem>
 #include <memory>
 #include <mutex>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
 
 #include "rag/agent/trainer.hpp"
 #include "rag/orderflow/scalp_env.hpp"
+#include "rag/orderflow/scalp_run.hpp"
 
 using namespace rag::agent;
 using namespace rag::orderflow;
@@ -15699,7 +17414,8 @@ namespace {
 
 struct Options {
   unsigned seeds = 12, threads = 0, episodes = 2000, test = 300, hidden = 64, nstep = 5, batch = 32;
-  double gamma = 0.97, lr = 1e-3;
+  double gamma = 0.97, lr = 1e-3, warmup = kDefaultWarmup;
+  std::uint64_t test_seed = 900'000'000;
   std::string market = "default", out = "of_train_out";
 };
 
@@ -15708,12 +17424,12 @@ struct Score {
 };
 
 template <class Policy>
-Score score(const ScalpParams& p, Policy&& policy, unsigned episodes) {
+Score score(const ScalpParams& p, Policy&& policy, unsigned episodes, std::uint64_t first_seed) {
   std::vector<double> pnl;
   double orders = 0;
   for (unsigned i = 0; i < episodes; ++i) {
     ScalpEnv env(p);
-    Rng r(900'000'000ull + i);  // sealed test episodes
+    Rng r(first_seed + i);  // sealed test episodes
     auto o = env.reset(r);
     for (;;) {
       const auto st = env.step(policy(o), r);
@@ -15761,6 +17477,10 @@ AgentConfig<ScalpEnv::kStateDims> config(const Options& o, std::uint64_t seed) {
 
 int main(int argc, char** argv) {
   Options o;
+  if (argc % 2 == 0) {  // options come in pairs: a trailing flag has no value
+    std::fprintf(stderr, "%s needs a value\n", argv[argc - 1]);
+    return 2;
+  }
   for (int i = 1; i + 1 < argc; i += 2) {
     const std::string k = argv[i], v = argv[i + 1];
     if (k == "--seeds") o.seeds = static_cast<unsigned>(std::max(1, std::atoi(v.c_str())));
@@ -15774,6 +17494,25 @@ int main(int argc, char** argv) {
     else if (k == "--lr") o.lr = std::atof(v.c_str());
     else if (k == "--market") o.market = v;
     else if (k == "--out") o.out = v;
+    else if (k == "--warmup") {
+      const auto w = parse_warmup(v);
+      if (!w) {
+        std::fprintf(stderr, "--warmup wants a number of seconds >= 0, got %s\n", v.c_str());
+        return 2;
+      }
+      o.warmup = *w;
+    }
+    else if (k == "--test-seed") {
+      // Must be a whole number in a test block (900M+): a typo parsing to a
+      // small seed would score on the training streams (Rng(1..seeds)).
+      char* end = nullptr;
+      errno = 0;
+      o.test_seed = std::strtoull(v.c_str(), &end, 10);
+      if (v.empty() || v[0] == '-' || *end != '\0' || errno == ERANGE || o.test_seed < 900'000'000) {
+        std::fprintf(stderr, "--test-seed wants an integer >= 900000000 (a test block, docs/ai/NEXT_SESSION.md), got %s\n", v.c_str());
+        return 2;
+      }
+    }
     else {
       std::fprintf(stderr, "unknown option %s\n", k.c_str());
       return 2;
@@ -15782,14 +17521,24 @@ int main(int argc, char** argv) {
   if (o.threads == 0) o.threads = std::max(1u, std::thread::hardware_concurrency());
   o.threads = std::min(o.threads, o.seeds);
   ScalpParams p;
-  if (o.market == "efficient") p.sim = efficient_market();
-  else if (o.market != "default") {
-    std::fprintf(stderr, "--market must be default or efficient\n");
+  try {
+    p = scalp_params(o.market, o.warmup);
+  } catch (const std::invalid_argument& e) {
+    std::fprintf(stderr, "--market: %s\n", e.what());
+    return 2;
+  }
+  if (const std::string why = warmup_error(p); !why.empty()) {
+    std::fprintf(stderr, "--warmup: %s\n", why.c_str());
     return 2;
   }
   std::filesystem::create_directories(o.out);
-  std::printf("training %u seeds x %u episodes on %u threads (hardware threads: %u), market %s, hidden %u\n", o.seeds, o.episodes, o.threads,
-              std::thread::hardware_concurrency(), o.market.c_str(), o.hidden);
+  // Each saved network's record (DIR/seedK.txt): of6 / of8 / of_trace check market and warm-up against it.
+  char options[512];
+  std::snprintf(options, sizeof options, "seeds=%u\nepisodes=%u\nhidden=%u\ngamma=%.17g\nnstep=%u\nbatch=%u\nlr=%.17g\ntest=%u\ntest_seed=%llu\n",
+                o.seeds, o.episodes, o.hidden, o.gamma, o.nstep, o.batch, o.lr, o.test, static_cast<unsigned long long>(o.test_seed));
+  std::atomic<bool> record_failed{false};
+  std::printf("training %u seeds x %u episodes on %u threads (hardware threads: %u), market %s, warm-up %g s, hidden %u\n", o.seeds, o.episodes,
+              o.threads, std::thread::hardware_concurrency(), o.market.c_str(), o.warmup, o.hidden);
   std::fflush(stdout);
 
   const auto t0 = std::chrono::steady_clock::now();
@@ -15809,10 +17558,19 @@ int main(int argc, char** argv) {
       const auto rep = tr.run(o.episodes);
       validation[i] = rep.champion_score;
       if (const auto* ch = tr.champion()) {
-        ch->net.save(o.out + "/seed" + std::to_string(seed) + ".net");
+        // The old record goes first and the new one comes right after the
+        // network: a record never vouches for another run's network.
+        const std::string path = o.out + "/seed" + std::to_string(seed) + ".net";
+        remove_net_record(path);
+        ch->net.save(path);
+        if (!write_net_record(path, o.market, o.warmup, options + ("seed=" + std::to_string(seed) + "\n"))) {
+          std::lock_guard lock(print);
+          std::fprintf(stderr, "can't write %s\n", record_path_of_net(path).c_str());
+          record_failed = true;
+        }
         agent->restore(*ch);  // the deployed policy, for scoring and the ensemble
       }
-      scores[i] = score(p, [&](const ScalpObs& ob) { return agent->act(ob, false); }, o.test);
+      scores[i] = score(p, [&](const ScalpObs& ob) { return agent->act(ob, false); }, o.test, o.test_seed);
       {
         std::lock_guard lock(print);
         std::printf("  seed %2llu: validation %+.2f, sealed test %+.2f ticks/episode (t %+.1f, %.1f orders, %.0f%% winning)\n",
@@ -15828,7 +17586,7 @@ int main(int argc, char** argv) {
   const double secs = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
 
   const Score rule = score(
-      p, [](const ScalpObs& ob) -> Action { return ob.f[1] > 1.5 ? 2 : ob.f[1] < -1.5 ? 0 : static_cast<Action>(ob.position + 1); }, o.test);
+      p, [](const ScalpObs& ob) -> Action { return ob.f[1] > 1.5 ? 2 : ob.f[1] < -1.5 ? 0 : static_cast<Action>(ob.position + 1); }, o.test, o.test_seed);
   const Score ens = score(
       p,
       [&](const ScalpObs& ob) -> Action {
@@ -15839,15 +17597,17 @@ int main(int argc, char** argv) {
         }
         return static_cast<Action>(std::max_element(sum.begin(), sum.end()) - sum.begin());
       },
-      o.test);
+      o.test, o.test_seed);
   double mean_single = 0;
   for (const auto& s : scores) mean_single += s.mean / static_cast<double>(scores.size());
-  std::printf("\nsealed test, %u episodes of 10 min (1 ES contract):\n", o.test);
+  std::printf("\nsealed test, %u episodes of 10 min from seed %llu (1 ES contract, market %s, warm-up %g s):\n", o.test,
+              static_cast<unsigned long long>(o.test_seed), o.market.c_str(), o.warmup);
   std::printf("  delta 30 s rule      %+.2f ticks/episode (t %+.1f)\n", rule.mean, rule.t);
   std::printf("  RL, mean of seeds    %+.2f\n", mean_single);
   std::printf("  RL mean-Q ensemble   %+.2f (t %+.1f, %.1f orders, %.0f%% winning) of all %u seeds\n", ens.mean, ens.t, ens.orders, ens.win, o.seeds);
   std::printf("training took %.0f s; networks in %s/\n", secs, o.out.c_str());
   std::printf("note: these are simulator results; replay recorded ticks with of_backtest before trusting any edge.\n");
+  return record_failed ? 1 : 0;
 }
 
 ```
@@ -15855,7 +17615,7 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: examples/rag_pdf.cpp  (12,800 bytes)
+## FILE: examples\rag_pdf.cpp  (12,800 bytes)
 
 ```cpp
 // rag_pdf — index PDFs and text/source files, then ask questions with citations.
@@ -16167,7 +17927,7 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: examples/train_ensemble.cpp  (4,386 bytes)
+## FILE: examples\train_ensemble.cpp  (4,386 bytes)
 
 ```cpp
 // train_ensemble — the best learned execution policy (E25, DECISIONS A48),
@@ -16268,7 +18028,7 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: examples/tune_agent.cpp  (4,883 bytes)
+## FILE: examples\tune_agent.cpp  (4,883 bytes)
 
 ```cpp
 // tune_agent — tune the tile-coded learner's hyperparameters on ExecutionEnv
@@ -16383,7 +18143,7 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: bench/latency.cpp  (2,717 bytes)
+## FILE: bench\latency.cpp  (2,717 bytes)
 
 ```cpp
 // latency.cpp — tail-latency probe for the full query pipeline.
@@ -16461,7 +18221,7 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: bench/rag_bench.cpp  (14,910 bytes)
+## FILE: bench\rag_bench.cpp  (14,910 bytes)
 
 ```cpp
 // rag_bench.cpp — Google Benchmark microbenchmarks, kernel -> component -> pipeline.
@@ -16824,7 +18584,7 @@ BENCHMARK_MAIN();
 
 ---
 
-## FILE: bench/fixtures.hpp  (2,224 bytes)
+## FILE: bench\fixtures.hpp  (2,224 bytes)
 
 ```cpp
 // Lazily-built, process-wide benchmark fixtures (built once, reused by every run).
@@ -16906,7 +18666,7 @@ inline Engine& engine(DenseMode mode) {
 
 ---
 
-## FILE: tests/agent_coverage_tests.cpp  (42,321 bytes)
+## FILE: tests\agent_coverage_tests.cpp  (42,321 bytes)
 
 ```cpp
 // agent_coverage_tests.cpp — exact checks of agent behaviour the other test
@@ -17828,7 +19588,7 @@ TEST(Validation, StressSuiteAndPairedMetrics) {
 
 ---
 
-## FILE: tests/agent_edge_case_tests.cpp  (15,181 bytes)
+## FILE: tests\agent_edge_case_tests.cpp  (15,181 bytes)
 
 ```cpp
 // agent_edge_case_tests.cpp — edge cases of the agent stack (adversarial
@@ -18146,7 +19906,7 @@ TEST(TrainerEdgeCases, ASingleEvaluationScenarioHasZeroStdErrorButNoFalseAlarms)
 
 ---
 
-## FILE: tests/agent_tests.cpp  (50,715 bytes)
+## FILE: tests\agent_tests.cpp  (50,715 bytes)
 
 ```cpp
 // agent_tests.cpp — the self-learning agent: every component in isolation,
@@ -19339,7 +21099,7 @@ TEST(AgentNeural, DoubleAndAdvantageTargetsStillLearn) {
 
 ---
 
-## FILE: tests/api_examples_tests.cpp  (12,798 bytes)
+## FILE: tests\api_examples_tests.cpp  (12,798 bytes)
 
 ```cpp
 // api_examples_tests.cpp — every code example in docs/ai/API.md, compiled
@@ -19628,7 +21388,7 @@ TEST(ApiExamples, OrderFlowTrading) {
 
 ---
 
-## FILE: tests/forgery_tests.cpp  (14,852 bytes)
+## FILE: tests\forgery_tests.cpp  (14,852 bytes)
 
 ```cpp
 // forgery_tests.cpp — every structural check in the index loader, exercised
@@ -19950,7 +21710,7 @@ TEST(ForgeryIvf, EveryStructuralCheck) {
 
 ---
 
-## FILE: tests/market_making_tests.cpp  (7,401 bytes)
+## FILE: tests\market_making_tests.cpp  (7,401 bytes)
 
 ```cpp
 // market_making_tests.cpp — Experiment E12: a second task (market making)
@@ -20123,7 +21883,7 @@ TEST(MarketMaking, AModelBasedMarketMakerNeedsAFewEpisodes) {
 
 ---
 
-## FILE: tests/mlp_tests.cpp  (5,822 bytes)
+## FILE: tests\mlp_tests.cpp  (5,822 bytes)
 
 ```cpp
 // mlp_tests.cpp — the from-scratch neural network (E16): backpropagation
@@ -20286,7 +22046,7 @@ TEST(Mlp, SaveLoadRoundTripAndRejectsCorruptFiles) {
 
 ---
 
-## FILE: tests/model_based_tests.cpp  (23,575 bytes)
+## FILE: tests\model_based_tests.cpp  (23,575 bytes)
 
 ```cpp
 // model_based_tests.cpp — Experiment E1 (docs/ai/EXPERIMENTS.md): a
@@ -20834,7 +22594,7 @@ TEST(TailRisk, VarianceIsNotTailRiskInExecution) {
 
 ---
 
-## FILE: tests/optional_libs_tests.cpp  (5,045 bytes)
+## FILE: tests\optional_libs_tests.cpp  (5,045 bytes)
 
 ```cpp
 // optional_libs_tests.cpp — E18: the optional optimization (NLopt) and data
@@ -20960,7 +22720,7 @@ TEST(Analysis, QuadraticSensitivityRecoversKnownEffects) {
 
 ---
 
-## FILE: tests/orderflow_tests.cpp  (10,490 bytes)
+## FILE: tests\orderflow_tests.cpp  (43,470 bytes)
 
 ```cpp
 // orderflow_tests.cpp — the ES order-flow simulator: book invariants,
@@ -20969,6 +22729,7 @@ TEST(Analysis, QuadraticSensitivityRecoversKnownEffects) {
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 #include "rag/orderflow/simulator.hpp"
@@ -21253,12 +23014,782 @@ TEST(EsSimulator, SeparateStreamsKeepTheFairValuePathIndependentOfOurOrders) {
   EXPECT_TRUE(diverged);
 }
 
+// FNV-1a over every trade and quote of `steps` steps: a fingerprint of a run.
+static std::uint64_t run_fingerprint(const SimParams& p, std::uint64_t seed, int steps = 20'000) {
+  EsSimulator sim(p, seed);
+  std::uint64_t h = 14695981039346656037ull;
+  auto mix = [&h](std::uint64_t v) {
+    for (int b = 0; b < 8; ++b) {
+      h ^= (v >> (8 * b)) & 0xffu;
+      h *= 1099511628211ull;
+    }
+  };
+  for (int s = 0; s < steps; ++s) {
+    sim.step();
+    for (const auto& t : sim.trades()) {
+      mix(static_cast<std::uint64_t>(t.t_ns));
+      mix(static_cast<std::uint64_t>(static_cast<std::int64_t>(t.price)));
+      mix(t.size);
+      mix(t.aggressor == Side::Buy ? 1u : 2u);
+      mix(t.own ? 1u : 0u);
+    }
+    const Quote q = sim.quote();
+    mix(static_cast<std::uint64_t>(static_cast<std::int64_t>(q.bid)));
+    mix(static_cast<std::uint64_t>(static_cast<std::int64_t>(q.ask)));
+    for (std::size_t i = 0; i < kDepth; ++i) {
+      mix(q.bid_size[i]);
+      mix(q.ask_size[i]);
+    }
+  }
+  return h;
+}
+
+TEST(EsSimulator, GoldenRunsOfTheExistingPresetsAreUnchanged) {
+  // Recorded with the code before the quote-jump mechanism (commit e0a4c7a),
+  // MSVC x64. Every OF1-OF9 result depends on these paths staying
+  // bit-identical. Floating-point library functions (exp, log, pow) and FMA
+  // contraction differ between compilers, so the exact values are checked
+  // only where they were recorded; the opt-in test below runs everywhere.
+  SimParams sep;
+  sep.separate_streams = true;
+  const std::uint64_t a = run_fingerprint(SimParams{}, 1), b = run_fingerprint(efficient_market(), 2), c = run_fingerprint(sep, 3);
+#if defined(_MSC_VER) && !defined(__clang__)
+  EXPECT_EQ(a, 275146979745797631ull) << a;
+  EXPECT_EQ(b, 8508263057256671083ull) << b;
+  EXPECT_EQ(c, 12097387368164182254ull) << c;
+#else
+  EXPECT_NE(a, b);
+  EXPECT_NE(a, c);
+#endif
+}
+
+// --- quote jumps (SimParams::reprice_band, discovery_market()) ---------------
+
+TEST(PriceDiscovery, OffByDefaultAndTheSniperSizeAloneChangesNothing) {
+  // reprice_band = 0 switches the mechanism off: no draws, no state change.
+  SimParams p;
+  p.reprice_snipe = 0.5;
+  EXPECT_EQ(run_fingerprint(p, 1, 5'000), run_fingerprint(SimParams{}, 1, 5'000));
+  SimParams on;
+  on.reprice_band = 0.65;
+  EXPECT_NE(run_fingerprint(on, 1, 5'000), run_fingerprint(SimParams{}, 1, 5'000));
+  EXPECT_THROW(EsSimulator(SimParams{.reprice_band = -1}), std::invalid_argument);
+  EXPECT_THROW(EsSimulator(SimParams{.reprice_snipe = 1.5}), std::invalid_argument);
+  EXPECT_THROW(market_preset("fast"), std::invalid_argument);
+  EXPECT_EQ(market_preset("discovery").reprice_band, discovery_market().reprice_band);
+}
+
+TEST(PriceDiscovery, QuotesTrackValueAndRequeuedOrdersSitBehindTheLevel) {
+  SimParams p = discovery_market_v1();
+  p.jump_rate = 1.0;  // news about every 10 steps
+  EsSimulator sim(p, 11);
+  rag::agent::Rng rng(3);
+  std::uint64_t jumps = 0;
+  for (int s = 0; s < 20'000; ++s) {
+    if (s % 7 == 0) {
+      const Side side = rng.uniform() < 0.5 ? Side::Buy : Side::Sell;
+      const auto back = static_cast<std::int32_t>(rng.below(3));
+      sim.submit_limit(side, side == Side::Buy ? sim.bid() - back : sim.ask() + back, 1 + rng.below(3));
+    }
+    if (s % 13 == 0 && !sim.resting().empty()) sim.cancel(sim.resting().front().id);
+    const std::uint64_t before = sim.reprices();
+    sim.step();
+    // Every quote a strategy sees: value within max(band, 0.5) of the mid.
+    ASSERT_LE(std::abs(sim.fair_value() - sim.mid()), std::max(p.reprice_band, 0.5) + 1e-9) << "step " << s;
+    ASSERT_GE(sim.spread(), 1);
+    if (sim.reprices() == before) continue;
+    ++jumps;
+    // Orders that kept their price rejoined the back of the queue there.
+    const Quote q = sim.quote();
+    for (const auto& r : sim.resting()) {
+      const std::int32_t d = r.side == Side::Buy ? sim.bid() - r.price : r.price - sim.ask();
+      ASSERT_GE(d, 0);
+      if (d < static_cast<std::int32_t>(kDepth)) {
+        const auto i = static_cast<std::size_t>(d);
+        ASSERT_LE(r.ahead + r.qty, r.side == Side::Buy ? q.bid_size[i] : q.ask_size[i]) << "step " << s;
+      }
+    }
+  }
+  EXPECT_GT(jumps, 500u);
+}
+
+TEST(PriceDiscovery, AStaleOwnAskIsFilledAtItsPriceWhenValueJumpsThroughIt) {
+  // Takers off, a news jump every step: the book moves only by quote jumps.
+  SimParams p = discovery_market_v1();
+  p.noise_rate = p.informed_meta_rate = p.uninformed_meta_rate = p.momentum_rate = 0;
+  p.jump_rate = 10;
+  p.jump_sd = 4;
+  EsSimulator sim(p, 5);
+  int crossed = 0;
+  for (int s = 0; s < 2'000 && crossed < 20; ++s) {
+    const std::int32_t ask = sim.ask();
+    const std::uint64_t id = sim.submit_limit(Side::Sell, ask, 2);
+    ASSERT_NE(id, 0u);
+    sim.step();
+    if (sim.bid() < ask) {
+      sim.cancel(id);
+      continue;
+    }
+    ++crossed;  // value jumped up through our ask: the snipers took it at our (stale) price
+    std::uint32_t lots = 0;
+    for (const auto& f : sim.own_fills())
+      if (f.id == id) {
+        EXPECT_EQ(f.price, ask);
+        EXPECT_EQ(f.side, Side::Sell);
+        lots += f.size;
+      }
+    EXPECT_EQ(lots, 2u);
+    for (const auto& r : sim.resting()) EXPECT_NE(r.id, id);
+    EXPECT_GT(sim.sniper_prints(), 0u);
+  }
+  EXPECT_GE(crossed, 10);
+}
+
+// corr(fair value - mid, mid change over the next 30 s), over `seconds` of trading.
+static double gap_predicts_30s(const SimParams& p, std::uint64_t seed, double seconds) {
+  EsSimulator sim(p, seed, 3600);
+  const auto n = static_cast<std::size_t>(std::lround(seconds / p.dt)), h = static_cast<std::size_t>(std::lround(30 / p.dt));
+  std::vector<double> g, m;
+  for (std::size_t s = 0; s < n + h; ++s) {
+    sim.step();
+    g.push_back(sim.fair_value() - sim.mid());
+    m.push_back(sim.mid());
+  }
+  double sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
+  for (std::size_t i = 0; i < n; ++i) {
+    const double x = g[i], y = m[i + h] - m[i];
+    sx += x;
+    sy += y;
+    sxx += x * x;
+    syy += y * y;
+    sxy += x * y;
+  }
+  const double k = static_cast<double>(n);
+  return (sxy - sx * sy / k) / std::sqrt((sxx - sx * sx / k) * (syy - sy * sy / k));
+}
+
+TEST(PriceDiscovery, TheHiddenGapNoLongerPredictsTheNext30Seconds) {
+  // 2 h, seed 1. Measured (MSVC): default 0.62, discovery v1 0.13
+  // (OF10 seeds 1-3: default 0.54-0.62, discovery ~0.1, the 1-tick grid's floor ~0.09-0.12).
+  const double def = gap_predicts_30s(SimParams{}, 1, 7200), disc = gap_predicts_30s(discovery_market_v1(), 1, 7200);
+  EXPECT_GT(def, 0.4) << def;
+  EXPECT_LT(disc, 0.2) << disc;
+}
+
+TEST(PriceDiscovery, GoldenRunOfDiscoveryV1IsUnchanged) {
+  // Recorded with the v1 code (commit 10bfe03, then discovery_market()), MSVC x64:
+  // every v1 number in the OF10 history depends on it.
+  const std::uint64_t d = run_fingerprint(discovery_market_v1(), 4);
+#if defined(_MSC_VER) && !defined(__clang__)
+  EXPECT_EQ(d, 13558066813598808490ull) << d;
+#else
+  EXPECT_NE(d, run_fingerprint(SimParams{}, 4));
+#endif
+  EXPECT_EQ(market_preset("discovery_v1").reprice_snipe, discovery_market_v1().reprice_snipe);
+  EXPECT_GT(market_preset("discovery").reprice_cancel, 0);
+}
+
+TEST(PriceDiscovery, GoldenRunOfDiscoveryV2IsUnchanged) {
+  // Recorded with the v2 code (commit 4ba0354, then discovery_market()), MSVC x64,
+  // before iteration 3 changed discovery_market(): every v2 number depends on it.
+  const std::uint64_t d = run_fingerprint(discovery_market_v2(), 5);
+#if defined(_MSC_VER) && !defined(__clang__)
+  EXPECT_EQ(d, 7055594995802652644ull) << d;  // = run_fingerprint(discovery_market(), 5) at 4ba0354
+#else
+  EXPECT_NE(d, run_fingerprint(SimParams{}, 5));
+#endif
+  EXPECT_EQ(market_preset("discovery_v2").maker_info, discovery_market_v2().maker_info);
+}
+
+// --- stale-side depletion (v2: SimParams::reprice_cancel, value_impact) -----
+
+TEST(PriceDiscovery, TheV2FieldsAreInertUnlessSwitchedOn) {
+  // reprice_cancel needs reprice_band > 0; impact needs value_impact > 0.
+  SimParams p;
+  p.reprice_cancel = 5;
+  p.reprice_take = 0.3;
+  p.impact_forecast_tau = 3;
+  p.impact_forecast_weight = 0.5;
+  EXPECT_EQ(run_fingerprint(p, 1, 5'000), run_fingerprint(SimParams{}, 1, 5'000));
+  SimParams v1 = discovery_market_v1();
+  v1.reprice_take = 0.3;
+  v1.impact_forecast_tau = 3;
+  EXPECT_EQ(run_fingerprint(v1, 4, 5'000), run_fingerprint(discovery_market_v1(), 4, 5'000));
+  SimParams sep;  // reprice_take alone (no reprice_band / reprice_cancel) is inert with separate streams too
+  sep.separate_streams = true;
+  SimParams sep2 = sep;
+  sep2.reprice_take = 0.5;
+  EXPECT_EQ(run_fingerprint(sep, 3, 5'000), run_fingerprint(sep2, 3, 5'000));
+  {  // with separate streams, depletion (and its own random stream) leaves the value path alone
+    SimParams on = sep;  // (activity_excite off: it feeds mid moves back into the value volatility)
+    on.activity_excite = 0;
+    on.reprice_band = 0.5;
+    on.reprice_cancel = 15;
+    on.reprice_take = 0.1;
+    SimParams off = on;
+    off.reprice_cancel = 0;
+    EsSimulator a(on, 3), b(off, 3);
+    for (int s = 0; s < 5'000; ++s) {
+      a.step();
+      b.step();
+      ASSERT_EQ(a.fair_value(), b.fair_value()) << "step " << s;
+    }
+    EXPECT_GT(a.stale_cancelled_lots(), 0u);  // depletion did run
+    EXPECT_EQ(b.stale_cancelled_lots(), 0u);
+  }
+  SimParams imp;
+  imp.value_impact = 0.004;
+  EXPECT_NE(run_fingerprint(imp, 1, 5'000), run_fingerprint(SimParams{}, 1, 5'000));
+  EXPECT_THROW(EsSimulator(SimParams{.reprice_cancel = -1}), std::invalid_argument);
+  EXPECT_THROW(EsSimulator(SimParams{.reprice_take = 1.5}), std::invalid_argument);
+  EXPECT_THROW(EsSimulator(SimParams{.value_impact = -1}), std::invalid_argument);
+}
+
+// Takers, diffusion and icebergs off, news jumps: the book moves only by depletion.
+static SimParams jumps_only(double jump_rate) {
+  SimParams p = discovery_market();
+  p.noise_rate = p.informed_meta_rate = p.uninformed_meta_rate = p.momentum_rate = 0;
+  p.value_vol = 0;
+  p.iceberg_rate = 0;
+  p.jump_rate = jump_rate;
+  p.jump_sd = 4;
+  return p;
+}
+
+TEST(PriceDiscovery, AfterNewsTheStaleSideDrainsNobodyJoinsItAndTheBookCatchesUp) {
+  const SimParams p = jumps_only(0.3);
+  EsSimulator sim(p, 7);
+  int jumps = 0, slow = 0;
+  double v = sim.fair_value();
+  int since = -1;  // steps since the last jump, while the book hasn't caught up
+  Quote before = sim.quote();
+  for (int s = 0; s < 40'000; ++s) {
+    sim.step();
+    const Quote q = sim.quote();
+    const double g = sim.fair_value() - sim.mid();
+    // Nobody joins a stale price: while value has passed the best and the
+    // price didn't move, the stale best only shrinks.
+    if (q.bid == before.bid && q.ask == before.ask && sim.fair_value() == v) {
+      if (sim.fair_value() - q.ask > p.reprice_band - 0.5) ASSERT_LE(q.ask_size[0], before.ask_size[0]) << "step " << s;
+      if (q.bid - sim.fair_value() > p.reprice_band - 0.5) ASSERT_LE(q.bid_size[0], before.bid_size[0]) << "step " << s;
+    }
+    if (sim.fair_value() != v) {
+      v = sim.fair_value();
+      since = 0;
+      ++jumps;
+    } else if (since >= 0) {
+      ++since;
+    }
+    if (since >= 0 && std::abs(g) <= p.reprice_band) {
+      EXPECT_EQ(sim.spread(), 1) << "step " << s;  // caught up, with a 1-tick spread
+      if (since > 20) ++slow;
+      since = -1;
+    }
+    before = q;
+  }
+  EXPECT_GT(jumps, 300);
+  EXPECT_LE(slow, jumps / 50) << slow;  // catch-up beyond 2 s is rare
+  EXPECT_GT(sim.races(), 300u);
+  EXPECT_GT(sim.stale_cancelled_lots(), 0u);
+  EXPECT_GT(sim.taker_volume(EsSimulator::kSniper), 0u);
+}
+
+TEST(PriceDiscovery, AStaleOwnAskAtTheBackIsFilledOnlyAfterTheLotsAheadOfIt) {
+  SimParams p = jumps_only(0.2);
+  p.jump_sd = 1.5;  // small news: the stale queue drains over a few steps
+  EsSimulator sim(p, 9);
+  int cases = 0, fills = 0, queued = 0, early = 0;
+  for (int s = 0; s < 200'000 && cases < 15; ++s) {
+    if (!sim.resting().empty()) {
+      sim.step();
+      continue;
+    }
+    const std::int32_t ask = sim.ask();
+    const std::uint64_t id = sim.submit_limit(Side::Sell, ask, 1);
+    ASSERT_NE(id, 0u);
+    sim.step();
+    const bool stale = sim.fair_value() - ask > p.reprice_band - 0.5;
+    for (const auto& f : sim.own_fills())
+      if (stale && f.id == id) ++early;  // FIFO: the first depletion step can't reach the back of the queue
+    if (!stale || sim.ask() != ask || sim.resting().empty()) {  // not stale: next try
+      sim.cancel(id);
+      continue;
+    }
+    // Stale: value passed our ask. We joined at the back (behind the level and
+    // the faster participants), so the first depletion step didn't reach us.
+    ++cases;
+    ASSERT_EQ(sim.resting().front().id, id);
+    std::uint32_t ahead = sim.resting().front().ahead;
+    if (ahead > 0) ++queued;  // lots still ahead of us after the first depletion step
+    bool filled = false;
+    for (int k = 0; k < 100 && !filled; ++k) {
+      sim.step();
+      for (const auto& f : sim.own_fills())
+        if (f.id == id) {
+          EXPECT_EQ(f.price, ask);
+          filled = true;
+        }
+      if (filled) break;
+      ASSERT_FALSE(sim.resting().empty()) << "order vanished without a fill";
+      ASSERT_LE(sim.resting().front().ahead, ahead);  // the queue ahead only shrinks
+      ahead = sim.resting().front().ahead;
+      ASSERT_EQ(sim.ask(), ask);                                      // the price can't tick past our unfilled order
+      if (!(sim.fair_value() - ask > p.reprice_band - 0.5)) break;  // news back down: no longer stale
+    }
+    if (filled) ++fills;
+    else sim.cancel(id);
+  }
+  EXPECT_GE(cases, 10);
+  EXPECT_GE(fills, cases / 2);
+  EXPECT_GE(queued, cases / 2);
+  EXPECT_EQ(early, 0);
+}
+
+TEST(PriceDiscovery, V2BookInvariantsHoldUnderFrequentNews) {
+  SimParams p = discovery_market();
+  p.jump_rate = 1.0;
+  EsSimulator sim(p, 11);
+  rag::agent::Rng rng(3);
+  for (int s = 0; s < 20'000; ++s) {
+    if (s % 7 == 0) {
+      const Side side = rng.uniform() < 0.5 ? Side::Buy : Side::Sell;
+      const auto back = static_cast<std::int32_t>(rng.below(3));
+      sim.submit_limit(side, side == Side::Buy ? sim.bid() - back : sim.ask() + back, 1 + rng.below(3));
+    }
+    if (s % 13 == 0 && !sim.resting().empty()) sim.cancel(sim.resting().front().id);
+    if (s % 17 == 0) sim.market_order(rng.uniform() < 0.5 ? Side::Buy : Side::Sell, 1);
+    sim.step();
+    ASSERT_GE(sim.spread(), 1);
+    const Quote q = sim.quote();
+    for (const auto& r : sim.resting()) {
+      const std::int32_t d = r.side == Side::Buy ? sim.bid() - r.price : r.price - sim.ask();
+      ASSERT_GE(d, 0) << "step " << s;
+      if (d < static_cast<std::int32_t>(kDepth)) {
+        const auto i = static_cast<std::size_t>(d);
+        ASSERT_LE(r.ahead + r.qty, r.side == Side::Buy ? q.bid_size[i] : q.ask_size[i]) << "step " << s;
+      }
+    }
+  }
+  EXPECT_GT(sim.reprices(), 500u);
+}
+
+// Event time: corr(L1 imbalance, the next mid change), over `seconds` of trading.
+static double imbalance_predicts_next_change(const SimParams& p, std::uint64_t seed, double seconds) {
+  EsSimulator sim(p, seed, 3600);
+  const auto n = static_cast<std::size_t>(std::lround(seconds / p.dt));
+  std::vector<double> x, m;
+  for (std::size_t s = 0; s < n; ++s) {
+    sim.step();
+    const Quote q = sim.quote();
+    const double b = q.bid_size[0], a = q.ask_size[0];
+    x.push_back(b + a > 0 ? (b - a) / (b + a) : 0);
+    m.push_back(sim.mid());
+  }
+  double sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, k = 0;
+  std::size_t c = 1;
+  for (std::size_t i = 0; i < n; ++i) {
+    if (c <= i) c = i + 1;
+    while (c < n && m[c] == m[i]) ++c;
+    if (c >= n) break;
+    const double y = m[c] - m[i];
+    sx += x[i];
+    sy += y;
+    sxx += x[i] * x[i];
+    syy += y * y;
+    sxy += x[i] * y;
+    k += 1;
+  }
+  return (sxy - sx * sy / k) / std::sqrt((sxx - sx * sx / k) * (syy - sy * sy / k));
+}
+
+TEST(PriceDiscovery, V2ImbalancePredictsTheNextTickAndTheGapNotTheNext30Seconds) {
+  // 2 h, seed 1. Measured (MSVC): v2 corr(g, r 30 s) 0.127 (the 1-tick grid floor ~0.10),
+  // event-time corr(L1 imbalance, next mid change) 0.268 (v1: 0.057); v3 (no informed
+  // makers) 0.104 and 0.229.
+  for (const SimParams& d : {discovery_market_v2(), discovery_market()}) {
+    const double gap = gap_predicts_30s(d, 1, 7200), imb = imbalance_predicts_next_change(d, 1, 7200);
+    EXPECT_LT(gap, 0.2) << gap;
+    EXPECT_GT(imb, 0.15) << imb;
+  }
+  const double imb_v1 = imbalance_predicts_next_change(discovery_market_v1(), 1, 7200);
+  EXPECT_LT(imb_v1, 0.1) << imb_v1;  // v1: the rigid book carried no signal
+}
+
+TEST(EsSimulatorActivity, GoldenRunsOfTheIteration3Presets) {
+  // Recorded with the iteration-3 code (OF10 v3), MSVC x64: every v3 and
+  // default_warm number depends on them.
+  const std::uint64_t w = run_fingerprint(default_warm(), 6), d = run_fingerprint(discovery_market(), 7);
+#if defined(_MSC_VER) && !defined(__clang__)
+  EXPECT_EQ(w, 1844421873489088197ull) << w;
+  EXPECT_EQ(d, 5921645205393397081ull) << d;
+#else
+  EXPECT_NE(w, d);
+#endif
+  EXPECT_EQ(market_preset("discovery").maker_info, 0);
+  EXPECT_EQ(market_preset("discovery").activity_model, 1);
+}
+
+// --- activity model 1 and the warm start (OF10 iteration 3) ------------------
+
+TEST(EsSimulatorActivity, NewFieldsAreInertWithTheLegacyModelAndTheWarmStartNeedsModel1) {
+  SimParams p;
+  p.activity_news_excite = 0.7;  // model 0 ignores it
+  EXPECT_EQ(run_fingerprint(p, 1, 5'000), run_fingerprint(SimParams{}, 1, 5'000));
+  SimParams w = p;
+  w.activity_warm_start = true;
+  EXPECT_THROW(EsSimulator{w}, std::invalid_argument);  // legacy has no interior stationary law
+  SimParams bad = default_warm();
+  bad.activity_model = 2;
+  EXPECT_THROW(EsSimulator{bad}, std::invalid_argument);
+  EXPECT_NE(run_fingerprint(default_warm(), 1, 5'000), run_fingerprint(SimParams{}, 1, 5'000));
+  EXPECT_EQ(market_preset("default_warm").activity_model, 1);
+}
+
+TEST(EsSimulatorActivity, TheWarmStartDrawsTheStationaryLaw) {
+  // Activity in model 1 doesn't depend on the book, so a market without takers
+  // and makers (cheap steps) has the same activity law as default_warm().
+  SimParams p = default_warm();
+  p.noise_rate = p.informed_meta_rate = p.uninformed_meta_rate = p.momentum_rate = 0;
+  p.maker_rate = 0;
+  p.iceberg_rate = 0;
+  const ActivityLaw law = activity_law(p);
+  const int n = 5'000;  // sd of x within 3%: ~3 SE (measured at 20,000: ratio 0.995-0.997, |mean - m0| <= 1.3 SE)
+  std::vector<double> x0, x1;
+  double ratio_num = 0, ratio_den = 0;
+  std::vector<double> ratio;
+  for (int i = 0; i < n; ++i) {
+    EsSimulator sim(p, 5'000'000ull + static_cast<std::uint64_t>(i), 3600);
+    x0.push_back(sim.log_activity());
+    for (int s = 0; s < 3'000; ++s) sim.step();
+    x1.push_back(sim.log_activity());
+    ratio.push_back(sim.activity() / sim.intraday_factor());
+    ratio_num += ratio.back();
+    ratio_den += 1;
+  }
+  auto moments = [](const std::vector<double>& v) {
+    double m = 0, s = 0;
+    for (double x : v) m += x / static_cast<double>(v.size());
+    for (double x : v) s += (x - m) * (x - m);
+    return std::pair<double, double>{m, std::sqrt(s / static_cast<double>(v.size() - 1))};
+  };
+  for (const auto* v : {&x0, &x1}) {
+    const auto [m, sd] = moments(*v);
+    const double se = sd / std::sqrt(static_cast<double>(n));
+    EXPECT_LE(std::abs(m - law.m0), 2 * se) << "mean " << m << " m0 " << law.m0 << " se " << se;
+    EXPECT_NEAR(sd / law.sd, 1.0, 0.03) << "sd " << sd << " analytic " << law.sd;
+  }
+  const auto [rm, rsd] = moments(ratio);  // E[activity / intraday] = 1 (m0 centring)
+  EXPECT_LE(std::abs(rm - 1), 2 * rsd / std::sqrt(static_cast<double>(n))) << rm;
+  EXPECT_NEAR(law.sd, 0.531, 0.01);  // tau / 2 * (vol^2 + k^2 jump_rate), the design's value
+}
+
+// Share of steps at the lower activity clamp in ScalpEnv-built 10-minute episodes after the 150 s warm-up.
+static std::pair<double, double> episode_activity(const SimParams& sim, int episodes) {
+  ScalpParams sp;
+  sp.sim = sim;
+  double low = 0, act = 0, steps = 0;
+  for (int i = 0; i < episodes; ++i) {
+    rag::agent::Rng r(6'000'000ull + static_cast<std::uint64_t>(i));
+    EsSimulator m = ScalpEnv::make_market(sp, r);
+    for (int s = 0; s < 1'500 + 6'000; ++s) {
+      m.step();
+      if (s < 1'500) continue;
+      low += m.log_activity() <= sim.activity_min + 1e-9 ? 1 : 0;
+      act += m.activity() / m.intraday_factor();
+      steps += 1;
+    }
+  }
+  return {low / steps, act / steps};
+}
+
+TEST(EsSimulatorActivity, EpisodesAreNotStuckAtTheLowerClampWithTheWarmStart) {
+  // 40 episodes. Measured (MSVC): legacy default 0.4 of the steps at the lower
+  // clamp (activity / intraday ~0.3); default_warm and discovery v3 0.000
+  // (activity / intraday ~1).
+  const auto [low_def, act_def] = episode_activity(SimParams{}, 40);
+  const auto [low_warm, act_warm] = episode_activity(default_warm(), 40);
+  const auto [low_v3, act_v3] = episode_activity(discovery_market(), 40);
+  EXPECT_GT(low_def, 0.2) << low_def << " " << act_def;
+  EXPECT_LT(low_warm, 0.001) << low_warm;
+  EXPECT_LT(low_v3, 0.001) << low_v3;
+  EXPECT_GT(act_warm, 0.6) << act_warm;
+  EXPECT_GT(act_v3, 0.6) << act_v3;
+}
+
+TEST(EsSimulatorActivity, MakeMarketBuildsTheSameEpisodeAsReset) {
+  for (const SimParams& sim : {default_warm(), discovery_market()}) {
+    ScalpParams sp;
+    sp.sim = sim;
+    ScalpEnv env(sp);
+    rag::agent::Rng r1(77), r2(77);
+    env.reset(r1);
+    EsSimulator m = ScalpEnv::make_market(sp, r2);
+    for (int s = 0; s < 1'500; ++s) m.step();
+    for (int d = 0; d < 10; ++d) {  // 10 flat decisions: 100 steps
+      env.step(1, r1);
+      for (int s = 0; s < 10; ++s) m.step();
+      ASSERT_EQ(env.market().t_ns(), m.t_ns());
+      ASSERT_EQ(env.market().fair_value(), m.fair_value());
+      ASSERT_EQ(env.market().bid(), m.bid());
+      ASSERT_EQ(env.market().quote().bid_size, m.quote().bid_size);
+      ASSERT_EQ(env.market().quote().ask_size, m.quote().ask_size);
+    }
+    TickParams tp;
+    tp.sim = sim;
+    TickScalpEnv tenv(tp);
+    rag::agent::Rng t1(78), t2(78);
+    tenv.reset(t1);
+    EsSimulator tm = TickScalpEnv::make_market(tp, t2);
+    for (int s = 0; s < 1'500; ++s) tm.step();
+    ASSERT_EQ(tenv.market().fair_value(), tm.fair_value());
+    ASSERT_EQ(tenv.market().quote().ask_size, tm.quote().ask_size);
+  }
+}
+
+TEST(EsSimulatorActivity, ForkGivesACopyFreshRandomnessAndLeavesTheOriginalAlone) {
+  for (bool sep : {false, true}) {
+    SimParams p = discovery_market();
+    p.separate_streams = sep;
+    EsSimulator a(p, 9, 3600), b(p, 9, 3600);
+    for (int s = 0; s < 500; ++s) {
+      a.step();
+      b.step();
+    }
+    EsSimulator f1 = a, f2 = a, f3 = a;
+    f1.fork(1);
+    f2.fork(1);
+    f3.fork(2);
+    bool differs = false;
+    for (int s = 0; s < 300; ++s) {
+      a.step();
+      b.step();
+      f1.step();
+      f2.step();
+      f3.step();
+      ASSERT_EQ(a.fair_value(), b.fair_value());  // forking a copy doesn't touch the original
+      ASSERT_EQ(f1.fair_value(), f2.fair_value());  // same salt: same future
+      differs = differs || f1.fair_value() != f3.fair_value() || f1.fair_value() != a.fair_value();
+    }
+    EXPECT_TRUE(differs);
+  }
+}
+
+// Review of iteration 3: the hidden fair value at a fill is diagnostics only.
+// It must not ride in OwnFill (copied by agent-facing step_fills()); the
+// simulator and TickScalpEnv keep it in parallel accessors named as hidden.
+template <class T>
+concept CarriesAValue = requires(T f) { f.value; };
+static_assert(!CarriesAValue<OwnFill>, "OwnFill is agent-facing: keep the hidden value out of it");
+
+TEST(EsSimulatorActivity, HiddenFillValuesStayOutOfOwnFillAndParallelToIt) {
+  TickParams tp;
+  tp.sim = discovery_market();
+  tp.episode_seconds = 120;
+  TickScalpEnv env(tp);
+  rag::agent::Rng r(31);
+  env.reset(r);
+  std::size_t fills = 0;
+  for (;;) {
+    const auto st = env.step(rag::agent::Action{3}, r);  // quote both sides
+    ASSERT_EQ(env.step_fill_hidden_values().size(), env.step_fills().size());
+    ASSERT_EQ(env.market().own_fill_hidden_values().size(), env.market().own_fills().size());
+    fills += env.step_fills().size();
+    if (st.done) break;
+  }
+  EXPECT_GT(fills, 0u);
+}
+
+// The probe's ground-truth path (a longer burn before the same window) uses
+// ScalpEnv::draw_market: the same draws, in the same order, as make_market.
+TEST(EsSimulatorActivity, DrawMarketMatchesMakeMarket) {
+  ScalpParams sp;
+  sp.sim = discovery_market();
+  for (std::uint64_t seed : {3ull, 4ull, 5ull}) {
+    rag::agent::Rng r1(seed), r2(seed);
+    const ScalpEnv::MarketDraw d = ScalpEnv::draw_market(sp, r1);
+    EsSimulator a(sp.sim, d.seed, d.start), b = ScalpEnv::make_market(sp, r2);
+    EXPECT_EQ(r1.next(), r2.next());  // the same number of draws consumed
+    EXPECT_GE(d.start, 0.0);
+    for (int s = 0; s < 200; ++s) {
+      a.step();
+      b.step();
+    }
+    EXPECT_EQ(a.t_ns(), b.t_ns());
+    EXPECT_EQ(a.fair_value(), b.fair_value());
+    EXPECT_EQ(a.quote().bid_size, b.quote().bid_size);
+  }
+}
+
+// Review of iteration 3: with value_impact > 0 a block round trip profits
+// from its own impact (own market orders fill at pre-impact prices), so
+// multi-lot ScalpEnv use is refused on those presets.
+TEST(EsSimulatorActivity, MultiLotScalpingIsRefusedWhereOwnImpactPays) {
+  ScalpParams sp;
+  sp.contracts = 2;
+  EXPECT_NO_THROW(ScalpEnv{sp});  // no value_impact: the old markets are unchanged
+  sp.sim = discovery_market();
+  EXPECT_THROW(ScalpEnv{sp}, std::invalid_argument);
+  sp.sim = discovery_market_v2();
+  EXPECT_THROW(ScalpEnv{sp}, std::invalid_argument);
+  sp.contracts = 1;
+  EXPECT_NO_THROW(ScalpEnv{sp});
+}
+
+// OF10 iteration 3: the --warmup option of the ScalpEnv programs
+// (rag/orderflow/scalp_run.hpp), opt-in with ScalpEnv's 150 s default.
+#include <algorithm>
+#include <filesystem>
+#include <fstream>
+#include <string>
+
+#include "rag/orderflow/scalp_run.hpp"
+
+TEST(ScalpEnvRun, TheWarmupOptionReachesScalpParamsAndMovesTheEpisodes) {
+  EXPECT_EQ(kDefaultWarmup, ScalpParams{}.warmup_seconds);
+  EXPECT_EQ(scalp_params("default").warmup_seconds, ScalpParams{}.warmup_seconds);
+  ASSERT_TRUE(parse_warmup("1050").has_value());
+  EXPECT_EQ(*parse_warmup("1050"), 1050.0);
+  EXPECT_EQ(*parse_warmup("0"), 0.0);
+  for (const char* bad : {"", "-1", "10x", "nan", "inf", "1e999"}) EXPECT_FALSE(parse_warmup(bad).has_value()) << bad;
+  const ScalpParams p = scalp_params("discovery", *parse_warmup("1050"));
+  EXPECT_EQ(p.warmup_seconds, 1050.0);
+  EXPECT_EQ(p.sim.jump_rate, discovery_market().jump_rate);
+  EXPECT_EQ(p.sim.activity_model, 1);
+  // The warm-up start is uniform on [0, session - episode - warm-up]: every
+  // episode starts >= 1050 s into the session and ends by the close.
+  const double latest = p.sim.session_seconds - p.episode_seconds - p.warmup_seconds;
+  double hi = 0;
+  for (std::uint64_t s = 1; s <= 200; ++s) {
+    rag::agent::Rng r(s);
+    const double start = ScalpEnv::draw_market(p, r).start;
+    EXPECT_GE(start, 0.0);
+    EXPECT_LE(start, latest);
+    hi = std::max(hi, start);
+  }
+  EXPECT_GT(hi, 0.9 * latest);
+  // reset() runs the simulator for the whole warm-up before the first decision.
+  ScalpEnv env(p);
+  rag::agent::Rng r(7);
+  (void)env.reset(r);
+  EXPECT_EQ(env.market().t_ns(), 1'050'000'000'000LL);
+  // At most session - episode (22,800 s): beyond that no episode fits before the close.
+  EXPECT_EQ(warmup_error(p), "");
+  EXPECT_EQ(warmup_error(scalp_params("default", 22'800)), "");
+  EXPECT_NE(warmup_error(scalp_params("default", 22'801)), "");
+  EXPECT_NE(warmup_error(scalp_params("discovery", 1e12)), "");
+}
+
+TEST(ScalpEnvRun, DiscoveryStressListDiffersAndTheLegacyListIsUnchanged) {
+  auto names = [](const std::vector<StressScenario>& v) {
+    std::vector<std::string> n;
+    for (const auto& s : v) n.push_back(s.name);
+    return n;
+  };
+  const std::vector<std::string> legacy = {"nominal",         "latency 300 ms",  "latency 1 s",     "fees $3/side", "informed flow x0.5",
+                                           "uninformed flow x1.5", "volatility x1.5", "quote fading x2", "session open"};
+  EXPECT_EQ(names(stress_scenarios(false)), legacy);
+  const std::vector<std::string> disc = {"nominal",          "latency 300 ms",        "latency 1 s",      "fees $3/side",
+                                         "uninformed flow x1.5", "slower discovery x0.5", "flow impact x1.5", "news x3",
+                                         "informed meta-orders x4", "thinner book x0.5", "session open"};
+  EXPECT_EQ(names(stress_scenarios(true)), disc);
+  // The legacy scenarios change exactly what they did.
+  const auto ls = stress_scenarios(false);
+  ScalpParams q;
+  ls[4].change(q);
+  EXPECT_EQ(q.sim.informed_meta_rate, SimParams{}.informed_meta_rate * 0.5);
+  q = {};
+  ls[7].change(q);
+  EXPECT_EQ(q.sim.fade, SimParams{}.fade * 2);
+  // On discovery every new scenario changes the market (fade x2 would not: fade = 0).
+  const ScalpParams base = scalp_params("discovery", 1050);
+  ScalpParams f = base;
+  ls[7].change(f);
+  EXPECT_EQ(f.sim.fade, base.sim.fade);  // the no-op the discovery list drops
+  const auto ds = stress_scenarios(true);
+  auto changed = [&](std::size_t i) {
+    ScalpParams x = base;
+    ds[i].change(x);
+    if (i < 10) EXPECT_EQ(x.warmup_seconds, 1050.0);  // the run's warm-up survives every scenario but the cold open
+    return x;
+  };
+  EXPECT_EQ(changed(5).sim.reprice_cancel, base.sim.reprice_cancel * 0.5);
+  EXPECT_EQ(changed(5).sim.reprice_take, base.sim.reprice_take * 0.5);
+  EXPECT_EQ(changed(6).sim.value_impact, base.sim.value_impact * 1.5);
+  EXPECT_EQ(changed(7).sim.jump_rate, base.sim.jump_rate * 3);
+  EXPECT_EQ(changed(8).sim.informed_meta_rate, base.sim.informed_meta_rate * 4);
+  EXPECT_EQ(changed(9).sim.maker_rate, base.sim.maker_rate * 0.5);
+  for (std::size_t i = 5; i <= 9; ++i) EXPECT_NO_THROW(EsSimulator(changed(i).sim, 1)) << ds[i].name;
+  // "Session open" is a cold open on both lists, whatever the run's warm-up:
+  // the simulator starts at the open with a 150 s burn (the episode at 150 s),
+  // which at the default warm-up is exactly the legacy start_second = 0.
+  const ScalpParams disc_open = changed(10);
+  ScalpParams legacy_open_1050 = base;
+  ls[8].change(legacy_open_1050);
+  for (const ScalpParams* o : std::initializer_list<const ScalpParams*>{&disc_open, &legacy_open_1050}) {
+    EXPECT_EQ(o->start_second, 0.0);
+    EXPECT_EQ(o->warmup_seconds, kDefaultWarmup);
+    EXPECT_EQ(o->sim.jump_rate, base.sim.jump_rate);
+  }
+  ScalpParams d;
+  ls[8].change(d);
+  ScalpParams legacy_open;
+  legacy_open.start_second = 0;
+  EXPECT_EQ(d.start_second, legacy_open.start_second);
+  EXPECT_EQ(d.warmup_seconds, legacy_open.warmup_seconds);
+}
+
+TEST(ScalpEnvRun, DaySessionsKeepTheirTimeOfDayAndNeverStartBeforeTheOpen) {
+  for (unsigned k = 0; k < 39; ++k) {
+    EXPECT_EQ(day_session_start(k), k * 600.0);  // the committed OF8 days
+    const double s = day_session_start(k, 1050);
+    EXPECT_GE(s, 0.0);
+    EXPECT_EQ(s + 1050, std::max(1050.0, k * 600.0 + 150));  // the episode stays at k * 600 + 150 s (from the open: at 1050 s)
+  }
+}
+
+TEST(ScalpEnvRun, EachNetworkRecordsItsMarketAndWarmupAndAMismatchIsRefused) {
+  const auto dir = std::filesystem::temp_directory_path() / "rag_scalp_run_record_test";
+  std::filesystem::remove_all(dir);
+  std::filesystem::create_directories(dir);
+  const std::string net = (dir / "seed1.net").string(), other = (dir / "seed2.net").string();
+  EXPECT_EQ(record_path_of_net(net), (dir / "seed1.txt").string());
+  EXPECT_EQ(record_path_of_net("a.b/net"), "a.b/net.txt");
+  // No record: a legacy network (of3_rl, an older of_train), trained at 150 s
+  // on an unknown market: fine at 150 s on any market, refused at 1050 s.
+  EXPECT_EQ(check_net(net, "default", 150), "");
+  EXPECT_EQ(check_net(net, "discovery", 150), "");
+  EXPECT_NE(check_net(net, "discovery", 1050), "");
+  ASSERT_TRUE(write_net_record(net, "discovery", 1050, "seeds=12\nseed=1\n"));
+  EXPECT_EQ(net_record_value(net, "market").value_or(""), "discovery");
+  EXPECT_EQ(net_record_value(net, "warmup_seconds").value_or(""), "1050");
+  EXPECT_EQ(net_record_value(net, "seeds").value_or(""), "12");
+  EXPECT_FALSE(net_record_value(net, "warmup").has_value());  // whole keys only
+  EXPECT_EQ(check_net(net, "discovery", 1050), "");
+  EXPECT_NE(check_net(net, "discovery", 150), "");   // another warm-up
+  EXPECT_NE(check_net(net, "default", 1050), "");    // another market
+  EXPECT_NE(check_net(other, "discovery", 1050), "");  // a record vouches for its own network only
+  remove_net_record(net);
+  EXPECT_FALSE(std::filesystem::exists(record_path_of_net(net)));
+  {
+    std::ofstream out(record_path_of_net(net), std::ios::binary);  // CRLF (an edited record) reads the same
+    out << "market=discovery\r\nwarmup_seconds=150\r\n";
+  }
+  EXPECT_EQ(check_net(net, "discovery", 150), "");
+  EXPECT_NE(check_net(net, "discovery", 1050), "");
+  {
+    std::ofstream out(record_path_of_net(net), std::ios::binary);  // a record without a readable warm-up is refused
+    out << "market=discovery\nwarmup_seconds=abc\n";
+  }
+  EXPECT_NE(check_net(net, "discovery", 150), "");
+  std::filesystem::remove_all(dir);
+}
+
 ```
 
 
 ---
 
-## FILE: tests/pdf_tests.cpp  (9,045 bytes)
+## FILE: tests\pdf_tests.cpp  (9,045 bytes)
 
 ```cpp
 // pdf_tests.cpp — PDF extraction and page-cited retrieval, on PDFs generated
@@ -21469,7 +24000,7 @@ TEST_F(PdfTest, IndexOfPdfsSurvivesSaveAndLoad) {
 
 ---
 
-## FILE: tests/policy_table_tests.cpp  (10,080 bytes)
+## FILE: tests\policy_table_tests.cpp  (10,080 bytes)
 
 ```cpp
 // policy_table_tests.cpp — compiling a policy into a lookup table (E22).
@@ -21692,7 +24223,7 @@ TEST(PolicyTable, MedianVotesCellByCell) {
 
 ---
 
-## FILE: tests/rag_property_tests.cpp  (92,431 bytes)
+## FILE: tests\rag_property_tests.cpp  (92,431 bytes)
 
 ```cpp
 // rag_property_tests.cpp — property-based, differential and edge-case tests
@@ -23693,7 +26224,7 @@ TEST(PropRegression, RebuildingAnIvfIndexOverNoRowsResetsItCompletely) {
 
 ---
 
-## FILE: tests/rag_tests.cpp  (58,697 bytes)
+## FILE: tests\rag_tests.cpp  (58,697 bytes)
 
 ```cpp
 // rag_tests.cpp — GoogleTest suite: unit, differential (SIMD vs scalar),
@@ -25197,7 +27728,7 @@ TEST(Arena, FreshArenaFirstAllocationAndAlignment) {
 
 ---
 
-## FILE: tests/reference_tests.cpp  (16,598 bytes)
+## FILE: tests\reference_tests.cpp  (16,598 bytes)
 
 ```cpp
 // reference_tests.cpp — differential tests against a deliberately naive
@@ -25590,7 +28121,7 @@ TEST(Reference, EnginePipelineMatchesSpecStageByStage) {
 
 ---
 
-## FILE: tests/stress.cpp  (10,101 bytes)
+## FILE: tests\stress.cpp  (10,101 bytes)
 
 ```cpp
 // stress.cpp — long-running concurrency stress test with exact invariants.
@@ -25829,7 +28360,7 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: tests/stylized_tests.cpp  (5,950 bytes)
+## FILE: tests\stylized_tests.cpp  (5,950 bytes)
 
 ```cpp
 // stylized_tests.cpp — the tick CSV reader and the stylized-facts meter used
@@ -25994,7 +28525,7 @@ TEST(NeuralQMemory, HighDimensionalEnvironmentsNeedNoTileTables) {
 
 ---
 
-## FILE: tests/text_clean_tests.cpp  (11,633 bytes)
+## FILE: tests\text_clean_tests.cpp  (11,633 bytes)
 
 ```cpp
 // text_clean_tests.cpp — cleanup of extracted page text (no PDF dependency).
@@ -26237,7 +28768,7 @@ TEST(PagedIngest, SourcesAndPagesSurviveSaveAndLoadAndKeepInterning) {
 
 ---
 
-## FILE: tests/pdf_writer.hpp  (3,805 bytes)
+## FILE: tests\pdf_writer.hpp  (3,805 bytes)
 
 ```cpp
 // Minimal PDF writer for test fixtures: multi-page documents of text lines in
@@ -26331,7 +28862,7 @@ inline void write_pdf(const std::string& path, const std::vector<PdfPage>& pages
 
 ---
 
-## FILE: tests/pid.hpp  (273 bytes)
+## FILE: tests\pid.hpp  (273 bytes)
 
 ```cpp
 // pid.hpp — the process id, for per-process temporary file names (portable).
@@ -26350,7 +28881,7 @@ inline int test_pid() { return static_cast<int>(::getpid()); }
 
 ---
 
-## FILE: tests/synthetic.hpp  (3,376 bytes)
+## FILE: tests\synthetic.hpp  (3,376 bytes)
 
 ```cpp
 // Synthetic data shared by tests and benchmarks (deterministic, seeded).
@@ -26443,7 +28974,7 @@ inline TextCorpus make_text_corpus(std::uint32_t ndocs, std::uint32_t topics, st
 
 ---
 
-## FILE: tests/test_util.hpp  (2,542 bytes)
+## FILE: tests\test_util.hpp  (2,542 bytes)
 
 ```cpp
 // Helpers shared by the test translation units.
@@ -26534,7 +29065,7 @@ std::string error_of(F&& f) {
 
 ---
 
-## FILE: tests/fuzz/fuzz_common.hpp  (1,627 bytes)
+## FILE: tests\fuzz\fuzz_common.hpp  (1,627 bytes)
 
 ```cpp
 // Shared setup for the libFuzzer targets.
@@ -26589,7 +29120,7 @@ inline EngineConfig small_config(DenseMode mode = DenseMode::Exact) {
 
 ---
 
-## FILE: tests/fuzz/fuzz_load.cpp  (2,479 bytes)
+## FILE: tests\fuzz\fuzz_load.cpp  (2,479 bytes)
 
 ```cpp
 // fuzz_load — Engine::load on arbitrary files.
@@ -26661,7 +29192,7 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
 
 ---
 
-## FILE: tests/fuzz/fuzz_policy_table.cpp  (5,365 bytes)
+## FILE: tests\fuzz\fuzz_policy_table.cpp  (5,365 bytes)
 
 ```cpp
 // fuzz_policy_table — ExecutionPolicyTable::load on arbitrary files.
@@ -26785,7 +29316,7 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
 
 ---
 
-## FILE: tests/fuzz/fuzz_text.cpp  (5,267 bytes)
+## FILE: tests\fuzz\fuzz_text.cpp  (5,267 bytes)
 
 ```cpp
 // fuzz_text — tokenizer, chunker, ingest, query and prompt assembly on
@@ -26907,7 +29438,7 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
 
 ---
 
-## FILE: tests/fuzz/make_seeds.cpp  (3,652 bytes)
+## FILE: tests\fuzz\make_seeds.cpp  (3,652 bytes)
 
 ```cpp
 // make_seeds — writes valid index payloads (file minus trailing checksum)
@@ -27005,7 +29536,7 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: tools/make_context_pack.py  (3,874 bytes)
+## FILE: tools\make_context_pack.py  (3,874 bytes)
 
 ````python
 #!/usr/bin/env python3
@@ -27120,7 +29651,348 @@ if __name__ == "__main__":
 
 ---
 
-## FILE: tools/research_crawler.py  (23,582 bytes)
+## FILE: tools\of_viz.py  (28,602 bytes)
+
+```python
+#!/usr/bin/env python3
+"""of_viz.py - turn an of_trace CSV into ONE self-contained HTML viewer.
+
+    python tools/of_viz.py trace.csv [out.html]
+
+Standard library only; the page has inline JS and SVG, no CDN, no network.
+Per episode: price (bid/ask band, mid, hidden fair value, the agent's fills),
+position strips (agent, 30 s delta rule, fair-value oracle), the two signals
+of the policy map, Q-values, cumulative net P&L; a shared crosshair shows
+every column of the hovered step. Over all episodes: the policy map (action
+by L1 imbalance x 30 s delta, optionally given the position held), action
+shares by each signal, holding times and P&L per round trip.
+
+Round trips: a run of steps with the same non-zero position. Its P&L is the
+change in cumulative net P&L from the step before the entry to the step that
+closes or flips it (a flip's new entry cost lands on the closing trip), so
+the trips of an episode sum to its P&L exactly.
+"""
+import csv
+import json
+import os
+import sys
+
+FEATURES = ["f_delta5", "f_delta30", "f_delta120", "f_ofi5", "f_ofi30", "f_relvol", "f_imb_l1",
+            "f_imb_l5", "f_ret5", "f_ret30", "f_ret120", "f_vwap", "f_absorb"]
+STRATS = [("agent", "pos", "pnl"), ("rule", "rule_pos", "rule_pnl"), ("oracle", "oracle_pos", "oracle_pnl")]
+IMB_BINS = 10    # raw L1 imbalance (bid-ask)/(bid+ask) over [-1, 1]
+DELTA_BINS = 8   # normalized 30 s delta feature over [-4, 4] (the feature clip)
+
+
+def num(s):
+    if s == "":
+        return None
+    x = float(s)
+    return int(x) if x.is_integer() and abs(x) < 1e15 else x
+
+
+def read(path):
+    meta, body = [], []
+    with open(path, newline="", encoding="utf-8") as f:
+        for line in f:
+            (meta if line.startswith("#") else body).append(line)
+    rows = list(csv.DictReader(body))
+    if not rows:
+        sys.exit(f"{path}: no rows")
+    cols = list(rows[0].keys())
+    episodes = {}
+    for r in rows:
+        ep = episodes.setdefault(int(r["episode"]), {c: [] for c in cols})
+        for c in cols:
+            ep[c].append(num(r[c]))
+    return " ".join(m.lstrip("# ").strip() for m in meta), cols, [episodes[k] for k in sorted(episodes)]
+
+
+def runs(pos):
+    """(first, last) row of each run of one non-zero position."""
+    out, start = [], None
+    for i, p in enumerate(pos + [0]):
+        if start is not None and (i == len(pos) or p != pos[start]):
+            out.append((start, i - 1))
+            start = None
+        if start is None and i < len(pos) and p != 0:
+            start = i
+    return out
+
+
+def trips(pos, pnl):
+    res = []
+    for a, b in runs(pos):
+        end = min(b + 1, len(pnl) - 1)  # the step that closes (or flips) the position
+        # After a flip, step a (the flip) already belongs to the closing trip.
+        before = 0.0 if a == 0 else pnl[a] if pos[a - 1] != 0 else pnl[a - 1]
+        res.append({"hold": b - a + 1, "pnl": round(pnl[end] - before, 3), "side": pos[a]})
+    return res
+
+
+def bin_of(x, lo, hi, n):
+    if x is None:
+        return None
+    k = int((x - lo) / (hi - lo) * n)
+    return max(0, min(n - 1, k))
+
+
+def aggregate(episodes):
+    # policy[position held before the decision + 1][imbalance bin][delta bin] = [short, flat, long]
+    policy = [[[[0, 0, 0] for _ in range(DELTA_BINS)] for _ in range(IMB_BINS)] for _ in range(3)]
+    trip = {s: [] for s, _, _ in STRATS}
+    for ep in episodes:
+        for i, a in enumerate(ep["action"]):
+            held = ep["pos"][i - 1] if i > 0 else 0
+            bi = bin_of(ep["imb_l1"][i], -1.0, 1.0, IMB_BINS)
+            bd = bin_of(ep["f_delta30"][i], -4.0, 4.0, DELTA_BINS)
+            if bi is not None and bd is not None and a is not None:
+                policy[max(-1, min(1, held)) + 1][bi][bd][a] += 1
+        for s, pc, pl in STRATS:
+            for t in trips(ep[pc], ep[pl]):
+                t["ep"] = ep["episode"][0]
+                trip[s].append(t)
+    for s, pc, pl in STRATS:  # integrity: trips partition each episode's P&L
+        total = sum(t["pnl"] for t in trip[s])
+        final = sum(ep[pl][-1] for ep in episodes)
+        if abs(total - final) > 0.05 * len(episodes) + 1e-6:
+            print(f"warning: {s} round trips sum to {total:.2f}, episodes to {final:.2f}", file=sys.stderr)
+    return {"policy": policy, "trips": trip, "imbBins": IMB_BINS, "deltaBins": DELTA_BINS}
+
+
+def main(argv):
+    if len(argv) < 2 or argv[1] in ("-h", "--help"):
+        print(__doc__)
+        return 2
+    src = argv[1]
+    dst = argv[2] if len(argv) > 2 else os.path.splitext(src)[0] + ".html"
+    meta, cols, episodes = read(src)
+    missing = [c for c in ["episode", "step", "bid", "ask", "mid", "fair_value", "imb_l1", "q_short", "q_flat", "q_long",
+                           "action", "pos", "fill_px", "pnl", "rule_pos", "rule_pnl", "oracle_pos", "oracle_pnl"] + FEATURES
+               if c not in cols]
+    if missing:
+        sys.exit(f"{src}: missing columns {missing}")
+    data = {"meta": meta, "source": os.path.basename(src), "features": FEATURES, "episodes": episodes, **aggregate(episodes)}
+    payload = json.dumps(data, separators=(",", ":")).replace("</", "<\\/")
+    page = PAGE.replace("/*DATA*/null", payload)
+    with open(dst, "w", encoding="utf-8", newline="\n") as f:
+        f.write(page)
+    n = sum(len(e["step"]) for e in episodes)
+    print(f"wrote {dst}: {len(episodes)} episodes, {n} steps, {os.path.getsize(dst) / 1e6:.1f} MB")
+    return 0
+
+
+PAGE = r"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RL scalping episode viewer</title>
+<style>
+:root{--surface:#fcfcfb;--page:#f9f9f7;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;--grid:#e1e0d9;--axis:#c3c2b7;
+--agent:#2a78d6;--rule:#eb6834;--oracle:#1baf7a;--fv:#c98500;--long:#2a78d6;--short:#e34948;--neutral:#f0efec;--band:#e9e8e3;
+--longbg:rgba(42,120,214,.10);--shortbg:rgba(227,73,72,.10)}
+@media (prefers-color-scheme:dark){:root{--surface:#1a1a19;--page:#0d0d0d;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;
+--axis:#383835;--agent:#3987e5;--rule:#d95926;--oracle:#199e70;--fv:#eda100;--long:#3987e5;--short:#e66767;--neutral:#383835;--band:#2c2c2a;
+--longbg:rgba(57,135,229,.16);--shortbg:rgba(230,103,103,.16)}}
+*{box-sizing:border-box}body{margin:0;background:var(--page);color:var(--ink);font:13px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{padding:14px 20px 4px}h1{font-size:18px;margin:0 0 2px}h2{font-size:15px;margin:22px 0 6px}h3{font-size:13px;margin:10px 0 2px;font-weight:600}
+.sub{color:var(--ink2)}.muted{color:var(--muted)}main{padding:0 20px 30px}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0}
+select,button{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--axis);border-radius:6px;padding:3px 8px}
+button{cursor:pointer}.wrap{display:flex;gap:16px;align-items:flex-start}.charts{flex:1;min-width:0}
+.card{background:var(--surface);border:1px solid var(--grid);border-radius:8px;padding:8px 10px;margin-bottom:10px}
+.side{width:270px;flex:none;position:sticky;top:8px;font-size:12px}.side table{width:100%;border-collapse:collapse}
+.side td{padding:1px 4px;border-bottom:1px solid var(--grid)}.side td:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+svg{display:block;width:100%;overflow:visible}text{fill:var(--muted);font-size:11px}.lab{fill:var(--ink2)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--ink2);font-size:12px;margin:2px 0 4px}
+.key{display:inline-block;width:14px;height:0;border-top:2px solid;vertical-align:middle;margin-right:5px}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:-1px;margin-right:5px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:10px}
+table.sum{border-collapse:collapse;font-variant-numeric:tabular-nums;width:100%}
+table.sum th,table.sum td{padding:3px 8px;border-bottom:1px solid var(--grid);text-align:right}table.sum th{color:var(--ink2);font-weight:600}
+table.sum td:first-child,table.sum th:first-child{text-align:left}table.sum tr.ep{cursor:pointer}table.sum tr.ep:hover,table.sum tr.cur{background:var(--band)}
+#tip{position:fixed;pointer-events:none;background:var(--surface);border:1px solid var(--axis);border-radius:6px;padding:6px 8px;font-size:12px;display:none;z-index:9;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+#tip b{font-variant-numeric:tabular-nums}.note{color:var(--ink2);font-size:12px;max-width:900px}
+</style></head><body>
+<header><h1>RL scalping episode viewer</h1><div class="sub" id="meta"></div></header>
+<main>
+<div class="bar"><button id="prev" title="previous episode (left arrow)">&larr;</button><select id="pick" aria-label="episode"></select>
+<button id="next" title="next episode (right arrow)">&rarr;</button><span class="muted" id="epinfo"></span></div>
+<div class="wrap"><div class="charts" id="charts"></div>
+<aside class="side card"><h3 id="sidehead">Hover a chart</h3><table id="side"></table></aside></div>
+<h2>All episodes</h2>
+<div class="grid2">
+<div class="card"><h3>Policy map: agent's action by L1 imbalance and 30 s delta</h3>
+<div class="bar">Position held before the decision: <select id="held"><option value="all">any</option><option value="1">flat</option><option value="2">long</option><option value="0">short</option></select></div>
+<div class="legend"><span><span class="sw" style="background:var(--short)"></span>mostly short</span><span><span class="sw" style="background:var(--neutral);border:1px solid var(--axis)"></span>mostly flat / mixed</span><span><span class="sw" style="background:var(--long)"></span>mostly long</span><span class="muted">colour = share long &minus; share short; faint = under 10 decisions</span></div>
+<div id="pmap"></div></div>
+<div class="card"><h3>Action share by signal bucket</h3><div class="legend"><span><span class="sw" style="background:var(--short)"></span>short</span><span><span class="sw" style="background:var(--neutral);border:1px solid var(--axis)"></span>flat</span><span><span class="sw" style="background:var(--long)"></span>long</span></div>
+<div id="share1"></div><div id="share2"></div></div>
+<div class="card"><h3>Holding time per round trip</h3><div class="legend" id="lg1"></div><div id="hold"></div></div>
+<div class="card"><h3>P&amp;L per round trip (ticks, net of fees)</h3><div class="legend" id="lg2"></div><div id="trip"></div></div>
+</div>
+<div class="card"><h3>Round trips</h3><table class="sum" id="tripsum"></table></div>
+<div class="card"><h3>Episodes (click a row)</h3><table class="sum" id="epsum"></table></div>
+<p class="note">Market columns are the agent's own path; the rule and the oracle trade on the same seeds in their own copies of the market (their orders move it slightly). The fair value is hidden from the agent and shown for reference only; the oracle trades on it (gap &gt; 2 ticks). Visualization seeds (960M+): never select or score anything on them.</p>
+</main><div id="tip"></div>
+<script>
+"use strict";
+const D=/*DATA*/null;
+const NS="http://www.w3.org/2000/svg",STR=[["agent","pos","pnl"],["rule","rule_pos","rule_pnl"],["oracle","oracle_pos","oracle_pnl"]];
+const NAMES={agent:"RL agent",rule:"30 s delta rule",oracle:"fair-value oracle"},ACT=["short","flat","long"];
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e}
+function h(tag,parent,text,cls){const e=document.createElement(tag);if(text!=null)e.textContent=text;if(cls)e.className=cls;if(parent)parent.appendChild(e);return e}
+function lin(d0,d1,r0,r1){const k=(r1-r0)/((d1-d0)||1);return v=>r0+(v-d0)*k}
+function nice(lo,hi,n){if(!(hi>lo)){lo-=1;hi+=1}const raw=(hi-lo)/n,p=Math.pow(10,Math.floor(Math.log10(raw))),m=raw/p,st=(m<1.5?1:m<3?2:m<7?5:10)*p;
+ const out=[];for(let v=Math.ceil(lo/st)*st;v<=hi+1e-9;v+=st)out.push(+v.toFixed(10));return out}
+const f=(x,d=2)=>x==null?"–":(+x).toFixed(d),sg=(x,d=2)=>x==null?"–":(x>0?"+":"")+(+x).toFixed(d);
+function clock(s){if(s==null)return"–";s=Math.round(s)+9.5*3600;const hh=Math.floor(s/3600),mm=Math.floor(s/60)%60,ss=s%60;return`${hh}:${String(mm).padStart(2,"0")}:${String(ss).padStart(2,"0")}`}
+const tip=document.getElementById("tip");
+function showTip(ev,rows){tip.replaceChildren();for(const [k,v,c] of rows){const d=h("div",tip);if(c){const s=h("span",d,null,"key");s.style.borderColor=c}h("b",d,v);d.append(" "+k)}
+ tip.style.display="block";const x=Math.min(ev.clientX+14,innerWidth-tip.offsetWidth-8);tip.style.left=x+"px";tip.style.top=(ev.clientY+14)+"px"}
+function hideTip(){tip.style.display="none"}
+
+// ---------- per-episode charts ----------
+const M={l:52,r:12,t:6,b:18};let cur=0,cross=[],hoverStep=null,lastPanel=null;
+function panel(host,title,height,lo,hi,legend){
+ const card=h("div",host,null,"card");h("h3",card,title);if(legend){const lg=h("div",card,null,"legend");for(const [n,c,dash] of legend){const s=h("span",lg);const k=h("span",s,null,"key");k.style.borderColor=c;if(dash)k.style.borderTopStyle="dashed";s.append(n)}}
+ const W=Math.max(360,card.clientWidth-20),svg=el("svg",{viewBox:`0 0 ${W} ${height}`,height},card);
+ const ep=D.episodes[cur],n=ep.step.length,x=lin(0,n-1,M.l,W-M.r),y=lin(lo,hi,height-M.b,M.t);
+ for(const v of nice(lo,hi,4)){el("line",{x1:M.l,x2:W-M.r,y1:y(v),y2:y(v),stroke:css("--grid")},svg);const t=el("text",{x:M.l-6,y:y(v)+4,"text-anchor":"end"},svg);t.textContent=+v.toFixed(3)}
+ el("line",{x1:M.l,x2:W-M.r,y1:height-M.b,y2:height-M.b,stroke:css("--axis")},svg);
+ for(const s of nice(0,n-1,6)){if(s>n-1)continue;const t=el("text",{x:x(s),y:height-4,"text-anchor":"middle"},svg);t.textContent=clock(ep.tod_s[s])}
+ const g=el("g",{},svg),cl=el("line",{y1:M.t,y2:height-M.b,stroke:css("--ink2"),"stroke-width":1,visibility:"hidden"},svg);cross.push({cl,x});
+ const hit=el("rect",{x:M.l,y:0,width:W-M.l-M.r,height,fill:"transparent"},svg);
+ hit.addEventListener("pointermove",ev=>{const r=svg.getBoundingClientRect(),px=(ev.clientX-r.left)*W/r.width;const i=Math.max(0,Math.min(n-1,Math.round((px-M.l)/(W-M.l-M.r)*(n-1))));setHover(i,ev)});
+ hit.addEventListener("pointerleave",()=>{hideTip()});
+ lastPanel={svg:g,x,y,W,H:height,n};return lastPanel}
+function path(p,ys,attrs){let d="",pen=false;for(let i=0;i<ys.length;i++){const v=ys[i];if(v==null){pen=false;continue}d+=(pen?"L":"M")+p.x(i).toFixed(1)+","+p.y(v).toFixed(1);pen=true}
+ return el("path",Object.assign({d,fill:"none","stroke-width":2,"stroke-linejoin":"round"},attrs),p.svg)}
+function ext(arrs){let lo=Infinity,hi=-Infinity;for(const a of arrs)for(const v of a)if(v!=null){if(v<lo)lo=v;if(v>hi)hi=v}return[lo,hi]}
+function posBands(p,pos,y0,y1){let s=0;for(let i=1;i<=pos.length;i++){if(i==pos.length||pos[i]!=pos[s]){if(pos[s]!=0){const xa=p.x(s),xb=i<pos.length?p.x(i):p.x(i-1);
+ el("rect",{x:xa,y:Math.min(y0,y1),width:Math.max(1,xb-xa),height:Math.abs(y1-y0),fill:pos[s]>0?css("--longbg"):css("--shortbg")},p.svg)}s=i}}}
+function render(){
+ const host=document.getElementById("charts");host.replaceChildren();cross=[];const ep=D.episodes[cur],n=ep.step.length,m0=ep.mid[0];
+ const rel=a=>a.map(v=>v==null?null:v-m0);
+ // price
+ const [plo,phi]=ext([rel(ep.bid),rel(ep.ask),rel(ep.fair_value)]);
+ const pp=panel(host,"Price (ticks from the episode's first mid) with the agent's position shaded",230,plo-0.5,phi+0.5,[["mid",css("--ink")],["bid / ask",css("--axis")],["hidden fair value",css("--fv"),1],["buy ▲ / sell ▼ fills",css("--ink2")]]);
+ posBands(pp,ep.pos,pp.y(phi+0.5),pp.y(plo-0.5));
+ let d="";for(let i=0;i<n;i++)d+=(i?"L":"M")+pp.x(i).toFixed(1)+","+pp.y(ep.ask[i]-m0).toFixed(1);for(let i=n-1;i>=0;i--)d+="L"+pp.x(i).toFixed(1)+","+pp.y(ep.bid[i]-m0).toFixed(1);
+ el("path",{d:d+"Z",fill:css("--band"),stroke:"none"},pp.svg);
+ path(pp,rel(ep.mid),{stroke:css("--ink"),"stroke-width":1.5});path(pp,rel(ep.fair_value),{stroke:css("--fv"),"stroke-dasharray":"5 3"});
+ for(let i=0;i<n;i++){const dp=ep.pos[i]-(i?ep.pos[i-1]:0);if(!dp&&!(i==n-1&&ep.pos[i-1]))continue;
+  const buy=dp>0||(dp==0&&ep.pos[i-1]<0),px=ep.fill_px[i]!=null?ep.fill_px[i]:ep.mid[i],X=pp.x(i),Y=pp.y(px-m0);
+  el("path",{d:buy?`M${X-5},${Y+7}L${X+5},${Y+7}L${X},${Y-1}Z`:`M${X-5},${Y-7}L${X+5},${Y-7}L${X},${Y+1}Z`,fill:buy?css("--long"):css("--short"),stroke:css("--surface"),"stroke-width":1.5},pp.svg)}
+ // positions
+ const sp=panel(host,"Position (after each decision): long ▮ blue, short ▮ red",84,0,3,null);
+ sp.svg.parentNode.querySelectorAll("text").forEach((t,i)=>{if(t.getAttribute("text-anchor")=="end")t.remove()});
+ STR.forEach(([s,pc],k)=>{const y0=sp.y(3-k)+3,y1=sp.y(2-k)-3,a=ep[pc];let st=0;
+  for(let i=1;i<=n;i++){if(i==n||a[i]!=a[st]){if(a[st]!=0)el("rect",{x:sp.x(st),y:y0,width:Math.max(1,(i<n?sp.x(i):sp.x(n-1)+1)-sp.x(st)),height:y1-y0,fill:a[st]>0?css("--long"):css("--short"),rx:1},sp.svg);st=i}}
+  const t=el("text",{x:M.l-6,y:(y0+y1)/2+4,"text-anchor":"end",class:"lab"},sp.svg);t.textContent=s});
+ // signals
+ const gp=panel(host,"Signals the policy map uses",120,-1,1,[["L1 imbalance (raw, −1..1)",css("--agent")],["30 s delta (normalized ÷ 4)",css("--rule")]]);
+ el("line",{x1:M.l,x2:gp.W-M.r,y1:gp.y(0),y2:gp.y(0),stroke:css("--axis")},gp.svg);
+ path(gp,ep.imb_l1,{stroke:css("--agent"),"stroke-width":1.2});path(gp,ep.f_delta30.map(v=>v==null?null:v/4),{stroke:css("--rule"),"stroke-width":1.5});
+ // Q
+ const relq=document.getElementById("relq")?document.getElementById("relq").checked:true;
+ const qs=[ep.q_short,ep.q_flat,ep.q_long].map(a=>relq?a.map((v,i)=>v-ep.q_flat[i]):a);const [qlo,qhi]=ext(qs);
+ const qp=panel(host,relq?"Q-values relative to flat (advantage of short / long over flat)":"Q-values",150,qlo,qhi,[["short",css("--short")],["flat",css("--muted")],["long",css("--long")]]);
+ const qc=[css("--short"),css("--muted"),css("--long")];qs.forEach((a,k)=>path(qp,a,{stroke:qc[k],"stroke-width":k==1?1:1.5}));
+ const cb=h("label",qp.svg.closest(".card").querySelector("h3"));cb.style.cssText="font-weight:400;margin-left:12px;color:var(--ink2)";
+ const inp=h("input",cb);inp.type="checkbox";inp.id="relq";inp.checked=relq;cb.append(" relative to flat");inp.onchange=render;
+ // P&L
+ const [lo,hi]=ext([ep.pnl,ep.rule_pnl,ep.oracle_pnl,[0]]);
+ const lp=panel(host,"Cumulative net P&L (ticks)",170,lo,hi,STR.map(([s])=>[NAMES[s],css("--"+s)]));
+ el("line",{x1:M.l,x2:lp.W-M.r,y1:lp.y(0),y2:lp.y(0),stroke:css("--axis")},lp.svg);
+ STR.forEach(([s,,pl])=>path(lp,ep[pl],{stroke:css("--"+s)}));
+ STR.forEach(([s,,pl])=>{const v=ep[pl][n-1],t=el("text",{x:lp.W-M.r+2,y:lp.y(v)+4,class:"lab"},lp.svg);t.textContent=sg(v,1)});
+ if(hoverStep!=null)setHover(Math.min(hoverStep,n-1));
+ document.querySelectorAll("#epsum tr.ep").forEach(r=>r.classList.toggle("cur",+r.dataset.i==cur));
+ const e=D.episodes[cur];document.getElementById("epinfo").textContent=`seed ${e.seed[0]} · ${clock(e.tod_s[0])}–${clock(e.tod_s[n-1])} · agent ${sg(e.pnl[n-1])}, rule ${sg(e.rule_pnl[n-1])}, oracle ${sg(e.oracle_pnl[n-1])} ticks · ${e.orders[n-1]} orders`}
+function setHover(i,ev){hoverStep=i;const ep=D.episodes[cur];for(const c of cross){const X=c.x(i);c.cl.setAttribute("x1",X);c.cl.setAttribute("x2",X);c.cl.setAttribute("visibility","visible")}
+ document.getElementById("sidehead").textContent=`Step ${i} · ${clock(ep.tod_s[i])}`;const t=document.getElementById("side");t.replaceChildren();
+ const row=(k,v)=>{const r=h("tr",t);h("td",r,k);h("td",r,v)};const m0=ep.mid[0];
+ row("bid / ask",`${ep.bid[i]-m0} / ${ep.ask[i]-m0}`);row("fair value − mid",sg(ep.fair_value[i]-ep.mid[i]));row("L1 sizes bid / ask",`${ep.bid_sz1[i]} / ${ep.ask_sz1[i]}`);row("L1 imbalance",sg(ep.imb_l1[i],3));
+ for(const k of D.features)row(k.replace("f_","feat "),sg(ep[k][i],2));row("open P&L",sg(ep.open_pnl[i]));
+ row("Q short / flat / long",`${f(ep.q_short[i])} / ${f(ep.q_flat[i])} / ${f(ep.q_long[i])}`);row("action",ACT[ep.action[i]]);row("position after",ep.pos[i]);
+ row("fill price",ep.fill_px[i]==null?"–":sg(ep.fill_px[i]-m0));row("orders / fees",`${ep.orders[i]} / ${f(ep.fees[i])}`);
+ row("P&L agent / rule / oracle",`${sg(ep.pnl[i],1)} / ${sg(ep.rule_pnl[i],1)} / ${sg(ep.oracle_pnl[i],1)}`);row("rule / oracle pos",`${ep.rule_pos[i]} / ${ep.oracle_pos[i]}`);
+ if(ev)showTip(ev,[["action",ACT[ep.action[i]]],["Q long − flat",sg(ep.q_long[i]-ep.q_flat[i])],["Q short − flat",sg(ep.q_short[i]-ep.q_flat[i])],["agent P&L",sg(ep.pnl[i],1),css("--agent")]])}
+
+// ---------- aggregates ----------
+function mix(a,b,t){const p=s=>[1,3,5].map(k=>parseInt(s.slice(k,k+2),16)),A=p(a),B=p(b);return"rgb("+A.map((v,k)=>Math.round(v+(B[k]-v)*t)).join(",")+")"}
+function divColor(v){const mid=css("--neutral");return v>=0?mix(mid,css("--long"),Math.min(1,v)):mix(mid,css("--short"),Math.min(1,-v))}
+function policyCounts(held){const P=D.policy,out=[];for(let i=0;i<D.imbBins;i++){out.push([]);for(let j=0;j<D.deltaBins;j++){const c=[0,0,0];
+ for(let k=0;k<3;k++)if(held=="all"||+held==k)for(let a=0;a<3;a++)c[a]+=P[k][i][j][a];out[i].push(c)}}return out}
+const imbLabel=i=>`${(-1+2*i/D.imbBins).toFixed(1)}…${(-1+2*(i+1)/D.imbBins).toFixed(1)}`,dLabel=j=>`${-4+8*j/D.deltaBins}…${-4+8*(j+1)/D.deltaBins}`;
+function renderPolicy(){const held=document.getElementById("held").value,C=policyCounts(held),host=document.getElementById("pmap");host.replaceChildren();
+ const W=Math.max(360,host.clientWidth),H=300,ml=70,mb=40,cw=(W-ml-10)/D.deltaBins,ch=(H-mb-6)/D.imbBins,svg=el("svg",{viewBox:`0 0 ${W} ${H}`,height:H},host);
+ for(let i=0;i<D.imbBins;i++)for(let j=0;j<D.deltaBins;j++){const c=C[i][j],n=c[0]+c[1]+c[2],x=ml+j*cw,y=6+(D.imbBins-1-i)*ch;
+  const r=el("rect",{x:x+1,y:y+1,width:cw-2,height:ch-2,rx:3,fill:n?divColor((c[2]-c[0])/n):css("--surface"),stroke:n?"none":css("--grid"),opacity:n&&n<10?0.35:1},svg);
+  r.addEventListener("pointermove",ev=>{r.setAttribute("stroke",css("--ink"));showTip(ev,[["decisions",String(n)],["short",n?Math.round(100*c[0]/n)+"%":"–",css("--short")],["flat",n?Math.round(100*c[1]/n)+"%":"–",css("--muted")],["long",n?Math.round(100*c[2]/n)+"%":"–",css("--long")],["imbalance",imbLabel(i)],["30 s delta (norm.)",dLabel(j)]])});
+  r.addEventListener("pointerleave",()=>{r.setAttribute("stroke",n?"none":css("--grid"));hideTip()})}
+ for(let i=0;i<=D.imbBins;i+=2){const t=el("text",{x:ml-6,y:6+(D.imbBins-i)*ch+4,"text-anchor":"end"},svg);t.textContent=(-1+2*i/D.imbBins).toFixed(1)}
+ for(let j=0;j<=D.deltaBins;j++){const t=el("text",{x:ml+j*cw,y:H-mb+14,"text-anchor":"middle"},svg);t.textContent=-4+8*j/D.deltaBins}
+ let t=el("text",{x:ml+(W-ml)/2,y:H-6,"text-anchor":"middle",class:"lab"},svg);t.textContent="30 s delta (normalized feature) → buyers";
+ t=el("text",{x:12,y:6+(H-mb)/2,"text-anchor":"middle",class:"lab",transform:`rotate(-90 12 ${6+(H-mb)/2})`},svg);t.textContent="L1 imbalance (bid heavy ↑)";
+ renderShare("share1","by L1 imbalance",D.imbBins,i=>C[i].reduce((s,c)=>s.map((v,k)=>v+c[k]),[0,0,0]),imbLabel);
+ renderShare("share2","by 30 s delta (normalized)",D.deltaBins,j=>C.reduce((s,row)=>s.map((v,k)=>v+row[j][k]),[0,0,0]),dLabel)}
+function renderShare(id,title,nb,get,label){const host=document.getElementById(id);host.replaceChildren();h("div",host,title,"muted");
+ const W=Math.max(360,host.clientWidth),H=120,ml=34,mb=18,bw=(W-ml-6)/nb,svg=el("svg",{viewBox:`0 0 ${W} ${H}`,height:H},host),y=lin(0,1,H-mb,4);
+ for(const v of[0,.5,1]){el("line",{x1:ml,x2:W-6,y1:y(v),y2:y(v),stroke:css("--grid")},svg);const t=el("text",{x:ml-4,y:y(v)+4,"text-anchor":"end"},svg);t.textContent=v*100+"%"}
+ const col=[css("--short"),css("--neutral"),css("--long")];
+ for(let b=0;b<nb;b++){const c=get(b),n=c[0]+c[1]+c[2];let acc=0;const x=ml+b*bw;
+  if(n)for(const a of[0,1,2]){const s=c[a]/n;if(s>0)el("rect",{x:x+1,y:y(acc+s)+1,width:bw-2,height:Math.max(0,y(acc)-y(acc+s)-2),fill:col[a],rx:2},svg);acc+=s}
+  const hit=el("rect",{x,y:0,width:bw,height:H-mb,fill:"transparent"},svg);
+  hit.addEventListener("pointermove",ev=>showTip(ev,[["bucket",label(b)],["decisions",String(n)],...ACT.map((a,k)=>[a,n?Math.round(100*c[k]/n)+"%":"–",k==1?css("--muted"):col[k]])]));hit.addEventListener("pointerleave",hideTip);
+  if(nb<=10){const t=el("text",{x:x+bw/2,y:H-4,"text-anchor":"middle"},svg);t.textContent=label(b).split("…")[0]}}}
+function grouped(id,bins,valueOf,fmtBin){const host=document.getElementById(id);host.replaceChildren();
+ const counts=STR.map(([s])=>{const c=new Array(bins.length).fill(0);for(const t of D.trips[s]){const b=valueOf(t);c[b]++}return c});
+ const W=Math.max(360,host.clientWidth),H=190,ml=40,mb=30,gw=(W-ml-6)/bins.length,bw=Math.max(2,(gw-6)/3),mx=Math.max(1,...counts.flat()),y=lin(0,mx,H-mb,6);
+ const svg=el("svg",{viewBox:`0 0 ${W} ${H}`,height:H},host);
+ for(const v of nice(0,mx,4)){el("line",{x1:ml,x2:W-6,y1:y(v),y2:y(v),stroke:css("--grid")},svg);const t=el("text",{x:ml-4,y:y(v)+4,"text-anchor":"end"},svg);t.textContent=v}
+ bins.forEach((b,i)=>{const x=ml+i*gw+3;STR.forEach(([s],k)=>{const v=counts[k][i];if(v)el("rect",{x:x+k*bw+1,y:y(v),width:bw-2,height:y(0)-y(v),fill:css("--"+s),rx:2},svg)});
+  const hit=el("rect",{x:ml+i*gw,y:0,width:gw,height:H-mb,fill:"transparent"},svg);
+  hit.addEventListener("pointermove",ev=>showTip(ev,[["bin",fmtBin(b)],...STR.map(([s],k)=>[NAMES[s],String(counts[k][i]),css("--"+s)])]));hit.addEventListener("pointerleave",hideTip);
+  const t=el("text",{x:ml+(i+.5)*gw,y:H-mb+14,"text-anchor":"middle"},svg);t.textContent=fmtBin(b)});
+ el("line",{x1:ml,x2:W-6,y1:y(0),y2:y(0),stroke:css("--axis")},svg)}
+function legend(id){const lg=document.getElementById(id);lg.replaceChildren();for(const [s] of STR){const sp=h("span",lg);const k=h("span",sp,null,"sw");k.style.background=css("--"+s);sp.append(NAMES[s])}}
+function renderAgg(){renderPolicy();legend("lg1");legend("lg2");
+ const hb=[[1,1],[2,2],[3,4],[5,8],[9,16],[17,32],[33,64],[65,128],[129,1e9]];
+ grouped("hold",hb,t=>hb.findIndex(([a,b])=>t.hold>=a&&t.hold<=b),([a,b])=>b>1e8?`${a}s+`:a==b?`${a}s`:`${a}-${b}s`);
+ const pb=[];for(let v=-8;v<=8;v++)pb.push(v);
+ grouped("trip",pb,t=>Math.max(0,Math.min(pb.length-1,Math.round(t.pnl)+8)),v=>v==-8?"≤−8":v==8?"≥8":String(v));
+ const tb=document.getElementById("tripsum");tb.replaceChildren();let r=h("tr",tb);for(const c of["strategy","round trips","per episode","mean P&L/trip","win %","mean hold (s)","long share","P&L/episode"])h("th",r,c);
+ const ne=D.episodes.length;for(const [s] of STR){const T=D.trips[s],n=T.length,sum=T.reduce((a,t)=>a+t.pnl,0);r=h("tr",tb);
+  h("td",r,NAMES[s]);h("td",r,String(n));h("td",r,f(n/ne,1));h("td",r,n?sg(sum/n):"–");h("td",r,n?f(100*T.filter(t=>t.pnl>0).length/n,0):"–");
+  h("td",r,n?f(T.reduce((a,t)=>a+t.hold,0)/n,1):"–");h("td",r,n?f(100*T.filter(t=>t.side>0).length/n,0)+"%":"–");h("td",r,sg(sum/ne))}}
+function renderEpTable(){const tb=document.getElementById("epsum");tb.replaceChildren();let r=h("tr",tb);
+ for(const c of["episode","seed","start","agent","rule","oracle","orders","agent time long / short"])h("th",r,c);
+ D.episodes.forEach((e,i)=>{const n=e.step.length;r=h("tr",tb,null,"ep");r.dataset.i=i;r.onclick=()=>pick(i);
+  const lg=e.pos.filter(v=>v>0).length,sh=e.pos.filter(v=>v<0).length;
+  for(const v of[String(e.episode[0]),String(e.seed[0]),clock(e.tod_s[0]),sg(e.pnl[n-1]),sg(e.rule_pnl[n-1]),sg(e.oracle_pnl[n-1]),String(e.orders[n-1]),`${Math.round(100*lg/n)}% / ${Math.round(100*sh/n)}%`])h("td",r,v)})}
+function pick(i){cur=(i+D.episodes.length)%D.episodes.length;document.getElementById("pick").value=cur;render()}
+// ---------- boot ----------
+document.getElementById("meta").textContent=`${D.source} · ${D.meta} · ${D.episodes.length} episodes · prices in ticks (1 tick = 0.25 ES point = $12.50); times are session clock from the 09:30 open`;
+const sel=document.getElementById("pick");D.episodes.forEach((e,i)=>{const o=h("option",sel,`episode ${e.episode[0]}  (agent ${sg(e.pnl[e.pnl.length-1],1)})`);o.value=i});
+sel.onchange=()=>pick(+sel.value);document.getElementById("prev").onclick=()=>pick(cur-1);document.getElementById("next").onclick=()=>pick(cur+1);
+document.getElementById("held").onchange=renderPolicy;
+addEventListener("keydown",e=>{if(e.target.tagName=="SELECT"||e.target.tagName=="INPUT")return;if(e.key=="ArrowLeft")pick(cur-1);if(e.key=="ArrowRight")pick(cur+1)});
+let rt;addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(()=>{render();renderAgg()},150)});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{render();renderAgg()});
+renderEpTable();render();renderAgg();
+</script></body></html>
+"""
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
+
+```
+
+
+---
+
+## FILE: tools\research_crawler.py  (23,582 bytes)
 
 ```python
 #!/usr/bin/env python3
@@ -27642,7 +30514,7 @@ if __name__ == "__main__":
 
 ---
 
-## FILE: tools/test_research_crawler.py  (7,549 bytes)
+## FILE: tools\test_research_crawler.py  (7,549 bytes)
 
 ```python
 """Offline tests for research_crawler.py: parsers on small hand-written

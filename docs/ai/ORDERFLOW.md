@@ -51,7 +51,7 @@ numbers for each are in the probe's results file and summarized here.
 
 | File | What it is |
 |---|---|
-| `include/rag/orderflow/simulator.hpp` | `EsSimulator`: L2 book (16 levels/side, 5 exposed), 100 ms steps; noise takers, informed and uninformed meta-orders (power-law sizes, child orders), momentum takers, makers with capped quote fading, optional informed makers (`maker_info`), icebergs (hidden reserve: absorption); activity log-OU + intraday U-shape + mean-zero excitation; fair value with activity-scaled volatility and jumps. Strategy orders: `market_order`, `submit_limit`/`cancel` with FIFO queue position (cancellations biased to the back, faster participants joining ahead). Opt-in re-pricing (OF10): v1 rigid quote jumps (`reprice_band`, `reprice_snipe`), v2 stale-side depletion (`reprice_cancel`, `reprice_take`) with permanent impact of flow surprise (`value_impact`, `impact_forecast_*`). Presets `efficient_market()`, `discovery_market_v1()`, `discovery_market()`; `market_preset(name)` for the tools. |
+| `include/rag/orderflow/simulator.hpp` | `EsSimulator`: L2 book (16 levels/side, 5 exposed), 100 ms steps; noise takers, informed and uninformed meta-orders (power-law sizes, child orders), momentum takers, makers with capped quote fading, optional informed makers (`maker_info`), icebergs (hidden reserve: absorption); activity log-OU + intraday U-shape + mean-zero excitation; fair value with activity-scaled volatility and jumps. Strategy orders: `market_order`, `submit_limit`/`cancel` with FIFO queue position (cancellations biased to the back, faster participants joining ahead). Opt-in re-pricing (OF10): v1 rigid quote jumps (`reprice_band`, `reprice_snipe`), v2 stale-side depletion (`reprice_cancel`, `reprice_take`) with permanent impact of flow surprise (`value_impact`, `impact_forecast_*`). Opt-in activity model 1 (`activity_model`, `activity_warm_start`; OF10 v3): centred log-OU with compensated news kicks and an exact stationary law, warm start drawn on its own stream. Presets `efficient_market()`, `discovery_market_v1()`, `discovery_market_v2()`, `discovery_market()` (v3), `default_warm()`; `market_preset(name)` for the tools. |
 | `include/rag/orderflow/features.hpp` | `FeatureBuilder`: delta 5/30/120 s, OFI 5/30 s, relative volume, L1 and L1-5 imbalance, returns 5/30/120 s, VWAP distance, absorption (volume traded at a holding best level beyond the size displayed). Running window sums; self-normalized by a running RMS (works on any market without hand scales). |
 | `include/rag/orderflow/scalp_env.hpp` | `ScalpEnv`: target position short/flat/long every 1 s, market orders with 100 ms latency, real fills, $1.50/side fees, reward = mark-to-market change net of fees, ends flat, fresh market and random time of day per episode (10 min + 150 s warm-up; a fresh market sits at the activity floor for ~1.5 h, so episodes are quiet: §5). |
 | `include/rag/orderflow/tick_env.hpp` | `TickScalpEnv`: quote none/bid/ask/both or flatten every 0.5 s; 1-lot at the touch, rejoining at the back when the price moves; inventory ±1; FIFO fills; queue position in the observation; 5-min episodes. |
@@ -93,15 +93,19 @@ python tools\of_viz.py trace.csv trace.html                                     
 **Markets** (`--market` in `of_train`, `of_trace`, `of8_scalp_days`;
 second argument of `of2_baselines`, `of4_tick_baselines`, `of_calibrate
 sim`; `--markets` list in `of_discovery`): `default` (OF1–OF8),
-`efficient` (OF9), `discovery` (OF10 v2, `discovery_market()`) and
-`discovery_v1` (OF10 v1, kept to reproduce its numbers). All go through
+`efficient` (OF9), `discovery` (OF10 v3, `discovery_market()`),
+`discovery_v2` and `discovery_v1` (OF10 v2 and v1, kept to reproduce their
+numbers) and `default_warm` (`SimParams{}` with activity model 1: the old
+market at realistic activity, not calibrated). All go through
 `market_preset(name)`.
 `of_train --test-seed` must be ≥ 900,000,000 (a test block), or it stops
 (A61).
 
 OF10 diagnostics (Git Bash; builds first, warning-free, then regenerates
 every OF10 file): `bash experiments/of10_regen.sh`. One probe run by hand:
-`build-avx512/Release/of_discovery.exe --markets default,discovery --seeds 1-3 --seconds 7200 --threads 12 --rules 100 --tick 100 --impact 30 --out out.txt`
+`build-avx512/Release/of_discovery.exe --markets default,discovery --seeds 1-3 --episodes 400 --long session --sessions 16 --rules 100 --emo 40 --tick 100 --impact 30 --threads 16 --out out.txt`
+(iteration 3: both regimes, the AGREE table, O1/O2; `--episode-warmup 1050`
+replaces ScalpEnv's 150 s warm-up with a 15-min burn)
 (`--set name=value,...` overrides fields of the discovery preset for
 tuning). Long runs go from a copy of the executables, not from
 `build-avx512\Release\` (A59).
@@ -207,7 +211,7 @@ next 30 s return at 0.58–0.65); real ES prices information in seconds.
 **This is the most important simulator fix** (plan item 1; OF10).
 
 **OF10 — price discovery** (`of10_discovery.cpp`, target `of_discovery`;
-plan item 1, in progress). Criteria (NEXT_SESSION.md §1): (a) the hidden
+plan item 1; iteration 3 done at `e229af4`, RL reruns next). Criteria (NEXT_SESSION.md §1): (a) the hidden
 gap g = fair value − mid no longer predicts the next 30 s; (b) book
 imbalance predicts the next tick or two and nothing after; (c) the markout
 curve is flat after a few seconds; (d) the stylized facts stay ES-like;
@@ -221,7 +225,8 @@ versions are opt-in presets: `SimParams{}`, `efficient_market()` and
 Files: `of10_results.txt` (tuning), `of10_heldout.txt`, `of10_baselines.txt`
 (OF2 rules, 900M), `of10_tick_baselines.txt` (OF4 rules, 910M),
 `of10_calibrate_sim.txt` (3 h); v1 numbers at commit `10bfe03`, v2 at
-`4ba0354`.
+`4ba0354`, v3 at `e229af4` (plus `of10_warmup_check.txt`; in v3
+`of10_heldout.txt` is the seeds 4–6 sanity run, not held out).
 
 *v1: rigid quote jumps* (`discovery_market_v1()`, `10bfe03`). When
 |value − mid| > 0.65 tick the whole book jumps round(gap) ticks, and
@@ -294,11 +299,80 @@ the code): the episodes RL trains on run at the activity floor (§5). The
 v2 tuning used 2 h windows, which begin in that floor and leave it during
 the window, while its rule checks (e, f) ran on quiet episodes.
 
-*Iteration 3 (in progress):* an opt-in fix for the warm-up, then retune
-the discovery preset in the episode regime (10-min windows after the
-warm-up) against (a)–(f); final check once on seeds 13–18. **Results:
-pending.** Then the RL reruns (OF2, OF3, OF6, OF8, OF9 rules and agents
-on the fixed market): **pending.**
+*v3: stationary activity and a retuned depletion market*
+(`discovery_market()`, `e229af4`; v2 kept verbatim as `discovery_v2`).
+- **Warm-up fix.** The legacy activity loop has no stable steady state:
+  loop gain 0.045/s, R = 11.5 on default sessions; 10 h runs swing between
+  the clamps, and default 10-min episodes spent 41% of their steps at the
+  lower clamp (4.5 trades/s). Initialising `move_avg_` correctly cannot fix
+  that. Opt-in `activity_model 1`: a centred log-OU with compensated
+  (mean-zero) news kicks, whose stationary law is exact; with
+  `activity_warm_start` the first state is drawn from it on a dedicated
+  stream (`kStreams` = 9). Model 0 is byte-identical (golden hashes);
+  `default_warm()` = `SimParams{}` + model 1; v3 and `default_warm` have
+  golden hashes (`GoldenRunsOfTheIteration3Presets`).
+- **Preset.** v2's depletion and permanent flow impact without informed
+  makers (`maker_info 0`), smaller and more frequent maker orders, slower
+  depletion (`reprice_cancel 12`), more sniping (`reprice_take 0.15`),
+  rarer larger jumps, `value_impact 0.05`; comment above
+  `discovery_market()` in `simulator.hpp`.
+- **Probe.** Every statistic in both regimes: 400 ScalpEnv-built 10-min
+  episodes per seed (150 s warm-up) and 16 session-weighted full sessions
+  per seed, an AGREE table between them, pre-registered oracles O1/O2, a
+  quote-both decomposition by cause.
+- **Acceptance** on seeds 1–3 (tuning), 13–18 (held out, used once) and
+  19–21 (skeptic, fresh), both regimes:
+  - (a) **met.** corr(g, r 30 s) − floor +0.017 … +0.019 (gate ≤ 0.02).
+  - (b) **met, marginal.** Event corr(I1, next mid change) 0.206–0.216
+    (one seed 0.193 on 19–21); tail ≤ 0.024; leak corr(I1, g) 0.37 (≤
+    0.40). Outside the gate, corr(I1, r 30 s) ~0.07 misses the probe's own
+    0.05 line.
+  - (c) **met except one cell.** mk30 − mk5 fails only on tuning-seed
+    episodes, +0.022 ± 0.009 (2.4 SE; long +0.006 ± 0.009); passes on
+    13–18 and 19–21 (and 4–6). The skeptic judged it chance-level.
+  - (d) **met.** 18.4–18.7 trades/s, 1-min sd 3.9–4.05 ticks, excess
+    kurtosis 5.5–7.2, |r| ac1 0.19–0.22, R² 0.33–0.35; no clamp time.
+  - (e) **met for naive rules, FAIL for quote-both.** No naive `ScalpEnv`
+    rule nets > 0 after costs. Quoting both sides loses −24 to −27
+    ticks/episode, adverse −0.17 … −0.20: ~60 fills/episode are stale
+    sweeps (1 s markout −0.38) against ~25 flow fills (+0.30). Structural:
+    snipers take the agent's lone stale lots before the price ticks, with
+    a small L1 queue (~108 lots); no parameter lever removed it at 15–22
+    trades/s.
+  - (f1) **oracles bite.** O1 (|g| > 0.62, latency 0) +24 … +30
+    ticks/episode on ~86–98 lots; O2 (EMO H 10 s, K 32, θ 1.24, decide 1 s,
+    latency 100 ms) +5.4 … +7.2 on ~15–17.5 lots. (f2) untested: the RL
+    smoke run collapsed to flat.
+  - **AGREE FAIL:** active meta-orders 10.46–10.59 in episodes vs
+    11.07–11.18 on long windows, 5–6 SE in all three seed sets: the
+    meta-order population is not warm after 150 s. A 1,050 s burn gives
+    11.13 (`of10_warmup_check.txt`), matching long windows.
+- **Other findings.** Fair value is not a martingale: the 10 s value
+  change predicts the next 10 s at +0.013 ± 0.003 (permanent-impact
+  momentum; delta 5 s has gross +0.235/lot and loses only on costs). Own
+  impact is linear and permanent: block round trips of ≥ 30 lots profit
+  from their own impact (+0.15 tick/lot at 30), so `ScalpEnv` refuses
+  `contracts > 1` when `value_impact > 0`. On `default_warm` (the old
+  slow-discovery market at realistic activity) naive rules profit
+  strongly (OF2 delta 5 s > 1.5 +15.19, t 22.8; imbalance L1–5 +7.31, t
+  10.9; quote both +1.3): the slow-discovery leak is real, not an artefact
+  of the activity bug. The legacy OF6 stresses are partly empty on
+  discovery (fade ×2 is a no-op with fading off, vol ×1.5 weak, informed
+  ×0.5 touches ~4% of volume).
+- **Decisions for the reruns** (A62–A66): RL on discovery uses a
+  pre-registered 1,050 s `ScalpEnv` warm-up (`--warmup`); the quote-both
+  failure is waived for market-order environments only (OF3, OF6, OF8), and
+  no tick-environment (OF4, OF5, OF7) rerun claims a calibrated market;
+  OF6 gets a discovery-specific stress list fixed before any v3 net
+  exists; O1/O2 are references, and RL > O2 + 2 SE or RL > O1 triggers a
+  leak audit.
+
+**OF11 (RL reruns, `1a73bd6`): no edge.** 24 seeds × 2,000 episodes at
+warm-up 1,050 s: every seed loses on 300 sealed episodes (mean −0.54
+ticks/episode) and the ensemble learns not to trade; OF6 (pre-registered
+discovery stresses): every strategy ≤ 0 in all 11 scenarios; OF8: ensemble
+−3.3 ticks/day (Sharpe −3.1), rule −88; no OF2 rule > 0 by 2 SE. Gate (f)
+holds non-vacuously (EXPERIMENTS.md OF11).
 
 **Calibration** (`of_calibrate`): recorded-tick CSV round trip exact;
 in a recovery test (target = informed flow ×0.4) the fit matched
@@ -330,11 +404,20 @@ reproduces the agents' in-simulator Sharpe per window (0.74/0.70 vs
   facts were measured on long windows and every OF2–OF9 RL and rule
   result in the quiet regime; OF10's (a)–(d) on 2 h windows that cross
   from one to the other. Present since `c808bd4` (the first simulator
-  commit). Fix: iteration 3 (opt-in, so OF1–OF10 reproduce).
-- **Price discovery (plan item 1) is not done.** v2 (stale-side depletion)
-  meets (a) and, on long windows, (b); (c) is marginal; (d) and (e) fail;
-  (f) passes only because the oracle barely trades (OF10). The skeptic
-  ruled it not ready for RL; nothing has been retrained on it.
+  commit). **Resolved for the opt-in presets (iteration 3, `e229af4`):**
+  the root cause is an unstable loop (gain 0.045/s, R = 11.5), not only
+  the initial value; activity model 1 with a stationary warm start (in
+  `discovery` and `default_warm`) has no clamp time and agrees between
+  episodes and long windows on activity and the facts. The legacy model
+  is unchanged, so **the old OF2–OF9 results still ran at ~4 trades/s**
+  and stand only as results in that regime. Still not warm after 150 s:
+  the meta-order population (~5% short, 5–6 SE); the RL reruns use a
+  1,050 s warm-up (A63).
+- **Price discovery (plan item 1): iteration 3 accepted for market-order
+  RL.** v3 meets (a), (b) (marginally), (d), naive-rule (e) and (f1); (c)
+  misses in one cell at 2.4 SE (chance-level). It fails passive quoting
+  (−24 to −27 ticks/episode, stale sweeps), so tick-environment results
+  on it are not calibrated (A64). **RL on it finds no edge (OF11).**
 - The RL scalping agent beats every rule *in the simulator*, robustly.
   Its absolute P&L is a property of a simulator that is still too
   predictable (OF8). Nothing here shows it makes money in real ES.
@@ -353,23 +436,29 @@ cells for NeuralQ (bad_alloc) and 3.8 GB snapshots at 21 inputs (OOM);
 unspecified argument-evaluation order in `reset()` (episodes differed
 between compilers); a non-copyable environment; results committed from a
 stale binary (OF4); the OF10 v1 probe counting edge per order instead of
-per lot (fixed in v2). Found, fix in progress: the activity warm-up (§5).
+per lot (fixed in v2); the activity warm-up (§5: an unstable activity
+loop, fixed opt-in by activity model 1 in iteration 3); block round trips
+profiting from their own permanent impact (`ScalpEnv` refuses
+`contracts > 1` with `value_impact > 0`).
 
 ## 7. Plan for the next AI (ranked)
 
 1. **Fix slow price discovery, then calibrate to the user's ES ticks.**
    Iterations 1 (rigid quote jumps, rejected) and 2 (stale-side depletion:
    (a), (b) met, (c) marginal, (d), (e) fail) are done (OF10).
-   **Iteration 3, in progress:** an opt-in warm-up fix (§5), then retune
-   the discovery preset in the episode regime (10-min windows after the
-   warm-up, where RL trains) until (a)–(f) hold there, with a non-vacuous
-   oracle bound (a clairvoyant beside the gap oracle) and a check of the
-   impact shape (v2: linear and fully permanent). Freeze the preset with a
-   golden hash, then a single final check on diagnostic seeds 13–18.
-   Results: pending. **After that, the RL reruns:** OF2, OF3, OF6, OF8,
-   OF9 on the fixed market, on the sealed blocks as before; 900M and 910M
-   were viewed on the discovery market while tuning (NEXT_SESSION.md §4),
-   so confirm any edge once on 950M+. Results: pending. Then **calibrate to the user's ES ticks:** convert their export to the CSV
+   **Iteration 3 is done** (`e229af4`, §4 OF10 v3): activity model 1 with
+   a stationary warm start; v3 frozen with a golden hash and checked once
+   on seeds 13–18; (a), (b), (d), naive (e), (f1) pass; quote-both fails
+   structurally (stale sweeps); impact still linear and fully permanent.
+   **Next, the RL reruns:** OF2, OF3, OF6, OF8, OF9 on `discovery` with
+   the pre-registered 1,050 s `ScalpEnv` warm-up (`--warmup`, A63), on the
+   sealed blocks as before; OF6 with the discovery stress list fixed
+   before any v3 net exists (A65); compare RL with O1/O2 paired (A66). No
+   tick-environment (OF4, OF5, OF7) rerun claims a calibrated market until
+   the stale-sweep mechanism is redesigned (A64). 900M and 910M were
+   viewed on the discovery market (v2 and an iteration-3 smoke;
+   NEXT_SESSION.md §4), so confirm any edge once on 950M+. **Done (OF11, `1a73bd6`): no
+   edge** (OF2/OF9 rules: `of11_baselines.txt`); 950M+ unused. Then **calibrate to the user's ES ticks:** convert their export to the CSV
    format, run `of_calibrate facts`, then `fit` with many seeds and long
    windows on their server; add richer targets first (markout curve at
    more horizons, queue depletion/refill rates; MBO if available). Re-run

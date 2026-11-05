@@ -44,7 +44,7 @@ and the conclusion; negative results stay in.
 | E27 | Does a lower-quantile vote fix the bias? | No: better on the selection set (98.1 vs 97.5%), not on fresh scenarios (97.8 vs 97.9%) — selection bias. |
 | E28 | Do strategies survive a different market? (stress suite, sealed seeds) | Fixed strategies (DP plan, learned ensemble) only in their assumed market (−173% when the signal flips); the model-based agent re-learned in 50 episodes keeps 97–100% everywhere. |
 | OF1–OF9 | ES order-flow trading | See ORDERFLOW.md §4: RL scalping beats every rule in the simulator (robust to 9 stresses) but the simulator is too predictable to trust absolute P&L; tick-scalping RL matches, not beats, the rule. Caveat (found in OF10): every OF2–OF9 episode ran at the simulator's activity floor (~4 trades/s instead of 15–22). |
-| OF10 | Can the simulator discover prices in seconds? | Partly. Rigid quote jumps (v1) remove the 30 s gap predictability (0.57–0.64 → 0.11) but make book imbalance useless (+0.02). Stale-side depletion (v2) keeps both (gap 0.09–0.11, imbalance → next tick +0.25) but fails the stylized facts and passive quoting (−6.6 to −7.2 ticks); its oracle bound is vacuous. RL episodes run in a quiet warm-up regime; iteration 3 pending. |
+| OF10 | Can the simulator discover prices in seconds? | Partly. Rigid quote jumps (v1) remove the 30 s gap predictability (0.57–0.64 → 0.11) but make book imbalance useless (+0.02). Stale-side depletion (v2) keeps both (gap 0.09–0.11, imbalance → next tick +0.25) but fails the stylized facts and passive quoting (−6.6 to −7.2 ticks); its oracle bound is vacuous. v3 (stationary activity model, no informed makers) meets the gap, imbalance (marginally), the facts and naive-rule breakeven, and its pre-registered oracles trade; it fails passive quoting (−24 to −27 ticks, stale sweeps), and meta-orders are 5% short after the 150 s warm-up (a 1,050 s warm-up fixes it: 29/29 AGREE). OF11: RL on v3 finds no edge (every seed negative on sealed episodes; ensemble flat). |
 | E19 | Do gap-increasing targets help? | Advantage learning (k = 0.5) lifts TileQ from 65–69% to 70–75% at 40k, and to 76–80% with coarse tiles: the best tile-coded result, still below the neural learner. |
 
 ---
@@ -1461,7 +1461,9 @@ The order-flow series (simulator stylized facts, scalping and
 tick-scalping baselines and RL, stress, daily P&L, efficient market,
 calibration, backtesting) is documented in [ORDERFLOW.md](ORDERFLOW.md) §4.
 Caveat found in OF10: every OF2–OF9 episode ran at the activity floor of
-a freshly started simulator (ORDERFLOW.md §5).
+a freshly started simulator (ORDERFLOW.md §5). Iteration 3 fixed this only
+for the opt-in presets (activity model 1); the legacy results stand as
+results at ~4 trades/s.
 
 ## OF10. Price discovery in seconds (plan item 1; ORDERFLOW.md §4)
 
@@ -1505,7 +1507,90 @@ a freshly started simulator (ORDERFLOW.md §5).
   activity 0.29, 4.2 trades/s (default) and 2.3 (v2), 1-min sd ~2.4. Over
   6 h: 21.6 and 33.1 trades/s. Every OF2–OF9 RL and rule result ran in the
   quiet regime; the OF1 facts on long windows. Present since `c808bd4`.
-* **Conclusion:** depletion is the right mechanism for (a) and (b), but
-  the preset was tuned in the wrong regime. Iteration 3: opt-in warm-up
-  fix, retune on 10-min episode windows, final check on seeds 13–18
-  (**pending**), then the RL reruns (**pending**).
+* **Conclusion (v2):** depletion is the right mechanism for (a) and (b),
+  but the preset was tuned in the wrong regime.
+* **Iteration 3** (`e229af4`; `of10_results.txt` seeds 1–3,
+  `of10_heldout.txt` seeds 4–6 sanity, `of10_warmup_check.txt`; final
+  check on 13–18 once by the acceptance agent, skeptic on fresh 19–21;
+  every statistic in the episode regime (400 ScalpEnv-built 10-min
+  windows per seed) and on 16 session-weighted sessions per seed, with an
+  AGREE table between them):
+  * *Warm-up root cause:* the legacy activity loop is unstable (loop gain
+    0.045/s, R = 11.5 on default sessions); 10 h runs swing between the
+    clamps, default episodes spend 41% of steps at the lower clamp (4.5
+    trades/s). A correct `move_avg_` start cannot fix it. Fix: opt-in
+    `activity_model 1` (centred log-OU, compensated news kicks, exact
+    stationary law; warm start on a dedicated stream, `kStreams` = 9).
+    Model 0 byte-identical; `default_warm()` = `SimParams{}` + model 1.
+  * *v3 preset* (`discovery_market()`; v2 kept as `discovery_v2`):
+    `maker_info 0`, retuned depletion, sniping, maker sizes and jumps.
+  * (a) gap → 30 s minus floor +0.017 … +0.019 (≤ 0.02): pass. (b)
+    imbalance → next mid change 0.206–0.216 (one seed 0.193 on 19–21),
+    tail ≤ 0.024, leak corr(I1, g) 0.37 (≤ 0.40): marginal pass;
+    corr(I1, r 30 s) ~0.07 misses the probe's own 0.05 line (not gated).
+    (c) mk30 − mk5 fails only on tuning-seed episodes (+0.022 ± 0.009,
+    2.4 SE), passes on 13–18, 19–21 and 4–6: chance-level per the
+    skeptic. (d) all bands pass: 18.4–18.7 trades/s, 1-min sd 3.9–4.05,
+    kurtosis 5.5–7.2, |r| ac1 0.19–0.22, R² 0.33–0.35.
+  * (e) no naive rule nets > 0 after costs: pass. **Quote both sides
+    FAILS:** −24 to −27 ticks/episode, adverse −0.17 … −0.20; ~60
+    fills/episode are stale sweeps (1 s markout −0.38) vs ~25 flow fills
+    (+0.30). Structural: snipers take the agent's lone stale lots before
+    the price ticks (L1 queue ~108 lots); no parameter lever removed it.
+  * (f1) pre-registered oracles trade and win: O1 (|g| > 0.62, latency 0)
+    +24 … +30 ticks/episode on ~86–98 lots; O2 (EMO H 10 s, K 32, θ 1.24,
+    decide 1 s, latency 100 ms) +5.4 … +7.2 on ~15–17.5 lots. (f2)
+    untested: the RL smoke run collapsed to flat.
+  * **AGREE fails on active meta-orders:** 10.46–10.59 in episodes vs
+    11.07–11.18 on long windows (5–6 SE, all three seed sets); a 1,050 s
+    burn gives 11.13. Activity is warm after 150 s, the meta-order
+    population is not.
+  * *Negative and side results:* fair value is not a martingale (10 s
+    value change → next 10 s +0.013 ± 0.003, permanent-impact momentum;
+    delta 5 s grosses +0.235/lot and loses only on costs). Own impact is
+    linear and permanent: round trips of ≥ 30 lots profit from it, so
+    `ScalpEnv` refuses `contracts > 1` with `value_impact > 0`. On
+    `default_warm` naive rules profit strongly (OF2 delta 5 s > 1.5
+    +15.19, t 22.8; imbalance L1–5 +7.31, t 10.9; quote both +1.3): the
+    slow-discovery leak is real at realistic activity. Legacy OF6 stresses
+    are partly empty on discovery (fade ×2 no-op, vol ×1.5 weak, informed
+    ×0.5 ~4% of volume).
+* **Conclusion (iteration 3):** accepted for market-order RL (OF3, OF6,
+  OF8) with a 1,050 s warm-up; not a calibrated market for tick
+  environments (A62–A66).
+* **Pre-RL check** (`5bb7be3`, `experiments/of11_probe1050.txt`, fresh
+  seeds 22–24, `--scalp-warmup 1050`): episode and long regimes agree on
+  29/29 rows (active meta-orders 11.15 vs 11.18); (a)–(d) pass; (c) +0.000
+  ± 0.008. Still outside the gate in both regimes: corr(I1, r 30 s) 0.076
+  (probe line 0.05) and event corr(I5) 0.080. The held-out runs are now
+  committed: `of10_final13_18.txt` (13–18) and `of10_skeptic19_21.txt`
+  (19–21), reproduced from committed code by `of11_regen.sh`.
+
+## OF11. RL reruns on the fixed market (OF10 v3, warm-up 1,050 s)
+
+`bash experiments/of11_regen.sh` (`1a73bd6`; ~40 min), all on
+`--market discovery --warmup 1050`:
+
+* **OF3 recipe** (`of11_train.txt`, of_train 24 seeds × 2,000 episodes,
+  NeuralQ + Double DQN, champion on validation, 300 sealed episodes): every
+  seed negative, −0.15 … −1.50 ticks/episode (mean −0.54, t −1.0 … −5.0,
+  0.4–3.3 orders); validation highs (+0.74) did not carry over. The mean-Q
+  ensemble makes 0.0 orders. 30 s delta rule −1.39 (t −2.0).
+* **OF2 rules** (`of11_baselines.txt`): none > 0 by 2 SE (best delta
+  120 s > 2, +0.38, t 0.75); "oracle (sees fair value)" −0.21 on 0.3 lots.
+* **OF6 stresses** (`of11_stress.txt`, the discovery list pre-registered
+  in `5bb7be3`, nets seed1/seed2): all strategies ≤ 0 in all 11 scenarios;
+  the nets lose less than the rule (best: seed1 on thinner book +0.007,
+  t 0.03). Worst: session open (rule −5.7, nets −1.9 / −3.1).
+* **OF8 days** (`of11_days.txt`, 20 days × 39 sessions): rule −88
+  ticks/day (Sharpe −16.7), nets −9.1 / −24.8, ensemble −3.3 (55% winning
+  days, Sharpe −3.1).
+* **(f):** no learned policy comes near the pre-registered references (O2
+  +5.4 … +7.7 ticks/episode on the probe's episodes; O1 +24 … +30; not
+  paired, and both read the hidden state). No red flag; no edge, so the
+  950M+ confirmation block stays unused.
+* **Conclusion:** once prices are discovered in under a second at
+  realistic activity, the OF3 recipe finds nothing after costs. The OF3 /
+  OF8 profits came from the slow-discovery leak, which is real at realistic
+  activity too (`default_warm`: naive delta 5 s > 1.5 +15.2 ticks/episode).
+  The pre-registered gate (f) holds non-vacuously.

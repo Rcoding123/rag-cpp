@@ -1,0 +1,6 @@
+warm-up 1050 s before each episode (--warmup), market discovery
+strategy             ticks/day     $/day      sd win days  worst day     max DD  Sharpe
+delta 30 s rule          -88.1     -1102    83.9      10%     -221.9     1762.6  -16.68
+RL net 1                  -9.1      -114    21.8      25%      -64.8      211.4   -6.67
+RL net 2                 -24.8      -310    26.3      15%      -93.6      496.3  -14.95
+RL mean-Q ensemble        -3.3       -41    16.6      55%      -49.0       83.8   -3.13

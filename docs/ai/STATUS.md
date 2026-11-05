@@ -13,13 +13,18 @@
   plan: price discovery is too slow in the simulator (the hidden value
   gap predicts the next 30 s at ~0.6), so RL profits there are inflated;
   the "efficient" preset leaks value through the book (OF9).
-  **Order-flow status (2026-11-04):** plan item 1 (price discovery) in
-  progress: OF10 v1 (quote jumps) rejected, v2 (stale-side depletion)
-  meets the gap and imbalance criteria but fails the stylized facts and
-  passive quoting; iteration 3 (warm-up fix, retune in the episode regime)
-  pending, RL reruns after it. **Caveat:** a fresh simulator sits at the
-  activity floor for ~1.5 h, so every OF2–OF9 episode ran at ~4 trades/s
-  instead of 15–22 (ORDERFLOW.md §5).
+  **Order-flow status (2026-11-05):** OF10 iteration 3 is done
+  (`e229af4`): an opt-in stationary activity model fixes the warm-up (the
+  legacy activity loop is unstable), and the v3 `discovery` preset passes
+  the gap, imbalance (marginally), stylized-fact and naive-rule criteria
+  with oracles that trade, on tuning, held-out (13–18, once) and fresh
+  skeptic seeds. It fails passive quoting (−24 to −27 ticks/episode, stale
+  sweeps), so it is accepted for market-order RL only, and meta-orders
+  need a 1,050 s warm-up (A62–A66). The RL reruns (OF11, `1a73bd6`) find no edge on `discovery`:
+  every seed negative on sealed episodes, ensemble flat, all stresses and
+  trading days ≤ 0. **Caveat:** the legacy
+  activity model is unchanged, so every OF2–OF9 result still ran at ~4
+  trades/s instead of 15–22 (ORDERFLOW.md §5).
 
 * **Platforms:** Windows only since 2026-11-04 (Linux CI removed; GCC 13 and
   Clang 18 with sanitizers and fuzzing last passed at `10bfe03`, except a
