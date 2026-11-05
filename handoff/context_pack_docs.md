@@ -37,6 +37,7 @@ examples/of_backtest.cpp
 examples/of_calibrate.cpp
 examples/of_trace.cpp
 examples/of_train.cpp
+examples/of_train_live.cpp
 examples/rag_pdf.cpp
 examples/train_ensemble.cpp
 examples/tune_agent.cpp
@@ -135,6 +136,25 @@ experiments/of11_probe1050.txt
 experiments/of11_regen.sh
 experiments/of11_stress.txt
 experiments/of11_train.txt
+experiments/of12_real_vs_sim.txt
+experiments/of12_regen.sh
+experiments/of13_baselines_w1050.txt
+experiments/of13_baselines_w150.txt
+experiments/of13_final_baselines_w1050.txt
+experiments/of13_final_baselines_w150.txt
+experiments/of13_final_probe_w1050.txt
+experiments/of13_final_probe_w150.txt
+experiments/of13_final_real_vs_v4.txt
+experiments/of13_probe_w1050.txt
+experiments/of13_probe_w150.txt
+experiments/of13_real_vs_v4.txt
+experiments/of13_regen.sh
+experiments/of13_skeptic_baselines_w1050.txt
+experiments/of13_skeptic_baselines_w150.txt
+experiments/of13_skeptic_probe_w1050.txt
+experiments/of13_skeptic_probe_w150.txt
+experiments/of13_skeptic_real_vs_v4.txt
+experiments/of14_regen.sh
 experiments/of1_stylized_facts.cpp
 experiments/of2_baselines.cpp
 experiments/of2_results.txt
@@ -238,7 +258,9 @@ tests/synthetic.hpp
 tests/test_util.hpp
 tests/text_clean_tests.cpp
 tools/make_context_pack.py
+tools/of_train_live.py
 tools/of_viz.py
+tools/real_vs_sim.py
 tools/research_crawler.py
 tools/test_research_crawler.py
 ```
@@ -2193,7 +2215,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (14,161 bytes)
+## FILE: docs/ai/LESSONS.md  (14,883 bytes)
 
 # Lessons, distilled
 
@@ -2426,6 +2448,17 @@ building learning systems in general, not just this task.
     activity, all 24 seeds lose on sealed episodes and the ensemble stops
     trading (OF11). Fix the market's known leaks first, and only then read
     an RL profit (OF10, OF11).
+48. **Calibrating to real data can remove what the agent needs; check the
+    oracles still have something to find.** v4 matches real ES on 25 rows,
+    but its fair value carries no edge after costs: both pre-registered
+    oracles lose (O1 about −8 to −12, O2 about −18 to −20 ticks/episode).
+    "RL finds no edge" on such a market is close to true by construction;
+    say so, and read the run as an overfitting test, not as evidence about
+    order flow (OF13).
+49. **One morning of real data is one observation.** The real reference
+    for G2 and G4 was one calm RTH morning; a second, busy morning fell
+    outside G4 and G2 itself. Record more real sessions before tightening
+    gates around one of them (OF13).
 
 
 
@@ -2838,7 +2871,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (96,680 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (103,734 bytes)
 
 # RL experiment log
 
@@ -4490,12 +4523,125 @@ treat that column as one observation) plus ~15.7 h overnight.
   (Sierra market-depth recording on during RTH, tick-by-tick storage) is
   needed before fitting book parameters.
 
+## OF13. Simulator v4 (`discovery_v4`), matched to real ES
+
+`bash experiments/of13_regen.sh` (commit `31f51c4`; `tools/real_vs_sim.py
+--of13`): real ES vs v4 with v3 as context (`of13_real_vs_v4.txt`; Table 4
+holds the gates G1–G8, 25 rows, pre-registered before v4 was built), then
+the efficiency probe (`of_discovery`, both regimes) and the naive rules
+(`of2_baselines`) on v4 at warm-up 150 s and 1,050 s
+(`of13_probe_w*.txt`, `of13_baselines_w*.txt`). `SEED0=… DIAG=… OUT=…
+PROBE_PREFIX=…` select another block: final `of13_final_*` (sessions
+960,013,001–012, diagnostic seeds 28–33, baselines episodes 960,013,000,000
++ i; run once), skeptic `of13_skeptic_*` (960,014,001–012, seeds 34–36,
+960,014,000,000 + i). Tuning: sessions 960,012,001–012 (OF12's), seeds
+25–27; its (e) ran on `of2_baselines`' sealed 900M episodes.
+
+* **Design** (two designs, judged; book-first won): v3's activity
+  process kept; new opt-in `SimParams` fields, every default off and
+  checked byte-identical on every preset: `touch_cancel_mult` (thin,
+  fast-turnover L1), `cancel_activity` (per-lot cancel hazard, depth
+  independent of activity), `sweep_follow` (a sweep that empties the best
+  level moves the hidden value to the new mid at once), `stale_binomial`
+  (stale lots leave independently; Poisson residue leaked I1),
+  `max_stale_levels` 3 and `max_step_ticks` 3 (bounded per-step moves; v3
+  had a 151-tick step). Flat depth behind the touch (~1.2-lot orders),
+  `join_ahead_mean` rescaled. **No meta-orders, no informed or momentum
+  takers, `value_impact` 0.** v3 (`discovery`) frozen: golden test, and
+  `of12_regen.sh` reproduces `of12_real_vs_sim.txt` byte for byte (A67).
+* **Gates G1–G8 vs real ES** (tuning / final / skeptic; band):
+
+  | Row | Tuning | Final | Skeptic | Band |
+  |---|---|---|---|---|
+  | G1 L1 mean, w / f (lots) | 20.2 / 20.9 | 20.2 / 21.2 | 20.6 / 21.3 | [10, 28] |
+  | G1 L5/L1, w / f | 1.49 / 1.45 | 1.47 / 1.43 | 1.47 / 1.43 | ≥ 1.2 |
+  | G2 corr(1-s delta, next 1 s), w / f | −0.022 / −0.019 | −0.033 / −0.027 | −0.029 / −0.027 | [−0.08, 0.04] |
+  | G2 same-second move, w / f (ticks) | 0.594 / 0.536 | 0.589 / 0.512 | 0.568 / 0.508 | ≥ 0.45 |
+  | G4 event corr(I1), w / f | 0.267 / 0.245 | 0.256 / 0.235 | 0.254 / 0.234 | [0.18, 0.32] |
+  | G5 R² 1 min | 0.346 | 0.300 | 0.346 | [0.25, 0.50] |
+  | G6 volume vs real RTH | 1.03 | 0.92 | 0.87 | [0.7, 1.4] |
+  | G7 1-min sd (ticks; real 9.3) | 8.68 | 7.99 | 7.48 | [6.5, 12.5] |
+  | G7 100 ms steps > 8 ticks (largest) | 0 (6) | 0 (6) | 0 (5) | 0 |
+  | **G rows passed** | **25 / 25** | **25 / 25** | **25 / 25** | |
+
+  (w = the matched first 44 min, f = whole sessions; every row in
+  Table 4.) Soft targets: mid changes/min met; ac30 of |1-min r| missed
+  in all blocks (no volatility clustering); 08:30–09:00 volume share met
+  only on final.
+* **Efficiency gates at warm-up 1,050 s** (A68, A69), all three blocks:
+  (a) corr(g, r 30 s) − floor +0.002 … +0.003 (≤ 0.02); (b) leak
+  corr(I1, g) 0.25 (≤ 0.40); (c) mk30 − mk5 within 2 SE of 0; AGREE 0 of
+  29 rows disagree; (e) best naive rule −1.73 (t −1.46) tuning, −1.16
+  (t −1.05) final, −0.49 (t −0.45) skeptic; (f1) O1/O2 trade 23 / 40–42
+  lots/episode. The probe's legacy (d) bands, its combined (f1) line
+  (which also wants O2 > 0) and `TickScalpEnv`'s (f) print FAIL; none
+  judges v4.
+* **Both oracles lose after costs:** O1 −8.23 ± 1.33 / −11.97 ± 1.06 /
+  −11.11 ± 1.44, O2 −19.78 ± 2.50 / −18.33 ± 1.95 / −18.82 ± 3.10
+  ticks/episode (tuning / final / skeptic). v4's fair value carries no
+  edge after costs, so "RL finds no edge on v4" is close to true by
+  construction for a 1-lot market-order scalper; v4 tests whether RL
+  overfits the remaining small signals, not whether order flow carries
+  information (LESSONS 48). Quote-both −198.9 / −199.9 / −203.8
+  (~310 stale sweeps per episode at 1 s markout −0.45): A64 stays, and
+  `TickScalpEnv` refuses v4.
+* **Skeptic caveats** (ranked): (1) I1 predicts the next 1 s after the
+  100 ms latency (+0.080 sim vs +0.002 / −0.008 real); the top decile
+  gains +0.19 ticks/decision, below the 1.24-tick round trip, but can
+  time entries; (2) a regression fitted on the sim keeps a top-2% edge on
+  fresh sim seeds that does not transfer to real; (3) the 100 ms mid
+  flicker reverts (−0.22 vs −0.02 real), giving small fade edges per lot
+  (fade return 30 s +0.23); (4) the spread never widens (1 tick
+  99.99–100% vs 92.7–94.7% real); (5) the real G2/G4 reference is one calm
+  morning (Nov 3): a second, busy RTH morning (Nov 5) falls outside G4
+  (event corr 0.149) and G2 (+5 s markout +0.139) itself; (6) margins
+  shrink across blocks (1-min sd 8.68 → 7.99 → 7.48, volume 1.03 → 0.92
+  → 0.87; spread between blocks ~3× the jackknife SE); (7) the 150 s
+  warm-up is fragile (one AGREE miss in 2 of 3 blocks), 1,050 s
+  confirmed; (8) "delta 30 s > 2.5" sometimes shows +0.45 per lot (watch
+  item); (9) no volatility clustering, and G7's step bound holds by
+  construction.
+* **Smoke:** `of_train --market discovery_v4 --warmup 1050 --seeds 4
+  --episodes 300`: sealed test −1.91 … −3.55 ticks/episode, mean-Q
+  ensemble −0.48 (t −1.1).
+* **Live training viewer** (merged `d0b672f`, `39a7a06`): `of_train_live`
+  + `tools/of_train_live.py` (ORDERFLOW.md §3) runs alongside every RL
+  run, probing on the 960M+ visualization block only (A70).
+
+## OF14. RL reruns on simulator v4 (warm-up 1,050 s)
+
+`bash experiments/of14_regen.sh` (`6d678c6`; ~20 min), the OF11 recipe and
+seed blocks on `--market discovery_v4 --warmup 1050`:
+
+* **OF3 recipe** (`of14_train.txt`, 24 seeds × 2,000 episodes, 300 sealed
+  episodes): every seed negative, −0.75 … −6.29 ticks/episode (mean −3.18,
+  t −1.4 … −9.2, 3.3–10 orders); validation highs (+1.15) did not carry
+  over. The mean-Q ensemble makes 0 orders on the sealed episodes. 30 s
+  delta rule −4.69 (t −3.2). On v4 the agents trade more than on v3
+  (OF11: 0.4–3.3 orders, mean −0.54) and lose more.
+* **OF8 days** (`of14_days.txt`, 20 days): rule −236 ticks/day, nets −164
+  and −116 (0% and 10% winning days), ensemble −50 (Sharpe −14.7).
+* Not run: OF6 (no stress list was pre-registered for v4); the OF2 rules at
+  1,050 s are `of13_baselines_w1050.txt`.
+* **Leak check:** an agent exploiting the skeptic's caveats (I1 persisting
+  after latency, 100 ms mid flicker reverting) would show up as a profit on
+  sealed episodes; none does, so no audit was triggered. 950M+ stays unused.
+* **Watched live:** seed 1 trained under `of_train_live` alongside (same
+  market, warm-up and recipe; probes 960M+), served in the browser pane;
+  the OF14 nets were replayed with `of_trace` → `of_viz.py`.
+* **Conclusion:** on a market matched to real ES at 1 s and below, the OF3
+  recipe loses after costs, and more than on v3: the signals it learns in
+  training (validation up to +1.15) don't survive sealed episodes. Combined
+  with both oracles losing on v4 (OF13), a 1-lot market-order scalper at
+  1 s decisions has nothing to find here; the next evidence has to come
+  from real data (backtests on recorded ticks).
+
 
 
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (25,173 bytes)
+## FILE: docs/ai/DECISIONS.md  (27,010 bytes)
 
 # Decision log
 
@@ -4606,6 +4752,10 @@ the code looks the way it does.
 | A64 | The quote-both (e) failure of v3 is waived only for market-order environments (OF3, OF6, OF8); no tick-environment (OF4, OF5, OF7) rerun claims a calibrated market until the stale-sweep mechanism is redesigned | Quoting both sides loses −24 to −27 ticks/episode (target −4 … 0): ~60 fills/episode are stale sweeps (1 s markout −0.38) vs ~25 flow fills (+0.30). Structural (snipers take the agent's lone stale lots before the price ticks; L1 queue ~108 lots); no parameter lever removed it at 15–22 trades/s. Market-order environments never rest quotes (OF10 v3). |
 | A65 | OF6 on `discovery` gets its own stress list, pre-registered (fixed in code or docs) before any v3 net exists | The legacy stresses are partly empty on discovery: fade ×2 is a no-op (fading off), vol ×1.5 is weak, informed ×0.5 touches ~4% of volume. Choosing stresses after seeing a net's results would select them (OF10 v3). |
 | A66 | The pre-registered oracles O1 (zero-latency fair-value taker, \|g\| > 0.62) and O2 (EMO H 10 s, K 32, θ 1.24, decide 1 s, latency 100 ms) are references, not upper bounds; RL > O2 + 2 SE (paired on the same episodes) or RL > O1 triggers a leak audit | Both trade and win (O1 +24 … +30 ticks/episode on ~86–98 lots, O2 +5.4 … +7.2 on ~15–17.5 lots), so the bound is not vacuous (LESSONS 43); but each reads one fixed signal, so beating one is a reason to look, not proof of a bug (OF9, OF10 v3). |
+| A67 | Simulator v4 is an opt-in preset, `discovery_v4()` (book-first: new `SimParams` fields `touch_cancel_mult`, `cancel_activity`, `sweep_follow`, `stale_binomial`, `max_stale_levels`, `max_step_ticks`, every default off); `discovery` (v3) is frozen, pinned by a golden test | v4 was rebuilt to match real ES (OF12's gaps: L1 ~7× too deep, no same-second impact, a 151-tick sweep), but OF10–OF12 and every RL result on v3 must stay reproducible: each new field's default was checked byte-identical over whole sessions for every preset, and `of12_regen.sh` reproduces `of12_real_vs_sim.txt` byte for byte (OF13). |
+| A68 | v4 is judged by the pre-registered gates G1–G8 from real ES (25 rows, Table 4 of `of13_real_vs_v4.txt`); the probe's legacy (d) bands (1-min sd 3–4.5 etc., from an older ES) do not judge v4 | The legacy bands came from an older ES and contradict the user's real data (real 1-min sd 9.3 ticks); a market matched to real ES must fail them. The efficiency gates (a), (b), (c), AGREE, (e), (f1) still apply (OF13). |
+| A69 | RL on `discovery_v4` uses a `ScalpEnv` warm-up of 1,050 s, pre-registered before any v4 net exists | At 150 s one AGREE row misses in 2 of 3 seed blocks (log A sd on tuning, active icebergs on skeptic) and the first 1,050 s of a fresh session show flow continuation (corr(30 s delta, next 30 s) +0.068 vs −0.012 afterwards); at 1,050 s all 29 AGREE rows agree on all three blocks (OF13). |
+| A70 | The live training viewer (`of_train_live` + `tools/of_train_live.py`) runs alongside every RL run; it probes the net only on visualization episodes from the 960,000,000+ block | Watching what the agent does while it learns catches degenerate policies early, but the probe episodes are look-only: never select, stop or score on them (the 960M+ block is visualization only; NEXT_SESSION §4). |
 
 
 
@@ -4696,7 +4846,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (9,453 bytes)
+## FILE: docs/ai/STATUS.md  (10,139 bytes)
 
 # Status, limitations and next steps
 
@@ -4724,7 +4874,17 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
   every seed negative on sealed episodes, ensemble flat, all stresses and
   trading days ≤ 0. OF12 compared v3 with the user's real ES (Sierra):
   imbalance and price-on-delta match; the book is ~8× too deep and the
-  mid lags the flow by a second. **Caveat:** the legacy
+  mid lags the flow by a second. OF13 (`31f51c4`) added simulator v4,
+  the opt-in `discovery_v4` preset (v3 frozen, golden-pinned): all 25
+  pre-registered real-ES gate rows (G1–G8) and the efficiency gates pass
+  on tuning, held-out (once) and skeptic seeds at the 1,050 s warm-up
+  (A67–A69). Both oracles lose after costs on v4, so "no RL edge" there
+  is close to true by construction (LESSONS 48); caveats: I1 still
+  predicts the next 1 s, the mid flickers, the spread never widens, and
+  the real reference is one calm morning. A live training viewer
+  (`of_train_live`, `tools/of_train_live.py`) watches RL runs (A70).
+  OF14: RL on v4 finds no edge either
+  (all 24 seeds negative, mean −3.18 ticks/episode). **Caveat:** the legacy
   activity model is unchanged, so every OF2–OF9 result still ran at ~4
   trades/s instead of 15–22 (ORDERFLOW.md §5).
 
@@ -4863,7 +5023,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/ORDERFLOW.md  (35,026 bytes)
+## FILE: docs/ai/ORDERFLOW.md  (40,308 bytes)
 
 # ES order-flow trading: simulator, agents, validation, plan
 
@@ -4913,12 +5073,12 @@ numbers for each are in the probe's results file and summarized here.
                      rag::agent learners (NeuralQ + Double DQN + weight averaging), Trainer, champion selection
                                    │
      tools: of_train (parallel seeds)  of_backtest (walk-forward on ticks)  of_calibrate (facts, fit)  probes OF1–OF10
-            of_trace → tools/of_viz.py (episode viewer)
+            of_trace → tools/of_viz.py (episode viewer)   of_train_live → tools/of_train_live.py (live training viewer)
 ```
 
 | File | What it is |
 |---|---|
-| `include/rag/orderflow/simulator.hpp` | `EsSimulator`: L2 book (16 levels/side, 5 exposed), 100 ms steps; noise takers, informed and uninformed meta-orders (power-law sizes, child orders), momentum takers, makers with capped quote fading, optional informed makers (`maker_info`), icebergs (hidden reserve: absorption); activity log-OU + intraday U-shape + mean-zero excitation; fair value with activity-scaled volatility and jumps. Strategy orders: `market_order`, `submit_limit`/`cancel` with FIFO queue position (cancellations biased to the back, faster participants joining ahead). Opt-in re-pricing (OF10): v1 rigid quote jumps (`reprice_band`, `reprice_snipe`), v2 stale-side depletion (`reprice_cancel`, `reprice_take`) with permanent impact of flow surprise (`value_impact`, `impact_forecast_*`). Opt-in activity model 1 (`activity_model`, `activity_warm_start`; OF10 v3): centred log-OU with compensated news kicks and an exact stationary law, warm start drawn on its own stream. Presets `efficient_market()`, `discovery_market_v1()`, `discovery_market_v2()`, `discovery_market()` (v3), `default_warm()`; `market_preset(name)` for the tools. |
+| `include/rag/orderflow/simulator.hpp` | `EsSimulator`: L2 book (16 levels/side, 5 exposed), 100 ms steps; noise takers, informed and uninformed meta-orders (power-law sizes, child orders), momentum takers, makers with capped quote fading, optional informed makers (`maker_info`), icebergs (hidden reserve: absorption); activity log-OU + intraday U-shape + mean-zero excitation; fair value with activity-scaled volatility and jumps. Strategy orders: `market_order`, `submit_limit`/`cancel` with FIFO queue position (cancellations biased to the back, faster participants joining ahead). Opt-in re-pricing (OF10): v1 rigid quote jumps (`reprice_band`, `reprice_snipe`), v2 stale-side depletion (`reprice_cancel`, `reprice_take`) with permanent impact of flow surprise (`value_impact`, `impact_forecast_*`). Opt-in activity model 1 (`activity_model`, `activity_warm_start`; OF10 v3): centred log-OU with compensated news kicks and an exact stationary law, warm start drawn on its own stream. Opt-in v4 book (OF13, all defaults off): `touch_cancel_mult` (thin, fast-turnover touch), `cancel_activity` (per-lot cancel hazard, depth independent of activity), `sweep_follow` (a sweep moves the hidden value to the new mid within the step), `stale_binomial` (stale lots leave independently), `max_stale_levels` and `max_step_ticks` (bounded per-step moves). Presets `efficient_market()`, `discovery_market_v1()`, `discovery_market_v2()`, `discovery_market()` (v3, frozen), `discovery_market_v4()` (v4, OF13), `default_warm()`; `market_preset(name)` for the tools. |
 | `include/rag/orderflow/features.hpp` | `FeatureBuilder`: delta 5/30/120 s, OFI 5/30 s, relative volume, L1 and L1-5 imbalance, returns 5/30/120 s, VWAP distance, absorption (volume traded at a holding best level beyond the size displayed). Running window sums; self-normalized by a running RMS (works on any market without hand scales). |
 | `include/rag/orderflow/scalp_env.hpp` | `ScalpEnv`: target position short/flat/long every 1 s, market orders with 100 ms latency, real fills, $1.50/side fees, reward = mark-to-market change net of fees, ends flat, fresh market and random time of day per episode (10 min + 150 s warm-up; a fresh market sits at the activity floor for ~1.5 h, so episodes are quiet: §5). |
 | `include/rag/orderflow/tick_env.hpp` | `TickScalpEnv`: quote none/bid/ask/both or flatten every 0.5 s; 1-lot at the touch, rejoining at the back when the price moves; inventory ±1; FIFO fills; queue position in the observation; 5-min episodes. |
@@ -4928,7 +5088,9 @@ numbers for each are in the probe's results file and summarized here.
 | `examples/of_train.cpp` | Parallel training of scalping agents (one seed per thread), sealed scoring, mean-Q ensemble. |
 | `examples/of_backtest.cpp` | Walk-forward backtest of flat, the delta rule and saved agents on a tick CSV. |
 | `examples/of_calibrate.cpp` | `sim`, `facts <csv>`, `export <csv>`, `fit <csv>` (NLopt; seeds averaged in parallel threads). |
-| `examples/of_trace.cpp` + `tools/of_viz.py` | Episode viewer. `of_trace` runs saved nets (mean-Q if several) on `ScalpEnv` episodes from the visualization block 960M+, with the 30 s delta rule and the fair-value oracle on the same seeds, and writes one CSV row per decision (book, hidden fair value for display, imbalance, the 13 features, Q-values, action, position, fills, fees, cumulative P&L). `of_viz.py` (stdlib only) turns the CSV into one self-contained HTML page: per-episode price/fills/fair value, positions, signals, Q-values, P&L; over all episodes a policy map, action shares, holding times, P&L per round trip. |
+| `examples/of_trace.cpp` + `tools/of_viz.py` | Episode viewer. `of_trace` runs saved nets (mean-Q if several) on `ScalpEnv` episodes from the visualization block 960M+, with the 30 s delta rule and the fair-value oracle on the same seeds, and writes one CSV row per decision (book, hidden fair value for display, imbalance, the 13 features, Q-values, action, position, fills, fees, cumulative P&L). `of_viz.py` (stdlib only) turns the CSV into one self-contained HTML page: per-episode price/fills/fair value, positions, signals, Q-values, P&L; over all episodes a policy map, action shares, holding times, P&L per round trip. `--warmup W` replays nets trained with `of_train --warmup W`. |
+| `examples/of_train_live.cpp` + `tools/of_train_live.py` | Live training viewer (A70). `of_train_live` trains one agent with `of_train`'s recipe in chunks and appends a JSON checkpoint every `--every` episodes to `--out` (training returns, validation points, epsilon, the current greedy learner on fixed probe episodes from the visualization block 960M+: one probe step by step, all probes' P&L and time in market, a policy map; the 30 s delta rule on the same probes); `--net` saves the champion (`of_trace` can replay it). `of_train_live.py` (stdlib only): `serve DIR` polls `DIR/live.jsonl` on 127.0.0.1, `bake` writes one self-contained HTML page, `page` writes just the polling page. Look only: never select or score on the probes. |
+| `experiments/of13_regen.sh` + `tools/real_vs_sim.py` | OF13: real ES (the user's Sierra data) vs v4 with v3 as context (`of13_real_vs_v4.txt`, Table 4: the pre-registered gates G1–G8), then the efficiency probe and the naive rules on v4 at warm-up 150 s and 1,050 s (`of13_probe_w*.txt`, `of13_baselines_w*.txt`). `SEED0=… DIAG=… OUT=… PROBE_PREFIX=…` select another seed block. |
 | `experiments/of*.cpp` | Probes OF1–OF10 (below), results files next to them. |
 | `experiments/of10_discovery.cpp` (target `of_discovery`) | OF10 price-discovery diagnostics: every criterion (a)–(f) of plan item 1 per market and seed in one run: the hidden gap against an ideal 1-tick grid on the same value path, stale-quote races, imbalance and features in clock and event time, markouts (sniper vs other prints), stylized facts, rules / oracles / clairvoyants on `ScalpEnv` (`--rules`), tick rules on `TickScalpEnv` (`--tick`), a paired TWAP impact test (`--impact`). Block-jackknife SEs (5-min blocks). `experiments/of10_regen.sh` regenerates every OF10 file. |
 | `experiments/research_synthesis.md` | Literature synthesis from the research crawl, with a ranked change list. |
@@ -4955,12 +5117,21 @@ in `build-avx512\Release\`.
 .\build-avx512\Release\of_calibrate.exe export sample.csv 3600                                 # example of the CSV format
 .\build-avx512\Release\of_trace.exe nets\seed1.net nets\seed2.net --market discovery --episodes 20 --out trace.csv
 python tools\of_viz.py trace.csv trace.html                                                    # episode viewer (one HTML page)
+.\build-avx512\Release\of_trace.exe DIR\seed1.net --market discovery_v4 --warmup 1050 --out trace.csv   # replay a v4 net (then of_viz.py)
+.\build-avx512\Release\of_train_live.exe --market discovery_v4 --warmup 1050 --episodes 2000 --every 50 --out DIR\live.jsonl --net DIR\seed1.net
+python tools\of_train_live.py serve DIR                                                        # live viewer on http://127.0.0.1:8770/
+python tools\of_train_live.py bake DIR\live.jsonl out.html                                     # one self-contained page afterwards
 ```
+Run the live viewer alongside every RL run (A70). `serve` writes the page
+and serves DIR on port 8770 (`--port`); if you write the page with `page`
+instead and serve it yourself, open `index.html?src=live.jsonl`.
 
 **Markets** (`--market` in `of_train`, `of_trace`, `of8_scalp_days`;
 second argument of `of2_baselines`, `of4_tick_baselines`, `of_calibrate
 sim`; `--markets` list in `of_discovery`): `default` (OF1–OF8),
-`efficient` (OF9), `discovery` (OF10 v3, `discovery_market()`),
+`efficient` (OF9), `discovery` (OF10 v3, `discovery_market()`, frozen),
+`discovery_v4` (OF13 v4, `discovery_market_v4()`, matched to real ES; RL
+uses `--warmup 1050`, A69; `TickScalpEnv` refuses it),
 `discovery_v2` and `discovery_v1` (OF10 v2 and v1, kept to reproduce their
 numbers) and `default_warm` (`SimParams{}` with activity model 1: the old
 market at realistic activity, not calibrated). All go through
@@ -4974,7 +5145,8 @@ every OF10 file): `bash experiments/of10_regen.sh`. One probe run by hand:
 (iteration 3: both regimes, the AGREE table, O1/O2; `--episode-warmup 1050`
 replaces ScalpEnv's 150 s warm-up with a 15-min burn)
 (`--set name=value,...` overrides fields of the discovery preset for
-tuning). Long runs go from a copy of the executables, not from
+tuning). OF13 (real ES vs v4, Table 4 gates G1–G8, then the probe and
+baselines on v4): `bash experiments/of13_regen.sh`. Long runs go from a copy of the executables, not from
 `build-avx512\Release\` (A59).
 
 The tick-scalping trainer (OF7) is the target `of_tick_train`; run one
@@ -5248,6 +5420,37 @@ code on both sides, v3 matches real ES on imbalance → next tick (+0.24 vs
 +0.15 vs −0.04 real); real ES also has far more volatility clustering and
 mid flicker. Only 44 min of RTH book exist so far (EXPERIMENTS.md OF12).
 
+**OF13 (simulator v4, `discovery_v4`, `31f51c4`):** a book-first rebuild
+(opt-in; v3 frozen with a golden, A67): thin fast-turnover touch (L1 ~20
+lots, depth rising with distance), memoryless noise flow whose sweeps move
+mid and hidden value within the step, binomial stale depletion, bounded
+per-step moves. All 25 pre-registered gate rows G1–G8 against real ES
+pass on tuning (960,012,001–012), on held-out sessions (960,013,001–012,
+once) and on the skeptic's (960,014,001–012) (A68); the efficiency gates
+(a), (b), (c), AGREE (0 of 29 disagree), (e) and (f1) pass at the RL
+warm-up 1,050 s (A69). **v4 has no meta-orders, no informed or momentum
+takers and `value_impact` 0, so its fair value carries no edge after
+costs: both oracles lose** (O1 −8.2 … −12.0, O2 −18.3 … −19.8
+ticks/episode). For a 1-lot market-order scalper "RL finds no edge on v4"
+is therefore close to true by construction; v4 tests whether RL overfits
+the small signals that remain (I1 timing, mid flicker), not whether order
+flow carries information (LESSONS 48). Quote-both loses ~−200
+ticks/episode (A64 stays; `TickScalpEnv` refuses v4). Skeptic caveats:
+I1 still predicts the next 1 s after latency (+0.08 vs ~0 real; top
+decile +0.19 ticks/decision, below the 1.24-tick round trip); 100 ms mid
+flicker reverts (−0.22 vs −0.02 real), giving small fade edges per lot;
+the spread never widens (1 tick ~100% vs 93–95% real); the real G2/G4
+reference is one calm morning (a busy second RTH morning, Nov 5, falls
+outside G4 and G2 itself); margins shrink across blocks (1-min sd 8.68 →
+7.99 → 7.48, volume 1.03 → 0.92 → 0.87); no volatility clustering
+(EXPERIMENTS.md OF13).
+
+**OF14 (RL on v4, `6d678c6`): no edge.** All 24 seeds lose on 300 sealed
+episodes (mean −3.18 ticks/episode, worse than v3's −0.54: the agents
+trade more and lose more); the ensemble stops trading; OF8 days: every
+strategy loses (ensemble −50 ticks/day). No sign that RL exploits v4's
+known quirks (EXPERIMENTS.md OF14).
+
 **Calibration** (`of_calibrate`): recorded-tick CSV round trip exact;
 in a recovery test (target = informed flow ×0.4) the fit matched
 predictability, R² and clustering but not activity or markout, and
@@ -5313,7 +5516,10 @@ stale binary (OF4); the OF10 v1 probe counting edge per order instead of
 per lot (fixed in v2); the activity warm-up (§5: an unstable activity
 loop, fixed opt-in by activity model 1 in iteration 3); block round trips
 profiting from their own permanent impact (`ScalpEnv` refuses
-`contracts > 1` with `value_impact > 0`).
+`contracts > 1` with `value_impact > 0`); OF13: v3's 151-tick one-step
+sweep (v4 bounds every step, `max_step_ticks`, takers only, never the
+strategy's own orders), and Poisson stale depletion leaving residue that
+leaked book imbalance (`stale_binomial`).
 
 ## 7. Plan for the next AI (ranked)
 
@@ -5336,7 +5542,13 @@ profiting from their own permanent impact (`ScalpEnv` refuses
    compared v3 with the user's real ES data** (Sierra; EXPERIMENTS.md OF12):
    fix book depth (L1 ~17 lots, rising with distance) and same-second
    impact first; record RTH depth and tick-by-tick trades for a few weeks
-   before fitting. Then **calibrate to the user's ES ticks:** convert their export to the CSV
+   before fitting. **Done (OF13, `31f51c4`): v4 (`discovery_v4`)** passes
+   the 25 real-ES gate rows and the efficiency gates on three seed blocks
+   (§4; A67–A69); OF14 (RL on v4, warm-up 1,050 s) is next. Before
+   tightening any gate, record more RTH depth and tick-by-tick trades
+   (Sierra settings): the real reference is one calm morning. Fix the
+   spread-never-widens and I1-persistence caveats in a v5 if RL shows it
+   exploits them. Then **calibrate to the user's ES ticks:** convert their export to the CSV
    format, run `of_calibrate facts`, then `fit` with many seeds and long
    windows on their server; add richer targets first (markout curve at
    more horizons, queue depletion/refill rates; MBO if available). Re-run
@@ -5374,7 +5586,7 @@ profiting from their own permanent impact (`ScalpEnv` refuses
 
 ---
 
-## FILE: docs/ai/NEXT_SESSION.md  (14,240 bytes)
+## FILE: docs/ai/NEXT_SESSION.md  (15,356 bytes)
 
 # Continuing the work: the prompt and the Claude Code agent architecture
 
@@ -5393,7 +5605,7 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > **Read first, in this order:** `docs/ai/README.md`, `docs/ai/ORDERFLOW.md`
 > (objectives, architecture, results OF1–OF10, honest status, ranked plan),
 > `docs/ai/STATUS.md`, `docs/ai/CONVENTIONS.md`, `docs/ai/LESSONS.md`
-> (32–47 are the trading lessons), `docs/ai/NEXT_SESSION.md` (this file:
+> (32–49 are the trading lessons), `docs/ai/NEXT_SESSION.md` (this file:
 > how to organise agents) and `experiments/research_synthesis.md`.
 >
 > **State on 2026-11-05:** iterations 1–3 of the goal below are done
@@ -5402,8 +5614,14 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > passive quoting, and needs a 1,050 s warm-up for its meta-orders;
 > A62–A66). Every OF2–OF9 episode ran at the legacy activity floor
 > (ORDERFLOW.md §5). The RL reruns on `discovery` are done (OF11,
-> `1a73bd6`): no edge; the 950M+ block is unused. Next: ORDERFLOW.md §7
-> item 2 onward.
+> `1a73bd6`): no edge; the 950M+ block is unused. OF12 compared v3 with
+> the user's real ES; OF13 (`31f51c4`) added simulator v4, the opt-in
+> `discovery_v4` preset matched to real ES: 25/25 gate rows G1–G8 and the
+> efficiency gates pass on tuning, held-out and skeptic seeds at warm-up
+> 1,050 s (A67–A69), but both oracles lose after costs, so "no RL edge"
+> on v4 is close to true by construction (LESSONS 48). Run the live
+> viewer alongside every RL run (A70; ORDERFLOW.md §3). OF14 (RL on v4,
+> `6d678c6`): no edge (all 24 seeds negative). Next: ORDERFLOW.md §7.
 >
 > **Goal of this session:** plan item 1 in ORDERFLOW.md §7: fix slow price
 > discovery in `include/rag/orderflow/simulator.hpp`. Makers must re-price
@@ -5541,7 +5759,7 @@ return { verdict, done, reviews, run, analysis }
 |---|---|
 | run seed (1, 2, ...) | training streams (`Trainer` train_seed) |
 | 700,000,000+ | validation: champion selection |
-| 900,000,000+ | sealed scalping test (OF2, OF3, OF9) — viewed on the discovery market (OF10 v1, v2 and an iteration-3 smoke: `of2_baselines 300`, the `of_train` smoke tests' episodes): confirm discovery-market edges once on 950M+; OF11 scored all 24 v3 nets on the first 300 at warm-up 1,050 s (pre-RL smoke: the first 100) |
+| 900,000,000+ | sealed scalping test (OF2, OF3, OF9) — viewed on the discovery market (OF10 v1, v2 and an iteration-3 smoke: `of2_baselines 300`, the `of_train` smoke tests' episodes): confirm discovery-market edges once on 950M+; OF11 scored all 24 v3 nets on the first 300 at warm-up 1,050 s (pre-RL smoke: the first 100); OF13 tuning's (e) ran `of2_baselines` on the first 300 on v4 |
 | 910,000,000+ | sealed tick-scalping test (OF4, OF5, OF7) — viewed many times, also on the discovery market (`of4_tick_baselines 300`, OF10 v1, v2 and an iteration-3 smoke): confirm once on 950M+ |
 | diagnostic simulator seeds 1–3 | OF10 tuning (`of_discovery`; v1/v2 on 2 h windows, v3 on 400 episodes + 16 sessions per seed; rule episodes 1,000,000 × seed + i): look as often as needed |
 | diagnostic seeds 4–6 | OF10 held-out sanity check (θ* pre-registered on 1–3) — viewed several times (v1, v2, skeptic's 600 s run): no longer held out |
@@ -5549,11 +5767,14 @@ return { verdict, done, reviews, run, analysis }
 | diagnostic seeds 13–18 | OF10 iteration 3 final check (v3 frozen, once, acceptance agent) — **spent** |
 | diagnostic seeds 19–21 | OF10 iteration 3 skeptic's fresh check — viewed: no longer fresh |
 | **diagnostic seeds 22–24** | **reserved: the pre-RL warm-up check (1,050 s `ScalpEnv` warm-up, A63), once** |
-| diagnostic seeds 25+ | free |
+| diagnostic seeds 25–27 | OF13 v4 tuning (efficiency probe): look as often as needed |
+| diagnostic seeds 28–33 | OF13 v4 final check (once, acceptance agent) — **spent** |
+| diagnostic seeds 34–36 | OF13 v4 skeptic's fresh check — viewed: no longer fresh |
+| diagnostic seeds 37+ | free |
 | 920,000,000+ | stress scenarios (OF6; OF11 on discovery v3 at warm-up 1,050 s) |
 | 930,000,000+ | trading days (OF8; OF11 on discovery v3 at warm-up 1,050 s) |
 | 940,000,000+ | pairing probes (separate streams) |
-| 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it; OF12 exported sessions 960,012,001–012 for the real-vs-sim comparison |
+| 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it; OF12 exported sessions 960,012,001–012 for the real-vs-sim comparison, which OF13 then used as v4's tuning sessions; OF13 final sessions 960,013,001–012 (used once, with `of2_baselines` episodes 960,013,000,000 + i) and skeptic sessions 960,014,001–012 (episodes 960,014,000,000 + i): spent for gating v4; the live training viewer (`of_train_live`, A70) probes the net on this block |
 | **950,000,000+** | **fresh confirmation: unused; use once per claimed edge, then record it here** |
 
 ## 5. Red flags (stop and diagnose before reporting a win)

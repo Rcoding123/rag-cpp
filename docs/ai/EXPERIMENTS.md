@@ -1648,3 +1648,116 @@ treat that column as one observation) plus ~15.7 h overnight.
   (Sierra market-depth recording on during RTH, tick-by-tick storage) is
   needed before fitting book parameters.
 
+## OF13. Simulator v4 (`discovery_v4`), matched to real ES
+
+`bash experiments/of13_regen.sh` (commit `31f51c4`; `tools/real_vs_sim.py
+--of13`): real ES vs v4 with v3 as context (`of13_real_vs_v4.txt`; Table 4
+holds the gates G1–G8, 25 rows, pre-registered before v4 was built), then
+the efficiency probe (`of_discovery`, both regimes) and the naive rules
+(`of2_baselines`) on v4 at warm-up 150 s and 1,050 s
+(`of13_probe_w*.txt`, `of13_baselines_w*.txt`). `SEED0=… DIAG=… OUT=…
+PROBE_PREFIX=…` select another block: final `of13_final_*` (sessions
+960,013,001–012, diagnostic seeds 28–33, baselines episodes 960,013,000,000
++ i; run once), skeptic `of13_skeptic_*` (960,014,001–012, seeds 34–36,
+960,014,000,000 + i). Tuning: sessions 960,012,001–012 (OF12's), seeds
+25–27; its (e) ran on `of2_baselines`' sealed 900M episodes.
+
+* **Design** (two designs, judged; book-first won): v3's activity
+  process kept; new opt-in `SimParams` fields, every default off and
+  checked byte-identical on every preset: `touch_cancel_mult` (thin,
+  fast-turnover L1), `cancel_activity` (per-lot cancel hazard, depth
+  independent of activity), `sweep_follow` (a sweep that empties the best
+  level moves the hidden value to the new mid at once), `stale_binomial`
+  (stale lots leave independently; Poisson residue leaked I1),
+  `max_stale_levels` 3 and `max_step_ticks` 3 (bounded per-step moves; v3
+  had a 151-tick step). Flat depth behind the touch (~1.2-lot orders),
+  `join_ahead_mean` rescaled. **No meta-orders, no informed or momentum
+  takers, `value_impact` 0.** v3 (`discovery`) frozen: golden test, and
+  `of12_regen.sh` reproduces `of12_real_vs_sim.txt` byte for byte (A67).
+* **Gates G1–G8 vs real ES** (tuning / final / skeptic; band):
+
+  | Row | Tuning | Final | Skeptic | Band |
+  |---|---|---|---|---|
+  | G1 L1 mean, w / f (lots) | 20.2 / 20.9 | 20.2 / 21.2 | 20.6 / 21.3 | [10, 28] |
+  | G1 L5/L1, w / f | 1.49 / 1.45 | 1.47 / 1.43 | 1.47 / 1.43 | ≥ 1.2 |
+  | G2 corr(1-s delta, next 1 s), w / f | −0.022 / −0.019 | −0.033 / −0.027 | −0.029 / −0.027 | [−0.08, 0.04] |
+  | G2 same-second move, w / f (ticks) | 0.594 / 0.536 | 0.589 / 0.512 | 0.568 / 0.508 | ≥ 0.45 |
+  | G4 event corr(I1), w / f | 0.267 / 0.245 | 0.256 / 0.235 | 0.254 / 0.234 | [0.18, 0.32] |
+  | G5 R² 1 min | 0.346 | 0.300 | 0.346 | [0.25, 0.50] |
+  | G6 volume vs real RTH | 1.03 | 0.92 | 0.87 | [0.7, 1.4] |
+  | G7 1-min sd (ticks; real 9.3) | 8.68 | 7.99 | 7.48 | [6.5, 12.5] |
+  | G7 100 ms steps > 8 ticks (largest) | 0 (6) | 0 (6) | 0 (5) | 0 |
+  | **G rows passed** | **25 / 25** | **25 / 25** | **25 / 25** | |
+
+  (w = the matched first 44 min, f = whole sessions; every row in
+  Table 4.) Soft targets: mid changes/min met; ac30 of |1-min r| missed
+  in all blocks (no volatility clustering); 08:30–09:00 volume share met
+  only on final.
+* **Efficiency gates at warm-up 1,050 s** (A68, A69), all three blocks:
+  (a) corr(g, r 30 s) − floor +0.002 … +0.003 (≤ 0.02); (b) leak
+  corr(I1, g) 0.25 (≤ 0.40); (c) mk30 − mk5 within 2 SE of 0; AGREE 0 of
+  29 rows disagree; (e) best naive rule −1.73 (t −1.46) tuning, −1.16
+  (t −1.05) final, −0.49 (t −0.45) skeptic; (f1) O1/O2 trade 23 / 40–42
+  lots/episode. The probe's legacy (d) bands, its combined (f1) line
+  (which also wants O2 > 0) and `TickScalpEnv`'s (f) print FAIL; none
+  judges v4.
+* **Both oracles lose after costs:** O1 −8.23 ± 1.33 / −11.97 ± 1.06 /
+  −11.11 ± 1.44, O2 −19.78 ± 2.50 / −18.33 ± 1.95 / −18.82 ± 3.10
+  ticks/episode (tuning / final / skeptic). v4's fair value carries no
+  edge after costs, so "RL finds no edge on v4" is close to true by
+  construction for a 1-lot market-order scalper; v4 tests whether RL
+  overfits the remaining small signals, not whether order flow carries
+  information (LESSONS 48). Quote-both −198.9 / −199.9 / −203.8
+  (~310 stale sweeps per episode at 1 s markout −0.45): A64 stays, and
+  `TickScalpEnv` refuses v4.
+* **Skeptic caveats** (ranked): (1) I1 predicts the next 1 s after the
+  100 ms latency (+0.080 sim vs +0.002 / −0.008 real); the top decile
+  gains +0.19 ticks/decision, below the 1.24-tick round trip, but can
+  time entries; (2) a regression fitted on the sim keeps a top-2% edge on
+  fresh sim seeds that does not transfer to real; (3) the 100 ms mid
+  flicker reverts (−0.22 vs −0.02 real), giving small fade edges per lot
+  (fade return 30 s +0.23); (4) the spread never widens (1 tick
+  99.99–100% vs 92.7–94.7% real); (5) the real G2/G4 reference is one calm
+  morning (Nov 3): a second, busy RTH morning (Nov 5) falls outside G4
+  (event corr 0.149) and G2 (+5 s markout +0.139) itself; (6) margins
+  shrink across blocks (1-min sd 8.68 → 7.99 → 7.48, volume 1.03 → 0.92
+  → 0.87; spread between blocks ~3× the jackknife SE); (7) the 150 s
+  warm-up is fragile (one AGREE miss in 2 of 3 blocks), 1,050 s
+  confirmed; (8) "delta 30 s > 2.5" sometimes shows +0.45 per lot (watch
+  item); (9) no volatility clustering, and G7's step bound holds by
+  construction.
+* **Smoke:** `of_train --market discovery_v4 --warmup 1050 --seeds 4
+  --episodes 300`: sealed test −1.91 … −3.55 ticks/episode, mean-Q
+  ensemble −0.48 (t −1.1).
+* **Live training viewer** (merged `d0b672f`, `39a7a06`): `of_train_live`
+  + `tools/of_train_live.py` (ORDERFLOW.md §3) runs alongside every RL
+  run, probing on the 960M+ visualization block only (A70).
+
+## OF14. RL reruns on simulator v4 (warm-up 1,050 s)
+
+`bash experiments/of14_regen.sh` (`6d678c6`; ~20 min), the OF11 recipe and
+seed blocks on `--market discovery_v4 --warmup 1050`:
+
+* **OF3 recipe** (`of14_train.txt`, 24 seeds × 2,000 episodes, 300 sealed
+  episodes): every seed negative, −0.75 … −6.29 ticks/episode (mean −3.18,
+  t −1.4 … −9.2, 3.3–10 orders); validation highs (+1.15) did not carry
+  over. The mean-Q ensemble makes 0 orders on the sealed episodes. 30 s
+  delta rule −4.69 (t −3.2). On v4 the agents trade more than on v3
+  (OF11: 0.4–3.3 orders, mean −0.54) and lose more.
+* **OF8 days** (`of14_days.txt`, 20 days): rule −236 ticks/day, nets −164
+  and −116 (0% and 10% winning days), ensemble −50 (Sharpe −14.7).
+* Not run: OF6 (no stress list was pre-registered for v4); the OF2 rules at
+  1,050 s are `of13_baselines_w1050.txt`.
+* **Leak check:** an agent exploiting the skeptic's caveats (I1 persisting
+  after latency, 100 ms mid flicker reverting) would show up as a profit on
+  sealed episodes; none does, so no audit was triggered. 950M+ stays unused.
+* **Watched live:** seed 1 trained under `of_train_live` alongside (same
+  market, warm-up and recipe; probes 960M+), served in the browser pane;
+  the OF14 nets were replayed with `of_trace` → `of_viz.py`.
+* **Conclusion:** on a market matched to real ES at 1 s and below, the OF3
+  recipe loses after costs, and more than on v3: the signals it learns in
+  training (validation up to +1.15) don't survive sealed episodes. Combined
+  with both oracles losing on v4 (OF13), a 1-lot market-order scalper at
+  1 s decisions has nothing to find here; the next evidence has to come
+  from real data (backtests on recorded ticks).
+

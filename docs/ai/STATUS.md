@@ -24,7 +24,17 @@
   every seed negative on sealed episodes, ensemble flat, all stresses and
   trading days ≤ 0. OF12 compared v3 with the user's real ES (Sierra):
   imbalance and price-on-delta match; the book is ~8× too deep and the
-  mid lags the flow by a second. **Caveat:** the legacy
+  mid lags the flow by a second. OF13 (`31f51c4`) added simulator v4,
+  the opt-in `discovery_v4` preset (v3 frozen, golden-pinned): all 25
+  pre-registered real-ES gate rows (G1–G8) and the efficiency gates pass
+  on tuning, held-out (once) and skeptic seeds at the 1,050 s warm-up
+  (A67–A69). Both oracles lose after costs on v4, so "no RL edge" there
+  is close to true by construction (LESSONS 48); caveats: I1 still
+  predicts the next 1 s, the mid flickers, the spread never widens, and
+  the real reference is one calm morning. A live training viewer
+  (`of_train_live`, `tools/of_train_live.py`) watches RL runs (A70).
+  OF14: RL on v4 finds no edge either
+  (all 24 seeds negative, mean −3.18 ticks/episode). **Caveat:** the legacy
   activity model is unchanged, so every OF2–OF9 result still ran at ~4
   trades/s instead of 15–22 (ORDERFLOW.md §5).
 

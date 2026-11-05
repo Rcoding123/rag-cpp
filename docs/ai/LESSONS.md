@@ -229,3 +229,14 @@ building learning systems in general, not just this task.
     activity, all 24 seeds lose on sealed episodes and the ensemble stops
     trading (OF11). Fix the market's known leaks first, and only then read
     an RL profit (OF10, OF11).
+48. **Calibrating to real data can remove what the agent needs; check the
+    oracles still have something to find.** v4 matches real ES on 25 rows,
+    but its fair value carries no edge after costs: both pre-registered
+    oracles lose (O1 about −8 to −12, O2 about −18 to −20 ticks/episode).
+    "RL finds no edge" on such a market is close to true by construction;
+    say so, and read the run as an overfitting test, not as evidence about
+    order flow (OF13).
+49. **One morning of real data is one observation.** The real reference
+    for G2 and G4 was one calm RTH morning; a second, busy morning fell
+    outside G4 and G2 itself. Record more real sessions before tightening
+    gates around one of them (OF13).

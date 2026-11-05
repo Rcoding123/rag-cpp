@@ -1,0 +1,32 @@
+training 24 seeds x 2000 episodes on 23 threads (hardware threads: 24), market discovery_v4, warm-up 1050 s, hidden 64
+  seed 10: validation -1.43, sealed test -3.22 ticks/episode (t -5.2, 6.0 orders, 24% winning)
+  seed  5: validation +0.61, sealed test -1.95 ticks/episode (t -3.1, 4.9 orders, 35% winning)
+  seed  2: validation -1.45, sealed test -3.87 ticks/episode (t -5.2, 6.0 orders, 32% winning)
+  seed 16: validation -0.23, sealed test -4.09 ticks/episode (t -6.0, 6.7 orders, 33% winning)
+  seed  4: validation +0.97, sealed test -3.60 ticks/episode (t -5.4, 6.6 orders, 33% winning)
+  seed 14: validation -1.37, sealed test -2.77 ticks/episode (t -4.3, 5.3 orders, 31% winning)
+  seed 18: validation -0.51, sealed test -0.75 ticks/episode (t -1.4, 3.3 orders, 23% winning)
+  seed 17: validation +0.19, sealed test -4.79 ticks/episode (t -6.3, 7.8 orders, 32% winning)
+  seed 22: validation -1.54, sealed test -3.93 ticks/episode (t -6.1, 7.7 orders, 29% winning)
+  seed  7: validation +1.02, sealed test -3.67 ticks/episode (t -6.7, 6.7 orders, 27% winning)
+  seed  1: validation -2.45, sealed test -3.27 ticks/episode (t -5.4, 5.8 orders, 28% winning)
+  seed 19: validation -0.65, sealed test -1.67 ticks/episode (t -3.3, 4.0 orders, 31% winning)
+  seed 11: validation -2.95, sealed test -4.08 ticks/episode (t -6.3, 8.3 orders, 33% winning)
+  seed  6: validation +0.06, sealed test -4.94 ticks/episode (t -7.0, 8.7 orders, 30% winning)
+  seed 21: validation -0.13, sealed test -2.91 ticks/episode (t -4.6, 4.8 orders, 31% winning)
+  seed 15: validation -1.42, sealed test -1.99 ticks/episode (t -4.5, 3.9 orders, 24% winning)
+  seed  9: validation +1.15, sealed test -2.08 ticks/episode (t -3.2, 5.4 orders, 33% winning)
+  seed 12: validation -1.82, sealed test -6.29 ticks/episode (t -9.2, 10.0 orders, 29% winning)
+  seed 13: validation -1.11, sealed test -2.64 ticks/episode (t -4.9, 6.1 orders, 33% winning)
+  seed 20: validation -1.86, sealed test -2.90 ticks/episode (t -5.3, 5.1 orders, 28% winning)
+  seed 23: validation -0.70, sealed test -2.46 ticks/episode (t -4.2, 3.3 orders, 27% winning)
+  seed  3: validation -1.81, sealed test -3.77 ticks/episode (t -5.4, 7.2 orders, 30% winning)
+  seed  8: validation -0.31, sealed test -2.43 ticks/episode (t -5.1, 3.8 orders, 24% winning)
+  seed 24: validation -0.45, sealed test -2.13 ticks/episode (t -3.8, 3.7 orders, 31% winning)
+
+sealed test, 300 episodes of 10 min from seed 900000000 (1 ES contract, market discovery_v4, warm-up 1050 s):
+  delta 30 s rule      -4.69 ticks/episode (t -3.2)
+  RL, mean of seeds    -3.18
+  RL mean-Q ensemble   -0.00 (t -1.0, 0.0 orders, 0% winning) of all 24 seeds
+training took 1017 s; networks in build-avx512/rl/of14/
+note: these are simulator results; replay recorded ticks with of_backtest before trusting any edge.

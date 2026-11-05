@@ -15,7 +15,7 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > **Read first, in this order:** `docs/ai/README.md`, `docs/ai/ORDERFLOW.md`
 > (objectives, architecture, results OF1–OF10, honest status, ranked plan),
 > `docs/ai/STATUS.md`, `docs/ai/CONVENTIONS.md`, `docs/ai/LESSONS.md`
-> (32–47 are the trading lessons), `docs/ai/NEXT_SESSION.md` (this file:
+> (32–49 are the trading lessons), `docs/ai/NEXT_SESSION.md` (this file:
 > how to organise agents) and `experiments/research_synthesis.md`.
 >
 > **State on 2026-11-05:** iterations 1–3 of the goal below are done
@@ -24,8 +24,14 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > passive quoting, and needs a 1,050 s warm-up for its meta-orders;
 > A62–A66). Every OF2–OF9 episode ran at the legacy activity floor
 > (ORDERFLOW.md §5). The RL reruns on `discovery` are done (OF11,
-> `1a73bd6`): no edge; the 950M+ block is unused. Next: ORDERFLOW.md §7
-> item 2 onward.
+> `1a73bd6`): no edge; the 950M+ block is unused. OF12 compared v3 with
+> the user's real ES; OF13 (`31f51c4`) added simulator v4, the opt-in
+> `discovery_v4` preset matched to real ES: 25/25 gate rows G1–G8 and the
+> efficiency gates pass on tuning, held-out and skeptic seeds at warm-up
+> 1,050 s (A67–A69), but both oracles lose after costs, so "no RL edge"
+> on v4 is close to true by construction (LESSONS 48). Run the live
+> viewer alongside every RL run (A70; ORDERFLOW.md §3). OF14 (RL on v4,
+> `6d678c6`): no edge (all 24 seeds negative). Next: ORDERFLOW.md §7.
 >
 > **Goal of this session:** plan item 1 in ORDERFLOW.md §7: fix slow price
 > discovery in `include/rag/orderflow/simulator.hpp`. Makers must re-price
@@ -163,7 +169,7 @@ return { verdict, done, reviews, run, analysis }
 |---|---|
 | run seed (1, 2, ...) | training streams (`Trainer` train_seed) |
 | 700,000,000+ | validation: champion selection |
-| 900,000,000+ | sealed scalping test (OF2, OF3, OF9) — viewed on the discovery market (OF10 v1, v2 and an iteration-3 smoke: `of2_baselines 300`, the `of_train` smoke tests' episodes): confirm discovery-market edges once on 950M+; OF11 scored all 24 v3 nets on the first 300 at warm-up 1,050 s (pre-RL smoke: the first 100) |
+| 900,000,000+ | sealed scalping test (OF2, OF3, OF9) — viewed on the discovery market (OF10 v1, v2 and an iteration-3 smoke: `of2_baselines 300`, the `of_train` smoke tests' episodes): confirm discovery-market edges once on 950M+; OF11 scored all 24 v3 nets on the first 300 at warm-up 1,050 s (pre-RL smoke: the first 100); OF13 tuning's (e) ran `of2_baselines` on the first 300 on v4 |
 | 910,000,000+ | sealed tick-scalping test (OF4, OF5, OF7) — viewed many times, also on the discovery market (`of4_tick_baselines 300`, OF10 v1, v2 and an iteration-3 smoke): confirm once on 950M+ |
 | diagnostic simulator seeds 1–3 | OF10 tuning (`of_discovery`; v1/v2 on 2 h windows, v3 on 400 episodes + 16 sessions per seed; rule episodes 1,000,000 × seed + i): look as often as needed |
 | diagnostic seeds 4–6 | OF10 held-out sanity check (θ* pre-registered on 1–3) — viewed several times (v1, v2, skeptic's 600 s run): no longer held out |
@@ -171,11 +177,14 @@ return { verdict, done, reviews, run, analysis }
 | diagnostic seeds 13–18 | OF10 iteration 3 final check (v3 frozen, once, acceptance agent) — **spent** |
 | diagnostic seeds 19–21 | OF10 iteration 3 skeptic's fresh check — viewed: no longer fresh |
 | **diagnostic seeds 22–24** | **reserved: the pre-RL warm-up check (1,050 s `ScalpEnv` warm-up, A63), once** |
-| diagnostic seeds 25+ | free |
+| diagnostic seeds 25–27 | OF13 v4 tuning (efficiency probe): look as often as needed |
+| diagnostic seeds 28–33 | OF13 v4 final check (once, acceptance agent) — **spent** |
+| diagnostic seeds 34–36 | OF13 v4 skeptic's fresh check — viewed: no longer fresh |
+| diagnostic seeds 37+ | free |
 | 920,000,000+ | stress scenarios (OF6; OF11 on discovery v3 at warm-up 1,050 s) |
 | 930,000,000+ | trading days (OF8; OF11 on discovery v3 at warm-up 1,050 s) |
 | 940,000,000+ | pairing probes (separate streams) |
-| 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it; OF12 exported sessions 960,012,001–012 for the real-vs-sim comparison |
+| 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it; OF12 exported sessions 960,012,001–012 for the real-vs-sim comparison, which OF13 then used as v4's tuning sessions; OF13 final sessions 960,013,001–012 (used once, with `of2_baselines` episodes 960,013,000,000 + i) and skeptic sessions 960,014,001–012 (episodes 960,014,000,000 + i): spent for gating v4; the live training viewer (`of_train_live`, A70) probes the net on this block |
 | **950,000,000+** | **fresh confirmation: unused; use once per claimed edge, then record it here** |
 
 ## 5. Red flags (stop and diagnose before reporting a win)
