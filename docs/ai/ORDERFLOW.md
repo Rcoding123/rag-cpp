@@ -196,10 +196,18 @@ stale binary (OF4).
 2. **Backtest on real ticks:** `of_backtest` with the saved agents and the
    delta rule; walk-forward by day; train on recorded windows
    (`ReplayScalpEnv::reset`) and test on later days only.
-3. **Paired evaluation on the same market path:** one RNG stream per
-   exogenous process in `EsSimulator` (opt-in so old results reproduce),
-   then measure the paired-difference sd (now 3.8–6.2 ticks vs 6.6
-   per-episode sd).
+3. **Paired evaluation on the same market path:** `SimParams::separate_streams`
+   (opt-in; one RNG stream per exogenous process) exists, but measured it
+   barely helps: rule vs the rule with one forced deviation, 200 episodes,
+   paired-difference sd 5.41 → 5.16 ticks against an episode sd of ~4.8.
+   Why: state-dependent draws (cancellations scale with queue size; the
+   Poisson sampler uses a variable number of uniforms) desynchronize even
+   a process's own stream, and activity (which scales fair-value
+   volatility) is excited by price moves, so the fair-value path itself is
+   endogenous (independent of our orders only with `activity_excite = 0`;
+   tested). Next: fixed-count draws (inverse-CDF Poisson with one uniform)
+   for exogenous processes; until then rely on many fresh episodes, not
+   pairing, for variance reduction.
 4. **Tick scalper:** action latency in `TickScalpEnv` (opt-in), tick
    diagnostics (no-trade share, spread capture vs carry, own-fill
    markouts), learn the advantage over the rule; success = match or beat

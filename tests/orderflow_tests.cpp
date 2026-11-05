@@ -258,3 +258,32 @@ TEST(TickScalpEnv, OnlyQuotesThatStayPutReachTheFrontOfTheQueue) {
   EXPECT_GE(persistent, 20u);  // measured 34 (10 + 6 + 10 + 8)
   EXPECT_LE(flickering, 2u);   // measured 0
 }
+
+TEST(EsSimulator, SeparateStreamsKeepTheFairValuePathIndependentOfOurOrders) {
+  // With one stream per exogenous process, our orders can't change the
+  // news shocks. The fair-value *path* also depends on activity, which price
+  // moves excite, so it is independent of our orders only without that
+  // excitation. (Endogenous processes still diverge once the book differs;
+  // see ORDERFLOW.md.)
+  SimParams p;
+  p.separate_streams = true;
+  p.activity_excite = 0;
+  EsSimulator quiet(p, 9), active(p, 9);
+  for (int s = 0; s < 3000; ++s) {
+    if (s % 20 == 0) active.submit_limit(Side::Buy, active.bid(), 1);
+    if (s % 37 == 0) active.market_order(Side::Sell, 2);
+    quiet.step();
+    active.step();
+    ASSERT_EQ(quiet.fair_value(), active.fair_value()) << "step " << s;
+  }
+  // The shared default stream does not have this property.
+  EsSimulator q2(SimParams{.activity_excite = 0}, 9), a2(SimParams{.activity_excite = 0}, 9);
+  bool diverged = false;
+  for (int s = 0; s < 3000 && !diverged; ++s) {
+    if (s % 20 == 0) a2.submit_limit(Side::Buy, a2.bid(), 1);
+    q2.step();
+    a2.step();
+    diverged = q2.fair_value() != a2.fair_value();
+  }
+  EXPECT_TRUE(diverged);
+}
