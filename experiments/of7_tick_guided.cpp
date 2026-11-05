@@ -13,8 +13,9 @@
 //     decision a uniformly random action replaces it, so the replay also
 //     holds what deviating from the rule costs in the states the rule visits;
 //   * otherwise the agent's own: a uniformly random action with the agent's
-//     epsilon (0.1 -> 0.02), else the policy currently deployed (below), on
-//     the online network.
+//     epsilon (0.1 -> 0.02), else the anchored policy that scored best at
+//     the latest evaluation (below; the rule before the first one), on the
+//     online network.
 // Rewards are the environment's (mark-to-market net of fees): no shaping,
 // no hidden state; the observation is TickScalpEnv's (no fair value, no
 // future information).
@@ -31,13 +32,39 @@
 // range); the champion is the best (snapshot, policy) pair, and the greedy
 // champion is kept too. Both are scored once on the same 300 sealed
 // episodes as OF4/OF5 (910'000'000 + i), paired with the rule per episode.
+// Pairing shares the seed, not the path: the market reacts to our orders,
+// and one 0.5 s deviation from the rule changes the episode's P&L by sd 3.8
+// ticks (6.2 if early; measured on validation), so a policy that deviates
+// a few times per episode is compared on nearly independent paths.
 //
 // Usage: of7_tick_guided SEED EPISODES [gamma=0.99] [guide_frac=0.5] [guide_floor=0.25] [rule_eps=0.02]
 //                        [val_episodes=200] [eval_every=0: EPISODES/20] [save_path]
 // Prints progress to stderr and final CSV lines to stdout:
-//   seed,episodes,policy,val_ticks,val_fills,test_ticks,test_t,test_fills,test_win,deviation_pct,diff_vs_rule,diff_t
+//   seed,episodes,policy,val_ticks,val_fills,test_ticks,test_t,test_fills,test_win,deviation_pct,diff_vs_rule,diff_t,val_diff,val_diff_t
 // (policy: rule, greedy, or the champion's margin; deviation_pct: sealed
-// decisions where the policy did not take the rule's action).
+// decisions where the policy did not take the rule's action, by action
+// index, so a twin with the same effect (bid only at the long limit vs no
+// quotes) counts too: smoke seed-2 champion 1.67% by index, 1.20% in
+// effect; diff: paired with the rule on the sealed episodes; val_diff: the
+// same on validation, where the champion was selected, so optimistic).
+//
+// The rule scores +2.90 ticks/ep (t 10.5, 8.3 fills) on these sealed
+// episodes with the committed simulator (of4_results.txt, regenerated: the
+// table first committed there, +1.66, came from an earlier calibration and
+// no commit reproduces it).
+//
+// Measured (smoke: 2 seeds x 700 episodes, defaults, eval every 50):
+//   greedy champions   -0.80 / -0.20 ticks/ep sealed, 4.6 / 8.0 fills: it
+//                      quotes now (OF5: 0-0.1 fills) but loses, -3.7 / -3.1
+//                      vs the rule (t -9.4 / -10.4);
+//   anchored champions +2.58 / +2.57 (t 9.6 / 11.4), 8.3 / 9.0 fills,
+//                      deviating at 0.4% / 1.7% of decisions: -0.31 / -0.33
+//                      vs the rule (t -1.75 / -1.40), while validation had
+//                      them +0.54 / +0.53 ahead (selection on noise).
+// A pilot with plain greedy deployment and guidance annealed to 10%
+// oscillated between quoting everything (up to 27 fills, -3 ticks/ep) and
+// almost nothing; its validation champions scored -0.08 / -0.25 sealed with
+// ~1 fill: the learned action gaps are below the Q-estimation noise.
 #include <array>
 #include <chrono>
 #include <cmath>
@@ -246,18 +273,24 @@ int main(int argc, char** argv) {
 
   // Sealed test: the rule, the champion and the greedy champion on the same 300 episodes, paired with the rule.
   const Score rule_test = score(p, rule, 300, kTestSeed);
-  auto report = [&](const std::string& label, const Score& val, const Score& test) {
+  auto paired = [](const Score& a, const Score& b) {  // mean and t of a - b, episode by episode
     double dm = 0, dv = 0;
-    const auto n = static_cast<double>(test.pnl.size());
-    for (std::size_t i = 0; i < test.pnl.size(); ++i) dm += (test.pnl[i] - rule_test.pnl[i]) / n;
-    for (std::size_t i = 0; i < test.pnl.size(); ++i) dv += std::pow(test.pnl[i] - rule_test.pnl[i] - dm, 2);
+    const auto n = static_cast<double>(a.pnl.size());
+    for (std::size_t i = 0; i < a.pnl.size(); ++i) dm += (a.pnl[i] - b.pnl[i]) / n;
+    for (std::size_t i = 0; i < a.pnl.size(); ++i) dv += std::pow(a.pnl[i] - b.pnl[i] - dm, 2);
     const double dse = std::sqrt(dv / (n - 1) / n);
+    return std::array<double, 2>{dm, dse > 0 ? dm / dse : 0.0};
+  };
+  auto report = [&](const std::string& label, const Score& val, const Score& test) {
+    // The validation difference is the one the champion was selected on (optimistic); the sealed one is not.
+    const auto dv = paired(val, rule_val), dt = paired(test, rule_test);
     std::fprintf(stderr,
-                 "seed %llu sealed %s: %.3f ticks/ep (t %.2f, %.2f fills, win %.1f%%, deviates from the rule at %.1f%% of decisions), vs rule %+.3f (t %.2f)\n",
-                 (unsigned long long)seed, label.c_str(), test.mean, test.se > 0 ? test.mean / test.se : 0.0, test.fills, test.win, test.deviation, dm,
-                 dse > 0 ? dm / dse : 0.0);
-    std::printf("%llu,%u,%s,%.3f,%.2f,%.3f,%.2f,%.2f,%.1f,%.1f,%.3f,%.2f\n", (unsigned long long)seed, episodes, label.c_str(), val.mean, val.fills,
-                test.mean, test.se > 0 ? test.mean / test.se : 0.0, test.fills, test.win, test.deviation, dm, dse > 0 ? dm / dse : 0.0);
+                 "seed %llu sealed %s: %.3f ticks/ep (t %.2f, %.2f fills, win %.1f%%, deviates from the rule at %.1f%% of decisions), vs rule %+.3f (t %.2f)"
+                 " [validation vs rule %+.3f (t %.2f)]\n",
+                 (unsigned long long)seed, label.c_str(), test.mean, test.se > 0 ? test.mean / test.se : 0.0, test.fills, test.win, test.deviation, dt[0],
+                 dt[1], dv[0], dv[1]);
+    std::printf("%llu,%u,%s,%.3f,%.2f,%.3f,%.2f,%.2f,%.1f,%.1f,%.3f,%.2f,%.3f,%.2f\n", (unsigned long long)seed, episodes, label.c_str(), val.mean,
+                val.fills, test.mean, test.se > 0 ? test.mean / test.se : 0.0, test.fills, test.win, test.deviation, dt[0], dt[1], dv[0], dv[1]);
   };
   report("rule", rule_val, rule_test);
   for (const Champion* ch : {&best, &greedy}) {
