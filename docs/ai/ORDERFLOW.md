@@ -139,7 +139,13 @@ anchored +2.58/+2.57 vs the rule's +2.90 (not significantly different).
 Review findings: pairing shares the seed, not the market path (our orders
 change it), so validation leads are mostly selection noise; actions take
 effect instantly (the rule's edge is +2.20 with 100 ms action latency).
-Full run (4 × 2,000): see `experiments/of7_results.csv` when present.
+Full run (2,000 episodes; seeds 1–2: seeds 3–4 were OOM-killed by the
+tile-table bug, since fixed), `experiments/of7_results.csv`: anchored
+champions +3.02 / +2.94 ticks vs the rule's +2.90, paired +0.13 (t 0.5)
+/ +0.04 (t 0.2): **not significant**. Their validation leads (+0.97 t 2.2,
++1.09 t 2.8) vanished on sealed data, exactly the selection noise the
+review predicted. Greedy champions −0.89 / −0.58 (−3.8 / −3.5 vs the
+rule). RL matches the rule; it doesn't beat it.
 
 **OF9 — efficient market** (`efficient_market()`: informed makers): 30 s
 delta no longer predicts (corr −0.02 vs +0.12); markout flat after 5 s
