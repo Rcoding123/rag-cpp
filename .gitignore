@@ -4,3 +4,4 @@ compile_commands.json
 dist/
 .claude/
 research_corpus/
+__pycache__/
