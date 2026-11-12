@@ -534,7 +534,11 @@ step. What remains, in order:
    block sealed in the ledger. **Pre-registered plan: `OF16_REAL_ES_PLAN.md`**
    (day manifest: 8 full front-month RTH test days, Sep and Nov 2026; days
    from 2026-11-12 on are the real-data confirm block; zero-shot scoring of
-   the 16 OF15 runs first, training on real only after). In parallel, simulator realism where the
+   the 16 OF15 runs first, training on real only after). Phase 1 done
+   (OF16 phase 1: converter, ledger-gated tapes, `ragrl score-real`; on
+   dev days the L1-imbalance signal is +0.07 ticks at 1 s against a 1.37-tick
+   round trip, as in v4); phase 2, the one scoring of the test days, waits
+   for the user's go. In parallel, simulator realism where the
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
    new real sessions (LESSONS 49).

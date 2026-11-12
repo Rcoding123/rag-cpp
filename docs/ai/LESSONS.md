@@ -275,3 +275,11 @@ building learning systems in general, not just this task.
     DIR/index.html, so serving the zoo replays (`build-avx512/zoo`) with
     it replaces their index page; serve static output with a plain static
     server (`python -m http.server`, the `of-zoo` launch entry) (OF15).
+55. **Score a policy in the conditions it was trained in, down to the
+    feature warm-up.** The first real-data scorer warmed the features up
+    for 150 s, the replay default, while every agent trained with 1050 s;
+    the slow scaling averages were 22% vs 83% settled, so features came
+    out ~2x off scale. Nothing would have crashed: the agents would just
+    have "found no edge on real ES". `score-real` now takes the warm-up
+    from the run's config and refuses a mismatch, as `check_net` does
+    for the C++ nets (OF16, A78).

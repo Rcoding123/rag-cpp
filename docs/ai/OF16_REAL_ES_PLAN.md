@@ -1,6 +1,6 @@
 # OF16 plan: the OF15 agents on real ES (recorded book + trades)
 
-Status: **plan only, nothing run.** Written 2026-11-12 after OF15 (no RL
+Status: **phase 1 done 2026-11-12** (plumbing, review fixes, dev-day diagnostics: EXPERIMENTS.md OF16 phase 1, `experiments/of16_dev_diagnostics.txt`); **phase 2 not run** (needs the user's go). Originally: **plan only, nothing run.** Written 2026-11-12 after OF15 (no RL
 edge on either simulator). Committing this file, with the day manifest in
 §2, is the pre-registration: day roles, policies, statistics and the
 decision rule are fixed here, before any agent or baseline P&L on real data
@@ -42,11 +42,29 @@ by RTH volume comes from OF13: ESU26 through 09-11, ESZ26 from 09-14.
 | 2026-09-18, 11-04, 11-06 | — | none or a few minutes | excluded | no usable RTH |
 | **2026-11-12 onward** | ESZ26 / ESH27 | — | **confirm** | days recorded after this plan is committed: real-data fresh confirmation, the analogue of 950M+, opened once per claim |
 
-Episodes are cut as in `ReplayScalpEnv`: 100 ms buckets, a 150 s feature
-warm-up from 08:30, then consecutive 600 s windows. That gives 38 windows
-per full day and ~35 on 11-09, about **301 test windows**, close to the
-simulator's 300-episode test. Days on the expiring back month, and any day
-whose front month is not the recorded contract, never count as test days.
+Episodes are cut as in `ReplayScalpEnv`: 100 ms buckets, a ~~150 s~~
+1050 s feature warm-up from 08:30, then consecutive 600 s windows. That
+gives ~~38~~ 37 windows per full day and ~~~35~~ 33 on 11-09, **~~301~~ 292
+test windows**, close to the simulator's 300-episode test. Days on the
+expiring back month, and any day whose front month is not the recorded
+contract, never count as test days.
+
+**Amendment 2026-11-12 (before any test opening).** The warm-up is 1050 s,
+not 150 s: every OF15 run trained with `env.warmup_seconds` 1050, and
+FeatureBuilder's running scales (EWMA over ~600 s) are only ~22% settled
+after 150 s against ~83% after 1050 s, so at 150 s the agents would see
+features 0-4 and 8-12 at roughly twice their training scale, the volume
+ratio near +1.5 instead of ~0.2, a 150 s session VWAP and delta30 on the
+wrong scale. `ragrl score-real` takes the warm-up from the run's config and
+refuses a run whose warm-up, decision step or episode length differ from
+the manifest's `episodes` block. Window k is played after a warm-up on the
+tape from k × 600 s, so windows = (buckets − 10500) // 6000: a full day
+(08:30-15:00, 234000 buckets) gives 37; 11-09 (book from ~09:03, at most
+214200 buckets; any start before 09:12:30 gives the same) gives 33; total
+7 × 37 + 33 = **292 test windows**. A window whose span (warm-up plus
+window, 1650 s) overlaps a book gap longer than 5 s (a recording outage)
+is not played and is listed; that rule is fixed here too, before any test
+day is opened (2026-11-03, a dev day, has a 610 s outage from 09:00:34 CT).
 
 ## 3. Work, in order
 
@@ -128,12 +146,12 @@ bigger than the cost of trading.
 
 Light. The export is single-threaded and IO-bound: ~2.5 GB of depth and
 the matching `.scid` ranges, a few minutes per day. Scoring is
-replay-only, with no simulator: 16 runs × 13 policies × 301 windows × 600
-decisions ≈ 38M policy steps on small MLPs, minutes on the CPU. No GPU.
+replay-only, with no simulator: 16 runs × 13 policies × 292 windows × 600
+decisions ≈ 36M policy steps (amended 2026-11-12: 292 windows, §2) on small MLPs, minutes on the CPU. No GPU.
 
 ## 6. Known weaknesses (stated before the results)
 
-- **Power.** About 301 windows over 8 days. For a policy that trades (per
+- **Power.** About 292 windows over 8 days (amended 2026-11-12, §2). For a policy that trades (per
   window SD ~10-26 ticks), the SE is ~0.6-1.5 ticks per window and coarser
   with day clustering. Only a large edge is detectable; "no edge" means
   "none above roughly 2 ticks per window".

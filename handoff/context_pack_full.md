@@ -22,6 +22,7 @@ docs/ai/EXPERIMENTS.md
 docs/ai/LESSONS.md
 docs/ai/NEXT_SESSION.md
 docs/ai/OBJECTIVES.md
+docs/ai/OF16_REAL_ES_PLAN.md
 docs/ai/ORDERFLOW.md
 docs/ai/PROJECT_MAP.md
 docs/ai/RAG_ENGINE.md
@@ -466,38 +467,42 @@ tools/test_research_crawler.py
 115. tools\of_zoo_trace.py
 116. tools\real_vs_sim.py
 117. tools\research_crawler.py
-118. tools\test_research_crawler.py
-119. python\ragof_module.cpp
-120. python\ragrl\__init__.py
-121. python\ragrl\__main__.py
-122. python\ragrl\agents\__init__.py
-123. python\ragrl\agents\imitation.py
-124. python\ragrl\agents\neuralq.py
-125. python\ragrl\agents\sb3_agents.py
-126. python\ragrl\agents\supervised.py
-127. python\ragrl\checkpoints.py
-128. python\ragrl\cli.py
-129. python\ragrl\config.py
-130. python\ragrl\envs.py
-131. python\ragrl\evaluate.py
-132. python\ragrl\hpo.py
-133. python\ragrl\ledger.py
-134. python\ragrl\live.py
-135. python\ragrl\native.py
-136. python\ragrl\policies.py
-137. python\ragrl\redflags.py
-138. python\ragrl\registry.py
-139. python\ragrl\report.py
-140. python\ragrl\runner.py
-141. python\ragrl\stats.py
-142. python\ragrl\worker.py
-143. python\tests\conftest.py
-144. python\tests\test_bit_identity.py
-145. python\tests\test_ledger.py
-146. python\tests\test_pipeline.py
-147. python\tests\test_privileged.py
-148. python\tests\test_smoke.py
-149. python\tests\test_vec_env.py
+118. tools\sierra_to_ticks.py
+119. tools\test_research_crawler.py
+120. python\ragof_module.cpp
+121. python\ragrl\__init__.py
+122. python\ragrl\__main__.py
+123. python\ragrl\agents\__init__.py
+124. python\ragrl\agents\imitation.py
+125. python\ragrl\agents\neuralq.py
+126. python\ragrl\agents\sb3_agents.py
+127. python\ragrl\agents\supervised.py
+128. python\ragrl\checkpoints.py
+129. python\ragrl\cli.py
+130. python\ragrl\config.py
+131. python\ragrl\envs.py
+132. python\ragrl\evaluate.py
+133. python\ragrl\hpo.py
+134. python\ragrl\ledger.py
+135. python\ragrl\live.py
+136. python\ragrl\native.py
+137. python\ragrl\policies.py
+138. python\ragrl\real.py
+139. python\ragrl\redflags.py
+140. python\ragrl\registry.py
+141. python\ragrl\report.py
+142. python\ragrl\runner.py
+143. python\ragrl\score_real.py
+144. python\ragrl\stats.py
+145. python\ragrl\worker.py
+146. python\tests\conftest.py
+147. python\tests\test_bit_identity.py
+148. python\tests\test_ledger.py
+149. python\tests\test_pipeline.py
+150. python\tests\test_privileged.py
+151. python\tests\test_real.py
+152. python\tests\test_smoke.py
+153. python\tests\test_vec_env.py
 
 
 ---
@@ -2468,7 +2473,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (17,305 bytes)
+## FILE: docs/ai/LESSONS.md  (17,843 bytes)
 
 # Lessons, distilled
 
@@ -2747,6 +2752,14 @@ building learning systems in general, not just this task.
     DIR/index.html, so serving the zoo replays (`build-avx512/zoo`) with
     it replaces their index page; serve static output with a plain static
     server (`python -m http.server`, the `of-zoo` launch entry) (OF15).
+55. **Score a policy in the conditions it was trained in, down to the
+    feature warm-up.** The first real-data scorer warmed the features up
+    for 150 s, the replay default, while every agent trained with 1050 s;
+    the slow scaling averages were 22% vs 83% settled, so features came
+    out ~2x off scale. Nothing would have crashed: the agents would just
+    have "found no edge on real ES". `score-real` now takes the warm-up
+    from the run's config and refuses a mismatch, as `check_net` does
+    for the C++ nets (OF16, A78).
 
 
 
@@ -3159,7 +3172,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (114,851 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (118,262 bytes)
 
 # RL experiment log
 
@@ -5088,11 +5101,64 @@ registry: `build-avx512/rl/runs/` (`index.jsonl`); sealed openings:
   fading loses). Consistent with OF11–OF14. The next evidence has to come
   from real ticks (`VecReplayEnv` exists) or a more realistic simulator.
 
+## OF16 phase 1. Real ES plumbing and dev-day diagnostics (no score)
+
+`kit.ps1 run of16_regen 'bash experiments/of16_regen.sh'`: exports the
+dev days with `tools/sierra_to_ticks.py` (Sierra `.depth` + `.scid` →
+`tick_csv` T/Q lines, 08:30-15:00 CT, sidecar JSON with checks and the
+csv sha256) into `build-avx512/real/` (gitignored), then runs
+`experiments/of16_dev_diag.py` → `experiments/of16_dev_diagnostics.txt`.
+About 2.5 min single-threaded; the rerun through the kit reproduced the
+file except its wall-time line. The plan, day manifest and decision rule
+are in `OF16_REAL_ES_PLAN.md` (pre-registered, commit 121d48d; amended
+before any test opening: warm-up 1050 s).
+
+* **Built:** the converter; `experiments/configs/of16_real_manifest.json`
+  (day roles); `python/ragrl/real.py` (manifest, CT clock with the explicit
+  US DST rule since this machine has no tz database, tapes opened by role:
+  dev free and logged as `real_dev`, test only in a fresh scorer process,
+  once per config sha256 whatever the run name or manifest, confirm only
+  with the orchestrator claim and only the next due days); `ragrl
+  score-real RUN --days test|dev` (`score_real.py`: the run's ensemble and
+  12 seeds plus flat, delta30 and an L1-imbalance rule on `VecReplayEnv`,
+  paired stats, day-clustered bootstrap, Sep/Nov subsets, stress; every
+  policy is stepped on a dummy batch before the gate opens and each block
+  is written as it finishes); 13 tests in `python/tests/test_real.py`.
+* **Review** (independent reviewer, before any test opening) found the
+  replay warming features up for 150 s while every OF15 agent trained
+  with 1050 s (features ~2x off scale at window start: a false "no edge"
+  by construction), a once-per-run check keyed on the run name (bypassed
+  by renaming), test tapes loadable after any dev opening, and a crash
+  after opening burning the only opening. All fixed (A78); the plan's
+  window count went from ~301 to 292.
+* **Dev days** (diagnostics, not a score): 2026-09-14..17 (ESU26, the
+  expiring back month after the roll: thinner, 1-tick spread 86.8% of
+  buckets vs 94.7% front month, 1-min mid SD 7.2 vs 9.3 ticks) and the one
+  usable window of 2026-11-03 (its book has a 610 s recording outage);
+  149 windows.
+  * **Covariate shift** vs v4 (viz 960,016,000,000+[0,200)): only
+    `imb_l5` (9.3% of real values outside v4's 1-99% range) and `absorb`
+    (6.2%; v4's range is exactly 0) exceed 5%. Setting them to the sim
+    median changes any ensemble's action on <= 0.8% of decisions.
+  * **Baselines** (ticks/window): flat 0 exactly; hold −2.5 ± 2.4; delta30
+    −4.1 ± 2.2 (v4: −5.12); the imbalance rule (enter with the L1
+    imbalance, flat at the next decision) −381.7 at 586 orders/window.
+  * **I1 markout** in the imbalance's direction: real +0.022 / +0.072 /
+    +0.090 ticks at 100 ms / 1 s / 5 s (strongest quintile +0.126 at 1 s),
+    v4 +0.023 / +0.069 / +0.069, against a 1.37-tick real round trip
+    (half-spread 0.57 + fees). v4 reproduces the real signal closely; on
+    real ES it is about a tenth of the cost of trading it.
+  * PPO ensembles (v3 and v4) enter on 100% of flat-state real decisions;
+    the other ensembles on 0-0.4%.
+* **Next:** phase 2 (score the 16 OF15 runs once on the 8 test days)
+  needs the user's go. Expectation from the dev diagnostics: no edge (the
+  one signal the agents use is a tenth of the round-trip cost on real ES).
+
 
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (31,807 bytes)
+## FILE: docs/ai/DECISIONS.md  (32,603 bytes)
 
 # Decision log
 
@@ -5214,6 +5280,7 @@ the code looks the way it does.
 | A75 | No GPU for now | Measured: PPO-family training spends 61–80% of its time in the C++ simulator on v4 (~90% with validation checkpoints); DQN ~60% and QR-DQN 88–93% in updates, but on 64×64 MLPs the cost is per-update Python/SB3 overhead, not arithmetic. Cheaper levers first: fewer gradient steps for the DQN family, more torch threads and workers, a faster v4 simulator. Rent one only if training becomes model-bound (OF15). |
 | A76 | `ragrl/__init__.py` replaces `platform._wmi_query` with a function that raises, before torch or LightGBM load; repairing WMI on the server is the user's decision | Since ~2026-11-07 any WMI query crashes the calling process (0xC0000005) on this server, and Python 3.12's `platform` asks WMI for the Windows version when torch or LightGBM is imported; without WMI it falls back to the registry. Python's `_wmi.exec_query` timeout path is also the leading, unconfirmed suspect for the 0xc0000374 heap crashes (OF15). |
 | A77 | R1 fires only when the annualized Sharpe is above 5 **by 2 SE**: the lower bound (SR − 2·sqrt((1 + SR²/2)/n))·sqrt(9828) > 5, SR the per-episode Sharpe (Lo 2002); a point estimate above 5 that fails the bound is the warning R1v ("noise"), and the < 2 orders/episode guard (A74) stays | Annualizing multiplies a per-episode Sharpe by ~99, so the old point-estimate bar was t > 0.87 at n = 300 and would fire on noise from any policy that trades. With the bound, R1 at n = 300 needs t > ~2.9: a result strong enough to be a claim **and** implausibly good, which is what OF8's check was for. Set 2026-11-12, after OF15 and before any new sealed run; re-rendering the 16 OF15 runs changed no status or report (every R1v there was the near-flat case). |
+| A78 | OF16 real-data scoring: the replay warm-up equals the run's training warm-up (1050 s; `score-real` refuses a mismatch), a test opening is once per config sha256 (not per run name or manifest), and test tapes are gated in Python (`ledger.open_real` registers the opened paths and sha256s; `real.load_tape` is the only loader; a pytest grep forbids `TickTape.from_csv` / `open_sealed("real")` elsewhere) rather than by a C++ allow-list | Found by an independent review before any test opening (OF16 phase 1). A C++ allow-list would not reach the `_ragof` copies in each sealed run's `RUN/bin` that actually score OF15, and swapping them would break provenance. The warm-up mismatch would have made every agent see features ~2x off scale: a false "no edge" from the setup, not the market. |
 
 
 
@@ -5304,7 +5371,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (12,152 bytes)
+## FILE: docs/ai/STATUS.md  (12,262 bytes)
 
 # Status, limitations and next steps
 
@@ -5487,8 +5554,9 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 0. **ES order-flow trading** (the current focus): the ranked plan is in
    `ORDERFLOW.md` §7. After OF15 (no RL edge on either simulator, through
-   a leak-proof pipeline): real-tick replay (`VecReplayEnv`) and richer
-   simulator realism, the heap crash once WMI is
+   a leak-proof pipeline): OF16 phase 2, scoring the 16 OF15 runs once on
+   8 real ES test days (phase 1, plumbing and dev diagnostics, is done;
+   `OF16_REAL_ES_PLAN.md`), and richer simulator realism, the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
    at 100 ms latency on fresh seeds.
 
@@ -5511,7 +5579,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/ORDERFLOW.md  (44,350 bytes)
+## FILE: docs/ai/ORDERFLOW.md  (44,610 bytes)
 
 # ES order-flow trading: simulator, agents, validation, plan
 
@@ -6049,7 +6117,11 @@ step. What remains, in order:
    block sealed in the ledger. **Pre-registered plan: `OF16_REAL_ES_PLAN.md`**
    (day manifest: 8 full front-month RTH test days, Sep and Nov 2026; days
    from 2026-11-12 on are the real-data confirm block; zero-shot scoring of
-   the 16 OF15 runs first, training on real only after). In parallel, simulator realism where the
+   the 16 OF15 runs first, training on real only after). Phase 1 done
+   (OF16 phase 1: converter, ledger-gated tapes, `ragrl score-real`; on
+   dev days the L1-imbalance signal is +0.07 ticks at 1 s against a 1.37-tick
+   round trip, as in v4); phase 2, the one scoring of the test days, waits
+   for the user's go. In parallel, simulator realism where the
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
    new real sessions (LESSONS 49).
@@ -6132,7 +6204,7 @@ step. What remains, in order:
 
 ---
 
-## FILE: docs/ai/NEXT_SESSION.md  (17,728 bytes)
+## FILE: docs/ai/NEXT_SESSION.md  (17,862 bytes)
 
 # Continuing the work: the prompt and the Claude Code agent architecture
 
@@ -6330,7 +6402,7 @@ records what each block has been used for.
 | 920,000,000+ | stress scenarios (OF6; OF11 on discovery v3 at warm-up 1,050 s) |
 | 930,000,000+ | trading days (OF8; OF11 on discovery v3 at warm-up 1,050 s) |
 | 940,000,000+ | pairing probes (separate streams) |
-| 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it; OF12 exported sessions 960,012,001–012 for the real-vs-sim comparison, which OF13 then used as v4's tuning sessions; OF13 final sessions 960,013,001–012 (used once, with `of2_baselines` episodes 960,013,000,000 + i) and skeptic sessions 960,014,001–012 (episodes 960,014,000,000 + i): spent for gating v4; the live training viewer (`of_train_live`, A70) probes the net on this block; OF15: the ragrl live hook's probe episodes, the skeptic's fresh-episode rerun 960,015,000,000+[0,600) (both markets, four conditions) and quirk probe 960,015,001,000+[0,400) (viewed: no longer fresh), and `tools/of_zoo_trace.py` replays on 960M+[0,5) (look only) |
+| 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it; OF12 exported sessions 960,012,001–012 for the real-vs-sim comparison, which OF13 then used as v4's tuning sessions; OF13 final sessions 960,013,001–012 (used once, with `of2_baselines` episodes 960,013,000,000 + i) and skeptic sessions 960,014,001–012 (episodes 960,014,000,000 + i): spent for gating v4; the live training viewer (`of_train_live`, A70) probes the net on this block; OF15: the ragrl live hook's probe episodes, the skeptic's fresh-episode rerun 960,015,000,000+[0,600) (both markets, four conditions) and quirk probe 960,015,001,000+[0,400) (viewed: no longer fresh), and `tools/of_zoo_trace.py` replays on 960M+[0,5) (look only); OF16: the dev-day diagnostics' simulator reference 960,016,000,000+[0,200) (`experiments/of16_dev_diag.py`, discovery_v4, look only) |
 | **950,000,000+** | **fresh confirmation: unused (OF15 too); use once per claimed edge, then record it here. ragrl: `confirm --i-am-the-orchestrator --claim ID` only, taking the next free index after any earlier confirmation** |
 
 ## 5. Red flags (stop and diagnose before reporting a win)
@@ -6377,11 +6449,11 @@ records what each block has been used for.
 
 ---
 
-## FILE: docs/ai/OF16_REAL_ES_PLAN.md  (8,183 bytes)
+## FILE: docs/ai/OF16_REAL_ES_PLAN.md  (9,644 bytes)
 
 # OF16 plan: the OF15 agents on real ES (recorded book + trades)
 
-Status: **plan only, nothing run.** Written 2026-11-12 after OF15 (no RL
+Status: **phase 1 done 2026-11-12** (plumbing, review fixes, dev-day diagnostics: EXPERIMENTS.md OF16 phase 1, `experiments/of16_dev_diagnostics.txt`); **phase 2 not run** (needs the user's go). Originally: **plan only, nothing run.** Written 2026-11-12 after OF15 (no RL
 edge on either simulator). Committing this file, with the day manifest in
 §2, is the pre-registration: day roles, policies, statistics and the
 decision rule are fixed here, before any agent or baseline P&L on real data
@@ -6423,11 +6495,29 @@ by RTH volume comes from OF13: ESU26 through 09-11, ESZ26 from 09-14.
 | 2026-09-18, 11-04, 11-06 | — | none or a few minutes | excluded | no usable RTH |
 | **2026-11-12 onward** | ESZ26 / ESH27 | — | **confirm** | days recorded after this plan is committed: real-data fresh confirmation, the analogue of 950M+, opened once per claim |
 
-Episodes are cut as in `ReplayScalpEnv`: 100 ms buckets, a 150 s feature
-warm-up from 08:30, then consecutive 600 s windows. That gives 38 windows
-per full day and ~35 on 11-09, about **301 test windows**, close to the
-simulator's 300-episode test. Days on the expiring back month, and any day
-whose front month is not the recorded contract, never count as test days.
+Episodes are cut as in `ReplayScalpEnv`: 100 ms buckets, a ~~150 s~~
+1050 s feature warm-up from 08:30, then consecutive 600 s windows. That
+gives ~~38~~ 37 windows per full day and ~~~35~~ 33 on 11-09, **~~301~~ 292
+test windows**, close to the simulator's 300-episode test. Days on the
+expiring back month, and any day whose front month is not the recorded
+contract, never count as test days.
+
+**Amendment 2026-11-12 (before any test opening).** The warm-up is 1050 s,
+not 150 s: every OF15 run trained with `env.warmup_seconds` 1050, and
+FeatureBuilder's running scales (EWMA over ~600 s) are only ~22% settled
+after 150 s against ~83% after 1050 s, so at 150 s the agents would see
+features 0-4 and 8-12 at roughly twice their training scale, the volume
+ratio near +1.5 instead of ~0.2, a 150 s session VWAP and delta30 on the
+wrong scale. `ragrl score-real` takes the warm-up from the run's config and
+refuses a run whose warm-up, decision step or episode length differ from
+the manifest's `episodes` block. Window k is played after a warm-up on the
+tape from k × 600 s, so windows = (buckets − 10500) // 6000: a full day
+(08:30-15:00, 234000 buckets) gives 37; 11-09 (book from ~09:03, at most
+214200 buckets; any start before 09:12:30 gives the same) gives 33; total
+7 × 37 + 33 = **292 test windows**. A window whose span (warm-up plus
+window, 1650 s) overlaps a book gap longer than 5 s (a recording outage)
+is not played and is listed; that rule is fixed here too, before any test
+day is opened (2026-11-03, a dev day, has a 610 s outage from 09:00:34 CT).
 
 ## 3. Work, in order
 
@@ -6509,12 +6599,12 @@ bigger than the cost of trading.
 
 Light. The export is single-threaded and IO-bound: ~2.5 GB of depth and
 the matching `.scid` ranges, a few minutes per day. Scoring is
-replay-only, with no simulator: 16 runs × 13 policies × 301 windows × 600
-decisions ≈ 38M policy steps on small MLPs, minutes on the CPU. No GPU.
+replay-only, with no simulator: 16 runs × 13 policies × 292 windows × 600
+decisions ≈ 36M policy steps (amended 2026-11-12: 292 windows, §2) on small MLPs, minutes on the CPU. No GPU.
 
 ## 6. Known weaknesses (stated before the results)
 
-- **Power.** About 301 windows over 8 days. For a policy that trades (per
+- **Power.** About 292 windows over 8 days (amended 2026-11-12, §2). For a policy that trades (per
   window SD ~10-26 ticks), the SE is ~0.6-1.5 ticks per window and coarser
   with day clustering. Only a large edge is detectable; "no edge" means
   "none above roughly 2 ticks per window".
@@ -35726,6 +35816,455 @@ if __name__ == "__main__":
 
 ---
 
+## FILE: tools\sierra_to_ticks.py  (21,148 bytes)
+
+```python
+#!/usr/bin/env python3
+"""sierra_to_ticks.py -- OF16: one RTH day of Sierra Chart ES data (.depth book + .scid trades)
+into the tick_csv.hpp format, for ReplayScalpEnv / ragrl.real.
+
+usage (standard library only):
+  python tools/sierra_to_ticks.py DATE [--manifest experiments/configs/of16_real_manifest.json]
+         [--depth-dir C:/SierraChart/Data/MarketDepthData] [--scid-dir C:/SierraChart/Data]
+         [--out-dir build-avx512/real] [--role-ok test|confirm --i-am-the-orchestrator]
+
+DATE must be a dev day of the manifest (experiments/configs/of16_real_manifest.json). Test and
+confirm days are refused (exit 2, before any data file is opened) unless --role-ok names that
+role AND --i-am-the-orchestrator is given: the flag is for the orchestrator's export step, never for development.
+
+Output: OUT/DATE/ticks.csv and OUT/DATE/ticks.json (the sidecar: contract, date, RTH span,
+counts, dropped quotes, gaps, trade-through counts and the CSV's sha256).
+
+  T,<s>,<price>,<size>,<B|S>                         a trade; B/S = aggressor (scid ask / bid volume)
+  Q,<s>,<bid>,<ask>,<bid size 1..5>,<ask size 1..5>  the book after a batch that changed it
+Times are seconds since 08:30 CT of DATE (time_unit "s", exact microseconds), so bucket
+boundaries stay exact over the day (Unix seconds in a double would drift ~20 ms by the close).
+Levels are price levels 0..4 ticks from the best, 0 if empty (tools/real_vs_sim.py's book).
+
+How the day is built (following real_vs_sim.task_depth):
+  book    every .depth event from the start of the file is replayed (1 clear, 2/4 bid set,
+          3/5 ask set, 6/7 delete); a snapshot is taken at the end of each batch (flag 1, or a
+          change of timestamp) and written as a Q line when its top 5 levels differ from the last
+          one written. Crossed or locked snapshots (ask <= bid) and one-sided books are dropped
+          and counted.
+  start   the tape starts at 08:30:00 CT with the book as it stood then (a Q line at time 0:
+          ReplayScalpEnv's 150 s warm-up runs on the tape from there). If the book is not valid
+          at the open (a recording that starts later), the tape starts at the first 100 ms grid
+          point after the first valid snapshot.
+  trades  .scid records (tick by tick: close = price x100, high/low = ask/bid at the trade,
+          ask volume = buyer-aggressor lots, bid volume = seller-aggressor) with Sierra time in
+          [08:30, 15:00) CT, read by byte range: the record range is found by binary search on
+          the timestamps (8 bytes per probe), so no record outside the day's RTH is read. A
+          record with both volumes gives two T lines; one with neither takes its side from the
+          prevailing quote (at/above ask B, at/below bid S, else dropped and counted).
+  merge   by timestamp, trades before book events at the same microsecond. Sierra writes the
+          two files separately with millisecond times plus a within-millisecond counter, so
+          sub-millisecond order between a trade and a book update is not recorded.
+  end     the earlier of 15:00 CT and the last book event; trades after the book ends are
+          dropped and counted. A day whose book reaches the close gets a last Q line at
+          14:59:59.95 so the final 100 ms bucket closes on the grid.
+Time zone: ragrl.real (zoneinfo America/Chicago when available, else the explicit US rule:
+CDT before the first Sunday of November, CST after).
+"""
+import argparse
+import hashlib
+import json
+import os
+import struct
+import sys
+import time
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+REPO = HERE.parent
+for p in (str(HERE), str(REPO / "python")):
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
+import real_vs_sim as rvs  # noqa: E402  (parsers: Sierra epoch, price -> ticks, record layouts)
+from ragrl import real  # noqa: E402  (stdlib only at import: the manifest and the CT clock)
+
+DEPTH_HEADER, DEPTH_REC, DEPTH_FMT = 64, 24, "<qBBHfII"
+SCID_HEADER, SCID_REC, SCID_FMT = 56, 40, "<q4f4I"
+LEVELS = 5
+GRID_US = rvs.GRID_US  # 100 ms
+TICK = 0.25
+GAP_US = 1_000_000
+
+
+def _header(f, path, want_header, want_rec):
+    head = f.read(want_header)
+    if len(head) < 12:
+        raise ValueError(f"{path}: no header")
+    hsize, rec = struct.unpack_from("<II", head, 4)
+    if hsize != want_header or rec != want_rec:
+        raise ValueError(f"{path}: header {hsize}/{rec}, expected {want_header}/{want_rec}")
+    return hsize
+
+
+def scid_range(path, t0_us, t1_us):
+    """scid records with Sierra time in [t0_us, t1_us): binary search on timestamps by seek, then
+    one read of exactly that byte range (the file may be 2 GB and hold other days)."""
+    with open(path, "rb") as f:
+        size = os.fstat(f.fileno()).st_size
+        hsize = _header(f, path, SCID_HEADER, SCID_REC)
+        n = (size - hsize) // SCID_REC
+
+        def t_at(i):
+            f.seek(hsize + SCID_REC * i)
+            return struct.unpack("<q", f.read(8))[0]
+
+        def first_at_or_after(t):
+            lo, hi = 0, n
+            while lo < hi:
+                m = (lo + hi) // 2
+                if t_at(m) < t:
+                    lo = m + 1
+                else:
+                    hi = m
+            return lo
+
+        i, j = first_at_or_after(t0_us), first_at_or_after(t1_us)
+        f.seek(hsize + SCID_REC * i)
+        data = f.read(SCID_REC * (j - i))
+    recs = list(struct.iter_unpack(SCID_FMT, data))
+    if any(r[0] < t0_us or r[0] >= t1_us for r in recs) or any(recs[k][0] > recs[k + 1][0] for k in range(len(recs) - 1)):
+        raise ValueError(f"{path}: records in [{i}, {j}) are not time-ordered inside the day")
+    return recs, {"first_record": i, "records": j - i, "bytes": len(data)}
+
+
+def depth_events(path, chunk=1 << 16):
+    """The .depth file's events in order (streamed; stops wherever the caller stops)."""
+    with open(path, "rb") as f:
+        size = os.fstat(f.fileno()).st_size  # a file still being written: a snapshot of its size now
+        hsize = _header(f, path, DEPTH_HEADER, DEPTH_REC)
+        left = (size - hsize) // DEPTH_REC
+        while left:
+            k = min(left, chunk)
+            buf = f.read(DEPTH_REC * k)
+            if len(buf) < DEPTH_REC * k:
+                k = len(buf) // DEPTH_REC
+                buf = buf[:DEPTH_REC * k]
+                left = k
+            yield from struct.iter_unpack(DEPTH_FMT, buf)
+            left -= k
+
+
+def _rel(t_us, open_us):
+    d = t_us - open_us
+    return f"{d // 1_000_000}.{d % 1_000_000:06d}"
+
+
+class Book:
+    """real_vs_sim.task_depth's book (price ticks -> quantity), with the best prices kept incrementally."""
+
+    def __init__(self):
+        self.bids, self.asks = {}, {}
+        self.bb = self.ba = None
+
+    def event(self, cmd, p, qty):
+        if cmd == 1:
+            self.bids.clear()
+            self.asks.clear()
+            self.bb = self.ba = None
+        elif cmd == 2 or cmd == 4:
+            self.bids[p] = qty
+            if self.bb is None or p > self.bb:
+                self.bb = p
+        elif cmd == 3 or cmd == 5:
+            self.asks[p] = qty
+            if self.ba is None or p < self.ba:
+                self.ba = p
+        elif cmd == 6:
+            if self.bids.pop(p, None) is not None and p == self.bb:
+                self.bb = max(self.bids) if self.bids else None
+        elif cmd == 7:
+            if self.asks.pop(p, None) is not None and p == self.ba:
+                self.ba = min(self.asks) if self.asks else None
+
+    def snapshot(self):
+        """(bid, ask, bid sizes, ask sizes), 'one_sided' or 'crossed'."""
+        bb, ba = self.bb, self.ba
+        if bb is None or ba is None:
+            return "one_sided"
+        if ba <= bb:
+            return "crossed"
+        g, h = self.bids.get, self.asks.get
+        return (bb, ba, tuple(g(bb - j, 0) for j in range(LEVELS)), tuple(h(ba + j, 0) for j in range(LEVELS)))
+
+
+MIN_QUOTE_SHARE = 0.01   # Q lines per RTH depth event below which a tape is implausibly empty
+FLAGS_UNSET_SHARE = 0.5  # timestamp changes inside an unflagged batch above which the flags are not trusted
+
+
+def convert_day(depth_path, scid_path, open_unix, close_unix, out_csv):
+    """convert() with end-of-batch flags; if Sierra left them unset on most timestamp changes, again with a
+    batch per timestamp (reported as batching "timestamp"). Refuses a tape with implausibly few quotes."""
+    res = convert(depth_path, scid_path, open_unix, close_unix, out_csv, use_flags=True)
+    c = res["counts"]
+    res["batching"] = "flags"
+    share = c["batches_spanning_timestamps"] / max(1, c["timestamp_changes"])
+    if share > FLAGS_UNSET_SHARE:
+        res = convert(depth_path, scid_path, open_unix, close_unix, out_csv, use_flags=False)
+        res["batching"] = f"timestamp (fallback: end-of-batch flag unset on {share:.0%} of timestamp changes)"
+        c = res["counts"]
+    if c["depth_events_rth"] >= 10_000 and c["quotes"] < MIN_QUOTE_SHARE * c["depth_events_rth"]:
+        raise RuntimeError(f"implausibly few quotes: {c['quotes']} Q lines for {c['depth_events_rth']} RTH depth events "
+                           f"({res['batching']}); not exported")
+    return res
+
+
+def convert(depth_path, scid_path, open_unix, close_unix, out_csv, use_flags=True):
+    """Writes the day's CSV; returns the sidecar's measurements. use_flags=False: a batch per timestamp."""
+    open_us, close_us = real.sierra_us(open_unix), real.sierra_us(close_unix)
+    trades, scid_info = scid_range(scid_path, open_us, close_us)
+    book = Book()
+    out = open(out_csv, "wb")
+    sha = hashlib.sha256()
+    buf = []
+    nbytes = 0
+    c = {"trades": 0, "trade_records": 0, "volume": 0, "quotes": 0, "depth_events": 0, "depth_events_rth": 0, "batches_rth": 0,
+         "book_clears_rth": 0}
+    drop = {"crossed_or_locked": 0, "one_sided": 0, "trades_before_start": 0, "trades_after_book_end": 0, "trades_unknown_side": 0}
+    tq = {"above_ask": 0, "below_bid": 0, "no_quote": 0}
+    gaps, line_gaps = [], []  # (from, length) of book gaps (no depth event) and of output-line gaps > 1 s
+    tq["outside_book_stale"] = 0
+    c["trades_book_stale"] = 0
+    c["batches_spanning_timestamps"] = 0
+    c["timestamp_changes"] = 0
+    st = {"started": False, "start_us": None, "last_line": None, "last_q": None, "pre_open_valid": False, "padded": False,
+          "last_depth": None}
+
+    def write(line, t):
+        nonlocal nbytes
+        b = line.encode("ascii")
+        buf.append(b)
+        nbytes += len(b)
+        if st["last_line"] is not None and t - st["last_line"] > GAP_US:
+            line_gaps.append((st["last_line"], t - st["last_line"]))
+        st["last_line"] = t
+        if len(buf) >= 4096:
+            flush()
+
+    def flush():
+        data = b"".join(buf)
+        sha.update(data)
+        out.write(data)
+        buf.clear()
+
+    def q_line(t, snap, force=False):
+        if not force and snap == st["last_q"]:
+            return
+        bb, ba, b5, a5 = snap
+        write(f"Q,{_rel(t, open_us)},{bb * TICK:.2f},{ba * TICK:.2f}," + ",".join(map(str, b5)) + "," + ",".join(map(str, a5)) + "\n", t)
+        st["last_q"] = snap
+        c["quotes"] += 1
+
+    def emit_book(t):
+        s = book.snapshot()
+        if isinstance(s, str):
+            drop["crossed_or_locked" if s == "crossed" else "one_sided"] += 1
+            return
+        q_line(t, s)
+
+    ti = 0
+
+    def flush_trades(upto_us):
+        """T lines for every trade with time <= upto_us (trades before the start are dropped)."""
+        nonlocal ti
+        while ti < len(trades) and trades[ti][0] <= upto_us:
+            t, _o, _ask, _bid, close, _nt, vol, bv, av = trades[ti]
+            ti += 1
+            c["trade_records"] += 1
+            if not st["started"] or t < st["start_us"]:
+                drop["trades_before_start"] += 1
+                continue
+            p = rvs.ticks(close)
+            q = st["last_q"]
+            sides = []
+            if av > 0:
+                sides.append(("B", av if bv > 0 else vol))
+            if bv > 0:
+                sides.append(("S", bv if av > 0 else vol))
+            if not sides:
+                if q is not None and p >= q[1]:
+                    sides = [("B", vol)]
+                elif q is not None and p <= q[0]:
+                    sides = [("S", vol)]
+                else:
+                    drop["trades_unknown_side"] += 1
+                    continue
+            stale = st["last_depth"] is None or t - st["last_depth"] > GAP_US
+            c["trades_book_stale"] += stale
+            if q is None:
+                tq["no_quote"] += 1
+            elif p > q[1] or p < q[0]:
+                tq["above_ask" if p > q[1] else "below_bid"] += 1
+                tq["outside_book_stale"] += stale
+            for side, size in sides:
+                write(f"T,{_rel(t, open_us)},{p * TICK:.2f},{size},{side}\n", t)
+                c["trades"] += 1
+                c["volume"] += size
+
+    def start(t0):
+        s = book.snapshot()
+        if isinstance(s, str):  # the book went bad again before the start: wait for the next valid batch
+            st["start_us"] = None
+            st["pre_open_valid"] = False
+            return
+        st["started"] = True
+        st["start_us"] = t0
+        q_line(t0, s, force=True)  # the book at the start
+
+    def batch_closed(tb):
+        if tb < open_us:
+            st["pre_open_valid"] = not isinstance(book.snapshot(), str)
+            return
+        c["batches_rth"] += 1
+        if st["started"]:
+            emit_book(tb)
+        elif st["start_us"] is None and not isinstance(book.snapshot(), str):
+            st["start_us"] = open_us + ((tb - open_us) // GRID_US + 1) * GRID_US
+
+    # A batch ends at a change of timestamp after an event flagged end-of-batch: the book is
+    # snapshotted once per timestamp, never in the middle of a batch.
+    last_t, last_fl, in_batch = None, 1, False
+    reached_close = False
+    for t, cmd, fl, _nord, price, qty, _r in depth_events(depth_path):
+        if t >= close_us:
+            reached_close = True
+            break
+        c["depth_events"] += 1
+        if in_batch and t != last_t:
+            c["timestamp_changes"] += 1
+            if last_fl & 1 or not use_flags:
+                batch_closed(last_t)
+                in_batch = False
+            else:
+                c["batches_spanning_timestamps"] += 1
+        if t >= open_us:
+            c["depth_events_rth"] += 1
+            if cmd == 1:
+                c["book_clears_rth"] += 1
+            if not st["started"]:
+                if st["start_us"] is None and st["pre_open_valid"]:
+                    st["start_us"] = open_us
+                if st["start_us"] is not None and t >= st["start_us"]:
+                    start(st["start_us"])
+            flush_trades(t)  # trades first at the same microsecond; their book age is measured before this event
+            prev = st["last_depth"] if st["last_depth"] is not None else open_us
+            if t - prev > GAP_US:
+                gaps.append((prev, t - prev))
+            st["last_depth"] = t
+        book.event(cmd, rvs.ticks(price) if cmd != 1 else 0, qty)
+        last_t, last_fl, in_batch = t, fl, True
+    if in_batch:
+        batch_closed(last_t)
+    if reached_close and st["last_depth"] is not None and close_us - st["last_depth"] > GAP_US:
+        gaps.append((st["last_depth"], close_us - st["last_depth"]))  # a silent book up to the close
+    if not st["started"] and st["start_us"] is None and st["pre_open_valid"] and reached_close:
+        st["start_us"] = open_us
+    if not st["started"] and st["start_us"] is not None and (reached_close or (last_t is not None and last_t >= st["start_us"])):
+        start(st["start_us"])
+    end_us = close_us - 1 if reached_close else (last_t if last_t is not None else open_us)
+    flush_trades(end_us)
+    drop["trades_after_book_end"] = len(trades) - ti
+    if reached_close and st["started"]:
+        pad = close_us - GRID_US // 2
+        s = book.snapshot()
+        if st["last_line"] < pad and not isinstance(s, str):
+            q_line(pad, s, force=True)
+            st["padded"] = True
+    flush()
+    out.close()
+    if not st["started"]:
+        raise RuntimeError("no valid book inside RTH: nothing exported")
+    span_end = close_us if reached_close else st["last_line"]
+    missing = (st["start_us"] - open_us + close_us - span_end) / 1e6
+    gaps.sort(key=lambda g: -g[1])
+    line_gaps.sort(key=lambda g: -g[1])
+    n_tr = c["trades"]
+    return {
+        "span": {"start_s": (st["start_us"] - open_us) / 1e6, "end_s": (span_end - open_us) / 1e6,
+                 "start_ct": real.ct_clock(open_unix + (st["start_us"] - open_us) / 1e6),
+                 "end_ct": real.ct_clock(open_unix + (span_end - open_us) / 1e6),
+                 "seconds": (span_end - st["start_us"]) / 1e6, "book_reaches_close": reached_close},
+        "rth_missing_seconds": missing,
+        "counts": {**c, "lines": c["trades"] + c["quotes"]},
+        "dropped": drop,
+        "gaps_over_1s": {"what": "book gaps: no depth event for > 1 s inside the span (a recording outage when long)",
+                         "count": len(gaps), "max_s": gaps[0][1] / 1e6 if gaps else 0.0,
+                         "largest": [[real.ct_clock(open_unix + (g0 - open_us) / 1e6), g1 / 1e6] for g0, g1 in gaps[:10]],
+                         "intervals_s": sorted([[(g0 - open_us) / 1e6, (g0 + g1 - open_us) / 1e6] for g0, g1 in gaps])},
+        "line_gaps_over_1s": {"count": len(line_gaps), "max_s": line_gaps[0][1] / 1e6 if line_gaps else 0.0},
+        "trades_outside_quote": {"what": "trade price above the prevailing ask or below the prevailing bid (the last Q line); "
+                                         "outside_book_stale: of those, trades more than 1 s after the last depth event",
+                                 "count": tq["above_ask"] + tq["below_bid"], "share": (tq["above_ask"] + tq["below_bid"]) / n_tr if n_tr else 0.0,
+                                 "share_book_fresh": ((tq["above_ask"] + tq["below_bid"] - tq["outside_book_stale"]) /
+                                                      max(1, n_tr - c["trades_book_stale"])), **tq},
+        "padded_close": st["padded"],
+        "scid": scid_info,
+        "csv_bytes": nbytes,
+        "csv_sha256": sha.hexdigest(),
+    }
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("date")
+    ap.add_argument("--manifest", default=str(real.MANIFEST))
+    ap.add_argument("--depth-dir")
+    ap.add_argument("--scid-dir")
+    ap.add_argument("--out-dir")
+    ap.add_argument("--role-ok", choices=["test", "confirm"], help="orchestrator only: allow exporting a test / confirm day")
+    ap.add_argument("--i-am-the-orchestrator", dest="orchestrator", action="store_true", help="required with --role-ok")
+    a = ap.parse_args(argv)
+    m = real.load_manifest(a.manifest)
+    e = real.day_entry(a.date, m)
+    role = e["role"]
+    if a.role_ok and not a.orchestrator:
+        print("sierra_to_ticks: refused: --role-ok is for the orchestrator only (--i-am-the-orchestrator)", file=sys.stderr)
+        return 2
+    if role != "dev" and not (role in ("test", "confirm") and a.role_ok == role):
+        print(f"sierra_to_ticks: refused: {e['date']} has role {role!r} in {Path(a.manifest).name}; only dev days are exported "
+              f"without --role-ok (orchestrator)", file=sys.stderr)
+        return 2
+    day = e["date"]
+    depth = Path(a.depth_dir or m["data"]["depth_dir"]) / e["depth"]
+    scid = Path(a.scid_dir or m["data"]["scid_dir"]) / e["scid"]
+    out_dir = (Path(a.out_dir) if a.out_dir else real.export_root(m)) / day
+    out_dir.mkdir(parents=True, exist_ok=True)
+    o, cl = real.rth_span(day, m)
+    t = time.time()
+    tmp = out_dir / "ticks.csv.part"
+    try:
+        res = convert_day(depth, scid, o, cl, tmp)
+    except RuntimeError as err:
+        tmp.unlink(missing_ok=True)
+        print(f"sierra_to_ticks: {day}: {err}", file=sys.stderr)
+        return 3
+    os.replace(tmp, out_dir / "ticks.csv")
+    side = {"schema": "of16_ticks/1", "tool": "tools/sierra_to_ticks.py", "date": day, "contract": e["contract"], "role": role,
+            "manifest_sha256": real.manifest_sha256(a.manifest), "depth_file": depth.name, "depth_bytes": depth.stat().st_size,
+            "scid_file": scid.name, "time_unit": real.TIME_UNIT, "time_origin": "seconds since 08:30 CT of date",
+            "t0_unix": o, "rth_close_unix": cl, "utc_offset_hours": real.ct_offset_hours(o), "rth_ct": [m["rth"]["open"], m["rth"]["close"]],
+            **res, "csv": "ticks.csv", "seconds_to_export": round(time.time() - t, 1)}
+    (out_dir / "ticks.json").write_text(json.dumps(side, indent=1) + "\n", encoding="utf-8")
+    c = res["counts"]
+    print(f"{day} {e['contract']} ({role}): {res['span']['start_ct']}-{res['span']['end_ct']} CT, {c['trades']} trades, {c['quotes']} quotes, "
+          f"{res['dropped']['crossed_or_locked']} crossed/locked dropped, {res['gaps_over_1s']['count']} gaps > 1 s, "
+          f"{res['trades_outside_quote']['count']} trades outside the quote -> {out_dir / 'ticks.csv'}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+```
+
+
+---
+
 ## FILE: tools\test_research_crawler.py  (7,549 bytes)
 
 ```python
@@ -37018,7 +37557,7 @@ class ValCheckpointer:
 
 ---
 
-## FILE: python\ragrl\cli.py  (5,400 bytes)
+## FILE: python\ragrl\cli.py  (6,585 bytes)
 
 ```python
 """python -m ragrl <command> ...   (PYTHONPATH=python; RAGOF_DIR = the directory holding _ragof*.pyd)
@@ -37035,6 +37574,10 @@ class ValCheckpointer:
   diag RUN                     hidden-state correlation probe (train block)
   zoo                          the agents and their defaults
   confirm RUN --i-am-the-orchestrator --claim ID   950M+ confirmation (orchestrator only, once per claim)
+  score-real RUN --days test|dev [--latency-buckets N] [--fee-dollars F] [--stress] [--threads T]
+                               OF16: the sealed run on recorded ES (VecReplayEnv), in a fresh process; test days
+                               once per run + manifest (ledger real_test); dev is "dev: not a score".
+                               Results in RUN/real/<days>-<stamp>/, never sealed.json
 """
 import argparse
 import json
@@ -37073,12 +37616,26 @@ def main(argv=None):
     p.add_argument("--claim", default="")
     p.add_argument("--count", type=int, default=300)
     p.add_argument("--i-am-the-orchestrator", dest="orchestrator", action="store_true")
+    p = sub.add_parser("score-real")
+    p.add_argument("run")
+    p.add_argument("--days", choices=["test", "dev"], required=True)
+    p.add_argument("--latency-buckets", type=int, default=1)
+    p.add_argument("--fee-dollars", type=float, default=1.5)
+    p.add_argument("--stress", action="store_true", help="also latency 3 buckets and $3 per side, in the same opening")
+    p.add_argument("--threads", type=int, default=1)
+    p.add_argument("--manifest")
+    p.add_argument("--allow-env-change", action="store_true")
     a = ap.parse_args(argv)
 
     if a.cmd == "zoo":
         from .agents import ZOO
         for k, s in ZOO.items():
             print(f"{k:16s} n_envs {s.n_envs:3d}  {s.description}\n{'':16s} {json.dumps(s.defaults)}")
+        return 0
+    if a.cmd == "score-real":
+        from . import score_real
+        score_real.score(Path(a.run), a.days, a.latency_buckets, a.fee_dollars, a.stress, a.threads, manifest=a.manifest,
+                         allow_env_change=a.allow_env_change)
         return 0
     from . import runner
     if a.cmd == "run":
@@ -37807,7 +38364,7 @@ def hpo(cfg_path, root: Path | None = None) -> Path:
 
 ---
 
-## FILE: python\ragrl\ledger.py  (6,101 bytes)
+## FILE: python\ragrl\ledger.py  (10,904 bytes)
 
 ```python
 """The only module that opens sealed blocks (a pytest greps for open_sealed).
@@ -37825,6 +38382,17 @@ under the repository, whatever $RAGRL_ROOT is (a different run root must not
 give a fresh audit log). $RAGRL_LEDGER_FILE redirects it for tests only: every
 entry and sealed.json record the file used, and a sealed test opening logged
 anywhere but the canonical file is a hard red flag (R10).
+
+Recorded ES (OF16, ragrl/real.py): the C++ block "real" is one gate for every recorded tape;
+open_real() splits it by the day manifest's roles and logs each opening as block real_dev,
+real_test or real_confirm with the manifest sha256:
+    dev       loads freely (logged for the audit trail, never refused here); the process
+              becomes a C++ scorer, so a dev diagnostic runs in a process that never trains
+    test      a fresh process only (C++ role "none", nothing real opened before), with the run
+              name and its config sha256; refused if ANY earlier real_test opening has the same
+              config sha256 (whatever the run directory's name or the manifest: a renamed or
+              copied run, or an edited manifest, is still the same experiment)
+    confirm   orchestrator only, a claim id never used before, days no earlier confirm used
 
 Pre-viewed ranges: 900M+[0, 100000) of the test block was viewed by OF2-OF14
 (of_train --test, of2_baselines, OF11/OF13/OF14 scorings, on every market).
@@ -37940,6 +38508,73 @@ def log_dry_run(run: str, first: int, count: int, **meta):
     """A smoke-test 'seal' on the viz block (look-only, never sealed): logged, nothing opened."""
     log_usage({"time": _now(), "run": run, "block": "viz", "first": first, "count": count, "reason": "dry run (smoke)",
                "pid": os.getpid(), "claim": "", "dry_run": True, **meta})
+
+
+REAL_KINDS = ("dev", "test", "confirm")
+_real_opened = []  # this process's open_real() kinds, in order
+_real_tapes = {}   # resolved tape path -> sha256 opened in this process (real.py loads only these)
+
+
+def real_tape_allowed(path) -> str | None:
+    """The sha256 open_real() registered for this tape path in this process, or None."""
+    return _real_tapes.get(str(Path(path).resolve()))
+
+
+def real_test_openings_of(config_sha256: str) -> list:
+    """Every earlier real_test opening of this experiment (same config sha256, any run name, any manifest)."""
+    return [u for u in real_openings("test") if config_sha256 and u.get("config_sha256") == config_sha256]
+
+
+def real_openings(kind: str, run: str | None = None) -> list:
+    """Ledger entries of real_<kind> openings (optionally for one run)."""
+    return [u for u in read_usage() if u.get("block") == f"real_{kind}" and not u.get("dry_run") and (run is None or u.get("run") == run)]
+
+
+def used_real_confirm_days() -> set:
+    return {d for u in real_openings("confirm") for d in u.get("days", [])}
+
+
+def open_real(kind: str, reason: str, *, manifest_sha256: str, days, run: str = "", config_sha256: str = "", claim: str = "",
+              orchestrator: bool = False, tapes: dict | None = None, paths: dict | None = None, **meta):
+    """Opens the C++ "real" block for recorded-ES tapes of one manifest role and logs it (block real_<kind>).
+    Everything is checked before the block is opened, so a refusal leaves the process and the ledger as they were.
+    paths: {day: csv path}, registered (with tapes' sha256) as the only tapes real.py may load in this process."""
+    if kind not in REAL_KINDS:
+        raise ValueError(f"real tapes: kind must be one of {REAL_KINDS}, not {kind!r}")
+    if not manifest_sha256:
+        raise ValueError("open_real needs the manifest sha256")
+    days = [str(d) for d in days]
+    R = native.load()
+    if kind in ("test", "confirm"):
+        role = R.process_role()
+        if R.sealed_forbidden() or role != "none" or _real_opened or R.is_open("real"):
+            raise PermissionError(f"real {kind} tapes open only in a fresh scorer process (this one: role {role!r}, "
+                                  f"forbid_sealed {R.sealed_forbidden()}, real tapes opened before {_real_opened or R.is_open('real')})")
+    if kind == "test":
+        if not run or not config_sha256:
+            raise PermissionError("a real_test opening needs the run name and its config sha256")
+        before = real_test_openings_of(config_sha256)
+        if before:
+            raise PermissionError(f"config {config_sha256[:12]} already opened the real test days ({before[0].get('time')}, run "
+                                  f"{before[0].get('run')!r}, manifest {str(before[0].get('manifest_sha256'))[:12]}): once per experiment")
+    if kind == "confirm":
+        if not orchestrator:
+            raise PermissionError("real confirm days are for the orchestrator only")
+        if not claim:
+            raise PermissionError("real confirm needs an orchestrator claim id")
+        if any(u.get("claim") == claim for u in real_openings("confirm")):
+            raise PermissionError(f"claim id {claim!r} was already used (real confirm days are once per claim)")
+        reused = sorted(set(days) & used_real_confirm_days())
+        if reused:
+            raise PermissionError(f"real confirm days {reused} were used by an earlier confirmation")
+    if not R.is_open("real"):
+        R.open_sealed("real", reason)
+    _real_opened.append(kind)
+    for d, path in (paths or {}).items():
+        _real_tapes[str(Path(path).resolve())] = (tapes or {}).get(d, "")
+    log_usage({"time": _now(), "run": run, "block": f"real_{kind}", "days": days, "manifest_sha256": manifest_sha256,
+               "config_sha256": config_sha256, "tapes": tapes or {}, "reason": reason, "pid": os.getpid(), "claim": claim,
+               "dry_run": False, **meta})
 
 ```
 
@@ -38559,6 +39194,345 @@ def freeze_module(module):
 
 ---
 
+## FILE: python\ragrl\real.py  (16,189 bytes)
+
+```python
+"""Recorded ES (OF16): the day manifest, the RTH clock, and opening tapes by role.
+
+The manifest (experiments/configs/of16_real_manifest.json) is the plan's day table
+as data: per day the contract, the Sierra file names and the role (test, dev,
+excluded); confirm days are a rule (every full front-month RTH day from
+2026-11-12 on), not a list. tools/sierra_to_ticks.py exports one day to
+EXPORT_DIR/<date>/ticks.csv (tick_csv.hpp format, time = seconds since 08:30 CT,
+time_unit "s") with a ticks.json sidecar; open_tapes() checks every sidecar and
+CSV sha256 BEFORE anything is opened, then opens through ledger.open_real().
+
+Process roles (C++ seed ledger + ledger.open_real):
+    every tape needs the C++ "real" block open, and opening it (ledger.py) makes the
+    process a C++ "scorer": it can no longer build train / validation / pairing
+    environments, and a trainer (or a forbid_sealed() process) can never open it.
+    dev       a dev-diagnostic process opens dev tapes freely and so ends up a
+              scorer. It must never train or select; it can still build viz-block
+              simulator environments (neutral: look, never select), which is how a
+              diagnostic compares real features with the simulator's. Logged as
+              real_dev in the usage ledger (audit only, never refused).
+    test      `ragrl score-real RUN --days test` only: a fresh process (role
+              "none", no real tape opened before), the run name and its config
+              sha256; logged as real_test with the manifest sha256 and the tapes'
+              sha256; a second opening for the same run + manifest is refused.
+    confirm   orchestrator only with a claim id never used before (as 950M+);
+              the days are the first full confirm-rule exports no earlier
+              confirmation used.
+
+Nothing at module level imports numpy or the binding (tools/sierra_to_ticks.py
+imports this module for the manifest and the clock).
+"""
+import hashlib
+import json
+import os
+from datetime import date as _date, datetime, timezone
+from pathlib import Path
+
+from . import ledger, native
+
+MANIFEST = native.REPO / "experiments" / "configs" / "of16_real_manifest.json"
+ROLES = ("test", "dev", "excluded", "confirm")
+SC_EPOCH_US = 25569 * 86400 * 1_000_000  # Sierra time zero (1899-12-30) to the Unix epoch, microseconds
+UTC = timezone.utc
+TIME_UNIT = "s"  # export times: seconds since 08:30 CT of the day
+TAPE = {"tick_size": 0.25, "bucket_seconds": 0.1, "max_gap_seconds": 60.0}
+# A window (with its warm-up) that overlaps a book gap longer than this (no depth event: a recording
+# outage, e.g. 2026-11-03 09:00:34-09:10:44 CT) is not played; ES RTH never pauses 5 s by itself.
+BOOK_GAP_EXCLUDE_S = 5.0
+
+
+# ---------------------------------------------------------------- manifest
+def manifest_path(path=None) -> Path:
+    return Path(path) if path else MANIFEST
+
+
+def manifest_sha256(path=None) -> str:
+    return hashlib.sha256(manifest_path(path).read_bytes()).hexdigest()
+
+
+def load_manifest(path=None) -> dict:
+    p = manifest_path(path)
+    m = json.loads(p.read_text(encoding="utf-8"))
+    for d in m["days"]:
+        if d["role"] not in ROLES:
+            raise ValueError(f"{p}: day {d['date']}: unknown role {d['role']!r}")
+    dates = [d["date"] for d in m["days"]]
+    if len(set(dates)) != len(dates):
+        raise ValueError(f"{p}: a date is listed twice")
+    cf = m["confirm_rule"]["from"]
+    if any(d >= cf for d in dates):
+        raise ValueError(f"{p}: listed days must be before the confirm rule's start {cf}")
+    return m
+
+
+def export_root(manifest: dict, root=None) -> Path:
+    if root:
+        return Path(root)
+    r = Path(manifest["export_dir"])
+    return r if r.is_absolute() else native.REPO / r
+
+
+def day_entry(day: str, manifest: dict) -> dict:
+    """The manifest's entry for a CT calendar day: a listed day, a confirm-rule day, or role 'unlisted'."""
+    day = str(_date.fromisoformat(day))
+    for d in manifest["days"]:
+        if d["date"] == day:
+            return dict(d)
+    cr = manifest["confirm_rule"]
+    if day >= cr["from"]:
+        for c in cr["contracts"]:
+            if c["from"] <= day <= c["to"]:
+                k = c["contract"]
+                return {"date": day, "contract": k, "depth": f"{k}_FUT_CME.{day}.depth", "scid": f"{k}_FUT_CME.scid", "rth": "full",
+                        "role": "confirm", "subset": cr.get("subset", "confirm"), "notes": cr["rule"]}
+        return {"date": day, "contract": None, "role": "unlisted", "notes": "after the confirm rule's contract table"}
+    return {"date": day, "contract": None, "role": "unlisted", "notes": "not in the manifest"}
+
+
+def role_of(day: str, manifest: dict) -> str:
+    return day_entry(day, manifest)["role"]
+
+
+def listed_days(role: str, manifest: dict) -> list:
+    return [d["date"] for d in manifest["days"] if d["role"] == role]
+
+
+# ---------------------------------------------------------------- RTH clock (US Central)
+def _nth_sunday(y: int, m: int, n: int) -> int:
+    first = (6 - _date(y, m, 1).weekday()) % 7 + 1
+    return first + 7 * (n - 1)
+
+
+def ct_offset_hours_rule(unix_s: float) -> int:
+    """US Central offset from UTC at a Unix time by the explicit US rule (CDT -5, CST -6)."""
+    y = datetime.fromtimestamp(unix_s, UTC).year
+    a = datetime(y, 3, _nth_sunday(y, 3, 2), 8, tzinfo=UTC).timestamp()   # 02:00 CST
+    b = datetime(y, 11, _nth_sunday(y, 11, 1), 7, tzinfo=UTC).timestamp()  # 02:00 CDT
+    return -5 if a <= unix_s < b else -6
+
+
+def _chicago():
+    try:
+        from zoneinfo import ZoneInfo
+        return ZoneInfo("America/Chicago")
+    except Exception:  # no tz database (Windows without the tzdata package)
+        return None
+
+
+def ct_offset_hours(unix_s: float) -> int:
+    """US Central offset at a Unix time: zoneinfo America/Chicago when available, else the explicit rule."""
+    z = _chicago()
+    if z is None:
+        return ct_offset_hours_rule(unix_s)
+    return int(datetime.fromtimestamp(unix_s, UTC).astimezone(z).utcoffset().total_seconds() // 3600)
+
+
+def ct_wall(day: str, hhmm: str) -> int:
+    """Unix seconds of a CT wall-clock time on a CT calendar day (RTH hours are never ambiguous)."""
+    h, m = (int(x) for x in hhmm.split(":"))
+    local = int(datetime.fromisoformat(day).replace(tzinfo=UTC).timestamp()) + 3600 * h + 60 * m
+    # the offset at noon UTC of the day is the day's offset during RTH (DST switches at 02:00 local)
+    return local - 3600 * ct_offset_hours(local + 6 * 3600)
+
+
+def rth_span(day: str, manifest: dict | None = None) -> tuple:
+    """(open, close) Unix seconds of RTH (08:30-15:00 CT) on a CT calendar day."""
+    r = (manifest or {}).get("rth", {"open": "08:30", "close": "15:00"})
+    return ct_wall(day, r["open"]), ct_wall(day, r["close"])
+
+
+def ct_clock(unix_s: float) -> str:
+    """HH:MM:SS.fff in US Central time."""
+    t = datetime.fromtimestamp(unix_s + 3600 * ct_offset_hours(unix_s), UTC)
+    return t.strftime("%H:%M:%S.%f")[:-3]
+
+
+def sierra_us(unix_s: float) -> int:
+    return int(round(unix_s * 1_000_000)) + SC_EPOCH_US
+
+
+# ---------------------------------------------------------------- exports and tapes
+def export_files(day: str, manifest: dict, root=None) -> tuple:
+    d = export_root(manifest, root) / str(_date.fromisoformat(day))
+    return d / "ticks.csv", d / "ticks.json"
+
+
+def check_export(day: str, manifest: dict, root=None) -> dict:
+    """The day's sidecar, with the CSV's sha256 verified (raises when missing or changed)."""
+    csv, side = export_files(day, manifest, root)
+    if not csv.exists() or not side.exists():
+        raise FileNotFoundError(f"{day}: no export ({csv}); run tools/sierra_to_ticks.py {day}")
+    s = json.loads(side.read_text(encoding="utf-8"))
+    if s.get("date") != day:
+        raise RuntimeError(f"{side}: sidecar is for {s.get('date')}, not {day}")
+    got = native.sha256_file(csv)
+    if got != s.get("csv_sha256"):
+        raise RuntimeError(f"{csv}: sha256 {got[:12]} does not match its sidecar ({str(s.get('csv_sha256'))[:12]}): re-export")
+    if s.get("time_unit") != TIME_UNIT:
+        raise RuntimeError(f"{side}: time_unit {s.get('time_unit')!r}, expected {TIME_UNIT!r} (seconds since 08:30 CT)")
+    if s.get("t0_unix") != rth_span(day, manifest)[0]:
+        raise RuntimeError(f"{side}: t0_unix {s.get('t0_unix')} is not 08:30 CT of {day} ({rth_span(day, manifest)[0]})")
+    lg = s.get("line_gaps_over_1s", {}).get("max_s", 0.0)
+    if lg >= TAPE["max_gap_seconds"]:
+        raise RuntimeError(f"{day}: a {lg:.0f} s gap between lines would restart tick_csv's bucket clock")
+    e = day_entry(day, manifest)
+    if s.get("contract") != e.get("contract"):
+        raise RuntimeError(f"{day}: exported contract {s.get('contract')} is not the manifest's {e.get('contract')}")
+    return {**s, "csv": str(csv)}
+
+
+def confirm_days(manifest: dict, root=None, count: int | None = None, exclude=()) -> list:
+    """Exported confirm-rule days with full RTH, in date order, minus `exclude` (earlier confirmations).
+    A confirm day must be a whole clean session: a day with a book gap > BOOK_GAP_EXCLUDE_S anywhere in its
+    span (a recording outage) is skipped as a day, not cut into windows (test days, a fixed list, keep the
+    day and lose only the windows that overlap the gap)."""
+    cr = manifest["confirm_rule"]
+    base = export_root(manifest, root)
+    out = []
+    if base.exists():
+        for d in sorted(p.name for p in base.iterdir() if p.is_dir()):
+            try:
+                _date.fromisoformat(d)
+            except ValueError:
+                continue
+            if d in exclude or role_of(d, manifest) != "confirm" or not (base / d / "ticks.json").exists():
+                continue
+            s = json.loads((base / d / "ticks.json").read_text(encoding="utf-8"))
+            outage = any(b - a > BOOK_GAP_EXCLUDE_S for a, b in s.get("gaps_over_1s", {}).get("intervals_s", []))
+            if s.get("rth_missing_seconds", 1e9) <= cr["full_rth_max_missing_seconds"] and not outage:
+                out.append(d)
+    return out[:count] if count else out
+
+
+def days_for(role: str, manifest: dict, root=None, count: int | None = None) -> list:
+    if role in ("test", "dev"):
+        return listed_days(role, manifest)
+    if role == "confirm":
+        return confirm_days(manifest, root, count, exclude=ledger.used_real_confirm_days())
+    raise ValueError(f"no tapes are opened for role {role!r}")
+
+
+def open_tapes(role: str, *, manifest=None, root=None, days=None, run: str = "", config_sha256: str = "", claim: str = "",
+               orchestrator: bool = False, reason: str = "", count: int | None = None, **meta) -> dict:
+    """{date: (TickTape, sidecar)} for every day of `role` (or the given `days`, all of that role).
+    Checks every export first, then opens through ledger.open_real (the only opener)."""
+    mpath = manifest_path(manifest)
+    m = load_manifest(mpath)
+    sha = manifest_sha256(mpath)
+    if role == "confirm" and days is not None:
+        due = confirm_days(m, root, count or len(days), exclude=ledger.used_real_confirm_days())
+        if list(days) != due:
+            raise PermissionError(f"confirm days must be the next unused full confirm days {due}, not {list(days)}")
+    days = list(days) if days is not None else days_for(role, m, root, count)
+    if not days:
+        raise FileNotFoundError(f"no {role} days to open")
+    wrong = [d for d in days if role_of(d, m) != role]
+    if wrong:
+        raise PermissionError(f"days {wrong} are not {role} days in {mpath.name}")
+    side = {d: check_export(d, m, root) for d in days}
+    ledger.open_real(role, reason or f"ragrl real {role} tapes", manifest_sha256=sha, days=days, run=run, config_sha256=config_sha256,
+                     claim=claim, orchestrator=orchestrator, tapes={d: s["csv_sha256"] for d, s in side.items()},
+                     paths={d: s["csv"] for d, s in side.items()}, manifest=str(mpath), **meta)
+    return {d: (load_tape(s["csv"]), s) for d, s in side.items()}
+
+
+def load_tape(path):
+    """The one place a recorded tape is loaded: only a path ledger.open_real() registered in this process,
+    and only if its bytes still have the sha256 that was logged (a pytest greps for TickTape.from_csv)."""
+    want = ledger.real_tape_allowed(path)
+    if want is None:
+        raise PermissionError(f"{path}: not a tape opened in this process (real.open_tapes registers the opened days only)")
+    got = native.sha256_file(path)
+    if got != want:
+        raise RuntimeError(f"{path}: sha256 {got[:12]} changed since it was opened ({want[:12]})")
+    return native.load().TickTape.from_csv(str(path), time_unit=TIME_UNIT, **TAPE)
+
+
+def clean_windows(n_windows: int, sidecar: dict, window_seconds: float, warmup_seconds: float, max_gap_s: float = BOOK_GAP_EXCLUDE_S):
+    """(played, excluded): window indices k of a tape whose span [k W, k W + warm-up + W) (seconds from the
+    tape's start) overlaps no book gap longer than max_gap_s, and the excluded ones with their gap."""
+    t0 = sidecar["span"]["start_s"]
+    bad = [(a - t0, b - t0) for a, b in sidecar.get("gaps_over_1s", {}).get("intervals_s", []) if b - a > max_gap_s]
+    played, excluded = [], []
+    for k in range(n_windows):
+        lo, hi = k * window_seconds, k * window_seconds + warmup_seconds + window_seconds
+        hit = [g for g in bad if g[0] < hi and lo < g[1]]
+        (excluded if hit else played).append(k if not hit else {"window": k, "book_gap_s": [round(hit[0][0] + t0, 3), round(hit[0][1] + t0, 3)]})
+    return played, excluded
+
+
+def subset_of(day: str, manifest: dict) -> str:
+    return day_entry(day, manifest).get("subset") or day[5:7]
+
+
+def env_root():
+    """$RAGRL_REAL_DIR overrides the manifest's export_dir (scratch exports)."""
+    return os.environ.get("RAGRL_REAL_DIR") or None
+
+
+def load_buckets(path) -> dict:
+    """The tape's 100 ms buckets in Python, for diagnostics that need the quotes (TickTape exposes none):
+    per bucket the end-of-bucket bid / ask (ticks), L1 sizes, and buy / sell aggressor volume. Same gate as
+    load_tape (a path this process opened, unchanged), and tick_csv.hpp's bucket clock replayed exactly:
+    the clock starts at the first event, an event at t first closes every bucket ending at or before t
+    (bucket ends accumulated in a double, +0.1 each, as in C++), a bucket is emitted once a quote exists."""
+    import numpy as np
+    want = ledger.real_tape_allowed(path)
+    if want is None:
+        raise PermissionError(f"{path}: not a tape opened in this process (real.open_tapes registers the opened days only)")
+    if native.sha256_file(path) != want:
+        raise RuntimeError(f"{path}: changed since it was opened")
+    bs, tick = TAPE["bucket_seconds"], TAPE["tick_size"]
+    cols = {k: [] for k in ("bid", "ask", "b1", "a1", "buy", "sell")}
+    q = None
+    buy = sell = 0
+    started = False
+    end = 0.0
+
+    def close():
+        nonlocal buy, sell
+        for k, v in zip(("bid", "ask", "b1", "a1"), q):
+            cols[k].append(v)
+        cols["buy"].append(buy)
+        cols["sell"].append(sell)
+        buy = sell = 0
+
+    with open(path, encoding="ascii") as f:
+        for line in f:
+            if not line or line[0] not in "TQ":
+                continue
+            x = line.rstrip("\n").split(",")
+            t = float(x[1])
+            if not started:
+                end, started = t + bs, True
+            if t - end > TAPE["max_gap_seconds"]:
+                raise RuntimeError(f"{path}: a {t - end:.0f} s gap (tick_csv would restart its clock)")
+            while t >= end:
+                if q is not None:  # trades before the first quote join the first bucket, as in TickTape
+                    close()
+                end += bs
+            if x[0] == "T":
+                if x[4] == "B":
+                    buy += int(x[3])
+                else:
+                    sell += int(x[3])
+            else:
+                q = (round(float(x[2]) / tick), round(float(x[3]) / tick), int(x[4]) if len(x) > 4 else 0,
+                     int(x[9]) if len(x) > 9 else 0)
+    if q is not None:
+        close()
+    return {k: np.asarray(v, dtype=np.int64) for k, v in cols.items()}
+
+```
+
+
+---
+
 ## FILE: python\ragrl\redflags.py  (10,499 bytes)
 
 ```python
@@ -39056,7 +40030,7 @@ def write(run_dir: Path):
 
 ---
 
-## FILE: python\ragrl\runner.py  (20,234 bytes)
+## FILE: python\ragrl\runner.py  (20,558 bytes)
 
 ```python
 """The experiment protocol: train (K worker processes) -> select (validation
@@ -39084,6 +40058,11 @@ import numpy as np
 
 from . import config, ledger, native, redflags, registry, report, stats
 from .agents import ZOO
+
+# Child interpreters: unbuffered, so a crashed worker's log keeps everything it printed, and with
+# faulthandler, so a native crash (access violation, heap corruption) writes the Python stack of
+# every thread to the log before the process dies. Without these, a crash left an empty worker.log.
+PY = [sys.executable, "-X", "faulthandler", "-u"]
 from .envs import indexed_source
 from .evaluate import Builtin, baseline_policies, paired_eval, run_policy, stage_baselines
 from .policies import Ensemble, load_policy
@@ -39121,7 +40100,7 @@ def spawn_workers(run: Path, cfg: dict, seeds, out_root: Path | None = None, on_
                 sd = (out_root or run / "seeds") / f"seed{k}"
                 sd.mkdir(parents=True, exist_ok=True)
                 log = open(sd / "worker.log", "w", encoding="utf-8")
-                cmd = [sys.executable, "-m", "ragrl", "train", str(run), "--seed", str(k)]
+                cmd = [*PY, "-m", "ragrl", "train", str(run), "--seed", str(k)]
                 if out_root is not None:
                     cmd += ["--out-dir", str(sd)]
                 running[k] = (subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, env=env, cwd=native.REPO), log, sd)
@@ -39176,7 +40155,7 @@ def run(cfg_path, no_seal: bool = False, root: Path | None = None, reuse_ok: boo
         print(f"recheck seed {rc['seed']}: same actions {rc['same_actions']}, same val {rc['same_val']}", flush=True)
     registry.append_index(run_dir, {"config_sha256": sha, "agent": cfg["agent"]["kind"], "stage": "selected"})
     if not no_seal:
-        cmd = [sys.executable, "-m", "ragrl", "seal", str(run_dir)] + (["--reuse-ok"] if reuse_ok else [])
+        cmd = [*PY, "-m", "ragrl", "seal", str(run_dir)] + (["--reuse-ok"] if reuse_ok else [])
         p = subprocess.run(cmd, env=child_env(run_dir), cwd=native.REPO)
         if p.returncode != 0:
             raise RuntimeError(f"seal failed ({p.returncode})")
@@ -39435,6 +40414,377 @@ def trial_config(cfg: dict, params: dict, name: str) -> dict:
 def dump_json_line(path: Path, rec: dict):
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(registry.finite(rec), sort_keys=True, default=registry._default) + "\n")
+
+```
+
+
+---
+
+## FILE: python\ragrl\score_real.py  (19,802 bytes)
+
+```python
+"""`ragrl score-real RUN --days test|dev`: a sealed OF15 run on recorded ES (OF16 phase 2 scoring).
+
+The run's headline ensemble, its seeds (and their per-window mean) and three baselines play
+every window of every day of the role on VecReplayEnv (ReplayParams: decide 1 s, window
+600 s, latency 1 bucket = 100 ms, $1.50 per side by default, and the warm-up the run TRAINED
+with: cfg env.warmup_seconds, 1050 s for every OF15 run; FeatureBuilder's running scales are
+far from settled after 150 s), in one process that opens the tapes once (real.open_tapes ->
+ledger.open_real; test needs a fresh process). The run's warm-up, decision step and episode
+length must equal the manifest's `episodes` block, or nothing is scored (as scalp_run.hpp's
+check_net refuses a network trained with another market or warm-up).
+Before the tapes are opened every policy and baseline is stepped once on a dummy observation
+batch (a load or shape error must not burn the run's only test opening), and each block's
+results are written to disk as soon as it finishes (status PARTIAL until the last one).
+
+Baselines (Python: run_builtin only plays simulator sources, so these act on the observation):
+    flat           never trades
+    delta30        of_train's 30 s delta rule (BuiltinPolicy::delta30: feature 1 > 1.5 long,
+                   < -1.5 short, else keep), exactly as tools/of_zoo_trace.py copies it
+    imbalance_l1   when flat, enter in the sign of the L1 imbalance (feature 6; 0 -> stay flat);
+                   when in a position, go flat: a 1 s hold, then flat (the I1 markout as a policy)
+Statistics (OF15's stats.py): per-window summary and gross, paired against flat and delta30 with
+the window-level t and percentile bootstrap, plus a day-clustered bootstrap (resample days with
+replacement, B = 10000, seed 0) and the Sep / Nov subsets. Windows whose span (warm-up + window)
+overlaps a book gap > 5 s (a recording outage) are not played and are listed. --stress also plays latency 3
+buckets and $3 per side in the same opening.
+Red flags: R1 (A77, redflags.py); RG a learned policy's real gross above its simulator gross
+(sealed.json) by 2 SE (check the replay for leaks); RI the imbalance rule profiting (net > 0 by
+2 SE: check the bucket alignment); R10r more than one real test opening of the run's config
+sha256 (any run name, any manifest), or one logged outside the canonical ledger.
+Output: RUN/real/<days>-<stamp>/ (results.json, windows_<block>.npz, STATUS), never sealed.json.
+--days dev is marked "dev: not a score".
+"""
+import math
+import time
+from pathlib import Path
+
+import numpy as np
+
+from . import ledger, native, real, redflags, registry, stats
+from .policies import FrozenPolicy
+
+REPLAY = {"decide_seconds": 1.0, "window_seconds": 600.0, "contracts": 1}  # warm-up: the run's own (check_episodes)
+STRESS = {"latency_buckets": 3, "fee_dollars": 3.0}
+HEADLINES = ("ensemble", "mean_of_seeds")
+M_PLAN = 32  # 16 sealed OF15 runs x 2 pre-registered headlines (plan section 3)
+BOOT_B, BOOT_SEED = 10_000, 0
+REFS = ("flat", "delta30")
+DEV_NOTE = "dev: not a score"
+
+
+# ---------------------------------------------------------------- baselines on the observation
+def keep_action(obs):
+    return (np.sign(obs[:, 13]) + 1).astype(np.int64)
+
+
+def _onehot(a):
+    s = np.zeros((len(a), 3))
+    s[np.arange(len(a)), a] = 1.0
+    return s
+
+
+class Flat(FrozenPolicy):
+    type = "real_flat"
+    score_kind = "vote"
+
+    def step(self, obs):
+        a = np.ones(len(obs), dtype=np.int64)
+        return a, _onehot(a)
+
+
+class Delta30(FrozenPolicy):
+    type = "real_delta30"
+    score_kind = "vote"
+
+    def step(self, obs):
+        x = obs[:, 1]
+        a = np.where(x > 1.5, 2, np.where(x < -1.5, 0, keep_action(obs))).astype(np.int64)
+        return a, _onehot(a)
+
+
+class ImbalanceL1(FrozenPolicy):
+    type = "real_imbalance_l1"
+    score_kind = "vote"
+
+    def step(self, obs):
+        flat = obs[:, 13] == 0
+        x = obs[:, 6]
+        enter = np.where(x > 0, 2, np.where(x < 0, 0, 1))
+        a = np.where(flat, enter, 1).astype(np.int64)
+        return a, _onehot(a)
+
+
+def baselines() -> dict:
+    return {"flat": Flat(), "delta30": Delta30(), "imbalance_l1": ImbalanceL1()}
+
+
+# ---------------------------------------------------------------- replay
+def replay_params(warmup_seconds: float, latency_buckets: int = 1, fee_dollars: float = 1.5, **over):
+    p = {**REPLAY, "warmup_seconds": float(warmup_seconds), "latency_buckets": int(latency_buckets), "fee_dollars": float(fee_dollars),
+         **over}
+    return native.load().ReplayParams(**p)
+
+
+def check_episodes(env_cfg: dict, manifest: dict) -> float:
+    """The run's warm-up (seconds), refused unless the run's warm-up, decision step and episode length are the
+    manifest's episode cut (the features an agent sees depend on how long FeatureBuilder ran first)."""
+    ep = manifest["episodes"]
+    want = {"warmup_seconds": float(ep["warmup_seconds"]), "decide_seconds": float(ep["decide_seconds"]),
+            "episode_seconds": float(ep["window_seconds"])}
+    got = {k: float(env_cfg[k]) for k in want}
+    if got != want:
+        raise RuntimeError(f"the run's env {got} is not the manifest's episode cut {want}: its agents would see features "
+                           "built differently from training (refused, as check_net refuses a mismatched network)")
+    return got["warmup_seconds"]
+
+
+def check_policies(policies: dict, n: int = 3):
+    """Steps every policy once on a dummy [n, 16] observation batch: load, shape and dtype errors surface here,
+    before any tape is opened. Memory policies are reset again by play()."""
+    obs = np.zeros((n, 16), dtype=np.float64)
+    obs[:, 15] = 1.0  # time left
+    for name, pol in policies.items():
+        pol.reset(n)
+        a, _ = pol.step(obs)
+        a = np.asarray(a)
+        if a.shape != (n,) or not np.isin(a, (0, 1, 2)).all():
+            raise RuntimeError(f"policy {name}: step() gave actions {a!r} for {n} observations (want {n} of 0, 1, 2)")
+        pol.reset(n)
+
+
+def windows_on_tape(tape, params) -> int:
+    """ReplayScalpEnv::windows(): consecutive full windows after the warm-up."""
+    b = tape.bucket_seconds
+    need = max(1, round(params.window_seconds / b))
+    warm = max(1, round(params.warmup_seconds / b))
+    return (tape.size - warm) // need if tape.size > warm + need else 0
+
+
+def play(policy, tape, params, windows, threads: int = 1) -> dict:
+    """Per-window results of `policy` on windows of one tape (one lockstep batch)."""
+    R = native.load()
+    env = R.VecReplayEnv(tape, params, [int(k) for k in windows], threads=max(1, threads))
+    obs = env.reset()
+    policy.reset(env.n_envs)
+    while True:
+        a, _ = policy.step(obs)
+        obs, _, done = env.step(np.ascontiguousarray(a, dtype=np.int64))
+        if done[0]:
+            break
+    st = env.episode_stats
+    return {k: np.asarray(st[k], dtype=np.float64) for k in ("net_pnl_ticks", "orders", "fees_ticks")}
+
+
+def play_days(policies: dict, tapes: dict, params, threads: int = 1) -> tuple:
+    """({name: per-window results over every day, in day order}, [(day, window)], excluded)."""
+    res = {k: {f: [] for f in ("net_pnl_ticks", "orders", "fees_ticks")} for k in policies}
+    labels, excluded = [], []
+    for day, (tape, side) in tapes.items():
+        played, ex = real.clean_windows(windows_on_tape(tape, params), side, params.window_seconds, params.warmup_seconds)
+        excluded += [{"day": day, **e} for e in ex]
+        if not played:
+            continue
+        labels += [(day, k) for k in played]
+        for name, pol in policies.items():
+            r = play(pol, tape, params, played, threads)
+            for f in r:
+                res[name][f].append(r[f])
+    out = {k: {f: (np.concatenate(v) if v else np.zeros(0)) for f, v in d.items()} for k, d in res.items()}
+    return out, labels, excluded
+
+
+# ---------------------------------------------------------------- statistics
+def day_bootstrap(x, days, b: int = BOOT_B, seed: int = BOOT_SEED) -> dict:
+    """Day-clustered bootstrap of the per-window mean: resample days with replacement, pool their windows."""
+    x = np.asarray(x, dtype=np.float64)
+    days = np.asarray(days)
+    uniq = sorted(set(days.tolist()))
+    if len(uniq) < 2:
+        return {"days": len(uniq), "mean": float(x.mean()) if len(x) else float("nan"), "se": float("nan"), "t": float("nan"),
+                "ci95": [float("nan"), float("nan")]}
+    s = np.array([x[days == d].sum() for d in uniq])
+    n = np.array([(days == d).sum() for d in uniq], dtype=np.float64)
+    idx = np.random.default_rng(seed).integers(0, len(uniq), size=(b, len(uniq)))
+    boots = s[idx].sum(axis=1) / n[idx].sum(axis=1)
+    se = float(boots.std(ddof=1))
+    mean = float(x.mean())
+    return {"days": len(uniq), "mean": mean, "se": se, "t": mean / se if se > 0 else float("nan"),
+            "ci95": [float(np.percentile(boots, 2.5)), float(np.percentile(boots, 97.5))]}
+
+
+def _take(r: dict, mask) -> dict:
+    return {f: np.asarray(v)[mask] for f, v in r.items()}
+
+
+def block_stats(res: dict, labels: list, subsets: dict, learned: list) -> dict:
+    days = np.array([d for d, _ in labels])
+    n = len(labels)
+    idx = stats.bootstrap_indices(n, BOOT_B, BOOT_SEED) if n > 1 else None
+    summ = {k: stats.summary(v) for k, v in res.items()} if n > 1 else {}
+    gross = {k: stats.gross(v) for k, v in res.items()}
+    out = {"windows": n, "days": sorted(set(days.tolist())), "summary": summ,
+           "gross": {k: {f: s[f] for f in ("mean", "se", "t")} for k, s in ({k: stats.summary(v) for k, v in gross.items()} if n > 1 else {}).items()},
+           "day_bootstrap": {k: day_bootstrap(v["net_pnl_ticks"], days) for k, v in res.items()} if n else {},
+           "paired": {}, "paired_day_bootstrap": {}, "subsets": {}}
+    for ref in REFS:
+        if ref in res and n > 1:
+            out["paired"][ref] = {k: stats.paired(res[k], res[ref], idx) for k in res if k != ref}
+            out["paired_day_bootstrap"][ref] = {k: day_bootstrap(res[k]["net_pnl_ticks"] - res[ref]["net_pnl_ticks"], days)
+                                                for k in res if k != ref}
+    for name, sdays in subsets.items():
+        mask = np.isin(days, list(sdays))
+        m = int(mask.sum())
+        sub = {"windows": m, "days": sorted(set(days[mask].tolist()))}
+        if m > 1:
+            sr = {k: _take(v, mask) for k, v in res.items()}
+            sub["summary"] = {k: stats.summary(v) for k, v in sr.items()}
+            sub["paired"] = {"flat": {k: stats.paired(sr[k], sr["flat"]) for k in [*learned, "delta30", "imbalance_l1"] if k in sr}}
+            sub["day_bootstrap"] = {k: day_bootstrap(sr[k]["net_pnl_ticks"], days[mask]) for k in [*learned] if k in sr}
+        out["subsets"][name] = sub
+    return out
+
+
+def decision(block: dict, t_req: float) -> dict:
+    """Plan section 4 per headline: net > 0, t >= t_req, day-clustered 95% CI above 0, positive in Sep and Nov."""
+    out = {}
+    for h in HEADLINES:
+        s = block["summary"].get(h)
+        if not s:
+            continue
+        db = block["day_bootstrap"].get(h, {})
+        subs = {k: v.get("summary", {}).get(h, {}).get("mean") for k, v in block["subsets"].items()}
+        ok = (s["mean"] > 0 and redflags._gt(s["t"], t_req - 1e-12) and redflags._gt(db.get("ci95", [float("nan")])[0], 0.0)
+              and all(v is not None and v > 0 for v in subs.values()))
+        out[h] = {"mean": s["mean"], "t": s["t"], "t_required": t_req, "day_ci95": db.get("ci95"), "subset_means": subs,
+                  "edge_criteria_met": bool(ok)}
+    return out
+
+
+def red_flags(block: dict, sim_gross: dict, learned: list) -> tuple:
+    hard, warn = [], []
+    S = block["summary"]
+    for k, s in S.items():
+        if redflags._gt(s.get("sharpe_annual"), redflags.SHARPE_BAR) and not redflags.vacuous(s):
+            lb = redflags.sharpe_lower(s)
+            if redflags._gt(lb, redflags.SHARPE_BAR):
+                hard.append({"id": "R1", "policy": k, "detail": f"annualized Sharpe {s['sharpe_annual']:.2f}, lower 2-SE bound {lb:.2f} > "
+                                                                f"{redflags.SHARPE_BAR:g} (t {redflags._n(s.get('t'), 1)})"})
+            else:
+                warn.append({"id": "R1v", "policy": k, "detail": f"annualized Sharpe {s['sharpe_annual']:.2f} > {redflags.SHARPE_BAR:g} is noise: "
+                                                                 f"lower 2-SE bound {redflags._n(lb)}"})
+    G = block["gross"]
+    for k in learned:
+        if k in G and k in sim_gross:
+            d = G[k]["mean"] - sim_gross[k]["mean"]
+            se = math.sqrt(G[k]["se"] ** 2 + sim_gross[k]["se"] ** 2)
+            if se > 0 and d > 2 * se:
+                hard.append({"id": "RG", "policy": k, "detail": f"real gross {G[k]['mean']:+.2f} beats its simulator gross {sim_gross[k]['mean']:+.2f} "
+                                                                f"by {d:+.2f} (> 2 SE = {2 * se:.2f}): check the replay for leaks"})
+    s = S.get("imbalance_l1")
+    if s and s["mean"] > 0 and redflags._gt(s["t"], 2.0):
+        hard.append({"id": "RI", "policy": "imbalance_l1", "detail": f"the L1-imbalance rule nets {s['mean']:+.2f} (t {s['t']:.1f}): "
+                                                                     "check the bucket alignment first"})
+    g = G.get("imbalance_l1")
+    if g and g["mean"] > 0 and redflags._gt(g["t"], 2.0):
+        warn.append({"id": "RIg", "policy": "imbalance_l1", "detail": f"the L1-imbalance rule's gross is {g['mean']:+.2f} (t {g['t']:.1f})"})
+    return hard, warn
+
+
+# ---------------------------------------------------------------- the command
+def score(run_dir, days: str, latency_buckets: int = 1, fee_dollars: float = 1.5, stress: bool = False, threads: int = 1,
+          manifest=None, root=None, allow_env_change: bool = False) -> dict:
+    from . import runner
+    run_dir = Path(run_dir)
+    if days not in ("test", "dev"):
+        raise ValueError("--days is test or dev (confirm days are the orchestrator's)")
+    if not (run_dir / "sealed.json").exists():
+        raise FileNotFoundError(f"{run_dir}: not a sealed run (score-real scores sealed OF15 runs)")
+    runner.use_run_module(run_dir)
+    problems = runner._check_provenance(run_dir, allow_env_change=True)
+    hard_env = [p for p in problems if "ragrl code" not in p]  # the scoring code itself is new (OF16): recorded, not refused
+    if hard_env and not allow_env_change:
+        raise RuntimeError("; ".join(hard_env) + " (--allow-env-change to score anyway; recorded)")
+    cfg = registry.read_json(run_dir / "config.json")
+    sealed = registry.read_json(run_dir / "sealed.json")
+    root = root or real.env_root()
+    mpath = real.manifest_path(manifest)
+    m = real.load_manifest(mpath)
+    warmup = check_episodes(cfg["env"], m)
+    runner.setup_torch(cfg["train"]["torch_threads"])
+    # everything that can fail is loaded and exercised before the tapes are opened (a retry of a test opening is refused)
+    pols = runner.learned_policies(run_dir, cfg)
+    seeds = [k for k in pols if k.startswith("seed")]
+    base = baselines()
+    check_policies({**pols, **base})
+    blocks_p = {"base": replay_params(warmup, latency_buckets, fee_dollars)}
+    if stress:
+        blocks_p["stress"] = replay_params(warmup, **STRESS)
+    config_sha = (run_dir / "config.sha256").read_text(encoding="utf-8").strip()
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    out_dir = run_dir / "real" / f"{days}-{stamp}"
+    out_dir.mkdir(parents=True, exist_ok=False)
+    (out_dir / "STATUS").write_text("OPENING\n", encoding="utf-8")
+    try:
+        tapes = real.open_tapes(days, manifest=mpath, root=root, run=run_dir.name, config_sha256=config_sha,
+                                reason=f"ragrl score-real {run_dir.name} --days {days}", experiment=runner.experiment_id(run_dir))
+    except Exception as e:
+        (out_dir / "STATUS").write_text(f"NOT_OPENED: {type(e).__name__}: {e}\n", encoding="utf-8")
+        raise
+    subsets = {}
+    for d in tapes:
+        subsets.setdefault(real.subset_of(d, m), []).append(d)
+    learned = [*seeds, "ensemble", "mean_of_seeds"]
+    t_req = stats.t_required(M_PLAN)
+    out = {"run": run_dir.name, "days_role": days, "note": DEV_NOTE if days == "dev" else "real test scoring (OF16 phase 2)",
+           "manifest": str(mpath), "manifest_sha256": real.manifest_sha256(mpath), "config_sha256": config_sha,
+           "tapes": {d: {"csv_sha256": s["csv_sha256"], "contract": s["contract"], "span": s["span"], "tape_stats": t.stats}
+                     for d, (t, s) in tapes.items()},
+           "subsets": subsets, "headlines": list(HEADLINES), "multiplicity": M_PLAN, "t_required": t_req,
+           "env_problems": problems, "ledger_file": str(ledger.usage_file()), "ledger_canonical": ledger.is_canonical(),
+           "bootstrap": {"B": BOOT_B, "seed": BOOT_SEED, "day_clustered": True}, "blocks": {}}
+    hard, warn = [], []
+    for bname, params in blocks_p.items():
+        res, labels, excluded = play_days({**pols, **base}, tapes, params, threads)
+        if seeds and labels:
+            res["mean_of_seeds"] = stats.mean_of_seeds([res[k] for k in seeds])
+        b = block_stats(res, labels, subsets, learned)
+        b["params"] = {"decide_seconds": params.decide_seconds, "window_seconds": params.window_seconds, "warmup_seconds": params.warmup_seconds,
+                       "latency_buckets": params.latency_buckets, "contracts": params.contracts, "fee_dollars": params.fee_dollars}
+        b["excluded_windows"] = excluded
+        b["decision"] = decision(b, t_req) if days == "test" else {}
+        h, w = red_flags(b, sealed.get("gross") or {}, learned)
+        hard += [dict(x, block=bname) for x in h]
+        warn += [dict(x, block=bname) for x in w]
+        out["blocks"][bname] = b
+        npz = {f"{bname}__day": np.array([d for d, _ in labels]), f"{bname}__window": np.array([k for _, k in labels], dtype=np.int64)}
+        for k, v in res.items():
+            for f in ("net_pnl_ticks", "orders", "fees_ticks"):
+                npz[f"{bname}__{k}__{f}"] = v[f]
+        # this block survives a crash in the next one
+        np.savez(out_dir / f"windows_{bname}.npz", **npz)
+        registry.write_json(out_dir / "results.json", registry.finite({**out, "status": "PARTIAL", "hard": hard, "warnings": warn}))
+        (out_dir / "STATUS").write_text(f"PARTIAL ({', '.join(out['blocks'])} of {', '.join(blocks_p)})\n", encoding="utf-8")
+    if days == "test":
+        opened = ledger.real_test_openings_of(config_sha)
+        if len(opened) > 1:
+            hard.append({"id": "R10r", "policy": "-", "detail": f"the real test days were opened {len(opened)} times for this "
+                                                                f"config (runs {sorted({str(u.get('run')) for u in opened})})"})
+        if not ledger.is_canonical():
+            hard.append({"id": "R10r", "policy": "-", "detail": "the real test opening was logged outside the canonical usage ledger"})
+    if days == "dev":
+        status = "DEV_NOT_A_SCORE"
+    elif hard:
+        status = "RED_FLAGS"
+    else:
+        status = "EDGE_CRITERIA_MET" if any(v["edge_criteria_met"] for v in out["blocks"]["base"]["decision"].values()) else "NO_EDGE"
+    out.update({"status": status, "hard": hard, "warnings": warn})
+    registry.write_json(out_dir / "results.json", registry.finite(out))
+    (out_dir / "STATUS").write_text(status + "\n", encoding="utf-8")
+    base_s = out["blocks"]["base"]["summary"]
+    print(f"{run_dir.name} real {days}: {status}  " + "  ".join(f"{h} {base_s[h]['mean']:+.2f} (t {base_s[h]['t']:.2f})" for h in HEADLINES if h in base_s)
+          + f"  -> {out_dir}" + (f"  [{DEV_NOTE}]" if days == "dev" else ""), flush=True)
+    return out
 
 ```
 
@@ -40153,7 +41503,7 @@ def test_open_sealed_only_in_ledger_module():
 
 ---
 
-## FILE: python\tests\test_pipeline.py  (23,057 bytes)
+## FILE: python\tests\test_pipeline.py  (23,184 bytes)
 
 ```python
 """The ragrl pipeline (fast): configs, stats, frozen policies vs SB3's own predict,
@@ -40181,7 +41531,8 @@ def _raw(name):
 
 def test_configs_resolve_and_round_trip():
     from ragrl import config
-    files = sorted(CONFIGS.glob("*.json")) + sorted((CONFIGS / "smoke").glob("*.json"))
+    # *_manifest.json are data manifests (OF16 day roles), not run configs
+    files = sorted(f for f in CONFIGS.glob("*.json") if not f.name.endswith("_manifest.json")) + sorted((CONFIGS / "smoke").glob("*.json"))
     assert len(files) >= 16
     for f in files:
         c = config.load(f)
@@ -40662,6 +42013,600 @@ def test_train_priv_fill_and_orders(R):
         assert np.all(pv[:, 3] >= 150.0)  # session second, after the warm-up
     assert fills >= 4 * 11
     assert np.all(env.episode_stats["orders"] >= 12)
+
+```
+
+
+---
+
+## FILE: python\tests\test_real.py  (32,821 bytes)
+
+```python
+"""OF16 recorded ES: the Sierra converter, the RTH clock, the replay's fills, and the day
+manifest's roles in the usage ledger. Synthetic data only: no test that runs here opens a
+Sierra file or an export of a real test or confirm day.
+
+Replays and ledger openings run in fresh processes (`fresh()`): opening the C++ "real"
+block makes a process a scorer, and this pytest process may already be a trainer.
+"""
+import hashlib
+import json
+import struct
+import subprocess
+import sys
+from pathlib import Path
+
+import numpy as np
+import pytest
+
+REPO = Path(__file__).resolve().parents[2]
+PYDIR = REPO / "python"
+sys.path.insert(0, str(PYDIR))
+TOOL = REPO / "tools" / "sierra_to_ticks.py"
+SC_EPOCH_US = 25569 * 86400 * 1_000_000
+
+
+# ---------------------------------------------------------------- the RTH clock
+def test_dst_cdt_and_cst_days_cut_the_same_rth():
+    from datetime import datetime, timezone
+
+    from ragrl import real
+    m = real.load_manifest()
+    cdt, cst = real.rth_span("2026-09-14", m), real.rth_span("2026-11-03", m)
+    utc = lambda s: datetime.fromtimestamp(s, timezone.utc).strftime("%Y-%m-%d %H:%M")  # noqa: E731
+    assert (utc(cdt[0]), utc(cdt[1])) == ("2026-09-14 13:30", "2026-09-14 20:00")   # CDT = UTC-5
+    assert (utc(cst[0]), utc(cst[1])) == ("2026-11-03 14:30", "2026-11-03 21:00")   # CST = UTC-6
+    for o, c in (cdt, cst):
+        assert c - o == 23400
+        assert real.ct_clock(o) == "08:30:00.000" and real.ct_clock(c) == "15:00:00.000"
+    # the switch days themselves (02:00 local): RTH on the Monday after each switch
+    assert real.ct_offset_hours(real.rth_span("2026-03-09")[0]) == -5
+    assert real.ct_offset_hours(real.rth_span("2026-11-02")[0]) == -6
+    assert real.ct_offset_hours(real.rth_span("2026-10-30")[0]) == -5
+    # the explicit rule agrees with zoneinfo wherever a tz database exists
+    if real._chicago() is not None:
+        for d in ("2026-03-06", "2026-03-09", "2026-09-14", "2026-10-30", "2026-11-02", "2026-11-03", "2027-03-15"):
+            o = real.rth_span(d)[0]
+            assert real.ct_offset_hours_rule(o) == real.ct_offset_hours(o), d
+
+
+# ---------------------------------------------------------------- the manifest
+def test_manifest_roles():
+    from ragrl import real
+    m = real.load_manifest()
+    assert real.listed_days("test", m) == ["2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11", "2026-11-05", "2026-11-09",
+                                           "2026-11-10", "2026-11-11"]
+    assert real.listed_days("dev", m) == ["2026-09-14", "2026-09-15", "2026-09-16", "2026-09-17", "2026-11-03"]
+    assert set(real.listed_days("excluded", m)) == {"2026-09-07", "2026-09-18", "2026-11-04", "2026-11-06"}
+    e = real.day_entry("2026-11-12", m)
+    assert e["role"] == "confirm" and e["contract"] == "ESZ26" and e["depth"] == "ESZ26_FUT_CME.2026-11-12.depth"
+    assert real.day_entry("2026-12-21", m)["contract"] == "ESH27"
+    assert real.role_of("2026-10-01", m) == "unlisted"
+    assert real.day_entry("2026-11-03", m)["scid"] == "ESZ26_FUT_CME.scid"
+    assert len(real.manifest_sha256()) == 64
+
+
+def test_day_clustered_bootstrap():
+    from ragrl.score_real import day_bootstrap
+    x = np.array([1.0, 1.0, 1.0, 3.0, 3.0, 3.0])
+    d = np.array(["a", "a", "a", "b", "b", "b"])
+    b = day_bootstrap(x, d)
+    assert b["days"] == 2 and b["mean"] == 2.0
+    assert b["ci95"] == [1.0, 3.0]                   # resampled days: {a,a} -> 1, {a,b} -> 2, {b,b} -> 3
+    assert abs(b["se"] - np.sqrt(0.5)) < 0.02        # SD of {1, 2, 2, 3} equally likely
+    assert day_bootstrap(x, d) == b                  # fixed seed
+    assert np.isnan(day_bootstrap(x[:3], d[:3])["se"])
+
+
+# ---------------------------------------------------------------- the converter on a synthetic Sierra pair
+def _depth_file(path, events):
+    """events: (sierra_us, cmd, flags, price, qty) -> a .depth file (64-byte header, <qBBHfII records)."""
+    head = b"SCDD" + struct.pack("<III", 64, 24, 1) + bytes(48)
+    with open(path, "wb") as f:
+        f.write(head)
+        for t, cmd, fl, price, qty in events:
+            f.write(struct.pack("<qBBHfII", t, cmd, fl, 1, price, qty, 0))
+
+
+def _scid_file(path, records):
+    """records: (sierra_us, price, volume, bid volume, ask volume) -> a .scid file (56-byte header, <q4f4I)."""
+    head = b"SCID" + struct.pack("<II", 56, 40) + bytes(44)
+    with open(path, "wb") as f:
+        f.write(head)
+        for t, p, vol, bv, av in records:
+            f.write(struct.pack("<q4f4I", t, 0.0, p + 25, p - 25, p, 1, vol, bv, av))
+
+
+P = 758000.0  # 7580.00 x 100
+
+
+# 08:30 CT written down independently of ragrl.real (the code under test): CDT = UTC-5, CST = UTC-6
+OPEN_UTC = {"2026-09-14": "2026-09-14T13:30:00+00:00", "2026-11-03": "2026-11-03T14:30:00+00:00"}
+
+
+def _synthetic_day(day, tmp, flags=True, beat_changes=True):
+    from datetime import datetime
+
+    from ragrl import real
+    e = real.day_entry(day, real.load_manifest())
+    o = int(datetime.fromisoformat(OPEN_UTC[day]).timestamp())
+    o_us = o * 1_000_000 + SC_EPOCH_US
+    us = lambda s: o_us + int(round(s * 1e6))  # noqa: E731
+    ev = [(us(-60), 1, 0, 0.0, 0)]
+    ev += [(us(-60), 2, 0, P - 25 * j, q) for j, q in enumerate((10, 20, 30))]
+    ev += [(us(-60), 3, 0, P + 25 + 25 * j, q) for j, q in enumerate((11, 21, 31))]
+    ev[-1] = ev[-1][:2] + (1,) + ev[-1][3:]                  # end of the snapshot batch
+    ev += [(us(0.5), 4, 1, P, 15),                           # bid size 10 -> 15
+           (us(1.0), 3, 1, P, 7),                            # an ask at the bid: locked, dropped
+           (us(1.2), 7, 1, P, 0),                            # gone again: the book equals the last Q, nothing written
+           (us(1.3), 6, 1, P, 0), (us(1.3), 2, 1, P, 40),    # two flagged events, one timestamp: one Q
+           (us(3.5), 5, 1, P + 25, 5)]                       # after a 2.2 s silent book
+    t = 4.0
+    k = 0
+    while t < 23400:                                         # a heartbeat: level 5 of the bid alternates 50 / 51
+        ev.append((us(t), 4, 1, P - 100, 50 + k % 2 if beat_changes else 50))
+        t += 0.5
+        k += 1
+    ev.append((us(23401), 4, 1, P - 100, 60))                # after the close: not exported
+    tr = [(us(-10), P, 1, 1, 0),                             # before the open: never read
+          (us(0.2), P + 25, 2, 0, 2), (us(0.7), P, 3, 3, 0), (us(1.25), P + 75, 1, 0, 1), (us(1.3), P, 1, 1, 0),
+          (us(2.0), P + 25, 4, 1, 3),                        # both volumes: two lines
+          (us(2.5), P + 25, 1, 0, 0), (us(2.6), P, 1, 0, 0),  # no volume side: from the quote
+          (us(23400), P, 9, 9, 0), (us(86400 * 2), P, 9, 9, 0)]  # at the close / another day: never read
+    dd, sd = tmp / "depth", tmp / "scid"
+    dd.mkdir(parents=True, exist_ok=True)
+    sd.mkdir(parents=True, exist_ok=True)
+    if not flags:  # Sierra without end-of-batch flags
+        ev = [x[:2] + (0,) + x[3:] for x in ev]
+    _depth_file(dd / e["depth"], ev)
+    _scid_file(sd / e["scid"], tr)
+    return dd, sd, k
+
+
+EXPECTED_HEAD = """Q,0.000000,7580.00,7580.25,10,20,30,0,0,11,21,31,0,0
+T,0.200000,7580.25,2,B
+Q,0.500000,7580.00,7580.25,15,20,30,0,0,11,21,31,0,0
+T,0.700000,7580.00,3,S
+T,1.250000,7580.75,1,B
+T,1.300000,7580.00,1,S
+Q,1.300000,7580.00,7580.25,40,20,30,0,0,11,21,31,0,0
+T,2.000000,7580.25,3,B
+T,2.000000,7580.25,1,S
+T,2.500000,7580.25,1,B
+T,2.600000,7580.00,1,S
+Q,3.500000,7580.00,7580.25,40,20,30,0,0,5,21,31,0,0
+Q,4.000000,7580.00,7580.25,40,20,30,0,50,5,21,31,0,0
+Q,4.500000,7580.00,7580.25,40,20,30,0,51,5,21,31,0,0
+"""
+
+
+def _convert(day, tmp, *extra, **synth):
+    dd, sd, beats = _synthetic_day(day, tmp, **synth)
+    out = tmp / "out"
+    p = subprocess.run([sys.executable, str(TOOL), day, "--depth-dir", str(dd), "--scid-dir", str(sd), "--out-dir", str(out), *extra],
+                       capture_output=True, text=True, timeout=300)
+    return p, out / day, beats
+
+
+def test_converter_round_trip_and_dst(tmp_path):
+    side = {}
+    for day in ("2026-09-14", "2026-11-03"):  # CDT and CST: the same CT session, so the same bytes
+        p, d, beats = _convert(day, tmp_path / day)
+        assert p.returncode == 0, p.stderr
+        text = (d / "ticks.csv").read_text(encoding="ascii")
+        assert text.startswith(EXPECTED_HEAD), text[:800]
+        lines = text.splitlines()
+        assert lines[-2] == "Q,23399.500000,7580.00,7580.25,40,20,30,0,%d,5,21,31,0,0" % (50 + (beats - 1) % 2)
+        assert lines[-1] == lines[-2].replace("23399.500000", "23399.950000")   # the close's bucket, on the grid
+        s = json.loads((d / "ticks.json").read_text(encoding="utf-8"))
+        assert s["csv_sha256"] == hashlib.sha256((d / "ticks.csv").read_bytes()).hexdigest()
+        assert s["counts"]["trades"] == 8 and s["counts"]["trade_records"] == 7 and s["counts"]["volume"] == 13
+        assert s["counts"]["quotes"] == 4 + beats + 1 == len(lines) - 8
+        assert s["scid"]["records"] == 7                         # only [08:30, 15:00) CT was read
+        assert s["dropped"]["crossed_or_locked"] == 1 and s["dropped"]["trades_unknown_side"] == 0
+        assert s["gaps_over_1s"]["count"] == 1 and s["gaps_over_1s"]["intervals_s"] == [[1.3, 3.5]]
+        assert s["trades_outside_quote"]["count"] == 1 and s["trades_outside_quote"]["above_ask"] == 1
+        assert s["counts"]["trades_book_stale"] == 3  # > 1 s after the last book event: 0.2 s (the pre-open snapshot), 2.5, 2.6
+        assert s["span"]["start_ct"] == "08:30:00.000" and s["span"]["end_ct"] == "15:00:00.000" and s["rth_missing_seconds"] == 0
+        assert s["padded_close"] is True and s["time_unit"] == "s" and s["role"] == "dev" and s["batching"] == "flags"
+        assert s["t0_unix"] == int(__import__("datetime").datetime.fromisoformat(OPEN_UTC[day]).timestamp())
+        side[day] = s
+    a, b = side["2026-09-14"], side["2026-11-03"]
+    assert a["csv_sha256"] == b["csv_sha256"]
+    assert (a["utc_offset_hours"], b["utc_offset_hours"]) == (-5, -6)
+    assert a["contract"] == "ESU26" and b["contract"] == "ESZ26"
+
+
+def test_converter_batching_fallback_and_empty_tape(tmp_path):
+    """Without end-of-batch flags the converter batches by timestamp (same tape here) and says so; a book that
+    changes almost never against many depth events is refused (exit 3, nothing written)."""
+    ref, d0, _ = _convert("2026-11-03", tmp_path / "ref")
+    p, d, _ = _convert("2026-11-03", tmp_path / "noflags", flags=False)
+    assert ref.returncode == 0 and p.returncode == 0, p.stderr
+    s = json.loads((d / "ticks.json").read_text(encoding="utf-8"))
+    assert s["batching"].startswith("timestamp (fallback")
+    assert s["csv_sha256"] == json.loads((d0 / "ticks.json").read_text(encoding="utf-8"))["csv_sha256"]
+    p, d, _ = _convert("2026-11-03", tmp_path / "flat", beat_changes=False)
+    assert p.returncode == 3 and "implausibly few quotes" in p.stderr, p.stderr
+    assert not (d / "ticks.csv").exists() and not (d / "ticks.json").exists() and not (d / "ticks.csv.part").exists()
+
+
+def test_converter_refuses_test_confirm_and_excluded_days(tmp_path):
+    orch = ("--i-am-the-orchestrator",)
+    for day, extra in (("2026-09-08", ()), ("2026-11-12", ()), ("2026-11-04", ()), ("2026-11-05", ("--role-ok", "confirm", *orch)),
+                       ("2026-10-01", ()), ("2026-09-08", ("--role-ok", "test")), ("2026-11-12", ("--role-ok", "confirm")),
+                       ("2026-11-03", ("--role-ok", "test"))):
+        out = tmp_path / "out"
+        p = subprocess.run([sys.executable, str(TOOL), day, "--depth-dir", str(tmp_path / "none"), "--scid-dir", str(tmp_path / "none"),
+                            "--out-dir", str(out), *extra], capture_output=True, text=True, timeout=120)
+        assert p.returncode == 2 and "refused" in p.stderr, (day, p.stderr)
+        assert not out.exists()
+
+
+# ---------------------------------------------------------------- the replay (fresh scorer processes)
+def _q(t, bid, ask, bs=10, asz=10):
+    return f"Q,{t:.6f},{bid:.2f},{ask:.2f}," + ",".join([str(bs)] * 5) + "," + ",".join([str(asz)] * 5) + "\n"
+
+
+REPLAY_PRELUDE = """
+import sys
+sys.path.insert(0, sys.argv[2])
+from ragrl import score_real
+R.open_sealed("real", "pytest synthetic tape")
+tape = R.TickTape.from_csv(sys.argv[1], time_unit="s")
+p = R.ReplayParams(decide_seconds=1.0, window_seconds=10.0, warmup_seconds=2.0, latency_buckets=1, fee_dollars=1.25)
+assert score_real.windows_on_tape(tape, p) == 1 == R.VecReplayEnv(tape, p, [0]).windows_on_tape, tape.size
+def scripted(actions):
+    env = R.VecReplayEnv(tape, p, [0])
+    env.reset()
+    total = 0.0
+    for a in actions:
+        _, r, d = env.step(np.array([a], dtype=np.int64))
+        total += float(r[0])
+    assert d[0]
+    st = env.episode_stats
+    return round(float(st["net_pnl_ticks"][0]), 9), int(st["orders"][0]), round(float(st["fees_ticks"][0]), 9), round(total, 9)
+"""
+
+
+def test_replay_known_pnl(tmp_path, run_fresh):
+    """Long 1 at 100.25, sell 2 at 100.75 (short 1), cover at 100.50: +2 + 1 ticks, 4 lots x $1.25 = 0.4 ticks of fees."""
+    k = [0, 2, 4, 3, 1, 1, 0, 0, 0, 0]  # the bid in ticks above 100.00 from second s + 0.05 (bucket 20 + 10 s)
+    csv = _q(0.0, 100.0, 100.25) + "".join(_q(2.05 + s, 100 + 0.25 * k[s], 100.25 + 0.25 * k[s]) for s in range(10))
+    csv += _q(12.15, 100 + 0.25 * k[9], 100.25 + 0.25 * k[9])
+    (tmp_path / "t.csv").write_text(csv)
+    out = run_fresh(REPLAY_PRELUDE + """
+print("RES", scripted([2, 2, 2, 0, 0, 1, 1, 1, 1, 1]))
+r = score_real.play(score_real.Flat(), tape, p, [0]); print("FLAT", float(r["net_pnl_ticks"][0]), float(r["orders"][0]))
+""", str(tmp_path / "t.csv"), str(PYDIR))
+    assert "RES (2.6, 3, 0.4, 2.6)" in out, out
+    assert "FLAT 0.0 0.0" in out, out
+
+
+def test_no_lookahead_fill_is_one_bucket_after_the_decision(tmp_path, run_fresh):
+    """The decision sees bucket 19 (ask 100.25); the fill must use bucket 20's end quote (ask 101.00), not
+    bucket 19's (lookahead-free but stale: +6 ticks) or bucket 21's (ask 102.00: -1 tick). Exit at 101.75."""
+    csv = _q(0.0, 100.0, 100.25) + _q(2.05, 100.75, 101.0) + _q(2.15, 101.75, 102.0) + _q(12.15, 101.75, 102.0)
+    (tmp_path / "t.csv").write_text(csv)
+    out = run_fresh(REPLAY_PRELUDE + """
+print("RES", scripted([2] * 10))
+""", str(tmp_path / "t.csv"), str(PYDIR))
+    assert "RES (2.8, 2, 0.2, 2.8)" in out, out
+
+
+def test_imbalance_rule_and_baselines_on_a_flat_book(tmp_path, run_fresh):
+    """Bid size 30 > ask size 10 all day, prices fixed: the L1 rule goes long, flat, long, ... (5 round trips of
+    1 tick of spread + 0.2 ticks of fees); flat and delta30 (no trades: no delta) never trade."""
+    csv = _q(0.0, 100.0, 100.25, 30, 10) + _q(12.15, 100.0, 100.25, 30, 10)
+    (tmp_path / "t.csv").write_text(csv)
+    out = run_fresh(REPLAY_PRELUDE + """
+for name, pol in score_real.baselines().items():
+    r = score_real.play(pol, tape, p, [0])
+    print("BL", name, round(float(r["net_pnl_ticks"][0]), 9), int(r["orders"][0]))
+""", str(tmp_path / "t.csv"), str(PYDIR))
+    assert "BL imbalance_l1 -6.0 10" in out, out
+    assert "BL flat 0.0 0" in out and "BL delta30 0.0 0" in out, out
+
+
+# ---------------------------------------------------------------- manifest roles in the usage ledger
+def _tiny_manifest(tmp):
+    m = json.loads((REPO / "experiments" / "configs" / "of16_real_manifest.json").read_text(encoding="utf-8"))
+    m["export_dir"] = str(tmp / "exports")
+    m["days"] = [
+        {"date": "2030-01-07", "contract": "ESH30", "depth": "x.depth", "scid": "x.scid", "rth": "full", "role": "dev", "subset": "jan", "notes": ""},
+        {"date": "2030-01-08", "contract": "ESH30", "depth": "x.depth", "scid": "x.scid", "rth": "full", "role": "test", "subset": "jan", "notes": ""},
+        {"date": "2030-01-09", "contract": "ESH30", "depth": "x.depth", "scid": "x.scid", "rth": "none", "role": "excluded", "subset": "jan", "notes": ""},
+    ]
+    m["confirm_rule"].update({"from": "2030-02-01", "contracts": [{"contract": "ESH30", "from": "2030-02-01", "to": "2030-03-01"}]})
+    mp = tmp / "manifest.json"
+    mp.write_text(json.dumps(m, indent=1), encoding="utf-8")
+    csv = _q(0.0, 100.0, 100.25) + "T,0.500000,100.25,1,B\n" + _q(30.0, 100.0, 100.25)
+    from ragrl import real
+    for day in ("2030-01-07", "2030-01-08", "2030-01-09", "2030-02-03", "2030-02-04", "2030-02-05", "2030-02-06", "2030-02-07"):
+        d = tmp / "exports" / day
+        d.mkdir(parents=True)
+        (d / "ticks.csv").write_bytes(csv.encode())
+        (d / "ticks.json").write_text(json.dumps({
+            "date": day, "contract": "ESH30", "csv_sha256": hashlib.sha256(csv.encode()).hexdigest(), "rth_missing_seconds": 0,
+            "span": {"start_s": 0.0}, "line_gaps_over_1s": {"max_s": 29.5}, "time_unit": "s", "t0_unix": real.rth_span(day, m)[0],
+            "gaps_over_1s": {"intervals_s": [[100.0, 200.0]] if day == "2030-02-03" else []}}), encoding="utf-8")
+    return mp
+
+
+LEDGER_SCRIPT = """
+import json, os, sys
+os.environ["RAGRL_LEDGER_FILE"] = sys.argv[3]
+sys.path.insert(0, sys.argv[4])
+from ragrl import ledger, real
+man, root, action = sys.argv[1], sys.argv[2], sys.argv[5]
+kw = dict(manifest=man, root=root)
+def attempt(fn):
+    try:
+        t = fn()
+        print("OPENED", sorted(t), R.process_role(), [x[0].size for x in t.values()])
+    except (PermissionError, RuntimeError, FileNotFoundError, ValueError) as e:
+        print("REFUSED", type(e).__name__, str(e)[:300], "open" if R.is_open("real") else "closed")
+run_name = os.environ.get("RUN_NAME", "runA")
+test = lambda: real.open_tapes("test", run=run_name, config_sha256="c0ffee", **kw)
+if action == "dev":
+    attempt(lambda: real.open_tapes("dev", **kw))
+elif action == "test":
+    attempt(test)
+elif action == "test_after_trainer":
+    ledger.as_trainer(); attempt(test)
+elif action == "test_after_validation":
+    R.run_builtin(R.ScalpParams("default", 150.0, episode_seconds=10.0), R.EpisodeSource.block("validation", 0, 1), "flat", threads=1)
+    attempt(test)
+elif action == "test_after_dev":
+    real.open_tapes("dev", **kw); attempt(test)
+elif action == "test_no_run":
+    attempt(lambda: real.open_tapes("test", **kw))
+elif action == "test_wrong_role":
+    attempt(lambda: real.open_tapes("test", days=["2030-01-07"], run="runA", config_sha256="c0ffee", **kw))
+elif action == "excluded":
+    attempt(lambda: real.open_tapes("excluded", **kw))
+elif action == "confirm_no_orchestrator":
+    attempt(lambda: real.open_tapes("confirm", claim="c1", count=1, **kw))
+elif action == "confirm_no_claim":
+    attempt(lambda: real.open_tapes("confirm", orchestrator=True, count=1, **kw))
+elif action == "dev_then_unopened_tape":
+    real.open_tapes("dev", **kw)
+    attempt(lambda: {"x": (real.load_tape(os.path.join(root, "2030-01-08", "ticks.csv")), None)})
+elif action == "buckets":
+    t = real.open_tapes("dev", **kw)
+    tape, side = t["2030-01-07"]
+    b = real.load_buckets(side["csv"])
+    print("BUCKETS", len(b["bid"]), tape.size, int(b["bid"][0]), int(b["ask"][-1]), int(b["b1"][3]), int(b["buy"].sum()),
+          int(np.nonzero(b["buy"])[0][0]))
+    attempt(lambda: {"x": (real.load_buckets(os.path.join(root, "2030-01-08", "ticks.csv")), None)})
+elif action == "unopened_tape":
+    attempt(lambda: {"x": (real.load_tape(os.path.join(root, "2030-01-07", "ticks.csv")), None)})
+elif action.startswith("confirm_"):
+    claim = action.split("_")[1]
+    days = [sys.argv[6]] if len(sys.argv) > 6 else None
+    attempt(lambda: real.open_tapes("confirm", claim=claim, orchestrator=True, count=1, days=days, **kw))
+"""
+
+
+def test_real_tapes_by_role_and_ledger(tmp_path, run_fresh):
+    from ragrl import real
+    mp = _tiny_manifest(tmp_path)
+    ledger_file = tmp_path / "ledger_usage.jsonl"
+    root = tmp_path / "exports"
+
+    def go(action, *extra, manifest=mp, run="runA"):
+        import os
+        os.environ["RUN_NAME"] = run
+        try:
+            return run_fresh(LEDGER_SCRIPT, str(manifest), str(root), str(ledger_file), str(PYDIR), action, *extra)
+        finally:
+            os.environ.pop("RUN_NAME", None)
+
+    def entries(block):
+        if not ledger_file.exists():
+            return []
+        return [json.loads(l) for l in ledger_file.read_text(encoding="utf-8").splitlines() if json.loads(l)["block"] == block]
+
+    sha = real.manifest_sha256(mp)
+    # the Python bucket view of a tape: TickTape's bucket count, the trade in bucket 5 (t = 0.5 s); unopened tapes refused
+    out = go("buckets")
+    assert "BUCKETS 300 300 400 401 10 1 5" in out and "REFUSED PermissionError" in out, out
+    # dev: free, twice, logged for the audit only; the process ends up a scorer
+    for _ in range(2):
+        assert "OPENED ['2030-01-07'] scorer [300]" in go("dev")
+    assert len(entries("real_dev")) == 3
+    # test: never in a trainer, after a validation environment, or after dev tapes in the same process
+    for a in ("test_after_trainer", "test_after_validation", "test_after_dev", "test_no_run", "test_wrong_role", "excluded"):
+        out = go(a)
+        assert "REFUSED" in out and "OPENED" not in out, (a, out)
+    assert "closed" in go("test_after_trainer") and entries("real_test") == []
+    # a fresh scorer: opened and logged once with the manifest sha256, run and config hash
+    out = go("test")
+    assert "OPENED ['2030-01-08'] scorer [300]" in out, out
+    (e,) = entries("real_test")
+    assert (e["run"], e["config_sha256"], e["manifest_sha256"], e["days"]) == ("runA", "c0ffee", sha, ["2030-01-08"])
+    assert e["tapes"]["2030-01-08"] == hashlib.sha256((root / "2030-01-08" / "ticks.csv").read_bytes()).hexdigest()
+    # the same experiment again: refused, whether the run is renamed / copied or the manifest edited; still one entry
+    m2 = tmp_path / "manifest_edited.json"
+    m2.write_text(mp.read_text(encoding="utf-8").replace('"written": "2026-11-12"', '"written": "2026-11-13"'), encoding="utf-8")
+    assert real.manifest_sha256(m2) != sha
+    for kw in ({}, {"run": "runA_copy"}, {"manifest": m2}, {"run": "runB", "manifest": m2}):
+        out = go("test", **kw)
+        assert "REFUSED PermissionError" in out and "once per experiment" in out and "closed" in out, (kw, out)
+    assert len(entries("real_test")) == 1
+    # tapes load only from this process's opening: never an unopened day, never without an opening
+    for a in ("dev_then_unopened_tape", "unopened_tape"):
+        out = go(a)
+        assert "REFUSED PermissionError" in out and "not a tape opened in this process" in out, (a, out)
+    # confirm: the orchestrator's claim, once per claim, never the same day twice
+    assert "REFUSED" in go("confirm_no_orchestrator") and "REFUSED" in go("confirm_no_claim")
+    assert "OPENED ['2030-02-04'] scorer" in go("confirm_c1")  # 02-03 has a 100 s book outage: not a confirm day
+    assert "REFUSED" in go("confirm_c1")                       # the claim was used
+    assert "OPENED ['2030-02-05'] scorer" in go("confirm_c2")  # the next unused confirm day
+    assert "REFUSED" in go("confirm_c3", "2030-02-04")        # a day an earlier confirmation used
+    assert "REFUSED" in go("confirm_c4", "2030-02-07")        # unused, but not the next due day (02-06)
+    assert "REFUSED" in go("confirm_c4", "2030-02-03")        # the outage day
+    assert "OPENED ['2030-02-06'] scorer" in go("confirm_c4", "2030-02-06")
+    assert [x["claim"] for x in entries("real_confirm")] == ["c1", "c2", "c4"]
+    # a sidecar with the wrong time unit or origin is refused before anything is opened
+    sc = root / "2030-01-07" / "ticks.json"
+    good = sc.read_text(encoding="utf-8")
+    for key, bad in (("time_unit", "ns"), ("t0_unix", 0)):
+        sc.write_text(json.dumps({**json.loads(good), key: bad}), encoding="utf-8")
+        out = go("dev")
+        assert "REFUSED RuntimeError" in out and key in out and "closed" in out, (key, out)
+    sc.write_text(good, encoding="utf-8")
+    # a changed export is refused before anything is opened
+    with open(root / "2030-01-07" / "ticks.csv", "ab") as f:
+        f.write(b"T,40.000000,100.25,1,B\n")
+    out = go("dev")
+    assert "REFUSED RuntimeError" in out and "sha256" in out and "closed" in out, out
+
+
+# ---------------------------------------------------------------- score-real end to end (synthetic dev days)
+def _random_tape(seed: int, seconds: float = 2300.0) -> str:
+    rng = np.random.default_rng(seed)
+    out, bid = [], 4000.0
+    for i in range(int(seconds * 10)):
+        t = i * 0.1
+        if rng.random() < 0.3:
+            bid += 0.25 * rng.choice([-1, 1])
+        for _ in range(rng.poisson(1.5)):
+            buy = rng.random() < 0.5
+            out.append(f"T,{t + 0.01:.6f},{bid + 0.25 if buy else bid:.2f},{1 + rng.poisson(2)},{'B' if buy else 'S'}\n")
+        sizes = [str(5 + rng.poisson(20)) for _ in range(10)]
+        out.append(f"Q,{t + 0.05:.6f},{bid:.2f},{bid + 0.25:.2f}," + ",".join(sizes) + "\n")
+    return "".join(out)
+
+
+@pytest.mark.smoke
+def test_score_real_dev_end_to_end(tmp_path):
+    """`ragrl score-real` on a copy of a sealed OF15 run with two synthetic dev days: results under RUN/real/,
+    sealed.json untouched, every policy and both blocks (base, stress), the day bootstrap and the subsets."""
+    import os
+    import shutil
+    runs = sorted((REPO / "build-avx512" / "rl" / "runs").glob("of15_ppo_v4-*"))
+    runs = [r for r in runs if (r / "sealed.json").exists()]
+    if not runs:
+        pytest.skip("no sealed of15_ppo_v4 run on this machine")
+    run = tmp_path / runs[0].name
+    shutil.copytree(runs[0], run, ignore=shutil.ignore_patterns("live.jsonl", "recheck", "*.npz"))
+    sealed_sha = hashlib.sha256((run / "sealed.json").read_bytes()).hexdigest()
+    m = json.loads((REPO / "experiments" / "configs" / "of16_real_manifest.json").read_text(encoding="utf-8"))
+    m["days"] = [{"date": d, "contract": "ESH30", "depth": "x", "scid": "x", "rth": "full", "role": "dev", "subset": s, "notes": ""}
+                 for d, s in (("2030-01-07", "sep"), ("2030-01-08", "nov"))]
+    m["confirm_rule"]["from"] = "2030-02-01"
+    mp = tmp_path / "manifest.json"
+    mp.write_text(json.dumps(m), encoding="utf-8")
+    root = tmp_path / "exports"
+    from ragrl import real
+    for i, d in enumerate(("2030-01-07", "2030-01-08")):
+        csv = _random_tape(i).encode()
+        (root / d).mkdir(parents=True)
+        (root / d / "ticks.csv").write_bytes(csv)
+        (root / d / "ticks.json").write_text(json.dumps({"date": d, "contract": "ESH30", "csv_sha256": hashlib.sha256(csv).hexdigest(),
+                                                         "span": {"start_s": 0.05}, "rth_missing_seconds": 0, "time_unit": "s",
+                                                         "t0_unix": real.rth_span(d, m)[0],
+                                                         "gaps_over_1s": {"intervals_s": []}, "line_gaps_over_1s": {"max_s": 0.1}}))
+    env = {**os.environ, "PYTHONPATH": str(PYDIR), "RAGRL_REAL_DIR": str(root), "RAGRL_LEDGER_FILE": str(tmp_path / "ledger.jsonl"),
+           "PYTHONIOENCODING": "utf-8"}
+    p = subprocess.run([sys.executable, "-m", "ragrl", "score-real", str(run), "--days", "dev", "--manifest", str(mp), "--stress",
+                        "--allow-env-change"], capture_output=True, text=True, timeout=1800, env=env)
+    assert p.returncode == 0, p.stdout + p.stderr
+    assert "dev: not a score" in p.stdout
+    (out,) = sorted((run / "real").glob("dev-*"))
+    r = json.loads((out / "results.json").read_text(encoding="utf-8"))
+    assert r["status"] == "DEV_NOT_A_SCORE" == (out / "STATUS").read_text().strip() and r["note"] == "dev: not a score"
+    assert hashlib.sha256((run / "sealed.json").read_bytes()).hexdigest() == sealed_sha
+    names = {*(f"seed{s}" for s in range(1, 13)), "ensemble", "mean_of_seeds", "flat", "delta30", "imbalance_l1"}
+    for b, lat, fee in (("base", 1, 1.5), ("stress", 3, 3.0)):
+        B = r["blocks"][b]
+        assert B["params"]["latency_buckets"] == lat and B["params"]["fee_dollars"] == fee and B["params"]["warmup_seconds"] == 1050
+        assert (out / f"windows_{b}.npz").exists()
+        assert B["windows"] == 4 and set(B["summary"]) == names and B["summary"]["flat"]["mean"] == 0
+        assert B["day_bootstrap"]["ensemble"]["days"] == 2 and set(B["paired"]) == {"flat", "delta30"}
+        assert {k: v["windows"] for k, v in B["subsets"].items()} == {"sep": 2, "nov": 2}
+    assert [e["block"] for e in map(json.loads, (tmp_path / "ledger.jsonl").read_text().splitlines())] == ["real_dev"]
+
+
+# ---------------------------------------------------------------- recorded tapes load only through real.py
+# These test files load synthetic tapes (or check a refusal) with the binding directly; nothing else may.
+DIRECT_TAPE_TESTS = {"test_bit_identity.py": "refdump's synthetic tape", "test_real.py": "synthetic tapes",
+                     "test_ledger.py": "open_sealed('real') refused after forbid_sealed (no tape)"}
+
+
+def test_tapes_load_only_through_real_py():
+    pats = ("TickTape.from_csv", 'open_sealed("real"', "open_sealed('real'")
+    files = [*(REPO / "python").rglob("*.py"), *(REPO / "tools").rglob("*.py"), *(REPO / "experiments").rglob("*.py")]
+    bad = []
+    for f in files:
+        rel = f.relative_to(REPO).as_posix()
+        if rel in ("python/ragrl/real.py", "python/ragrl/ledger.py") or (rel.startswith("python/tests/") and f.name in DIRECT_TAPE_TESTS):
+            continue
+        if any(p in f.read_text(encoding="utf-8", errors="replace") for p in pats):
+            bad.append(rel)
+    assert not bad, bad
+
+
+# ---------------------------------------------------------------- every zoo agent through the score-real policy path
+ZOO_SCRIPT = """
+import os, sys
+from pathlib import Path
+os.environ["RAGRL_LEDGER_FILE"] = sys.argv[4]
+import ragrl
+import numpy as np
+from ragrl import real, registry, runner, score_real
+run = Path(sys.argv[1])
+runner.use_run_module(run)
+cfg = registry.read_json(run / "config.json")
+warm = score_real.check_episodes(cfg["env"], real.load_manifest(sys.argv[2]))
+allp = runner.learned_policies(run, cfg)
+s0 = "seed%d" % cfg["train"]["seeds"][0]
+pols = {s0: allp[s0], "ensemble": allp["ensemble"]}
+score_real.check_policies({**pols, **score_real.baselines()})
+tapes = real.open_tapes("dev", manifest=sys.argv[2], root=sys.argv[3])
+res, labels, ex = score_real.play_days(pols, tapes, score_real.replay_params(warm))
+ok = all(np.isfinite(v["net_pnl_ticks"]).all() and len(v["orders"]) == len(labels) for v in res.values())
+print("ZOO", cfg["agent"]["kind"], len(labels), ok, {k: float(v["orders"].mean()) for k, v in res.items()})
+"""
+
+
+@pytest.mark.smoke
+def test_every_zoo_agent_plays_through_score_real(tmp_path):
+    """One sealed OF15 run per agent kind: its first seed and its ensemble are dry-run (check_policies) and then
+    play a synthetic dev day through real.open_tapes + score_real.play_days, in a process importing RUN/bin."""
+    import os
+
+    from ragrl import real
+    kinds = {}
+    for r in sorted((REPO / "build-avx512" / "rl" / "runs").glob("of15_*")):
+        if (r / "sealed.json").exists():
+            kinds[json.loads((r / "config.json").read_text(encoding="utf-8"))["agent"]["kind"]] = r
+    if not kinds:
+        pytest.skip("no sealed OF15 runs on this machine")
+    m = json.loads((REPO / "experiments" / "configs" / "of16_real_manifest.json").read_text(encoding="utf-8"))
+    m["days"] = [{"date": "2030-01-07", "contract": "ESH30", "depth": "x", "scid": "x", "rth": "full", "role": "dev", "subset": "jan",
+                  "notes": ""}]
+    m["confirm_rule"]["from"] = "2030-02-01"
+    mp = tmp_path / "manifest.json"
+    mp.write_text(json.dumps(m), encoding="utf-8")
+    root = tmp_path / "exports"
+    csv = _random_tape(7).encode()
+    (root / "2030-01-07").mkdir(parents=True)
+    (root / "2030-01-07" / "ticks.csv").write_bytes(csv)
+    (root / "2030-01-07" / "ticks.json").write_text(json.dumps({
+        "date": "2030-01-07", "contract": "ESH30", "csv_sha256": hashlib.sha256(csv).hexdigest(), "span": {"start_s": 0.05},
+        "rth_missing_seconds": 0, "time_unit": "s", "t0_unix": real.rth_span("2030-01-07", m)[0],
+        "gaps_over_1s": {"intervals_s": []}, "line_gaps_over_1s": {"max_s": 0.1}}))
+    env = {k: v for k, v in os.environ.items() if k != "RAGOF_DIR"}
+    env.update({"PYTHONPATH": str(PYDIR), "PYTHONIOENCODING": "utf-8", "OMP_NUM_THREADS": "1", "MKL_NUM_THREADS": "1"})
+    from ragrl.agents import ZOO
+    assert set(kinds) == set(ZOO), set(ZOO) - set(kinds)
+    for kind, run in sorted(kinds.items()):
+        p = subprocess.run([sys.executable, "-c", ZOO_SCRIPT, str(run), str(mp), str(root), str(tmp_path / f"ledger_{kind}.jsonl")],
+                           capture_output=True, text=True, timeout=900, env=env)
+        assert p.returncode == 0, (kind, p.stdout[-2000:], p.stderr[-3000:])
+        assert f"ZOO {kind} 2 True" in p.stdout, (kind, p.stdout)
 
 ```
 

@@ -179,8 +179,9 @@
 
 0. **ES order-flow trading** (the current focus): the ranked plan is in
    `ORDERFLOW.md` §7. After OF15 (no RL edge on either simulator, through
-   a leak-proof pipeline): real-tick replay (`VecReplayEnv`) and richer
-   simulator realism, the heap crash once WMI is
+   a leak-proof pipeline): OF16 phase 2, scoring the 16 OF15 runs once on
+   8 real ES test days (phase 1, plumbing and dev diagnostics, is done;
+   `OF16_REAL_ES_PLAN.md`), and richer simulator realism, the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
    at 100 ms latency on fresh seeds.
 

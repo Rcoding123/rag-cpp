@@ -23,7 +23,8 @@ def _raw(name):
 
 def test_configs_resolve_and_round_trip():
     from ragrl import config
-    files = sorted(CONFIGS.glob("*.json")) + sorted((CONFIGS / "smoke").glob("*.json"))
+    # *_manifest.json are data manifests (OF16 day roles), not run configs
+    files = sorted(f for f in CONFIGS.glob("*.json") if not f.name.endswith("_manifest.json")) + sorted((CONFIGS / "smoke").glob("*.json"))
     assert len(files) >= 16
     for f in files:
         c = config.load(f)

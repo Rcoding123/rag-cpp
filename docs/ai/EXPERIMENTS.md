@@ -1924,3 +1924,56 @@ registry: `build-avx512/rl/runs/` (`index.jsonl`); sealed openings:
   holds a 10-minute coin flip; I1 timing gains less than the slippage;
   fading loses). Consistent with OF11–OF14. The next evidence has to come
   from real ticks (`VecReplayEnv` exists) or a more realistic simulator.
+
+## OF16 phase 1. Real ES plumbing and dev-day diagnostics (no score)
+
+`kit.ps1 run of16_regen 'bash experiments/of16_regen.sh'`: exports the
+dev days with `tools/sierra_to_ticks.py` (Sierra `.depth` + `.scid` →
+`tick_csv` T/Q lines, 08:30-15:00 CT, sidecar JSON with checks and the
+csv sha256) into `build-avx512/real/` (gitignored), then runs
+`experiments/of16_dev_diag.py` → `experiments/of16_dev_diagnostics.txt`.
+About 2.5 min single-threaded; the rerun through the kit reproduced the
+file except its wall-time line. The plan, day manifest and decision rule
+are in `OF16_REAL_ES_PLAN.md` (pre-registered, commit 121d48d; amended
+before any test opening: warm-up 1050 s).
+
+* **Built:** the converter; `experiments/configs/of16_real_manifest.json`
+  (day roles); `python/ragrl/real.py` (manifest, CT clock with the explicit
+  US DST rule since this machine has no tz database, tapes opened by role:
+  dev free and logged as `real_dev`, test only in a fresh scorer process,
+  once per config sha256 whatever the run name or manifest, confirm only
+  with the orchestrator claim and only the next due days); `ragrl
+  score-real RUN --days test|dev` (`score_real.py`: the run's ensemble and
+  12 seeds plus flat, delta30 and an L1-imbalance rule on `VecReplayEnv`,
+  paired stats, day-clustered bootstrap, Sep/Nov subsets, stress; every
+  policy is stepped on a dummy batch before the gate opens and each block
+  is written as it finishes); 13 tests in `python/tests/test_real.py`.
+* **Review** (independent reviewer, before any test opening) found the
+  replay warming features up for 150 s while every OF15 agent trained
+  with 1050 s (features ~2x off scale at window start: a false "no edge"
+  by construction), a once-per-run check keyed on the run name (bypassed
+  by renaming), test tapes loadable after any dev opening, and a crash
+  after opening burning the only opening. All fixed (A78); the plan's
+  window count went from ~301 to 292.
+* **Dev days** (diagnostics, not a score): 2026-09-14..17 (ESU26, the
+  expiring back month after the roll: thinner, 1-tick spread 86.8% of
+  buckets vs 94.7% front month, 1-min mid SD 7.2 vs 9.3 ticks) and the one
+  usable window of 2026-11-03 (its book has a 610 s recording outage);
+  149 windows.
+  * **Covariate shift** vs v4 (viz 960,016,000,000+[0,200)): only
+    `imb_l5` (9.3% of real values outside v4's 1-99% range) and `absorb`
+    (6.2%; v4's range is exactly 0) exceed 5%. Setting them to the sim
+    median changes any ensemble's action on <= 0.8% of decisions.
+  * **Baselines** (ticks/window): flat 0 exactly; hold −2.5 ± 2.4; delta30
+    −4.1 ± 2.2 (v4: −5.12); the imbalance rule (enter with the L1
+    imbalance, flat at the next decision) −381.7 at 586 orders/window.
+  * **I1 markout** in the imbalance's direction: real +0.022 / +0.072 /
+    +0.090 ticks at 100 ms / 1 s / 5 s (strongest quintile +0.126 at 1 s),
+    v4 +0.023 / +0.069 / +0.069, against a 1.37-tick real round trip
+    (half-spread 0.57 + fees). v4 reproduces the real signal closely; on
+    real ES it is about a tenth of the cost of trading it.
+  * PPO ensembles (v3 and v4) enter on 100% of flat-state real decisions;
+    the other ensembles on 0-0.4%.
+* **Next:** phase 2 (score the 16 OF15 runs once on the 8 test days)
+  needs the user's go. Expectation from the dev diagnostics: no edge (the
+  one signal the agents use is a tenth of the round-trip cost on real ES).

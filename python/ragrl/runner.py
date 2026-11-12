@@ -23,6 +23,11 @@ import numpy as np
 
 from . import config, ledger, native, redflags, registry, report, stats
 from .agents import ZOO
+
+# Child interpreters: unbuffered, so a crashed worker's log keeps everything it printed, and with
+# faulthandler, so a native crash (access violation, heap corruption) writes the Python stack of
+# every thread to the log before the process dies. Without these, a crash left an empty worker.log.
+PY = [sys.executable, "-X", "faulthandler", "-u"]
 from .envs import indexed_source
 from .evaluate import Builtin, baseline_policies, paired_eval, run_policy, stage_baselines
 from .policies import Ensemble, load_policy
@@ -60,7 +65,7 @@ def spawn_workers(run: Path, cfg: dict, seeds, out_root: Path | None = None, on_
                 sd = (out_root or run / "seeds") / f"seed{k}"
                 sd.mkdir(parents=True, exist_ok=True)
                 log = open(sd / "worker.log", "w", encoding="utf-8")
-                cmd = [sys.executable, "-m", "ragrl", "train", str(run), "--seed", str(k)]
+                cmd = [*PY, "-m", "ragrl", "train", str(run), "--seed", str(k)]
                 if out_root is not None:
                     cmd += ["--out-dir", str(sd)]
                 running[k] = (subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, env=env, cwd=native.REPO), log, sd)
@@ -115,7 +120,7 @@ def run(cfg_path, no_seal: bool = False, root: Path | None = None, reuse_ok: boo
         print(f"recheck seed {rc['seed']}: same actions {rc['same_actions']}, same val {rc['same_val']}", flush=True)
     registry.append_index(run_dir, {"config_sha256": sha, "agent": cfg["agent"]["kind"], "stage": "selected"})
     if not no_seal:
-        cmd = [sys.executable, "-m", "ragrl", "seal", str(run_dir)] + (["--reuse-ok"] if reuse_ok else [])
+        cmd = [*PY, "-m", "ragrl", "seal", str(run_dir)] + (["--reuse-ok"] if reuse_ok else [])
         p = subprocess.run(cmd, env=child_env(run_dir), cwd=native.REPO)
         if p.returncode != 0:
             raise RuntimeError(f"seal failed ({p.returncode})")

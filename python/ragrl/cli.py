@@ -12,6 +12,10 @@
   diag RUN                     hidden-state correlation probe (train block)
   zoo                          the agents and their defaults
   confirm RUN --i-am-the-orchestrator --claim ID   950M+ confirmation (orchestrator only, once per claim)
+  score-real RUN --days test|dev [--latency-buckets N] [--fee-dollars F] [--stress] [--threads T]
+                               OF16: the sealed run on recorded ES (VecReplayEnv), in a fresh process; test days
+                               once per run + manifest (ledger real_test); dev is "dev: not a score".
+                               Results in RUN/real/<days>-<stamp>/, never sealed.json
 """
 import argparse
 import json
@@ -50,12 +54,26 @@ def main(argv=None):
     p.add_argument("--claim", default="")
     p.add_argument("--count", type=int, default=300)
     p.add_argument("--i-am-the-orchestrator", dest="orchestrator", action="store_true")
+    p = sub.add_parser("score-real")
+    p.add_argument("run")
+    p.add_argument("--days", choices=["test", "dev"], required=True)
+    p.add_argument("--latency-buckets", type=int, default=1)
+    p.add_argument("--fee-dollars", type=float, default=1.5)
+    p.add_argument("--stress", action="store_true", help="also latency 3 buckets and $3 per side, in the same opening")
+    p.add_argument("--threads", type=int, default=1)
+    p.add_argument("--manifest")
+    p.add_argument("--allow-env-change", action="store_true")
     a = ap.parse_args(argv)
 
     if a.cmd == "zoo":
         from .agents import ZOO
         for k, s in ZOO.items():
             print(f"{k:16s} n_envs {s.n_envs:3d}  {s.description}\n{'':16s} {json.dumps(s.defaults)}")
+        return 0
+    if a.cmd == "score-real":
+        from . import score_real
+        score_real.score(Path(a.run), a.days, a.latency_buckets, a.fee_dollars, a.stress, a.threads, manifest=a.manifest,
+                         allow_env_change=a.allow_env_change)
         return 0
     from . import runner
     if a.cmd == "run":

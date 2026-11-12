@@ -1,0 +1,75 @@
+{
+  "schema": "of16_real_manifest/1",
+  "plan": "docs/ai/OF16_REAL_ES_PLAN.md (section 2)",
+  "written": "2026-11-12",
+  "note": "The OF16 day manifest: the plan's section 2 table as data. Day roles are pre-registered here; ragrl/real.py records this file's sha256 in every test or confirm opening (ledger_usage.jsonl). Exports never enter the repo: tools/sierra_to_ticks.py writes EXPORT_DIR/<date>/ticks.csv and a ticks.json sidecar holding the CSV's sha256, which real.py verifies before a tape is opened.",
+  "rth": {
+    "open": "08:30",
+    "close": "15:00",
+    "tz": "America/Chicago",
+    "dst": "CDT (UTC-5) before 2026-11-01, CST (UTC-6) from 2026-11-01; US rule: second Sunday of March 02:00 to the first Sunday of November 02:00 local"
+  },
+  "data": {
+    "depth_dir": "C:/SierraChart/Data/MarketDepthData",
+    "scid_dir": "C:/SierraChart/Data",
+    "depth_record": "<qBBHfII (24 bytes, 64-byte header): Sierra time (us since 1899-12-30 UTC), command 1-7, flags (1 = end of batch), orders, price x100, quantity, reserved",
+    "scid_record": "<q4f4I (40 bytes, 56-byte header): Sierra time, open (sub-trade marker), high = ask, low = bid, close = trade price (prices x100), trades, volume, bid volume (sell aggressor), ask volume (buy aggressor)"
+  },
+  "export_dir": "build-avx512/real",
+  "episodes": {
+    "bucket_seconds": 0.1,
+    "warmup_seconds": 1050,
+    "window_seconds": 600,
+    "decide_seconds": 1,
+    "note": "ReplayScalpEnv: the tape starts at 08:30 CT (or the first valid book after it); window k is played after a 1050 s feature warm-up on the tape from k x 600 s (the warm-up every OF15 run trained with, env.warmup_seconds; score-real refuses a run whose warm-up, decision step or episode length differ). windows = (buckets - 10500) // 6000 at 100 ms: 37 per full day (234000 buckets), 33 on 2026-11-09 (book from ~09:03 CT: any start before 09:12:30 gives 33), 292 test windows in all. Amended 2026-11-12 before any test opening (was 150 s: 38 per day, ~301); see the plan's section 2 amendment"
+  },
+  "front_month": "by RTH volume (OF13): ESU26 through 2026-09-11, ESZ26 from 2026-09-14. Days on the expiring back month, and any day whose front month is not the recorded contract, never count as test days.",
+  "days": [
+    {"date": "2026-09-07", "contract": "ESU26", "depth": "ESU26_FUT_CME.2026-09-07.depth", "scid": "ESU26_FUT_CME.scid", "rth": "partial", "role": "excluded", "subset": "sep",
+     "notes": "Labor Day session"},
+    {"date": "2026-09-08", "contract": "ESU26", "depth": "ESU26_FUT_CME.2026-09-08.depth", "scid": "ESU26_FUT_CME.scid", "rth": "full", "role": "test", "subset": "sep",
+     "notes": "full front-month session; its 1-min and 1-s aggregates were 1 of 224 days in OF12/OF13 calibration (statistics only, no agent selection)"},
+    {"date": "2026-09-09", "contract": "ESU26", "depth": "ESU26_FUT_CME.2026-09-09.depth", "scid": "ESU26_FUT_CME.scid", "rth": "full", "role": "test", "subset": "sep",
+     "notes": "full front-month session; in OF12/OF13 calibration aggregates (statistics only)"},
+    {"date": "2026-09-10", "contract": "ESU26", "depth": "ESU26_FUT_CME.2026-09-10.depth", "scid": "ESU26_FUT_CME.scid", "rth": "full", "role": "test", "subset": "sep",
+     "notes": "full front-month session; in OF12/OF13 calibration aggregates (statistics only)"},
+    {"date": "2026-09-11", "contract": "ESU26", "depth": "ESU26_FUT_CME.2026-09-11.depth", "scid": "ESU26_FUT_CME.scid", "rth": "full", "role": "test", "subset": "sep",
+     "notes": "full front-month session; in OF12/OF13 calibration aggregates (statistics only)"},
+    {"date": "2026-09-14", "contract": "ESU26", "depth": "ESU26_FUT_CME.2026-09-14.depth", "scid": "ESU26_FUT_CME.scid", "rth": "full", "role": "dev", "subset": "sep",
+     "notes": "expiring back month after the roll: thinner market, not representative; plumbing and thin-market stress"},
+    {"date": "2026-09-15", "contract": "ESU26", "depth": "ESU26_FUT_CME.2026-09-15.depth", "scid": "ESU26_FUT_CME.scid", "rth": "full", "role": "dev", "subset": "sep",
+     "notes": "expiring back month (dev)"},
+    {"date": "2026-09-16", "contract": "ESU26", "depth": "ESU26_FUT_CME.2026-09-16.depth", "scid": "ESU26_FUT_CME.scid", "rth": "full", "role": "dev", "subset": "sep",
+     "notes": "expiring back month (dev)"},
+    {"date": "2026-09-17", "contract": "ESU26", "depth": "ESU26_FUT_CME.2026-09-17.depth", "scid": "ESU26_FUT_CME.scid", "rth": "full", "role": "dev", "subset": "sep",
+     "notes": "expiring back month (dev)"},
+    {"date": "2026-09-18", "contract": "ESU26", "depth": "ESU26_FUT_CME.2026-09-18.depth", "scid": "ESU26_FUT_CME.scid", "rth": "none", "role": "excluded", "subset": "sep",
+     "notes": "no usable RTH (none or a few minutes)"},
+    {"date": "2026-11-03", "contract": "ESZ26", "depth": "ESZ26_FUT_CME.2026-11-03.depth", "scid": "ESZ26_FUT_CME.scid", "rth": "08:30-09:14", "role": "dev", "subset": "nov",
+     "notes": "OF12/OF13's real reference: already viewed"},
+    {"date": "2026-11-04", "contract": "ESZ26", "depth": "ESZ26_FUT_CME.2026-11-04.depth", "scid": "ESZ26_FUT_CME.scid", "rth": "none", "role": "excluded", "subset": "nov",
+     "notes": "no usable RTH (none or a few minutes)"},
+    {"date": "2026-11-05", "contract": "ESZ26", "depth": "ESZ26_FUT_CME.2026-11-05.depth", "scid": "ESZ26_FUT_CME.scid", "rth": "full", "role": "test", "subset": "nov",
+     "notes": "never used for anything; its ETH book was read by OF13, its RTH was not"},
+    {"date": "2026-11-06", "contract": "ESZ26", "depth": "ESZ26_FUT_CME.2026-11-06.depth", "scid": "ESZ26_FUT_CME.scid", "rth": "none", "role": "excluded", "subset": "nov",
+     "notes": "no usable RTH (none or a few minutes)"},
+    {"date": "2026-11-09", "contract": "ESZ26", "depth": "ESZ26_FUT_CME.2026-11-09.depth", "scid": "ESZ26_FUT_CME.scid", "rth": "09:03-15:00", "role": "test", "subset": "nov",
+     "notes": "partial session: only the windows that fit (33 with the 1050 s warm-up)"},
+    {"date": "2026-11-10", "contract": "ESZ26", "depth": "ESZ26_FUT_CME.2026-11-10.depth", "scid": "ESZ26_FUT_CME.scid", "rth": "full", "role": "test", "subset": "nov",
+     "notes": "never used for anything"},
+    {"date": "2026-11-11", "contract": "ESZ26", "depth": "ESZ26_FUT_CME.2026-11-11.depth", "scid": "ESZ26_FUT_CME.scid", "rth": "full", "role": "test", "subset": "nov",
+     "notes": "never used for anything"}
+  ],
+  "confirm_rule": {
+    "role": "confirm",
+    "from": "2026-11-12",
+    "rule": "every full front-month RTH day from 2026-11-12 on (recorded after this plan was committed): the analogue of 950M+, opened once per orchestrator claim; confirmations never share days",
+    "full_rth_max_missing_seconds": 60,
+    "contracts": [
+      {"contract": "ESZ26", "from": "2026-11-12", "to": "2026-12-09"},
+      {"contract": "ESH27", "from": "2026-12-10", "to": "2027-03-10"}
+    ],
+    "contracts_note": "provisional: CME roll dates (8 days before the third-Friday expiry). The front month is checked by RTH volume (OF13) before a confirm day is exported; an expiring back month never counts",
+    "subset": "confirm"
+  }
+}

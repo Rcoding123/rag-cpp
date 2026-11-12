@@ -22,6 +22,7 @@ docs/ai/EXPERIMENTS.md
 docs/ai/LESSONS.md
 docs/ai/NEXT_SESSION.md
 docs/ai/OBJECTIVES.md
+docs/ai/OF16_REAL_ES_PLAN.md
 docs/ai/ORDERFLOW.md
 docs/ai/PROJECT_MAP.md
 docs/ai/RAG_ENGINE.md
@@ -2340,7 +2341,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (17,305 bytes)
+## FILE: docs/ai/LESSONS.md  (17,843 bytes)
 
 # Lessons, distilled
 
@@ -2619,6 +2620,14 @@ building learning systems in general, not just this task.
     DIR/index.html, so serving the zoo replays (`build-avx512/zoo`) with
     it replaces their index page; serve static output with a plain static
     server (`python -m http.server`, the `of-zoo` launch entry) (OF15).
+55. **Score a policy in the conditions it was trained in, down to the
+    feature warm-up.** The first real-data scorer warmed the features up
+    for 150 s, the replay default, while every agent trained with 1050 s;
+    the slow scaling averages were 22% vs 83% settled, so features came
+    out ~2x off scale. Nothing would have crashed: the agents would just
+    have "found no edge on real ES". `score-real` now takes the warm-up
+    from the run's config and refuses a mismatch, as `check_net` does
+    for the C++ nets (OF16, A78).
 
 
 
@@ -3031,7 +3040,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (114,851 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (118,262 bytes)
 
 # RL experiment log
 
@@ -4960,11 +4969,64 @@ registry: `build-avx512/rl/runs/` (`index.jsonl`); sealed openings:
   fading loses). Consistent with OF11–OF14. The next evidence has to come
   from real ticks (`VecReplayEnv` exists) or a more realistic simulator.
 
+## OF16 phase 1. Real ES plumbing and dev-day diagnostics (no score)
+
+`kit.ps1 run of16_regen 'bash experiments/of16_regen.sh'`: exports the
+dev days with `tools/sierra_to_ticks.py` (Sierra `.depth` + `.scid` →
+`tick_csv` T/Q lines, 08:30-15:00 CT, sidecar JSON with checks and the
+csv sha256) into `build-avx512/real/` (gitignored), then runs
+`experiments/of16_dev_diag.py` → `experiments/of16_dev_diagnostics.txt`.
+About 2.5 min single-threaded; the rerun through the kit reproduced the
+file except its wall-time line. The plan, day manifest and decision rule
+are in `OF16_REAL_ES_PLAN.md` (pre-registered, commit 121d48d; amended
+before any test opening: warm-up 1050 s).
+
+* **Built:** the converter; `experiments/configs/of16_real_manifest.json`
+  (day roles); `python/ragrl/real.py` (manifest, CT clock with the explicit
+  US DST rule since this machine has no tz database, tapes opened by role:
+  dev free and logged as `real_dev`, test only in a fresh scorer process,
+  once per config sha256 whatever the run name or manifest, confirm only
+  with the orchestrator claim and only the next due days); `ragrl
+  score-real RUN --days test|dev` (`score_real.py`: the run's ensemble and
+  12 seeds plus flat, delta30 and an L1-imbalance rule on `VecReplayEnv`,
+  paired stats, day-clustered bootstrap, Sep/Nov subsets, stress; every
+  policy is stepped on a dummy batch before the gate opens and each block
+  is written as it finishes); 13 tests in `python/tests/test_real.py`.
+* **Review** (independent reviewer, before any test opening) found the
+  replay warming features up for 150 s while every OF15 agent trained
+  with 1050 s (features ~2x off scale at window start: a false "no edge"
+  by construction), a once-per-run check keyed on the run name (bypassed
+  by renaming), test tapes loadable after any dev opening, and a crash
+  after opening burning the only opening. All fixed (A78); the plan's
+  window count went from ~301 to 292.
+* **Dev days** (diagnostics, not a score): 2026-09-14..17 (ESU26, the
+  expiring back month after the roll: thinner, 1-tick spread 86.8% of
+  buckets vs 94.7% front month, 1-min mid SD 7.2 vs 9.3 ticks) and the one
+  usable window of 2026-11-03 (its book has a 610 s recording outage);
+  149 windows.
+  * **Covariate shift** vs v4 (viz 960,016,000,000+[0,200)): only
+    `imb_l5` (9.3% of real values outside v4's 1-99% range) and `absorb`
+    (6.2%; v4's range is exactly 0) exceed 5%. Setting them to the sim
+    median changes any ensemble's action on <= 0.8% of decisions.
+  * **Baselines** (ticks/window): flat 0 exactly; hold −2.5 ± 2.4; delta30
+    −4.1 ± 2.2 (v4: −5.12); the imbalance rule (enter with the L1
+    imbalance, flat at the next decision) −381.7 at 586 orders/window.
+  * **I1 markout** in the imbalance's direction: real +0.022 / +0.072 /
+    +0.090 ticks at 100 ms / 1 s / 5 s (strongest quintile +0.126 at 1 s),
+    v4 +0.023 / +0.069 / +0.069, against a 1.37-tick real round trip
+    (half-spread 0.57 + fees). v4 reproduces the real signal closely; on
+    real ES it is about a tenth of the cost of trading it.
+  * PPO ensembles (v3 and v4) enter on 100% of flat-state real decisions;
+    the other ensembles on 0-0.4%.
+* **Next:** phase 2 (score the 16 OF15 runs once on the 8 test days)
+  needs the user's go. Expectation from the dev diagnostics: no edge (the
+  one signal the agents use is a tenth of the round-trip cost on real ES).
+
 
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (31,807 bytes)
+## FILE: docs/ai/DECISIONS.md  (32,603 bytes)
 
 # Decision log
 
@@ -5086,6 +5148,7 @@ the code looks the way it does.
 | A75 | No GPU for now | Measured: PPO-family training spends 61–80% of its time in the C++ simulator on v4 (~90% with validation checkpoints); DQN ~60% and QR-DQN 88–93% in updates, but on 64×64 MLPs the cost is per-update Python/SB3 overhead, not arithmetic. Cheaper levers first: fewer gradient steps for the DQN family, more torch threads and workers, a faster v4 simulator. Rent one only if training becomes model-bound (OF15). |
 | A76 | `ragrl/__init__.py` replaces `platform._wmi_query` with a function that raises, before torch or LightGBM load; repairing WMI on the server is the user's decision | Since ~2026-11-07 any WMI query crashes the calling process (0xC0000005) on this server, and Python 3.12's `platform` asks WMI for the Windows version when torch or LightGBM is imported; without WMI it falls back to the registry. Python's `_wmi.exec_query` timeout path is also the leading, unconfirmed suspect for the 0xc0000374 heap crashes (OF15). |
 | A77 | R1 fires only when the annualized Sharpe is above 5 **by 2 SE**: the lower bound (SR − 2·sqrt((1 + SR²/2)/n))·sqrt(9828) > 5, SR the per-episode Sharpe (Lo 2002); a point estimate above 5 that fails the bound is the warning R1v ("noise"), and the < 2 orders/episode guard (A74) stays | Annualizing multiplies a per-episode Sharpe by ~99, so the old point-estimate bar was t > 0.87 at n = 300 and would fire on noise from any policy that trades. With the bound, R1 at n = 300 needs t > ~2.9: a result strong enough to be a claim **and** implausibly good, which is what OF8's check was for. Set 2026-11-12, after OF15 and before any new sealed run; re-rendering the 16 OF15 runs changed no status or report (every R1v there was the near-flat case). |
+| A78 | OF16 real-data scoring: the replay warm-up equals the run's training warm-up (1050 s; `score-real` refuses a mismatch), a test opening is once per config sha256 (not per run name or manifest), and test tapes are gated in Python (`ledger.open_real` registers the opened paths and sha256s; `real.load_tape` is the only loader; a pytest grep forbids `TickTape.from_csv` / `open_sealed("real")` elsewhere) rather than by a C++ allow-list | Found by an independent review before any test opening (OF16 phase 1). A C++ allow-list would not reach the `_ragof` copies in each sealed run's `RUN/bin` that actually score OF15, and swapping them would break provenance. The warm-up mismatch would have made every agent see features ~2x off scale: a false "no edge" from the setup, not the market. |
 
 
 
@@ -5176,7 +5239,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (12,152 bytes)
+## FILE: docs/ai/STATUS.md  (12,262 bytes)
 
 # Status, limitations and next steps
 
@@ -5359,8 +5422,9 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 0. **ES order-flow trading** (the current focus): the ranked plan is in
    `ORDERFLOW.md` §7. After OF15 (no RL edge on either simulator, through
-   a leak-proof pipeline): real-tick replay (`VecReplayEnv`) and richer
-   simulator realism, the heap crash once WMI is
+   a leak-proof pipeline): OF16 phase 2, scoring the 16 OF15 runs once on
+   8 real ES test days (phase 1, plumbing and dev diagnostics, is done;
+   `OF16_REAL_ES_PLAN.md`), and richer simulator realism, the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
    at 100 ms latency on fresh seeds.
 
@@ -5383,7 +5447,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/ORDERFLOW.md  (44,350 bytes)
+## FILE: docs/ai/ORDERFLOW.md  (44,610 bytes)
 
 # ES order-flow trading: simulator, agents, validation, plan
 
@@ -5921,7 +5985,11 @@ step. What remains, in order:
    block sealed in the ledger. **Pre-registered plan: `OF16_REAL_ES_PLAN.md`**
    (day manifest: 8 full front-month RTH test days, Sep and Nov 2026; days
    from 2026-11-12 on are the real-data confirm block; zero-shot scoring of
-   the 16 OF15 runs first, training on real only after). In parallel, simulator realism where the
+   the 16 OF15 runs first, training on real only after). Phase 1 done
+   (OF16 phase 1: converter, ledger-gated tapes, `ragrl score-real`; on
+   dev days the L1-imbalance signal is +0.07 ticks at 1 s against a 1.37-tick
+   round trip, as in v4); phase 2, the one scoring of the test days, waits
+   for the user's go. In parallel, simulator realism where the
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
    new real sessions (LESSONS 49).
@@ -6004,7 +6072,7 @@ step. What remains, in order:
 
 ---
 
-## FILE: docs/ai/NEXT_SESSION.md  (17,728 bytes)
+## FILE: docs/ai/NEXT_SESSION.md  (17,862 bytes)
 
 # Continuing the work: the prompt and the Claude Code agent architecture
 
@@ -6202,7 +6270,7 @@ records what each block has been used for.
 | 920,000,000+ | stress scenarios (OF6; OF11 on discovery v3 at warm-up 1,050 s) |
 | 930,000,000+ | trading days (OF8; OF11 on discovery v3 at warm-up 1,050 s) |
 | 940,000,000+ | pairing probes (separate streams) |
-| 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it; OF12 exported sessions 960,012,001–012 for the real-vs-sim comparison, which OF13 then used as v4's tuning sessions; OF13 final sessions 960,013,001–012 (used once, with `of2_baselines` episodes 960,013,000,000 + i) and skeptic sessions 960,014,001–012 (episodes 960,014,000,000 + i): spent for gating v4; the live training viewer (`of_train_live`, A70) probes the net on this block; OF15: the ragrl live hook's probe episodes, the skeptic's fresh-episode rerun 960,015,000,000+[0,600) (both markets, four conditions) and quirk probe 960,015,001,000+[0,400) (viewed: no longer fresh), and `tools/of_zoo_trace.py` replays on 960M+[0,5) (look only) |
+| 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it; OF12 exported sessions 960,012,001–012 for the real-vs-sim comparison, which OF13 then used as v4's tuning sessions; OF13 final sessions 960,013,001–012 (used once, with `of2_baselines` episodes 960,013,000,000 + i) and skeptic sessions 960,014,001–012 (episodes 960,014,000,000 + i): spent for gating v4; the live training viewer (`of_train_live`, A70) probes the net on this block; OF15: the ragrl live hook's probe episodes, the skeptic's fresh-episode rerun 960,015,000,000+[0,600) (both markets, four conditions) and quirk probe 960,015,001,000+[0,400) (viewed: no longer fresh), and `tools/of_zoo_trace.py` replays on 960M+[0,5) (look only); OF16: the dev-day diagnostics' simulator reference 960,016,000,000+[0,200) (`experiments/of16_dev_diag.py`, discovery_v4, look only) |
 | **950,000,000+** | **fresh confirmation: unused (OF15 too); use once per claimed edge, then record it here. ragrl: `confirm --i-am-the-orchestrator --claim ID` only, taking the next free index after any earlier confirmation** |
 
 ## 5. Red flags (stop and diagnose before reporting a win)
@@ -6249,11 +6317,11 @@ records what each block has been used for.
 
 ---
 
-## FILE: docs/ai/OF16_REAL_ES_PLAN.md  (8,183 bytes)
+## FILE: docs/ai/OF16_REAL_ES_PLAN.md  (9,644 bytes)
 
 # OF16 plan: the OF15 agents on real ES (recorded book + trades)
 
-Status: **plan only, nothing run.** Written 2026-11-12 after OF15 (no RL
+Status: **phase 1 done 2026-11-12** (plumbing, review fixes, dev-day diagnostics: EXPERIMENTS.md OF16 phase 1, `experiments/of16_dev_diagnostics.txt`); **phase 2 not run** (needs the user's go). Originally: **plan only, nothing run.** Written 2026-11-12 after OF15 (no RL
 edge on either simulator). Committing this file, with the day manifest in
 §2, is the pre-registration: day roles, policies, statistics and the
 decision rule are fixed here, before any agent or baseline P&L on real data
@@ -6295,11 +6363,29 @@ by RTH volume comes from OF13: ESU26 through 09-11, ESZ26 from 09-14.
 | 2026-09-18, 11-04, 11-06 | — | none or a few minutes | excluded | no usable RTH |
 | **2026-11-12 onward** | ESZ26 / ESH27 | — | **confirm** | days recorded after this plan is committed: real-data fresh confirmation, the analogue of 950M+, opened once per claim |
 
-Episodes are cut as in `ReplayScalpEnv`: 100 ms buckets, a 150 s feature
-warm-up from 08:30, then consecutive 600 s windows. That gives 38 windows
-per full day and ~35 on 11-09, about **301 test windows**, close to the
-simulator's 300-episode test. Days on the expiring back month, and any day
-whose front month is not the recorded contract, never count as test days.
+Episodes are cut as in `ReplayScalpEnv`: 100 ms buckets, a ~~150 s~~
+1050 s feature warm-up from 08:30, then consecutive 600 s windows. That
+gives ~~38~~ 37 windows per full day and ~~~35~~ 33 on 11-09, **~~301~~ 292
+test windows**, close to the simulator's 300-episode test. Days on the
+expiring back month, and any day whose front month is not the recorded
+contract, never count as test days.
+
+**Amendment 2026-11-12 (before any test opening).** The warm-up is 1050 s,
+not 150 s: every OF15 run trained with `env.warmup_seconds` 1050, and
+FeatureBuilder's running scales (EWMA over ~600 s) are only ~22% settled
+after 150 s against ~83% after 1050 s, so at 150 s the agents would see
+features 0-4 and 8-12 at roughly twice their training scale, the volume
+ratio near +1.5 instead of ~0.2, a 150 s session VWAP and delta30 on the
+wrong scale. `ragrl score-real` takes the warm-up from the run's config and
+refuses a run whose warm-up, decision step or episode length differ from
+the manifest's `episodes` block. Window k is played after a warm-up on the
+tape from k × 600 s, so windows = (buckets − 10500) // 6000: a full day
+(08:30-15:00, 234000 buckets) gives 37; 11-09 (book from ~09:03, at most
+214200 buckets; any start before 09:12:30 gives the same) gives 33; total
+7 × 37 + 33 = **292 test windows**. A window whose span (warm-up plus
+window, 1650 s) overlaps a book gap longer than 5 s (a recording outage)
+is not played and is listed; that rule is fixed here too, before any test
+day is opened (2026-11-03, a dev day, has a 610 s outage from 09:00:34 CT).
 
 ## 3. Work, in order
 
@@ -6381,12 +6467,12 @@ bigger than the cost of trading.
 
 Light. The export is single-threaded and IO-bound: ~2.5 GB of depth and
 the matching `.scid` ranges, a few minutes per day. Scoring is
-replay-only, with no simulator: 16 runs × 13 policies × 301 windows × 600
-decisions ≈ 38M policy steps on small MLPs, minutes on the CPU. No GPU.
+replay-only, with no simulator: 16 runs × 13 policies × 292 windows × 600
+decisions ≈ 36M policy steps (amended 2026-11-12: 292 windows, §2) on small MLPs, minutes on the CPU. No GPU.
 
 ## 6. Known weaknesses (stated before the results)
 
-- **Power.** About 301 windows over 8 days. For a policy that trades (per
+- **Power.** About 292 windows over 8 days (amended 2026-11-12, §2). For a policy that trades (per
   window SD ~10-26 ticks), the SE is ~0.6-1.5 ticks per window and coarser
   with day clustering. Only a large edge is detectable; "no edge" means
   "none above roughly 2 ticks per window".
