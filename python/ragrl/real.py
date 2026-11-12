@@ -17,6 +17,9 @@ Process roles (C++ seed ledger + ledger.open_real):
               simulator environments (neutral: look, never select), which is how a
               diagnostic compares real features with the simulator's. Logged as
               real_dev in the usage ledger (audit only, never refused).
+    seen      a test day after its scoring (manifest "was": "test", A81): opened
+              freely like dev for exploration and training (OF17, OF16 phase 3),
+              logged as real_seen; never scored or claimed on again.
     test      `ragrl score-real RUN --days test` only: a fresh process (role
               "none", no real tape opened before), the run name and its config
               sha256; logged as real_test with the manifest sha256 and the tapes'
@@ -37,7 +40,7 @@ from pathlib import Path
 from . import ledger, native
 
 MANIFEST = native.REPO / "experiments" / "configs" / "of16_real_manifest.json"
-ROLES = ("test", "dev", "excluded", "confirm")
+ROLES = ("test", "dev", "seen", "excluded", "confirm")
 SC_EPOCH_US = 25569 * 86400 * 1_000_000  # Sierra time zero (1899-12-30) to the Unix epoch, microseconds
 UTC = timezone.utc
 TIME_UNIT = "s"  # export times: seconds since 08:30 CT of the day
@@ -211,7 +214,7 @@ def confirm_days(manifest: dict, root=None, count: int | None = None, exclude=()
 
 
 def days_for(role: str, manifest: dict, root=None, count: int | None = None) -> list:
-    if role in ("test", "dev"):
+    if role in ("test", "dev", "seen"):
         return listed_days(role, manifest)
     if role == "confirm":
         return confirm_days(manifest, root, count, exclude=ledger.used_real_confirm_days())

@@ -37,6 +37,7 @@ DOCS = [
     "docs/ai/ORDERFLOW.md",
     "docs/ai/NEXT_SESSION.md",
     "docs/ai/OF16_REAL_ES_PLAN.md",
+    "docs/ai/OF17_SIGNAL_CENSUS_PLAN.md",
     "experiments/research_synthesis.md",
     "README.md",
 ]

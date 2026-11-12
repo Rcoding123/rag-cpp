@@ -50,8 +50,10 @@ def test_dst_cdt_and_cst_days_cut_the_same_rth():
 def test_manifest_roles():
     from ragrl import real
     m = real.load_manifest()
-    assert real.listed_days("test", m) == ["2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11", "2026-11-05", "2026-11-09",
-                                           "2026-11-10", "2026-11-11"]
+    # OF16 phase 2 scored the 8 test days (A79); they are role "seen" since (A81), so no test day is left
+    seen = ["2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11", "2026-11-05", "2026-11-09", "2026-11-10", "2026-11-11"]
+    assert real.listed_days("test", m) == [] and real.listed_days("seen", m) == seen
+    assert all(real.day_entry(d, m)["was"] == "test" for d in seen)
     assert real.listed_days("dev", m) == ["2026-09-14", "2026-09-15", "2026-09-16", "2026-09-17", "2026-11-03"]
     assert set(real.listed_days("excluded", m)) == {"2026-09-07", "2026-09-18", "2026-11-04", "2026-11-06"}
     e = real.day_entry("2026-11-12", m)
@@ -230,14 +232,26 @@ def test_converter_batching_fallback_and_empty_tape(tmp_path):
 
 def test_converter_refuses_test_confirm_and_excluded_days(tmp_path):
     orch = ("--i-am-the-orchestrator",)
-    for day, extra in (("2026-09-08", ()), ("2026-11-12", ()), ("2026-11-04", ()), ("2026-11-05", ("--role-ok", "confirm", *orch)),
-                       ("2026-10-01", ()), ("2026-09-08", ("--role-ok", "test")), ("2026-11-12", ("--role-ok", "confirm")),
+    # the real manifest has no test day left (A81): a copy with 2026-09-08 back as a test day checks that role
+    m = json.loads((REPO / "experiments" / "configs" / "of16_real_manifest.json").read_text(encoding="utf-8"))
+    for d in m["days"]:
+        if d["date"] == "2026-09-08":
+            d["role"] = "test"
+    mt = tmp_path / "manifest_test.json"
+    mt.write_text(json.dumps(m), encoding="utf-8")
+    for day, extra in (("2026-09-08", ("--manifest", str(mt))), ("2026-11-12", ()), ("2026-11-04", ()),
+                       ("2026-09-08", ("--role-ok", "confirm", *orch, "--manifest", str(mt))), ("2026-10-01", ()),
+                       ("2026-09-08", ("--role-ok", "test", "--manifest", str(mt))), ("2026-11-12", ("--role-ok", "confirm")),
                        ("2026-11-03", ("--role-ok", "test"))):
         out = tmp_path / "out"
         p = subprocess.run([sys.executable, str(TOOL), day, "--depth-dir", str(tmp_path / "none"), "--scid-dir", str(tmp_path / "none"),
                             "--out-dir", str(out), *extra], capture_output=True, text=True, timeout=120)
         assert p.returncode == 2 and "refused" in p.stderr, (day, p.stderr)
         assert not out.exists()
+    # a seen day (a scored test day) exports like a dev day: no role refusal (it fails later, on the missing data)
+    p = subprocess.run([sys.executable, str(TOOL), "2026-09-08", "--depth-dir", str(tmp_path / "none"), "--scid-dir",
+                        str(tmp_path / "none"), "--out-dir", str(tmp_path / "out2")], capture_output=True, text=True, timeout=120)
+    assert "has role" not in p.stderr and p.returncode != 0, p.stderr
 
 
 # ---------------------------------------------------------------- the replay (fresh scorer processes)
@@ -313,13 +327,14 @@ def _tiny_manifest(tmp):
         {"date": "2030-01-07", "contract": "ESH30", "depth": "x.depth", "scid": "x.scid", "rth": "full", "role": "dev", "subset": "jan", "notes": ""},
         {"date": "2030-01-08", "contract": "ESH30", "depth": "x.depth", "scid": "x.scid", "rth": "full", "role": "test", "subset": "jan", "notes": ""},
         {"date": "2030-01-09", "contract": "ESH30", "depth": "x.depth", "scid": "x.scid", "rth": "none", "role": "excluded", "subset": "jan", "notes": ""},
+        {"date": "2030-01-10", "contract": "ESH30", "depth": "x.depth", "scid": "x.scid", "rth": "full", "role": "seen", "was": "test", "subset": "jan", "notes": ""},
     ]
     m["confirm_rule"].update({"from": "2030-02-01", "contracts": [{"contract": "ESH30", "from": "2030-02-01", "to": "2030-03-01"}]})
     mp = tmp / "manifest.json"
     mp.write_text(json.dumps(m, indent=1), encoding="utf-8")
     csv = _q(0.0, 100.0, 100.25) + "T,0.500000,100.25,1,B\n" + _q(30.0, 100.0, 100.25)
     from ragrl import real
-    for day in ("2030-01-07", "2030-01-08", "2030-01-09", "2030-02-03", "2030-02-04", "2030-02-05", "2030-02-06", "2030-02-07"):
+    for day in ("2030-01-07", "2030-01-08", "2030-01-09", "2030-01-10", "2030-02-03", "2030-02-04", "2030-02-05", "2030-02-06", "2030-02-07"):
         d = tmp / "exports" / day
         d.mkdir(parents=True)
         (d / "ticks.csv").write_bytes(csv.encode())
@@ -360,6 +375,10 @@ elif action == "test_no_run":
     attempt(lambda: real.open_tapes("test", **kw))
 elif action == "test_wrong_role":
     attempt(lambda: real.open_tapes("test", days=["2030-01-07"], run="runA", config_sha256="c0ffee", **kw))
+elif action == "seen":
+    attempt(lambda: real.open_tapes("seen", **kw))
+elif action == "test_on_seen":
+    attempt(lambda: real.open_tapes("test", days=["2030-01-10"], run="runS", config_sha256="5ee4", **kw))
 elif action == "excluded":
     attempt(lambda: real.open_tapes("excluded", **kw))
 elif action == "confirm_no_orchestrator":
@@ -412,6 +431,12 @@ def test_real_tapes_by_role_and_ledger(tmp_path, run_fresh):
     for _ in range(2):
         assert "OPENED ['2030-01-07'] scorer [300]" in go("dev")
     assert len(entries("real_dev")) == 3
+    # seen (a scored test day, A81): free like dev, logged as real_seen; never a test day again
+    for _ in range(2):
+        assert "OPENED ['2030-01-10'] scorer [300]" in go("seen")
+    assert len(entries("real_seen")) == 2
+    out = go("test_on_seen")
+    assert "REFUSED PermissionError" in out and "not test days" in out, out
     # test: never in a trainer, after a validation environment, or after dev tapes in the same process
     for a in ("test_after_trainer", "test_after_validation", "test_after_dev", "test_no_run", "test_wrong_role", "excluded"):
         out = go(a)

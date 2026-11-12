@@ -141,7 +141,7 @@ def log_dry_run(run: str, first: int, count: int, **meta):
                "pid": os.getpid(), "claim": "", "dry_run": True, **meta})
 
 
-REAL_KINDS = ("dev", "test", "confirm")
+REAL_KINDS = ("dev", "seen", "test", "confirm")
 _real_opened = []  # this process's open_real() kinds, in order
 _real_tapes = {}   # resolved tape path -> sha256 opened in this process (real.py loads only these)
 

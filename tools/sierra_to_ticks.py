@@ -7,7 +7,7 @@ usage (standard library only):
          [--depth-dir C:/SierraChart/Data/MarketDepthData] [--scid-dir C:/SierraChart/Data]
          [--out-dir build-avx512/real] [--role-ok test|confirm --i-am-the-orchestrator]
 
-DATE must be a dev day of the manifest (experiments/configs/of16_real_manifest.json). Test and
+DATE must be a dev or seen day of the manifest (experiments/configs/of16_real_manifest.json). Test and
 confirm days are refused (exit 2, before any data file is opened) unless --role-ok names that
 role AND --i-am-the-orchestrator is given: the flag is for the orchestrator's export step, never for development.
 
@@ -404,8 +404,8 @@ def main(argv=None):
     if a.role_ok and not a.orchestrator:
         print("sierra_to_ticks: refused: --role-ok is for the orchestrator only (--i-am-the-orchestrator)", file=sys.stderr)
         return 2
-    if role != "dev" and not (role in ("test", "confirm") and a.role_ok == role):
-        print(f"sierra_to_ticks: refused: {e['date']} has role {role!r} in {Path(a.manifest).name}; only dev days are exported "
+    if role not in ("dev", "seen") and not (role in ("test", "confirm") and a.role_ok == role):
+        print(f"sierra_to_ticks: refused: {e['date']} has role {role!r} in {Path(a.manifest).name}; only dev and seen days are exported "
               f"without --role-ok (orchestrator)", file=sys.stderr)
         return 2
     day = e["date"]
