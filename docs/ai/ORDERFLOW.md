@@ -531,7 +531,10 @@ step. What remains, in order:
 * **Real-tick replay through the pipeline:** `VecReplayEnv` (bound in
    `_ragof`) exists but is unused; feed it the user's recorded ES ticks
    (Sierra) and run the zoo walk-forward by day (item 2 below), with the replay
-   block sealed in the ledger. In parallel, simulator realism where the
+   block sealed in the ledger. **Pre-registered plan: `OF16_REAL_ES_PLAN.md`**
+   (day manifest: 8 full front-month RTH test days, Sep and Nov 2026; days
+   from 2026-11-12 on are the real-data confirm block; zero-shot scoring of
+   the 16 OF15 runs first, training on real only after). In parallel, simulator realism where the
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
    new real sessions (LESSONS 49).

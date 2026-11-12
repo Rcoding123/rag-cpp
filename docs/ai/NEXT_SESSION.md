@@ -44,7 +44,9 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > `ragrl` zoo on the user's recorded ES ticks through `VecReplayEnv`,
 > walk-forward by day (train on earlier days, score once on later days),
 > with the replay data registered as a sealed block in the ledger before
-> any agent is trained on it. Needs the user's tick export; without it,
+> any agent is trained on it. The plan, day manifest and decision rule are
+> pre-registered in `OF16_REAL_ES_PLAN.md` (start at its phase 1; phase 2
+> scores the test days once and needs the user's go). Without the data,
 > do the opt-in simulator realism items
 > (v5) of §7. Done when every config is scored once on later days,
 > paired against flat and the 30 s delta rule, with orders/episode and

@@ -35,6 +35,9 @@ python3 tools/make_context_pack.py --with-source   # docs + all headers, tests, 
 14. `NEXT_SESSION.md`: the prompt to start a new Claude Code session with,
     and how that session should organise its agents (roles, file
     ownership, a workflow template, the seed ledger, red flags).
+15. `OF16_REAL_ES_PLAN.md`: the pre-registered plan for scoring the OF15
+    agents on the user's recorded ES book and trades (day manifest,
+    statistics, decision rule). Plan only until its phase 2 is run.
 
 ## Ground rules for an AI working on this code
 
