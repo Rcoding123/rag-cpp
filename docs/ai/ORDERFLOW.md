@@ -537,8 +537,10 @@ step. What remains, in order:
    the 16 OF15 runs first, training on real only after). Phase 1 done
    (OF16 phase 1: converter, ledger-gated tapes, `ragrl score-real`; on
    dev days the L1-imbalance signal is +0.07 ticks at 1 s against a 1.37-tick
-   round trip, as in v4); phase 2, the one scoring of the test days, waits
-   for the user's go. In parallel, simulator realism where the
+   round trip, as in v4). Phase 2 done 2026-11-12: **no edge on real ES**
+   (no headline of 32 meets the rule, best t 1.2 against 4.63; the agents
+   trade on real as they did in sim, orders/window correlation 0.994, and
+   lose a little more; A79). In parallel, simulator realism where the
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
    new real sessions (LESSONS 49).

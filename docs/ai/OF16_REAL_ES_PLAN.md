@@ -1,6 +1,6 @@
 # OF16 plan: the OF15 agents on real ES (recorded book + trades)
 
-Status: **phase 1 done 2026-11-12** (plumbing, review fixes, dev-day diagnostics: EXPERIMENTS.md OF16 phase 1, `experiments/of16_dev_diagnostics.txt`); **phase 2 not run** (needs the user's go). Originally: **plan only, nothing run.** Written 2026-11-12 after OF15 (no RL
+Status: **phase 1 done 2026-11-12** (plumbing, review fixes, dev-day diagnostics: EXPERIMENTS.md OF16 phase 1, `experiments/of16_dev_diagnostics.txt`); **phase 2 done 2026-11-12: no edge on real ES** (no headline of 32 meets §4; best t 1.2 against t_req 4.63; EXPERIMENTS.md OF16 phase 2, `experiments/of16_real_results.txt`). Per §4 the simulator-trained RL line is closed; phase 2b does not run. Originally: **plan only, nothing run.** Written 2026-11-12 after OF15 (no RL
 edge on either simulator). Committing this file, with the day manifest in
 §2, is the pre-registration: day roles, policies, statistics and the
 decision rule are fixed here, before any agent or baseline P&L on real data

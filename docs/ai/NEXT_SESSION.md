@@ -45,8 +45,10 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > walk-forward by day (train on earlier days, score once on later days),
 > with the replay data registered as a sealed block in the ledger before
 > any agent is trained on it. The plan, day manifest and decision rule are
-> pre-registered in `OF16_REAL_ES_PLAN.md` (start at its phase 1; phase 2
-> scores the test days once and needs the user's go). Without the data,
+> pre-registered in `OF16_REAL_ES_PLAN.md`. Phases 1 and 2 are done
+> (2026-11-12): the 16 OF15 runs have **no edge on real ES** (A79); the 8
+> test days are spent, and any later real-data claim goes to the confirm
+> block (days from 2026-11-12). Without the data,
 > do the opt-in simulator realism items
 > (v5) of §7. Done when every config is scored once on later days,
 > paired against flat and the 30 s delta rule, with orders/episode and
@@ -195,6 +197,9 @@ records what each block has been used for.
 | 930,000,000+ | trading days (OF8; OF11 on discovery v3 at warm-up 1,050 s) |
 | 940,000,000+ | pairing probes (separate streams) |
 | 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it; OF12 exported sessions 960,012,001–012 for the real-vs-sim comparison, which OF13 then used as v4's tuning sessions; OF13 final sessions 960,013,001–012 (used once, with `of2_baselines` episodes 960,013,000,000 + i) and skeptic sessions 960,014,001–012 (episodes 960,014,000,000 + i): spent for gating v4; the live training viewer (`of_train_live`, A70) probes the net on this block; OF15: the ragrl live hook's probe episodes, the skeptic's fresh-episode rerun 960,015,000,000+[0,600) (both markets, four conditions) and quirk probe 960,015,001,000+[0,400) (viewed: no longer fresh), and `tools/of_zoo_trace.py` replays on 960M+[0,5) (look only); OF16: the dev-day diagnostics' simulator reference 960,016,000,000+[0,200) (`experiments/of16_dev_diag.py`, discovery_v4, look only) |
+| real ES dev days (2026-09-14..17, 11-03) | OF16 dev diagnostics and score-real rehearsals: look as often as needed, never a score |
+| real ES test days (2026-09-08..11, 11-05, 09, 10, 11) | OF16 phase 2: opened once per OF15 config sha256 (16 openings, 2026-11-12) — **spent**; seen, so no later claim is scored on them |
+| **real ES confirm days (front-month RTH from 2026-11-12)** | **unused: once per claimed edge, orchestrator only (`real.py` takes the next due days)** |
 | **950,000,000+** | **fresh confirmation: unused (OF15 too); use once per claimed edge, then record it here. ragrl: `confirm --i-am-the-orchestrator --claim ID` only, taking the next free index after any earlier confirmation** |
 
 ## 5. Red flags (stop and diagnose before reporting a win)

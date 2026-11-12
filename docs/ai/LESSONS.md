@@ -283,3 +283,12 @@ building learning systems in general, not just this task.
     have "found no edge on real ES". `score-real` now takes the warm-up
     from the run's config and refuses a mismatch, as `check_net` does
     for the C++ nets (OF16, A78).
+
+56. **"Beats its simulator" must mean the real result is good, not just
+    less bad.** OF16's RG flag fires when a policy's real gross per window
+    exceeds its simulator gross by 2 SE. It fired 6 times, and each time
+    the simulator gross was negative and the real one about 0: a policy
+    that trades less, or more noisily, on real "beats" its simulator. A
+    leak would show real gross above 0 on its own. Before the next real
+    opening, RG should also require real gross > 0 by 2 SE and a minimum
+    number of trades, as R1 needs a lower bound and activity (A74, A77).
