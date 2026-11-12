@@ -26,6 +26,7 @@ FEATURES = ["f_delta5", "f_delta30", "f_delta120", "f_ofi5", "f_ofi30", "f_relvo
 STRATS = [("agent", "pos", "pnl"), ("rule", "rule_pos", "rule_pnl"), ("oracle", "oracle_pos", "oracle_pnl")]
 IMB_BINS = 10    # raw L1 imbalance (bid-ask)/(bid+ask) over [-1, 1]
 DELTA_BINS = 8   # normalized 30 s delta feature over [-4, 4] (the feature clip)
+SCORE_LABEL = {"q": "Q-values", "prob": "log-probabilities", "score": "model scores", "vote": "votes"}
 
 
 def num(s):
@@ -116,7 +117,10 @@ def main(argv):
                if c not in cols]
     if missing:
         sys.exit(f"{src}: missing columns {missing}")
-    data = {"meta": meta, "source": os.path.basename(src), "features": FEATURES, "episodes": episodes, **aggregate(episodes)}
+    kv = dict(t.split("=", 1) for t in meta.split() if "=" in t)  # of_zoo_trace: agent=, policy=, score_kind=
+    agent = f'{kv["agent"]} ({kv.get("policy", "")})' if "agent" in kv else "RL agent"
+    data = {"meta": meta, "source": os.path.basename(src), "features": FEATURES, "episodes": episodes, "agent": agent,
+            "scores": SCORE_LABEL.get(kv.get("score_kind", "q"), "scores"), **aggregate(episodes)}
     payload = json.dumps(data, separators=(",", ":")).replace("</", "<\\/")
     page = PAGE.replace("/*DATA*/null", payload)
     with open(dst, "w", encoding="utf-8", newline="\n") as f:
@@ -181,7 +185,7 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}table.sum tr.e
 "use strict";
 const D=/*DATA*/null;
 const NS="http://www.w3.org/2000/svg",STR=[["agent","pos","pnl"],["rule","rule_pos","rule_pnl"],["oracle","oracle_pos","oracle_pnl"]];
-const NAMES={agent:"RL agent",rule:"30 s delta rule",oracle:"fair-value oracle"},ACT=["short","flat","long"];
+const NAMES={agent:D.agent||"RL agent",rule:"30 s delta rule",oracle:"fair-value oracle"},ACT=["short","flat","long"];
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e}
 function h(tag,parent,text,cls){const e=document.createElement(tag);if(text!=null)e.textContent=text;if(cls)e.className=cls;if(parent)parent.appendChild(e);return e}
@@ -219,10 +223,10 @@ function render(){
  const rel=a=>a.map(v=>v==null?null:v-m0);
  // price
  const [plo,phi]=ext([rel(ep.bid),rel(ep.ask),rel(ep.fair_value)]);
- const pp=panel(host,"Price (ticks from the episode's first mid) with the agent's position shaded",230,plo-0.5,phi+0.5,[["mid",css("--ink")],["bid / ask",css("--axis")],["hidden fair value",css("--fv"),1],["buy ▲ / sell ▼ fills",css("--ink2")]]);
+ const pp=panel(host,"Price (ticks from the episode's first mid) with the agent's position shaded",230,plo-0.5,phi+0.5,[["mid",css("--ink")],...(ep.bid[0]!=null?[["bid / ask",css("--axis")]]:[]),["hidden fair value",css("--fv"),1],["buy ▲ / sell ▼ fills",css("--ink2")]]);
  posBands(pp,ep.pos,pp.y(phi+0.5),pp.y(plo-0.5));
- let d="";for(let i=0;i<n;i++)d+=(i?"L":"M")+pp.x(i).toFixed(1)+","+pp.y(ep.ask[i]-m0).toFixed(1);for(let i=n-1;i>=0;i--)d+="L"+pp.x(i).toFixed(1)+","+pp.y(ep.bid[i]-m0).toFixed(1);
- el("path",{d:d+"Z",fill:css("--band"),stroke:"none"},pp.svg);
+ if(ep.bid[0]!=null){let d="";for(let i=0;i<n;i++)d+=(i?"L":"M")+pp.x(i).toFixed(1)+","+pp.y(ep.ask[i]-m0).toFixed(1);for(let i=n-1;i>=0;i--)d+="L"+pp.x(i).toFixed(1)+","+pp.y(ep.bid[i]-m0).toFixed(1);
+ el("path",{d:d+"Z",fill:css("--band"),stroke:"none"},pp.svg)}  // of_zoo_trace has no quotes
  path(pp,rel(ep.mid),{stroke:css("--ink"),"stroke-width":1.5});path(pp,rel(ep.fair_value),{stroke:css("--fv"),"stroke-dasharray":"5 3"});
  for(let i=0;i<n;i++){const dp=ep.pos[i]-(i?ep.pos[i-1]:0);if(!dp&&!(i==n-1&&ep.pos[i-1]))continue;
   const buy=dp>0||(dp==0&&ep.pos[i-1]<0),px=ep.fill_px[i]!=null?ep.fill_px[i]:ep.mid[i],X=pp.x(i),Y=pp.y(px-m0);
@@ -240,7 +244,7 @@ function render(){
  // Q
  const relq=document.getElementById("relq")?document.getElementById("relq").checked:true;
  const qs=[ep.q_short,ep.q_flat,ep.q_long].map(a=>relq?a.map((v,i)=>v-ep.q_flat[i]):a);const [qlo,qhi]=ext(qs);
- const qp=panel(host,relq?"Q-values relative to flat (advantage of short / long over flat)":"Q-values",150,qlo,qhi,[["short",css("--short")],["flat",css("--muted")],["long",css("--long")]]);
+ const qp=panel(host,relq?`${D.scores||"Q-values"} relative to flat (advantage of short / long over flat)`:(D.scores||"Q-values"),150,qlo,qhi,[["short",css("--short")],["flat",css("--muted")],["long",css("--long")]]);
  const qc=[css("--short"),css("--muted"),css("--long")];qs.forEach((a,k)=>path(qp,a,{stroke:qc[k],"stroke-width":k==1?1:1.5}));
  const cb=h("label",qp.svg.closest(".card").querySelector("h3"));cb.style.cssText="font-weight:400;margin-left:12px;color:var(--ink2)";
  const inp=h("input",cb);inp.type="checkbox";inp.id="relq";inp.checked=relq;cb.append(" relative to flat");inp.onchange=render;
@@ -256,7 +260,7 @@ function render(){
 function setHover(i,ev){hoverStep=i;const ep=D.episodes[cur];for(const c of cross){const X=c.x(i);c.cl.setAttribute("x1",X);c.cl.setAttribute("x2",X);c.cl.setAttribute("visibility","visible")}
  document.getElementById("sidehead").textContent=`Step ${i} · ${clock(ep.tod_s[i])}`;const t=document.getElementById("side");t.replaceChildren();
  const row=(k,v)=>{const r=h("tr",t);h("td",r,k);h("td",r,v)};const m0=ep.mid[0];
- row("bid / ask",`${ep.bid[i]-m0} / ${ep.ask[i]-m0}`);row("fair value − mid",sg(ep.fair_value[i]-ep.mid[i]));row("L1 sizes bid / ask",`${ep.bid_sz1[i]} / ${ep.ask_sz1[i]}`);row("L1 imbalance",sg(ep.imb_l1[i],3));
+ row("bid / ask",ep.bid[i]==null?"–":`${ep.bid[i]-m0} / ${ep.ask[i]-m0}`);row("fair value − mid",sg(ep.fair_value[i]-ep.mid[i]));row("L1 sizes bid / ask",ep.bid_sz1[i]==null?"–":`${ep.bid_sz1[i]} / ${ep.ask_sz1[i]}`);row("L1 imbalance",sg(ep.imb_l1[i],3));
  for(const k of D.features)row(k.replace("f_","feat "),sg(ep[k][i],2));row("open P&L",sg(ep.open_pnl[i]));
  row("Q short / flat / long",`${f(ep.q_short[i])} / ${f(ep.q_flat[i])} / ${f(ep.q_long[i])}`);row("action",ACT[ep.action[i]]);row("position after",ep.pos[i]);
  row("fill price",ep.fill_px[i]==null?"–":sg(ep.fill_px[i]-m0));row("orders / fees",`${ep.orders[i]} / ${f(ep.fees[i])}`);
