@@ -254,7 +254,8 @@ building learning systems in general, not just this task.
     same as t > 0.87 at 300 episodes, so it would also fire on noise from
     policies that do trade. Fix both before the sealed run: the guard was
     added afterwards (R1v, A74), which is a post-hoc rule change even
-    when it only relaxes flags (OF15).
+    when it only relaxes flags (OF15). Since A77, R1 needs the Sharpe's
+    lower 2-SE bound above 5 (about t > 2.9 at 300 episodes).
 52. **Pairing tightens less when the simulator reacts to our orders.**
     Same seeds give the same market only until the first fill: PPO v4's
     P&L on the same episodes at 100 ms vs 300 ms latency correlates 0.56,

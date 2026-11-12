@@ -245,7 +245,7 @@ def test_registry_redflags_and_report(tmp_path, monkeypatch):
     (run / "config.sha256").write_text("c")
     registry.write_json(run / "seeds" / "seed1" / "val.json", {"val_ckpt_mean": 1.0, "offers": 3, "champion_step": 2,
                                                                "train_seconds": 1, "eval_seconds": 1, "extra": {}})
-    good = {"seed1": S(1.5, 0.5, sh=0.06), "ensemble": S(1.2, 0.5), "mean_of_seeds": S(1.5, 0.5),
+    good = {"seed1": S(1.5, 0.5, sh=0.25), "ensemble": S(1.2, 0.5), "mean_of_seeds": S(1.5, 0.5),
             "flat": S(0.0, 1e-9), "delta30": S(-4.7, 1.4), "oracle_0.5": S(-1.0, 0.3, orders=1.0)}
     paired = {"flat": {k: {"mean": good[k]["mean"], "se": 0.5, "t": good[k]["mean"] / 0.5, "ci95": [0, 1]} for k in ["seed1", "ensemble", "mean_of_seeds"]},
               "oracle_0.5": {k: {"mean": 2.5, "se": 0.5, "t": 5.0, "ci95": [1, 3]} for k in ["seed1", "ensemble", "mean_of_seeds"]}}
@@ -257,11 +257,19 @@ def test_registry_redflags_and_report(tmp_path, monkeypatch):
                                               "baselines": ["flat", "delta30", "oracle_0.5"], "bootstrap": {"B": 10, "seed": 0}})
     f = redflags.evaluate(run)
     ids = {x["id"] for x in f["hard"]}
-    assert ids == {"R1", "R2"}, f   # seed1 Sharpe 0.06 * 99 > 5; beats the val-best oracle by 2 SE while > 0
+    assert ids == {"R1", "R2"}, f   # seed1 Sharpe 0.25 * 99, lower bound (0.25 - 2 * 0.058) * 99 = 13 > 5; beats the val-best oracle by 2 SE while > 0
+    assert [x["policy"] for x in f["hard"] if x["id"] == "R1"] == ["seed1"], f["hard"]
     assert {x["id"] for x in f["claim"]} == {"R3"} and f["status"] == "RED_FLAGS"
     w = {x["id"] for x in f["warnings"]}
     assert {"R4", "R6", "R9", "R11"} <= w      # val 5.0 (t 5) -> test 1.5; oracle 1 order/episode; t 2.4 < t_req(10)
-    assert "R1v" not in w
+    # Sharpe 0.1 * 99 = 9.9 > 5 on rows trading 4 orders/episode, but the lower bound (0.1 - 0.116) * 99 < 5: noise, R1v only
+    noise = [x for x in f["warnings"] if x["id"] == "R1v"]
+    assert {x["policy"] for x in noise} == {"ensemble", "mean_of_seeds", "flat", "delta30"}, noise
+    assert all("noise" in x["detail"] for x in noise)
+    # the old point-estimate rule's case: Sharpe 0.06 * 99 = 5.9 > 5 at t 1.0 is noise, not R1
+    from ragrl.redflags import sharpe_lower
+    assert sharpe_lower({"sharpe_episode": 0.06, "n": 300}) < 5 < sharpe_lower({"sharpe_episode": 0.25, "n": 300})
+    assert sharpe_lower({"sharpe_episode": float("nan"), "n": 300}) is None and sharpe_lower({"sharpe_episode": 0.3, "n": 1}) is None
     # R1 on a near-flat row (< 2 orders/episode, the oracles' R6 rule) is vacuous: warning R1v, never hard;
     # a row trading >= 2 orders/episode still raises R1
     sealed = registry.read_json(run / "sealed.json")

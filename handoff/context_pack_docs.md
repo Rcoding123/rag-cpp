@@ -33,6 +33,7 @@ docs/ai/STATUS.md
 docs/ai/TASK_SPECS.md
 examples/agent_demo.cpp
 examples/demo.cpp
+examples/of15_refdump.cpp
 examples/of_backtest.cpp
 examples/of_calibrate.cpp
 examples/of_trace.cpp
@@ -52,6 +53,32 @@ experiments/bank_probe.cpp
 experiments/c.cpp
 experiments/ceiling.cpp
 experiments/ceiling2.cpp
+experiments/configs/of15_dagger_v3.json
+experiments/configs/of15_dagger_v4.json
+experiments/configs/of15_dqn_v3.json
+experiments/configs/of15_dqn_v4.json
+experiments/configs/of15_lgbm_v3.json
+experiments/configs/of15_lgbm_v4.json
+experiments/configs/of15_neuralq_ref_v3.json
+experiments/configs/of15_neuralq_ref_v4.json
+experiments/configs/of15_ppo_fs_v3.json
+experiments/configs/of15_ppo_fs_v4.json
+experiments/configs/of15_ppo_hpo_v4.json
+experiments/configs/of15_ppo_v3.json
+experiments/configs/of15_ppo_v4.json
+experiments/configs/of15_qrdqn_v3.json
+experiments/configs/of15_qrdqn_v4.json
+experiments/configs/of15_rppo_v3.json
+experiments/configs/of15_rppo_v4.json
+experiments/configs/smoke/bc_dagger.json
+experiments/configs/smoke/dqn.json
+experiments/configs/smoke/lgbm_threshold.json
+experiments/configs/smoke/neuralq_ref.json
+experiments/configs/smoke/ppo.json
+experiments/configs/smoke/ppo_framestack.json
+experiments/configs/smoke/ppo_hpo.json
+experiments/configs/smoke/qrdqn.json
+experiments/configs/smoke/recurrent_ppo.json
 experiments/cusum_sim.py
 experiments/dp_diff.cpp
 experiments/dp_time.cpp
@@ -157,6 +184,24 @@ experiments/of13_skeptic_real_vs_v4.txt
 experiments/of14_days.txt
 experiments/of14_regen.sh
 experiments/of14_train.txt
+experiments/of15_dagger.txt
+experiments/of15_dagger_v3.txt
+experiments/of15_dqn.txt
+experiments/of15_dqn_v3.txt
+experiments/of15_lgbm.txt
+experiments/of15_lgbm_v3.txt
+experiments/of15_neuralq_ref.txt
+experiments/of15_neuralq_ref_v3.txt
+experiments/of15_ppo.txt
+experiments/of15_ppo_fs.txt
+experiments/of15_ppo_fs_v3.txt
+experiments/of15_ppo_v3.txt
+experiments/of15_qrdqn.txt
+experiments/of15_qrdqn_v3.txt
+experiments/of15_regen.sh
+experiments/of15_results.txt
+experiments/of15_rppo.txt
+experiments/of15_rppo_v3.txt
 experiments/of1_stylized_facts.cpp
 experiments/of2_baselines.cpp
 experiments/of2_results.txt
@@ -219,10 +264,12 @@ include/rag/orderflow/features.hpp
 include/rag/orderflow/replay_env.hpp
 include/rag/orderflow/scalp_env.hpp
 include/rag/orderflow/scalp_run.hpp
+include/rag/orderflow/seed_ledger.hpp
 include/rag/orderflow/simulator.hpp
 include/rag/orderflow/stylized.hpp
 include/rag/orderflow/tick_csv.hpp
 include/rag/orderflow/tick_env.hpp
+include/rag/orderflow/vec_scalp_env.hpp
 include/rag/pdf.hpp
 include/rag/prompt.hpp
 include/rag/simd.hpp
@@ -232,6 +279,37 @@ include/rag/topk.hpp
 include/rag/vector_store.hpp
 latency_results.txt
 llms.txt
+python/ragof_module.cpp
+python/ragrl/__init__.py
+python/ragrl/__main__.py
+python/ragrl/agents/__init__.py
+python/ragrl/agents/imitation.py
+python/ragrl/agents/neuralq.py
+python/ragrl/agents/sb3_agents.py
+python/ragrl/agents/supervised.py
+python/ragrl/checkpoints.py
+python/ragrl/cli.py
+python/ragrl/config.py
+python/ragrl/envs.py
+python/ragrl/evaluate.py
+python/ragrl/hpo.py
+python/ragrl/ledger.py
+python/ragrl/live.py
+python/ragrl/native.py
+python/ragrl/policies.py
+python/ragrl/redflags.py
+python/ragrl/registry.py
+python/ragrl/report.py
+python/ragrl/runner.py
+python/ragrl/stats.py
+python/ragrl/worker.py
+python/tests/conftest.py
+python/tests/test_bit_identity.py
+python/tests/test_ledger.py
+python/tests/test_pipeline.py
+python/tests/test_privileged.py
+python/tests/test_smoke.py
+python/tests/test_vec_env.py
 tests/agent_coverage_tests.cpp
 tests/agent_edge_case_tests.cpp
 tests/agent_tests.cpp
@@ -259,6 +337,7 @@ tests/stylized_tests.cpp
 tests/synthetic.hpp
 tests/test_util.hpp
 tests/text_clean_tests.cpp
+tests/vec_scalp_env_tests.cpp
 tools/make_context_pack.py
 tools/of_train_live.py
 tools/of_viz.py
@@ -2257,7 +2336,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (17,210 bytes)
+## FILE: docs/ai/LESSONS.md  (17,305 bytes)
 
 # Lessons, distilled
 
@@ -2515,7 +2594,8 @@ building learning systems in general, not just this task.
     same as t > 0.87 at 300 episodes, so it would also fire on noise from
     policies that do trade. Fix both before the sealed run: the guard was
     added afterwards (R1v, A74), which is a post-hoc rule change even
-    when it only relaxes flags (OF15).
+    when it only relaxes flags (OF15). Since A77, R1 needs the Sharpe's
+    lower 2-SE bound above 5 (about t > 2.9 at 300 episodes).
 52. **Pairing tightens less when the simulator reacts to our orders.**
     Same seeds give the same market only until the first fill: PPO v4's
     P&L on the same episodes at 100 ms vs 300 ms latency correlates 0.56,
@@ -4880,7 +4960,7 @@ registry: `build-avx512/rl/runs/` (`index.jsonl`); sealed openings:
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (31,050 bytes)
+## FILE: docs/ai/DECISIONS.md  (31,807 bytes)
 
 # Decision log
 
@@ -5001,6 +5081,7 @@ the code looks the way it does.
 | A74 | R1 (annualized Sharpe > 5) becomes the warning R1v when the row trades < 2 orders/episode (`MIN_ORDERS` in `redflags.py`, shared with R6); recorded as a post-hoc change | Made **after** seeing the OF15 test results: 7 runs had hard R1 only on rows trading 0.0–0.26 orders/episode, where a Sharpe of a few trades says nothing. It only relaxed flags (RED_FLAGS → NO_EDGE) and no claim depends on it. R1 itself is miscalibrated (annualized per-episode Sharpe > 5 ≈ t > 0.87 at 300 episodes); replace it with a t-based rule before the next sealed run (OF15). |
 | A75 | No GPU for now | Measured: PPO-family training spends 61–80% of its time in the C++ simulator on v4 (~90% with validation checkpoints); DQN ~60% and QR-DQN 88–93% in updates, but on 64×64 MLPs the cost is per-update Python/SB3 overhead, not arithmetic. Cheaper levers first: fewer gradient steps for the DQN family, more torch threads and workers, a faster v4 simulator. Rent one only if training becomes model-bound (OF15). |
 | A76 | `ragrl/__init__.py` replaces `platform._wmi_query` with a function that raises, before torch or LightGBM load; repairing WMI on the server is the user's decision | Since ~2026-11-07 any WMI query crashes the calling process (0xC0000005) on this server, and Python 3.12's `platform` asks WMI for the Windows version when torch or LightGBM is imported; without WMI it falls back to the registry. Python's `_wmi.exec_query` timeout path is also the leading, unconfirmed suspect for the 0xc0000374 heap crashes (OF15). |
+| A77 | R1 fires only when the annualized Sharpe is above 5 **by 2 SE**: the lower bound (SR − 2·sqrt((1 + SR²/2)/n))·sqrt(9828) > 5, SR the per-episode Sharpe (Lo 2002); a point estimate above 5 that fails the bound is the warning R1v ("noise"), and the < 2 orders/episode guard (A74) stays | Annualizing multiplies a per-episode Sharpe by ~99, so the old point-estimate bar was t > 0.87 at n = 300 and would fire on noise from any policy that trades. With the bound, R1 at n = 300 needs t > ~2.9: a result strong enough to be a claim **and** implausibly good, which is what OF8's check was for. Set 2026-11-12, after OF15 and before any new sealed run; re-rendering the 16 OF15 runs changed no status or report (every R1v there was the near-flat case). |
 
 
 
@@ -5091,7 +5172,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (12,171 bytes)
+## FILE: docs/ai/STATUS.md  (12,152 bytes)
 
 # Status, limitations and next steps
 
@@ -5275,7 +5356,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 0. **ES order-flow trading** (the current focus): the ranked plan is in
    `ORDERFLOW.md` §7. After OF15 (no RL edge on either simulator, through
    a leak-proof pipeline): real-tick replay (`VecReplayEnv`) and richer
-   simulator realism, a t-based R1 flag, the heap crash once WMI is
+   simulator realism, the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
    at 100 ms latency on fresh seeds.
 
@@ -5298,7 +5379,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/ORDERFLOW.md  (44,108 bytes)
+## FILE: docs/ai/ORDERFLOW.md  (44,094 bytes)
 
 # ES order-flow trading: simulator, agents, validation, plan
 
@@ -5837,9 +5918,9 @@ step. What remains, in order:
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
    new real sessions (LESSONS 49).
-* **Red-flag calibration:** replace R1 (annualized Sharpe > 5 ≈ t > 0.87
-   at 300 episodes) with a t-based rule, with the minimum-activity guard
-   (R1v, A74) kept, pre-registered before the next sealed run.
+* ~~**Red-flag calibration**~~ done 2026-11-12 (A77): R1 needs the
+   annualized Sharpe's lower 2-SE bound above 5 (about t > 2.9 at 300
+   episodes), the minimum-activity guard (R1v, A74) kept.
 * **The 0xc0000374 heap crash**, once WMI is repaired (the user's
    call): ~150 lgbm seed-runs with the WMI bypass off and on. Keep
    per-attempt logs (LESSONS 53).
@@ -5916,7 +5997,7 @@ step. What remains, in order:
 
 ---
 
-## FILE: docs/ai/NEXT_SESSION.md  (17,544 bytes)
+## FILE: docs/ai/NEXT_SESSION.md  (17,579 bytes)
 
 # Continuing the work: the prompt and the Claude Code agent architecture
 
@@ -5965,7 +6046,7 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > walk-forward by day (train on earlier days, score once on later days),
 > with the replay data registered as a sealed block in the ledger before
 > any agent is trained on it. Needs the user's tick export; without it,
-> do the t-based R1 flag first, then the opt-in simulator realism items
+> do the opt-in simulator realism items
 > (v5) of §7. Done when every config is scored once on later days,
 > paired against flat and the 30 s delta rule, with orders/episode and
 > the mean of seeds beside the headline, and any positive result goes to
@@ -6124,9 +6205,10 @@ records what each block has been used for.
   1-min sd in the episode windows themselves (OF10 warm-up finding,
   LESSONS 40).
 - Annualized Sharpe above ~5, or no losing day, for a 1-lot directional
-  strategy (OF8: ~80 meant a too-easy simulator). In ragrl this is R1,
-  a warning (R1v) below 2 orders/episode (A74); annualized, Sharpe > 5 is
-  only t > 0.87 at 300 episodes, so read t too (LESSONS 51).
+  strategy (OF8: ~80 meant a too-easy simulator). In ragrl this is R1:
+  hard only when the Sharpe's lower 2-SE bound is above 5 (A77; about
+  t > 2.9 at 300 episodes), a warning (R1v) below 2 orders/episode (A74)
+  or when only the point estimate is above 5 (LESSONS 51).
 - An ensemble headline that places ~0 orders: its "no edge" is vacuous;
   read the mean of seeds and orders/episode (OF15, LESSONS 50).
 - A naive rule profits a lot after costs (naive quoting winning every

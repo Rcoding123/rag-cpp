@@ -45,7 +45,7 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > walk-forward by day (train on earlier days, score once on later days),
 > with the replay data registered as a sealed block in the ledger before
 > any agent is trained on it. Needs the user's tick export; without it,
-> do the t-based R1 flag first, then the opt-in simulator realism items
+> do the opt-in simulator realism items
 > (v5) of §7. Done when every config is scored once on later days,
 > paired against flat and the 30 s delta rule, with orders/episode and
 > the mean of seeds beside the headline, and any positive result goes to
@@ -204,9 +204,10 @@ records what each block has been used for.
   1-min sd in the episode windows themselves (OF10 warm-up finding,
   LESSONS 40).
 - Annualized Sharpe above ~5, or no losing day, for a 1-lot directional
-  strategy (OF8: ~80 meant a too-easy simulator). In ragrl this is R1,
-  a warning (R1v) below 2 orders/episode (A74); annualized, Sharpe > 5 is
-  only t > 0.87 at 300 episodes, so read t too (LESSONS 51).
+  strategy (OF8: ~80 meant a too-easy simulator). In ragrl this is R1:
+  hard only when the Sharpe's lower 2-SE bound is above 5 (A77; about
+  t > 2.9 at 300 episodes), a warning (R1v) below 2 orders/episode (A74)
+  or when only the point estimate is above 5 (LESSONS 51).
 - An ensemble headline that places ~0 orders: its "no edge" is vacuous;
   read the mean of seeds and orders/episode (OF15, LESSONS 50).
 - A naive rule profits a lot after costs (naive quoting winning every

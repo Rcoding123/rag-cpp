@@ -535,9 +535,9 @@ step. What remains, in order:
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
    new real sessions (LESSONS 49).
-* **Red-flag calibration:** replace R1 (annualized Sharpe > 5 ≈ t > 0.87
-   at 300 episodes) with a t-based rule, with the minimum-activity guard
-   (R1v, A74) kept, pre-registered before the next sealed run.
+* ~~**Red-flag calibration**~~ done 2026-11-12 (A77): R1 needs the
+   annualized Sharpe's lower 2-SE bound above 5 (about t > 2.9 at 300
+   episodes), the minimum-activity guard (R1v, A74) kept.
 * **The 0xc0000374 heap crash**, once WMI is repaired (the user's
    call): ~150 lgbm seed-runs with the WMI bypass off and on. Keep
    per-attempt logs (LESSONS 53).

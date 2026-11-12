@@ -180,7 +180,7 @@
 0. **ES order-flow trading** (the current focus): the ranked plan is in
    `ORDERFLOW.md` §7. After OF15 (no RL edge on either simulator, through
    a leak-proof pipeline): real-tick replay (`VecReplayEnv`) and richer
-   simulator realism, a t-based R1 flag, the heap crash once WMI is
+   simulator realism, the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
    at 100 ms latency on fresh seeds.
 

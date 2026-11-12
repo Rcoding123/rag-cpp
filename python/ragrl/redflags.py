@@ -1,8 +1,10 @@
 """Automatic red flags on a sealed run (redflags.json, STATUS, top of report.md).
 
 hard (STATUS=RED_FLAGS)
-  R1  annualized Sharpe > 5 for a non-oracle policy that trades >= 2 orders/episode (OF8); below
-      2 orders/episode (the oracles' R6 rule) it is reported as the warning R1v (vacuous)
+  R1  a non-oracle policy that trades >= 2 orders/episode whose annualized Sharpe is above 5 by
+      2 SE: its lower 2-SE bound > 5 (OF8; at n = 300 roughly t > 2.9). The point estimate alone
+      is not enough: annualizing a per-episode Sharpe multiplies it by ~99, so Sharpe > 5 is only
+      t > ~0.9 at n = 300 and fires on noise (OF15 skeptic)
   R2  a learned policy above 0 AND above the validation-best oracle by 2 paired SE (OF9)
   R2g a learned policy's GROSS (net + fees) above the highest-gross oracle threshold by 2 paired SE,
       whatever the sign of its net (a leak that fees hide)
@@ -17,7 +19,8 @@ warnings
   R2w a learned policy's paired mean above the best oracle's (any margin)
   R4  validation -> test collapse (OF7): val_select net > 0 by 2 SE but test < 0.5 x val or test t < 1;
       or a val lead over delta30 (2 SE) not reproduced on test
-  R1v R1's Sharpe > 5 on a near-flat policy (< 2 orders/episode): vacuous, not an edge
+  R1v annualized Sharpe > 5 that is not R1: a near-flat policy (< 2 orders/episode), or a lower
+      2-SE bound <= 5 (noise)
   R6  the best oracle trades < 2 orders/episode: the oracle bound is uninformative (OF10)
   R7  hidden-state leak probe: |corr(obs_k, gap)| > 0.5 on train episodes (diag.json)
   R9  the headline's t below the multiplicity bar t_req = 2 + sqrt(2 ln M), M = the run's validation
@@ -32,11 +35,21 @@ from . import ledger, registry, stats
 
 NAIVE = ("delta30", "hold")
 MIN_ORDERS = 2.0  # orders/episode below which a policy's Sharpe or an oracle's bound says nothing (R1v, R6)
+SHARPE_BAR = 5.0  # annualized Sharpe that is too good to be true (OF8)
 
 
 def vacuous(s: dict) -> bool:
     """A summary row whose policy trades < MIN_ORDERS orders per episode (near-flat)."""
     return s.get("orders") is not None and s["orders"] < MIN_ORDERS
+
+
+def sharpe_lower(s: dict):
+    """Lower 2-SE bound of a row's annualized Sharpe, or None. The per-episode Sharpe's SE is
+    sqrt((1 + SR^2 / 2) / n) (Lo 2002, iid episodes), annualized like stats.summary."""
+    sr, n = s.get("sharpe_episode"), s.get("n")
+    if sr is None or not n or n < 2 or (isinstance(sr, float) and math.isnan(sr)):
+        return None
+    return (sr - 2.0 * math.sqrt((1.0 + sr * sr / 2.0) / n)) * math.sqrt(stats.EPISODES_PER_YEAR)
 
 
 def _n(x, nd=2):
@@ -54,12 +67,17 @@ def evaluate(run_dir) -> dict:
     learned = sealed["learned"]
     hard, claim, warn = [], [], []
     for k, s in S.items():
-        if not k.startswith("oracle_") and _gt(s.get("sharpe_annual"), 5.0):
+        if not k.startswith("oracle_") and _gt(s.get("sharpe_annual"), SHARPE_BAR):
+            lb = sharpe_lower(s)
             if vacuous(s):  # a (near-)flat policy: a tiny mean over a tinier SD, not an edge
-                warn.append({"id": "R1v", "policy": k, "detail": f"annualized Sharpe {s['sharpe_annual']:.2f} > 5 is vacuous: "
+                warn.append({"id": "R1v", "policy": k, "detail": f"annualized Sharpe {s['sharpe_annual']:.2f} > {SHARPE_BAR:g} is vacuous: "
                                                                  f"{s['orders']:.2f} orders/episode < {MIN_ORDERS:g}"})
-            else:
-                hard.append({"id": "R1", "policy": k, "detail": f"annualized Sharpe {s['sharpe_annual']:.2f} > 5"})
+            elif _gt(lb, SHARPE_BAR):
+                hard.append({"id": "R1", "policy": k, "detail": f"annualized Sharpe {s['sharpe_annual']:.2f}, lower 2-SE bound "
+                                                                f"{lb:.2f} > {SHARPE_BAR:g} (t {_n(s.get('t'), 1)})"})
+            else:  # the point estimate is above the bar but noise could put it there (the bar alone is t > ~0.9 at n = 300)
+                warn.append({"id": "R1v", "policy": k, "detail": f"annualized Sharpe {s['sharpe_annual']:.2f} > {SHARPE_BAR:g} is noise: "
+                                                                 f"lower 2-SE bound {_n(lb)} <= {SHARPE_BAR:g} (t {_n(s.get('t'), 1)})"})
     bo = sel.get("best_oracle")
     if bo and bo in sealed["paired"]:
         for k in learned:

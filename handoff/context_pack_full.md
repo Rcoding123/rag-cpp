@@ -33,6 +33,7 @@ docs/ai/STATUS.md
 docs/ai/TASK_SPECS.md
 examples/agent_demo.cpp
 examples/demo.cpp
+examples/of15_refdump.cpp
 examples/of_backtest.cpp
 examples/of_calibrate.cpp
 examples/of_trace.cpp
@@ -52,6 +53,32 @@ experiments/bank_probe.cpp
 experiments/c.cpp
 experiments/ceiling.cpp
 experiments/ceiling2.cpp
+experiments/configs/of15_dagger_v3.json
+experiments/configs/of15_dagger_v4.json
+experiments/configs/of15_dqn_v3.json
+experiments/configs/of15_dqn_v4.json
+experiments/configs/of15_lgbm_v3.json
+experiments/configs/of15_lgbm_v4.json
+experiments/configs/of15_neuralq_ref_v3.json
+experiments/configs/of15_neuralq_ref_v4.json
+experiments/configs/of15_ppo_fs_v3.json
+experiments/configs/of15_ppo_fs_v4.json
+experiments/configs/of15_ppo_hpo_v4.json
+experiments/configs/of15_ppo_v3.json
+experiments/configs/of15_ppo_v4.json
+experiments/configs/of15_qrdqn_v3.json
+experiments/configs/of15_qrdqn_v4.json
+experiments/configs/of15_rppo_v3.json
+experiments/configs/of15_rppo_v4.json
+experiments/configs/smoke/bc_dagger.json
+experiments/configs/smoke/dqn.json
+experiments/configs/smoke/lgbm_threshold.json
+experiments/configs/smoke/neuralq_ref.json
+experiments/configs/smoke/ppo.json
+experiments/configs/smoke/ppo_framestack.json
+experiments/configs/smoke/ppo_hpo.json
+experiments/configs/smoke/qrdqn.json
+experiments/configs/smoke/recurrent_ppo.json
 experiments/cusum_sim.py
 experiments/dp_diff.cpp
 experiments/dp_time.cpp
@@ -157,6 +184,24 @@ experiments/of13_skeptic_real_vs_v4.txt
 experiments/of14_days.txt
 experiments/of14_regen.sh
 experiments/of14_train.txt
+experiments/of15_dagger.txt
+experiments/of15_dagger_v3.txt
+experiments/of15_dqn.txt
+experiments/of15_dqn_v3.txt
+experiments/of15_lgbm.txt
+experiments/of15_lgbm_v3.txt
+experiments/of15_neuralq_ref.txt
+experiments/of15_neuralq_ref_v3.txt
+experiments/of15_ppo.txt
+experiments/of15_ppo_fs.txt
+experiments/of15_ppo_fs_v3.txt
+experiments/of15_ppo_v3.txt
+experiments/of15_qrdqn.txt
+experiments/of15_qrdqn_v3.txt
+experiments/of15_regen.sh
+experiments/of15_results.txt
+experiments/of15_rppo.txt
+experiments/of15_rppo_v3.txt
 experiments/of1_stylized_facts.cpp
 experiments/of2_baselines.cpp
 experiments/of2_results.txt
@@ -219,10 +264,12 @@ include/rag/orderflow/features.hpp
 include/rag/orderflow/replay_env.hpp
 include/rag/orderflow/scalp_env.hpp
 include/rag/orderflow/scalp_run.hpp
+include/rag/orderflow/seed_ledger.hpp
 include/rag/orderflow/simulator.hpp
 include/rag/orderflow/stylized.hpp
 include/rag/orderflow/tick_csv.hpp
 include/rag/orderflow/tick_env.hpp
+include/rag/orderflow/vec_scalp_env.hpp
 include/rag/pdf.hpp
 include/rag/prompt.hpp
 include/rag/simd.hpp
@@ -232,6 +279,37 @@ include/rag/topk.hpp
 include/rag/vector_store.hpp
 latency_results.txt
 llms.txt
+python/ragof_module.cpp
+python/ragrl/__init__.py
+python/ragrl/__main__.py
+python/ragrl/agents/__init__.py
+python/ragrl/agents/imitation.py
+python/ragrl/agents/neuralq.py
+python/ragrl/agents/sb3_agents.py
+python/ragrl/agents/supervised.py
+python/ragrl/checkpoints.py
+python/ragrl/cli.py
+python/ragrl/config.py
+python/ragrl/envs.py
+python/ragrl/evaluate.py
+python/ragrl/hpo.py
+python/ragrl/ledger.py
+python/ragrl/live.py
+python/ragrl/native.py
+python/ragrl/policies.py
+python/ragrl/redflags.py
+python/ragrl/registry.py
+python/ragrl/report.py
+python/ragrl/runner.py
+python/ragrl/stats.py
+python/ragrl/worker.py
+python/tests/conftest.py
+python/tests/test_bit_identity.py
+python/tests/test_ledger.py
+python/tests/test_pipeline.py
+python/tests/test_privileged.py
+python/tests/test_smoke.py
+python/tests/test_vec_env.py
 tests/agent_coverage_tests.cpp
 tests/agent_edge_case_tests.cpp
 tests/agent_tests.cpp
@@ -259,6 +337,7 @@ tests/stylized_tests.cpp
 tests/synthetic.hpp
 tests/test_util.hpp
 tests/text_clean_tests.cpp
+tests/vec_scalp_env_tests.cpp
 tools/make_context_pack.py
 tools/of_train_live.py
 tools/of_viz.py
@@ -2385,7 +2464,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (17,210 bytes)
+## FILE: docs/ai/LESSONS.md  (17,305 bytes)
 
 # Lessons, distilled
 
@@ -2643,7 +2722,8 @@ building learning systems in general, not just this task.
     same as t > 0.87 at 300 episodes, so it would also fire on noise from
     policies that do trade. Fix both before the sealed run: the guard was
     added afterwards (R1v, A74), which is a post-hoc rule change even
-    when it only relaxes flags (OF15).
+    when it only relaxes flags (OF15). Since A77, R1 needs the Sharpe's
+    lower 2-SE bound above 5 (about t > 2.9 at 300 episodes).
 52. **Pairing tightens less when the simulator reacts to our orders.**
     Same seeds give the same market only until the first fill: PPO v4's
     P&L on the same episodes at 100 ms vs 300 ms latency correlates 0.56,
@@ -5008,7 +5088,7 @@ registry: `build-avx512/rl/runs/` (`index.jsonl`); sealed openings:
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (31,050 bytes)
+## FILE: docs/ai/DECISIONS.md  (31,807 bytes)
 
 # Decision log
 
@@ -5129,6 +5209,7 @@ the code looks the way it does.
 | A74 | R1 (annualized Sharpe > 5) becomes the warning R1v when the row trades < 2 orders/episode (`MIN_ORDERS` in `redflags.py`, shared with R6); recorded as a post-hoc change | Made **after** seeing the OF15 test results: 7 runs had hard R1 only on rows trading 0.0–0.26 orders/episode, where a Sharpe of a few trades says nothing. It only relaxed flags (RED_FLAGS → NO_EDGE) and no claim depends on it. R1 itself is miscalibrated (annualized per-episode Sharpe > 5 ≈ t > 0.87 at 300 episodes); replace it with a t-based rule before the next sealed run (OF15). |
 | A75 | No GPU for now | Measured: PPO-family training spends 61–80% of its time in the C++ simulator on v4 (~90% with validation checkpoints); DQN ~60% and QR-DQN 88–93% in updates, but on 64×64 MLPs the cost is per-update Python/SB3 overhead, not arithmetic. Cheaper levers first: fewer gradient steps for the DQN family, more torch threads and workers, a faster v4 simulator. Rent one only if training becomes model-bound (OF15). |
 | A76 | `ragrl/__init__.py` replaces `platform._wmi_query` with a function that raises, before torch or LightGBM load; repairing WMI on the server is the user's decision | Since ~2026-11-07 any WMI query crashes the calling process (0xC0000005) on this server, and Python 3.12's `platform` asks WMI for the Windows version when torch or LightGBM is imported; without WMI it falls back to the registry. Python's `_wmi.exec_query` timeout path is also the leading, unconfirmed suspect for the 0xc0000374 heap crashes (OF15). |
+| A77 | R1 fires only when the annualized Sharpe is above 5 **by 2 SE**: the lower bound (SR − 2·sqrt((1 + SR²/2)/n))·sqrt(9828) > 5, SR the per-episode Sharpe (Lo 2002); a point estimate above 5 that fails the bound is the warning R1v ("noise"), and the < 2 orders/episode guard (A74) stays | Annualizing multiplies a per-episode Sharpe by ~99, so the old point-estimate bar was t > 0.87 at n = 300 and would fire on noise from any policy that trades. With the bound, R1 at n = 300 needs t > ~2.9: a result strong enough to be a claim **and** implausibly good, which is what OF8's check was for. Set 2026-11-12, after OF15 and before any new sealed run; re-rendering the 16 OF15 runs changed no status or report (every R1v there was the near-flat case). |
 
 
 
@@ -5219,7 +5300,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (12,171 bytes)
+## FILE: docs/ai/STATUS.md  (12,152 bytes)
 
 # Status, limitations and next steps
 
@@ -5403,7 +5484,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 0. **ES order-flow trading** (the current focus): the ranked plan is in
    `ORDERFLOW.md` §7. After OF15 (no RL edge on either simulator, through
    a leak-proof pipeline): real-tick replay (`VecReplayEnv`) and richer
-   simulator realism, a t-based R1 flag, the heap crash once WMI is
+   simulator realism, the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
    at 100 ms latency on fresh seeds.
 
@@ -5426,7 +5507,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/ORDERFLOW.md  (44,108 bytes)
+## FILE: docs/ai/ORDERFLOW.md  (44,094 bytes)
 
 # ES order-flow trading: simulator, agents, validation, plan
 
@@ -5965,9 +6046,9 @@ step. What remains, in order:
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
    new real sessions (LESSONS 49).
-* **Red-flag calibration:** replace R1 (annualized Sharpe > 5 ≈ t > 0.87
-   at 300 episodes) with a t-based rule, with the minimum-activity guard
-   (R1v, A74) kept, pre-registered before the next sealed run.
+* ~~**Red-flag calibration**~~ done 2026-11-12 (A77): R1 needs the
+   annualized Sharpe's lower 2-SE bound above 5 (about t > 2.9 at 300
+   episodes), the minimum-activity guard (R1v, A74) kept.
 * **The 0xc0000374 heap crash**, once WMI is repaired (the user's
    call): ~150 lgbm seed-runs with the WMI bypass off and on. Keep
    per-attempt logs (LESSONS 53).
@@ -6044,7 +6125,7 @@ step. What remains, in order:
 
 ---
 
-## FILE: docs/ai/NEXT_SESSION.md  (17,544 bytes)
+## FILE: docs/ai/NEXT_SESSION.md  (17,579 bytes)
 
 # Continuing the work: the prompt and the Claude Code agent architecture
 
@@ -6093,7 +6174,7 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > walk-forward by day (train on earlier days, score once on later days),
 > with the replay data registered as a sealed block in the ledger before
 > any agent is trained on it. Needs the user's tick export; without it,
-> do the t-based R1 flag first, then the opt-in simulator realism items
+> do the opt-in simulator realism items
 > (v5) of §7. Done when every config is scored once on later days,
 > paired against flat and the 30 s delta rule, with orders/episode and
 > the mean of seeds beside the headline, and any positive result goes to
@@ -6252,9 +6333,10 @@ records what each block has been used for.
   1-min sd in the episode windows themselves (OF10 warm-up finding,
   LESSONS 40).
 - Annualized Sharpe above ~5, or no losing day, for a 1-lot directional
-  strategy (OF8: ~80 meant a too-easy simulator). In ragrl this is R1,
-  a warning (R1v) below 2 orders/episode (A74); annualized, Sharpe > 5 is
-  only t > 0.87 at 300 episodes, so read t too (LESSONS 51).
+  strategy (OF8: ~80 meant a too-easy simulator). In ragrl this is R1:
+  hard only when the Sharpe's lower 2-SE bound is above 5 (A77; about
+  t > 2.9 at 300 episodes), a warning (R1v) below 2 orders/episode (A74)
+  or when only the point estimate is above 5 (LESSONS 51).
 - An ensemble headline that places ~0 orders: its "no edge" is vacuous;
   read the mean of seeds and orders/episode (OF15, LESSONS 50).
 - A naive rule profits a lot after costs (naive quoting winning every
@@ -38311,14 +38393,16 @@ def freeze_module(module):
 
 ---
 
-## FILE: python\ragrl\redflags.py  (9,157 bytes)
+## FILE: python\ragrl\redflags.py  (10,499 bytes)
 
 ```python
 """Automatic red flags on a sealed run (redflags.json, STATUS, top of report.md).
 
 hard (STATUS=RED_FLAGS)
-  R1  annualized Sharpe > 5 for a non-oracle policy that trades >= 2 orders/episode (OF8); below
-      2 orders/episode (the oracles' R6 rule) it is reported as the warning R1v (vacuous)
+  R1  a non-oracle policy that trades >= 2 orders/episode whose annualized Sharpe is above 5 by
+      2 SE: its lower 2-SE bound > 5 (OF8; at n = 300 roughly t > 2.9). The point estimate alone
+      is not enough: annualizing a per-episode Sharpe multiplies it by ~99, so Sharpe > 5 is only
+      t > ~0.9 at n = 300 and fires on noise (OF15 skeptic)
   R2  a learned policy above 0 AND above the validation-best oracle by 2 paired SE (OF9)
   R2g a learned policy's GROSS (net + fees) above the highest-gross oracle threshold by 2 paired SE,
       whatever the sign of its net (a leak that fees hide)
@@ -38333,7 +38417,8 @@ warnings
   R2w a learned policy's paired mean above the best oracle's (any margin)
   R4  validation -> test collapse (OF7): val_select net > 0 by 2 SE but test < 0.5 x val or test t < 1;
       or a val lead over delta30 (2 SE) not reproduced on test
-  R1v R1's Sharpe > 5 on a near-flat policy (< 2 orders/episode): vacuous, not an edge
+  R1v annualized Sharpe > 5 that is not R1: a near-flat policy (< 2 orders/episode), or a lower
+      2-SE bound <= 5 (noise)
   R6  the best oracle trades < 2 orders/episode: the oracle bound is uninformative (OF10)
   R7  hidden-state leak probe: |corr(obs_k, gap)| > 0.5 on train episodes (diag.json)
   R9  the headline's t below the multiplicity bar t_req = 2 + sqrt(2 ln M), M = the run's validation
@@ -38348,11 +38433,21 @@ from . import ledger, registry, stats
 
 NAIVE = ("delta30", "hold")
 MIN_ORDERS = 2.0  # orders/episode below which a policy's Sharpe or an oracle's bound says nothing (R1v, R6)
+SHARPE_BAR = 5.0  # annualized Sharpe that is too good to be true (OF8)
 
 
 def vacuous(s: dict) -> bool:
     """A summary row whose policy trades < MIN_ORDERS orders per episode (near-flat)."""
     return s.get("orders") is not None and s["orders"] < MIN_ORDERS
+
+
+def sharpe_lower(s: dict):
+    """Lower 2-SE bound of a row's annualized Sharpe, or None. The per-episode Sharpe's SE is
+    sqrt((1 + SR^2 / 2) / n) (Lo 2002, iid episodes), annualized like stats.summary."""
+    sr, n = s.get("sharpe_episode"), s.get("n")
+    if sr is None or not n or n < 2 or (isinstance(sr, float) and math.isnan(sr)):
+        return None
+    return (sr - 2.0 * math.sqrt((1.0 + sr * sr / 2.0) / n)) * math.sqrt(stats.EPISODES_PER_YEAR)
 
 
 def _n(x, nd=2):
@@ -38370,12 +38465,17 @@ def evaluate(run_dir) -> dict:
     learned = sealed["learned"]
     hard, claim, warn = [], [], []
     for k, s in S.items():
-        if not k.startswith("oracle_") and _gt(s.get("sharpe_annual"), 5.0):
+        if not k.startswith("oracle_") and _gt(s.get("sharpe_annual"), SHARPE_BAR):
+            lb = sharpe_lower(s)
             if vacuous(s):  # a (near-)flat policy: a tiny mean over a tinier SD, not an edge
-                warn.append({"id": "R1v", "policy": k, "detail": f"annualized Sharpe {s['sharpe_annual']:.2f} > 5 is vacuous: "
+                warn.append({"id": "R1v", "policy": k, "detail": f"annualized Sharpe {s['sharpe_annual']:.2f} > {SHARPE_BAR:g} is vacuous: "
                                                                  f"{s['orders']:.2f} orders/episode < {MIN_ORDERS:g}"})
-            else:
-                hard.append({"id": "R1", "policy": k, "detail": f"annualized Sharpe {s['sharpe_annual']:.2f} > 5"})
+            elif _gt(lb, SHARPE_BAR):
+                hard.append({"id": "R1", "policy": k, "detail": f"annualized Sharpe {s['sharpe_annual']:.2f}, lower 2-SE bound "
+                                                                f"{lb:.2f} > {SHARPE_BAR:g} (t {_n(s.get('t'), 1)})"})
+            else:  # the point estimate is above the bar but noise could put it there (the bar alone is t > ~0.9 at n = 300)
+                warn.append({"id": "R1v", "policy": k, "detail": f"annualized Sharpe {s['sharpe_annual']:.2f} > {SHARPE_BAR:g} is noise: "
+                                                                 f"lower 2-SE bound {_n(lb)} <= {SHARPE_BAR:g} (t {_n(s.get('t'), 1)})"})
     bo = sel.get("best_oracle")
     if bo and bo in sealed["paired"]:
         for k in learned:
@@ -39887,7 +39987,7 @@ def test_open_sealed_only_in_ledger_module():
 
 ---
 
-## FILE: python\tests\test_pipeline.py  (22,228 bytes)
+## FILE: python\tests\test_pipeline.py  (23,057 bytes)
 
 ```python
 """The ragrl pipeline (fast): configs, stats, frozen policies vs SB3's own predict,
@@ -40137,7 +40237,7 @@ def test_registry_redflags_and_report(tmp_path, monkeypatch):
     (run / "config.sha256").write_text("c")
     registry.write_json(run / "seeds" / "seed1" / "val.json", {"val_ckpt_mean": 1.0, "offers": 3, "champion_step": 2,
                                                                "train_seconds": 1, "eval_seconds": 1, "extra": {}})
-    good = {"seed1": S(1.5, 0.5, sh=0.06), "ensemble": S(1.2, 0.5), "mean_of_seeds": S(1.5, 0.5),
+    good = {"seed1": S(1.5, 0.5, sh=0.25), "ensemble": S(1.2, 0.5), "mean_of_seeds": S(1.5, 0.5),
             "flat": S(0.0, 1e-9), "delta30": S(-4.7, 1.4), "oracle_0.5": S(-1.0, 0.3, orders=1.0)}
     paired = {"flat": {k: {"mean": good[k]["mean"], "se": 0.5, "t": good[k]["mean"] / 0.5, "ci95": [0, 1]} for k in ["seed1", "ensemble", "mean_of_seeds"]},
               "oracle_0.5": {k: {"mean": 2.5, "se": 0.5, "t": 5.0, "ci95": [1, 3]} for k in ["seed1", "ensemble", "mean_of_seeds"]}}
@@ -40149,11 +40249,19 @@ def test_registry_redflags_and_report(tmp_path, monkeypatch):
                                               "baselines": ["flat", "delta30", "oracle_0.5"], "bootstrap": {"B": 10, "seed": 0}})
     f = redflags.evaluate(run)
     ids = {x["id"] for x in f["hard"]}
-    assert ids == {"R1", "R2"}, f   # seed1 Sharpe 0.06 * 99 > 5; beats the val-best oracle by 2 SE while > 0
+    assert ids == {"R1", "R2"}, f   # seed1 Sharpe 0.25 * 99, lower bound (0.25 - 2 * 0.058) * 99 = 13 > 5; beats the val-best oracle by 2 SE while > 0
+    assert [x["policy"] for x in f["hard"] if x["id"] == "R1"] == ["seed1"], f["hard"]
     assert {x["id"] for x in f["claim"]} == {"R3"} and f["status"] == "RED_FLAGS"
     w = {x["id"] for x in f["warnings"]}
     assert {"R4", "R6", "R9", "R11"} <= w      # val 5.0 (t 5) -> test 1.5; oracle 1 order/episode; t 2.4 < t_req(10)
-    assert "R1v" not in w
+    # Sharpe 0.1 * 99 = 9.9 > 5 on rows trading 4 orders/episode, but the lower bound (0.1 - 0.116) * 99 < 5: noise, R1v only
+    noise = [x for x in f["warnings"] if x["id"] == "R1v"]
+    assert {x["policy"] for x in noise} == {"ensemble", "mean_of_seeds", "flat", "delta30"}, noise
+    assert all("noise" in x["detail"] for x in noise)
+    # the old point-estimate rule's case: Sharpe 0.06 * 99 = 5.9 > 5 at t 1.0 is noise, not R1
+    from ragrl.redflags import sharpe_lower
+    assert sharpe_lower({"sharpe_episode": 0.06, "n": 300}) < 5 < sharpe_lower({"sharpe_episode": 0.25, "n": 300})
+    assert sharpe_lower({"sharpe_episode": float("nan"), "n": 300}) is None and sharpe_lower({"sharpe_episode": 0.3, "n": 1}) is None
     # R1 on a near-flat row (< 2 orders/episode, the oracles' R6 rule) is vacuous: warning R1v, never hard;
     # a row trading >= 2 orders/episode still raises R1
     sealed = registry.read_json(run / "sealed.json")
