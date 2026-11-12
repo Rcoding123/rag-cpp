@@ -182,7 +182,11 @@
    a leak-proof pipeline) and OF16 (the 16 OF15 runs scored once on 8 real
    ES test days: no edge, best t 1.2 against 4.63; `OF16_REAL_ES_PLAN.md`,
    EXPERIMENTS.md OF16 phase 2), the simulator-trained RL line is closed
-   (A79). Next: richer simulator realism, the heap crash once WMI is
+   (A79). OF17 (a census of the agents' 13 features on the 8 real days)
+   found nothing that pays a market-order round trip at 1 s to 1 min, and
+   none detected at 2-10 min, where the features predict within a month
+   with a sign that flips (A82). Next: that regime question on the ~224
+   days of `.scid` trades, richer simulator realism, the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
    at 100 ms latency on fresh seeds.
 

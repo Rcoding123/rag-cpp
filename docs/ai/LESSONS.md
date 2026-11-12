@@ -292,3 +292,12 @@ building learning systems in general, not just this task.
     leak would show real gross above 0 on its own. RG now also requires
     real gross > 0 by 2 SE on at least 2 orders/window, else the warning
     RGv, as R1 needs a lower bound and activity (A74, A77, A80).
+
+57. **"No candidate" is only as strong as the test's power at each
+    horizon.** OF17 sampled every second, so at 10 min its 87,000
+    samples per month were about 143 independent moves, and a rule needed
+    ~3 ticks net per trade to pass. Report the detectable size beside a
+    null, and say "none detected" where it is large. Fit on one month and
+    score on the other also separates two different nulls: no signal, and
+    a signal whose sign does not survive a regime change (OF17: vwap_dist
+    +10 ticks in Nov, −7 in Sep).

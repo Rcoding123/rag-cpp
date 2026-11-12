@@ -1,6 +1,6 @@
 # OF17 plan: a signal census on real ES (is there anything to trade?)
 
-Status: **plan only, nothing run.** Written 2026-11-12 after OF16 phase 2
+Status: **done 2026-11-12: no candidate among 128 tests** (EXPERIMENTS.md OF17, `experiments/of17_signal_census.txt`; tight at 1-60 s, 'none detected' at 120-600 s, see there). Originally: plan only, nothing run. Written 2026-11-12 after OF16 phase 2
 (the 16 OF15 runs: no edge on real ES, A79). Committing this file is the
 pre-registration: data, predictors, statistics and the decision rule are
 fixed here before any census number is computed.

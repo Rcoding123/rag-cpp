@@ -23,6 +23,7 @@ docs/ai/LESSONS.md
 docs/ai/NEXT_SESSION.md
 docs/ai/OBJECTIVES.md
 docs/ai/OF16_REAL_ES_PLAN.md
+docs/ai/OF17_SIGNAL_CENSUS_PLAN.md
 docs/ai/ORDERFLOW.md
 docs/ai/PROJECT_MAP.md
 docs/ai/RAG_ENGINE.md
@@ -210,6 +211,8 @@ experiments/of16_phase2.sh
 experiments/of16_real_results.txt
 experiments/of16_regen.sh
 experiments/of16_summary.py
+experiments/of17_signal_census.py
+experiments/of17_signal_census.txt
 experiments/of1_stylized_facts.cpp
 experiments/of2_baselines.cpp
 experiments/of2_results.txt
@@ -380,140 +383,141 @@ tools/test_research_crawler.py
 17. docs/ai/ORDERFLOW.md
 18. docs/ai/NEXT_SESSION.md
 19. docs/ai/OF16_REAL_ES_PLAN.md
-20. experiments/research_synthesis.md
-21. README.md
-22. CMakeLists.txt
-23. .github\workflows\ci.yml
-24. include\rag\agent\agent.hpp
-25. include\rag\agent\analysis.hpp
-26. include\rag\agent\drift.hpp
-27. include\rag\agent\env.hpp
-28. include\rag\agent\evaluate.hpp
-29. include\rag\agent\execution_dp.hpp
-30. include\rag\agent\features.hpp
-31. include\rag\agent\learners.hpp
-32. include\rag\agent\market_making.hpp
-33. include\rag\agent\mlp.hpp
-34. include\rag\agent\model_based.hpp
-35. include\rag\agent\ope.hpp
-36. include\rag\agent\policy_table.hpp
-37. include\rag\agent\rng.hpp
-38. include\rag\agent\trainer.hpp
-39. include\rag\agent\tuning.hpp
-40. include\rag\agent\validation.hpp
-41. include\rag\agent\variance_reduction.hpp
-42. include\rag\arena.hpp
-43. include\rag\bm25.hpp
-44. include\rag\chunker.hpp
-45. include\rag\common.hpp
-46. include\rag\embedder.hpp
-47. include\rag\engine.hpp
-48. include\rag\epoch.hpp
-49. include\rag\fusion.hpp
-50. include\rag\io.hpp
-51. include\rag\ivf_index.hpp
-52. include\rag\orderflow\features.hpp
-53. include\rag\orderflow\replay_env.hpp
-54. include\rag\orderflow\scalp_env.hpp
-55. include\rag\orderflow\scalp_run.hpp
-56. include\rag\orderflow\seed_ledger.hpp
-57. include\rag\orderflow\simulator.hpp
-58. include\rag\orderflow\stylized.hpp
-59. include\rag\orderflow\tick_csv.hpp
-60. include\rag\orderflow\tick_env.hpp
-61. include\rag\orderflow\vec_scalp_env.hpp
-62. include\rag\pdf.hpp
-63. include\rag\prompt.hpp
-64. include\rag\simd.hpp
-65. include\rag\text_clean.hpp
-66. include\rag\tokenizer.hpp
-67. include\rag\topk.hpp
-68. include\rag\vector_store.hpp
-69. include\rag.hpp
-70. examples\agent_demo.cpp
-71. examples\demo.cpp
-72. examples\of15_refdump.cpp
-73. examples\of_backtest.cpp
-74. examples\of_calibrate.cpp
-75. examples\of_trace.cpp
-76. examples\of_train.cpp
-77. examples\of_train_live.cpp
-78. examples\rag_pdf.cpp
-79. examples\train_ensemble.cpp
-80. examples\tune_agent.cpp
-81. bench\latency.cpp
-82. bench\rag_bench.cpp
-83. bench\fixtures.hpp
-84. tests\agent_coverage_tests.cpp
-85. tests\agent_edge_case_tests.cpp
-86. tests\agent_tests.cpp
-87. tests\api_examples_tests.cpp
-88. tests\forgery_tests.cpp
-89. tests\market_making_tests.cpp
-90. tests\mlp_tests.cpp
-91. tests\model_based_tests.cpp
-92. tests\optional_libs_tests.cpp
-93. tests\orderflow_tests.cpp
-94. tests\pdf_tests.cpp
-95. tests\policy_table_tests.cpp
-96. tests\rag_property_tests.cpp
-97. tests\rag_tests.cpp
-98. tests\reference_tests.cpp
-99. tests\stress.cpp
-100. tests\stylized_tests.cpp
-101. tests\text_clean_tests.cpp
-102. tests\vec_scalp_env_tests.cpp
-103. tests\pdf_writer.hpp
-104. tests\pid.hpp
-105. tests\synthetic.hpp
-106. tests\test_util.hpp
-107. tests\fuzz\fuzz_common.hpp
-108. tests\fuzz\fuzz_load.cpp
-109. tests\fuzz\fuzz_policy_table.cpp
-110. tests\fuzz\fuzz_text.cpp
-111. tests\fuzz\make_seeds.cpp
-112. tools\make_context_pack.py
-113. tools\of_train_live.py
-114. tools\of_viz.py
-115. tools\of_zoo_trace.py
-116. tools\real_vs_sim.py
-117. tools\research_crawler.py
-118. tools\sierra_to_ticks.py
-119. tools\test_research_crawler.py
-120. python\ragof_module.cpp
-121. python\ragrl\__init__.py
-122. python\ragrl\__main__.py
-123. python\ragrl\agents\__init__.py
-124. python\ragrl\agents\imitation.py
-125. python\ragrl\agents\neuralq.py
-126. python\ragrl\agents\sb3_agents.py
-127. python\ragrl\agents\supervised.py
-128. python\ragrl\checkpoints.py
-129. python\ragrl\cli.py
-130. python\ragrl\config.py
-131. python\ragrl\envs.py
-132. python\ragrl\evaluate.py
-133. python\ragrl\hpo.py
-134. python\ragrl\ledger.py
-135. python\ragrl\live.py
-136. python\ragrl\native.py
-137. python\ragrl\policies.py
-138. python\ragrl\real.py
-139. python\ragrl\redflags.py
-140. python\ragrl\registry.py
-141. python\ragrl\report.py
-142. python\ragrl\runner.py
-143. python\ragrl\score_real.py
-144. python\ragrl\stats.py
-145. python\ragrl\worker.py
-146. python\tests\conftest.py
-147. python\tests\test_bit_identity.py
-148. python\tests\test_ledger.py
-149. python\tests\test_pipeline.py
-150. python\tests\test_privileged.py
-151. python\tests\test_real.py
-152. python\tests\test_smoke.py
-153. python\tests\test_vec_env.py
+20. docs/ai/OF17_SIGNAL_CENSUS_PLAN.md
+21. experiments/research_synthesis.md
+22. README.md
+23. CMakeLists.txt
+24. .github\workflows\ci.yml
+25. include\rag\agent\agent.hpp
+26. include\rag\agent\analysis.hpp
+27. include\rag\agent\drift.hpp
+28. include\rag\agent\env.hpp
+29. include\rag\agent\evaluate.hpp
+30. include\rag\agent\execution_dp.hpp
+31. include\rag\agent\features.hpp
+32. include\rag\agent\learners.hpp
+33. include\rag\agent\market_making.hpp
+34. include\rag\agent\mlp.hpp
+35. include\rag\agent\model_based.hpp
+36. include\rag\agent\ope.hpp
+37. include\rag\agent\policy_table.hpp
+38. include\rag\agent\rng.hpp
+39. include\rag\agent\trainer.hpp
+40. include\rag\agent\tuning.hpp
+41. include\rag\agent\validation.hpp
+42. include\rag\agent\variance_reduction.hpp
+43. include\rag\arena.hpp
+44. include\rag\bm25.hpp
+45. include\rag\chunker.hpp
+46. include\rag\common.hpp
+47. include\rag\embedder.hpp
+48. include\rag\engine.hpp
+49. include\rag\epoch.hpp
+50. include\rag\fusion.hpp
+51. include\rag\io.hpp
+52. include\rag\ivf_index.hpp
+53. include\rag\orderflow\features.hpp
+54. include\rag\orderflow\replay_env.hpp
+55. include\rag\orderflow\scalp_env.hpp
+56. include\rag\orderflow\scalp_run.hpp
+57. include\rag\orderflow\seed_ledger.hpp
+58. include\rag\orderflow\simulator.hpp
+59. include\rag\orderflow\stylized.hpp
+60. include\rag\orderflow\tick_csv.hpp
+61. include\rag\orderflow\tick_env.hpp
+62. include\rag\orderflow\vec_scalp_env.hpp
+63. include\rag\pdf.hpp
+64. include\rag\prompt.hpp
+65. include\rag\simd.hpp
+66. include\rag\text_clean.hpp
+67. include\rag\tokenizer.hpp
+68. include\rag\topk.hpp
+69. include\rag\vector_store.hpp
+70. include\rag.hpp
+71. examples\agent_demo.cpp
+72. examples\demo.cpp
+73. examples\of15_refdump.cpp
+74. examples\of_backtest.cpp
+75. examples\of_calibrate.cpp
+76. examples\of_trace.cpp
+77. examples\of_train.cpp
+78. examples\of_train_live.cpp
+79. examples\rag_pdf.cpp
+80. examples\train_ensemble.cpp
+81. examples\tune_agent.cpp
+82. bench\latency.cpp
+83. bench\rag_bench.cpp
+84. bench\fixtures.hpp
+85. tests\agent_coverage_tests.cpp
+86. tests\agent_edge_case_tests.cpp
+87. tests\agent_tests.cpp
+88. tests\api_examples_tests.cpp
+89. tests\forgery_tests.cpp
+90. tests\market_making_tests.cpp
+91. tests\mlp_tests.cpp
+92. tests\model_based_tests.cpp
+93. tests\optional_libs_tests.cpp
+94. tests\orderflow_tests.cpp
+95. tests\pdf_tests.cpp
+96. tests\policy_table_tests.cpp
+97. tests\rag_property_tests.cpp
+98. tests\rag_tests.cpp
+99. tests\reference_tests.cpp
+100. tests\stress.cpp
+101. tests\stylized_tests.cpp
+102. tests\text_clean_tests.cpp
+103. tests\vec_scalp_env_tests.cpp
+104. tests\pdf_writer.hpp
+105. tests\pid.hpp
+106. tests\synthetic.hpp
+107. tests\test_util.hpp
+108. tests\fuzz\fuzz_common.hpp
+109. tests\fuzz\fuzz_load.cpp
+110. tests\fuzz\fuzz_policy_table.cpp
+111. tests\fuzz\fuzz_text.cpp
+112. tests\fuzz\make_seeds.cpp
+113. tools\make_context_pack.py
+114. tools\of_train_live.py
+115. tools\of_viz.py
+116. tools\of_zoo_trace.py
+117. tools\real_vs_sim.py
+118. tools\research_crawler.py
+119. tools\sierra_to_ticks.py
+120. tools\test_research_crawler.py
+121. python\ragof_module.cpp
+122. python\ragrl\__init__.py
+123. python\ragrl\__main__.py
+124. python\ragrl\agents\__init__.py
+125. python\ragrl\agents\imitation.py
+126. python\ragrl\agents\neuralq.py
+127. python\ragrl\agents\sb3_agents.py
+128. python\ragrl\agents\supervised.py
+129. python\ragrl\checkpoints.py
+130. python\ragrl\cli.py
+131. python\ragrl\config.py
+132. python\ragrl\envs.py
+133. python\ragrl\evaluate.py
+134. python\ragrl\hpo.py
+135. python\ragrl\ledger.py
+136. python\ragrl\live.py
+137. python\ragrl\native.py
+138. python\ragrl\policies.py
+139. python\ragrl\real.py
+140. python\ragrl\redflags.py
+141. python\ragrl\registry.py
+142. python\ragrl\report.py
+143. python\ragrl\runner.py
+144. python\ragrl\score_real.py
+145. python\ragrl\stats.py
+146. python\ragrl\worker.py
+147. python\tests\conftest.py
+148. python\tests\test_bit_identity.py
+149. python\tests\test_ledger.py
+150. python\tests\test_pipeline.py
+151. python\tests\test_privileged.py
+152. python\tests\test_real.py
+153. python\tests\test_smoke.py
+154. python\tests\test_vec_env.py
 
 
 ---
@@ -2484,7 +2488,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (18,418 bytes)
+## FILE: docs/ai/LESSONS.md  (18,954 bytes)
 
 # Lessons, distilled
 
@@ -2780,6 +2784,15 @@ building learning systems in general, not just this task.
     leak would show real gross above 0 on its own. RG now also requires
     real gross > 0 by 2 SE on at least 2 orders/window, else the warning
     RGv, as R1 needs a lower bound and activity (A74, A77, A80).
+
+57. **"No candidate" is only as strong as the test's power at each
+    horizon.** OF17 sampled every second, so at 10 min its 87,000
+    samples per month were about 143 independent moves, and a rule needed
+    ~3 ticks net per trade to pass. Report the detectable size beside a
+    null, and say "none detected" where it is large. Fit on one month and
+    score on the other also separates two different nulls: no signal, and
+    a signal whose sign does not survive a regime change (OF17: vwap_dist
+    +10 ticks in Nov, −7 in Sep).
 
 
 
@@ -3192,7 +3205,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (121,989 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (125,625 bytes)
 
 # RL experiment log
 
@@ -5232,11 +5245,68 @@ Results: `experiments/of16_real_results.txt`, regenerated by
   round trip. A different action space (passive orders, longer holds)
   would be a new question with its own pre-registration.
 
+## OF17. A signal census of the agents' features on real ES: nothing to trade
+
+Plan pre-registered in `OF17_SIGNAL_CENSUS_PLAN.md` (commit dea264c, before
+any census number). `kit.ps1 run of17_census '... experiments/of17_signal_census.py
+--out experiments/of17_signal_census.txt'` (2026-11-12, ~2 min, one thread;
+a rerun by the reviewer reproduced the file byte for byte). Data: the 8
+front-month days OF16 phase 2 scored, now manifest role `seen` (A81),
+opened as `real_seen`; 175,200 samples, OF16's decisions exactly (1050 s
+warm-up per 600 s window, fill one bucket after the decision; the imb_l1
+alignment check against the tape is exact, 0). Each sample is a 1-lot
+market-order round trip held 1, 5, 15, 30, 60, 120, 300 or 600 s at the
+recorded touch plus $1.50 per side; rules are fitted on one month (Sep or
+Nov) and scored on the other; 128 tests (13 single features × 8 horizons,
+LightGBM on all 13 × 8 horizons × 3 prediction cut-offs), t_req 5.12,
+day-clustered SE.
+
+* **No candidate.** The highest t of a net is relvol30 at 600 s, +0.23
+  ticks per trade, t 0.33. No red flag (t > 10, or > 2 ticks gross at
+  h <= 5 s).
+* **1-60 s: the signal is a fraction of the cost.** The mean round trip
+  costs 1.28 ticks. The best gross per trade is +0.09 at 1 s, +0.10 at 5 s
+  and +0.11 at 15 s (all imb_l1), +0.22 at 30 s (ret30) and +0.09 at
+  60 s, against detectable nets of 0.12-0.79 ticks. The L1 imbalance is
+  the one steady short-horizon signal, as OF16 phase 1 found, at a twelfth
+  of the cost.
+* **120-600 s: none detected.** Decisions 1 s apart overlap: about 730
+  independent outcomes per month at 120 s and 143 at 600 s, so a rule
+  needs 1.45-2.81 ticks net per trade to clear t_req. The long-horizon
+  features (vwap_dist, delta120, ret120) do predict within a month, but
+  the sign flips: vwap_dist's top-minus-bottom quintile move at 600 s is
+  +10.0 ticks in November (momentum) and −7.3 in September (reversal);
+  fitted on one month, they lose on the other (vwap_dist −3.9 gross per
+  trade at 600 s). A walk-forward variant (direction from the previous
+  day, the reviewer's exploration, not a test) peaked at +1.01 net, t 1.8.
+* LightGBM's out-of-fold R² is negative at every horizon (Nov −0.0005 to
+  −0.035; Sep −0.011 to −0.68): month-to-month instability plus, at long
+  horizons, overfitting (a 500-row leaf holds about one independent 600 s
+  outcome). Plain least squares is negative out of fold too.
+* **Review** (independent skeptic): timing (features end at bucket f − 1,
+  the fill at f's end quote; ret5 agrees with the f − 1 window in 100% of
+  samples), costs, folds and statistics confirmed. It corrected the
+  conclusion's wording, from "the features predict nothing" to "no rule
+  whose direction holds from one month to the other", and pointed out
+  the power limit at long horizons. Both are in the results file. Feature
+  caveats, faithful to what the agents saw: features restart every
+  window, so vwap_dist is a VWAP over the last 1050-1650 s, not the
+  session's, and relvol30's running mean starts at 0 (a sawtooth within
+  each window). The first 1050 s after 08:30 and the last ~150 s are never
+  sampled.
+* **Reading.** Market-order trading on these 13 features is closed at 1 s
+  to 1 min, the agents' horizon. What is left is a regime question at
+  minutes: a momentum-or-reversal state that holds for a month and flips.
+  8 days cannot answer it; the user's ~224 days of `.scid` trades (no
+  book) can, for the trade-based features (delta, returns, VWAP distance,
+  relative volume), at 2-30 min horizons, with a pre-registered regime
+  rule and a walk-forward by month.
+
 
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (33,927 bytes)
+## FILE: docs/ai/DECISIONS.md  (34,948 bytes)
 
 # Decision log
 
@@ -5361,6 +5431,8 @@ the code looks the way it does.
 | A78 | OF16 real-data scoring: the replay warm-up equals the run's training warm-up (1050 s; `score-real` refuses a mismatch), a test opening is once per config sha256 (not per run name or manifest), and test tapes are gated in Python (`ledger.open_real` registers the opened paths and sha256s; `real.load_tape` is the only loader; a pytest grep forbids `TickTape.from_csv` / `open_sealed("real")` elsewhere) rather than by a C++ allow-list | Found by an independent review before any test opening (OF16 phase 1). A C++ allow-list would not reach the `_ragof` copies in each sealed run's `RUN/bin` that actually score OF15, and swapping them would break provenance. The warm-up mismatch would have made every agent see features ~2x off scale: a false "no edge" from the setup, not the market. |
 | A79 | OF16 phase 2 closes the simulator-trained RL line: no headline of 32 meets the plan's §4 edge rule on the 8 real test days (best t 1.2 against t_req 4.63). The test days are now seen: a later real-data claim is scored once on the confirm block (front-month RTH days from 2026-11-12), never on them. The 6 RG flags stay in the status files; the rule is tightened for the next real opening (A80) | Pre-registered in OF16_REAL_ES_PLAN.md §4 before any test day was opened; the RG flags were checked (real gross about 0, no leak), but a rule is not rewritten after the result it judged |
 | A80 | RG (real gross above the simulator's by 2 SE) is a hard flag only when the real gross is also above 0 by 2 SE on at least `MIN_ORDERS` (2) orders/window; otherwise it is the warning RGv ("less bad, not good" or "too few trades to tell"), as R1 and R1v (A74, A77). Recorded as a post-hoc change: made after OF16 phase 2, where all 6 hard RG flags were policies that lost gross in the simulator and were about 0 on real; under A80 they are 6 RGv and 0 hard. The phase 2 status files keep RED_FLAGS | A leak shows as a real result that is good on its own; a policy that trades less on real is merely less bad (LESSONS 56). It applies from the next real opening (the confirm block); `test_rg_needs_real_gross_good_and_trades` |
+| A81 | After their one scoring (OF16 phase 2) the 8 real test days become manifest role `seen` (`was: test`): opened freely and logged as `real_seen`, like dev days, for exploration and training (OF17, OF16 phase 3); `score-real --days test` now finds no day, and nothing is scored or claimed on them again. A claim on real data goes to the confirm block | Phase 3 of the OF16 plan trains on days already scored; a manifest role, not a bypass of `real.open_tapes`, keeps every opening logged |
+| A82 | OF17 closes market-order trading on the agents' 13 features at 1 s to 1 min on real ES (no candidate of 128; the best gross at <= 60 s is at most a sixth of the 1.28-tick round trip). Its 120-600 s result is reported as 'none detected', not 'absent' (power), and the long-horizon features' within-month predictability with a sign that flips between months is recorded as the one lead | Pre-registered plan and rule (dea264c); the wording was corrected after the independent review, the rule and the numbers were not |
 
 
 
@@ -5451,7 +5523,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (12,323 bytes)
+## FILE: docs/ai/STATUS.md  (12,624 bytes)
 
 # Status, limitations and next steps
 
@@ -5637,7 +5709,11 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
    a leak-proof pipeline) and OF16 (the 16 OF15 runs scored once on 8 real
    ES test days: no edge, best t 1.2 against 4.63; `OF16_REAL_ES_PLAN.md`,
    EXPERIMENTS.md OF16 phase 2), the simulator-trained RL line is closed
-   (A79). Next: richer simulator realism, the heap crash once WMI is
+   (A79). OF17 (a census of the agents' 13 features on the 8 real days)
+   found nothing that pays a market-order round trip at 1 s to 1 min, and
+   none detected at 2-10 min, where the features predict within a month
+   with a sign that flips (A82). Next: that regime question on the ~224
+   days of `.scid` trades, richer simulator realism, the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
    at 100 ms latency on fresh seeds.
 
@@ -5660,7 +5736,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/ORDERFLOW.md  (44,764 bytes)
+## FILE: docs/ai/ORDERFLOW.md  (45,106 bytes)
 
 # ES order-flow trading: simulator, agents, validation, plan
 
@@ -6204,7 +6280,12 @@ step. What remains, in order:
    round trip, as in v4). Phase 2 done 2026-11-12: **no edge on real ES**
    (no headline of 32 meets the rule, best t 1.2 against 4.63; the agents
    trade on real as they did in sim, orders/window correlation 0.994, and
-   lose a little more; A79). In parallel, simulator realism where the
+   lose a little more; A79). **OF17** (signal census of the 13 features on
+   the 8 real days, A82): nothing pays the 1.28-tick round trip at 1 s to
+   1 min (best gross +0.22); at 2-10 min none detected, but vwap_dist,
+   delta120 and ret120 predict within a month with a sign that flips
+   between Sep and Nov: a regime question for the ~224 days of `.scid`
+   trades. In parallel, simulator realism where the
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
    new real sessions (LESSONS 49).
@@ -6287,7 +6368,7 @@ step. What remains, in order:
 
 ---
 
-## FILE: docs/ai/NEXT_SESSION.md  (18,459 bytes)
+## FILE: docs/ai/NEXT_SESSION.md  (18,777 bytes)
 
 # Continuing the work: the prompt and the Claude Code agent architecture
 
@@ -6338,8 +6419,11 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > any agent is trained on it. The plan, day manifest and decision rule are
 > pre-registered in `OF16_REAL_ES_PLAN.md`. Phases 1 and 2 are done
 > (2026-11-12): the 16 OF15 runs have **no edge on real ES** (A79); the 8
-> test days are spent, and any later real-data claim goes to the confirm
-> block (days from 2026-11-12). Without the data,
+> test days are spent (now role `seen`, A81), and any later real-data
+> claim goes to the confirm block (days from 2026-11-12). OF17 (signal
+> census, A82): no rule on the agents' features pays a market-order round
+> trip at 1 s to 1 min; at 2-10 min none detected, with month-scale
+> momentum / reversal regimes as the one lead (EXPERIMENTS.md OF17). Without the data,
 > do the opt-in simulator realism items
 > (v5) of §7. Done when every config is scored once on later days,
 > paired against flat and the 30 s delta rule, with orders/episode and
@@ -6489,7 +6573,7 @@ records what each block has been used for.
 | 940,000,000+ | pairing probes (separate streams) |
 | 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it; OF12 exported sessions 960,012,001–012 for the real-vs-sim comparison, which OF13 then used as v4's tuning sessions; OF13 final sessions 960,013,001–012 (used once, with `of2_baselines` episodes 960,013,000,000 + i) and skeptic sessions 960,014,001–012 (episodes 960,014,000,000 + i): spent for gating v4; the live training viewer (`of_train_live`, A70) probes the net on this block; OF15: the ragrl live hook's probe episodes, the skeptic's fresh-episode rerun 960,015,000,000+[0,600) (both markets, four conditions) and quirk probe 960,015,001,000+[0,400) (viewed: no longer fresh), and `tools/of_zoo_trace.py` replays on 960M+[0,5) (look only); OF16: the dev-day diagnostics' simulator reference 960,016,000,000+[0,200) (`experiments/of16_dev_diag.py`, discovery_v4, look only) |
 | real ES dev days (2026-09-14..17, 11-03) | OF16 dev diagnostics and score-real rehearsals: look as often as needed, never a score |
-| real ES test days (2026-09-08..11, 11-05, 09, 10, 11) | OF16 phase 2: opened once per OF15 config sha256 (16 openings, 2026-11-12) — **spent**; seen, so no later claim is scored on them |
+| real ES seen days (2026-09-08..11, 11-05, 09, 10, 11; were test) | OF16 phase 2 scored them once per OF15 config sha256 (16 openings, 2026-11-12); manifest role `seen` since (A81): explore and train freely (logged `real_seen`), never score or claim on them |
 | **real ES confirm days (front-month RTH from 2026-11-12)** | **unused: once per claimed edge, orchestrator only (`real.py` takes the next due days)** |
 | **950,000,000+** | **fresh confirmation: unused (OF15 too); use once per claimed edge, then record it here. ragrl: `confirm --i-am-the-orchestrator --claim ID` only, taking the next free index after any earlier confirmation** |
 
@@ -6706,6 +6790,134 @@ decisions ≈ 36M policy steps (amended 2026-11-12: 292 windows, §2) on small M
   policies only, which is all the zoo trades.
 - **Regime.** Two contracts and two months (September and November 2026).
   The confirm days extend it.
+
+
+
+---
+
+## FILE: docs/ai/OF17_SIGNAL_CENSUS_PLAN.md  (6,329 bytes)
+
+# OF17 plan: a signal census on real ES (is there anything to trade?)
+
+Status: **done 2026-11-12: no candidate among 128 tests** (EXPERIMENTS.md OF17, `experiments/of17_signal_census.txt`; tight at 1-60 s, 'none detected' at 120-600 s, see there). Originally: plan only, nothing run. Written 2026-11-12 after OF16 phase 2
+(the 16 OF15 runs: no edge on real ES, A79). Committing this file is the
+pre-registration: data, predictors, statistics and the decision rule are
+fixed here before any census number is computed.
+
+## 1. Question
+
+OF15 and OF16 tested agents. This tests the input they all share. Does any
+of the 13 market features the agents observe (FeatureBuilder: delta5,
+delta30, delta120, ofi5, ofi30, relvol30, imb_l1, imb_l5, ret5, ret30,
+ret120, vwap_dist, absorb), alone or combined, predict the ES mid move by
+more than the cost of a 1-lot market-order round trip, at any horizon from
+1 s to 10 min?
+
+If nothing does, no policy that trades market orders on these features can
+make money on real ES, whatever learner picks it, and the next step is a
+different information source or a different way of trading (passive
+orders), not more RL. If something does, it is a candidate for a one-time
+confirmation on fresh days.
+
+Expected answer: no. OF16 phase 1 measured the strongest short-horizon
+signal, the L1 imbalance, at +0.07 ticks over 1 s against a 1.37-tick round
+trip. Longer horizons are the untested part.
+
+## 2. Data
+
+The 8 front-month RTH days scored once in OF16 phase 2 (2026-09-08..11,
+ESU26; 11-05, 11-09, 11-10, 11-11, ESZ26). They are now role **seen** in
+the day manifest (A81): opened freely, logged as `real_seen`, never scored
+or claimed on again. The dev days (expiring back month, and one window of
+11-03) are not used: they are a thinner market. Confirm days (front-month
+RTH from 2026-11-12) are not opened.
+
+Samples are the OF16 decisions exactly: per day, windows k = 0..36 (11-09:
+0..32) of 600 decisions at 1 s, each window's features warmed up for
+1050 s from k × 600 s (`VecReplayEnv`, flat policy), so each sample's
+features are what an agent saw. Decision i of window k fills in bucket
+f = 10500 + 6000 k + 10 i (100 ms latency, as in OF16). About 22,200
+samples per day (11-09: 19,800), 175,200 in all. Alignment check (as in OF16 phase 1):
+feature imb_l1 must equal 2 × the L1 imbalance of bucket f − 1 computed
+from the tape's quotes; any mismatch stops the census.
+
+## 3. Outcomes and costs
+
+Horizons h ∈ {1, 5, 15, 30, 60, 120, 300, 600} s; exit bucket f + 10 h
+(a sample whose exit is past the tape's end is dropped for that h). From
+the tape's end-of-bucket quotes, in ticks:
+
+- move: mid(f + 10 h) − mid(f);
+- long net: bid(f + 10 h) − ask(f) − 0.24; short net: bid(f) − ask(f + 10 h) − 0.24
+  (0.24 ticks = $1.50 per side; the spreads paid are the recorded ones).
+
+## 4. Predictors (fit on one month, scored on the other)
+
+Two folds: fit on the 4 Sep days and score the 4 Nov days, then the
+reverse. Every number in §5 is out of fold (fit and score never share a
+day). Within a fold nothing is tuned.
+
+- **S (each feature alone, 13 × 8 = 104 tests).** On the fitting month,
+  the feature's 20th and 80th percentiles, and the direction d = sign of
+  (mean move in the top quintile − mean move in the bottom quintile). On
+  the scored month: long when the feature is above its 80th percentile and
+  d = +1 (short if d = −1), the opposite side below the 20th percentile,
+  no trade in between.
+- **G (all 13 features, LightGBM, 8 × 3 = 24 tests).** A regressor of the
+  move at h, fixed parameters (200 trees, learning rate 0.05, 31 leaves,
+  min_data_in_leaf 500, feature_fraction 1, bagging off, seed 0, 1
+  thread). On the scored month: trade in the sign of the prediction when
+  |prediction| is at or above the fitting month's 80th, 95th or 99th
+  percentile of |prediction| (3 tests per h).
+
+Each sample is a separate 1-lot trade held for h; trades overlap. This is
+a census of per-trade expectancy, not a strategy with position limits.
+
+## 5. Statistics and the decision rule (fixed now)
+
+Per test (128 in all): the out-of-fold trades' mean net per trade, mean
+gross (move in the trade's direction), trade count, and a **day-clustered**
+SE (the OF16 day bootstrap, B = 10000, seed 0, over the 8 days), t = mean /
+SE; the same per month. M = 128, t_req = 2 + sqrt(2 ln 128) = 5.11.
+
+- **Candidate:** out-of-fold mean net > 0 with t ≥ 5.11, AND positive in
+  both scored months. A candidate is not a claim: it goes to OF17b, a
+  one-time confirmation on the next 8 full front-month confirm days
+  (orchestrator, `real.open_tapes("confirm")`), with the rule refitted on
+  all 8 seen days and nothing else changed, claimed only if net > 0 with
+  t ≥ 2 there. That needs ~2 weeks of recording.
+- **Otherwise: no signal to trade.** "None of the agents' 13 features,
+  alone or combined, predicts the ES mid by more than a market-order round
+  trip at 1 s to 10 min." Market-order RL on these features is closed; the
+  next question needs other information or passive execution.
+
+Reported beside the test, not tested: per h the best gross per trade
+against the mean round-trip cost paid; LightGBM's out-of-fold R²; per
+feature the top-minus-bottom quintile move.
+
+**Red flags** (stop and check before believing): any test with t > 10, or
+gross above 2 ticks per trade at h ≤ 5 s: check the fill-bucket alignment
+first; the alignment check of §2 failing.
+
+## 6. Known weaknesses (stated before the results)
+
+- **8 days, 2 folds.** Day clustering with 8 clusters is coarse, and a
+  month-to-month fit is a regime test as much as a signal test. That makes
+  the census conservative: a signal must survive September to November.
+- **Seen days.** These days were used to score OF16; nothing was fitted on
+  them, and the census selects nothing for a claim on them (a candidate
+  goes to fresh days).
+- **Features only.** Other information (MBO queue data, other markets,
+  news times) is out of scope. So are passive orders: the replay cannot
+  model queue position.
+- **Costs.** 1-lot market orders at the recorded touch, no impact (1 lot in
+  ES), $1.50 per side. A signal that clears only zero-fee costs does not
+  count.
+
+## 7. Cost
+
+Light: one process, single-threaded. The observation pass is a replay of
+292 windows (minutes); 16 LightGBM fits on ~86k rows each (seconds each).
 
 
 
@@ -33146,7 +33358,7 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: tools\make_context_pack.py  (3,983 bytes)
+## FILE: tools\make_context_pack.py  (4,025 bytes)
 
 ````python
 #!/usr/bin/env python3
@@ -33188,6 +33400,7 @@ DOCS = [
     "docs/ai/ORDERFLOW.md",
     "docs/ai/NEXT_SESSION.md",
     "docs/ai/OF16_REAL_ES_PLAN.md",
+    "docs/ai/OF17_SIGNAL_CENSUS_PLAN.md",
     "experiments/research_synthesis.md",
     "README.md",
 ]
@@ -35904,7 +36117,7 @@ if __name__ == "__main__":
 
 ---
 
-## FILE: tools\sierra_to_ticks.py  (21,148 bytes)
+## FILE: tools\sierra_to_ticks.py  (21,179 bytes)
 
 ```python
 #!/usr/bin/env python3
@@ -35916,7 +36129,7 @@ usage (standard library only):
          [--depth-dir C:/SierraChart/Data/MarketDepthData] [--scid-dir C:/SierraChart/Data]
          [--out-dir build-avx512/real] [--role-ok test|confirm --i-am-the-orchestrator]
 
-DATE must be a dev day of the manifest (experiments/configs/of16_real_manifest.json). Test and
+DATE must be a dev or seen day of the manifest (experiments/configs/of16_real_manifest.json). Test and
 confirm days are refused (exit 2, before any data file is opened) unless --role-ok names that
 role AND --i-am-the-orchestrator is given: the flag is for the orchestrator's export step, never for development.
 
@@ -36313,8 +36526,8 @@ def main(argv=None):
     if a.role_ok and not a.orchestrator:
         print("sierra_to_ticks: refused: --role-ok is for the orchestrator only (--i-am-the-orchestrator)", file=sys.stderr)
         return 2
-    if role != "dev" and not (role in ("test", "confirm") and a.role_ok == role):
-        print(f"sierra_to_ticks: refused: {e['date']} has role {role!r} in {Path(a.manifest).name}; only dev days are exported "
+    if role not in ("dev", "seen") and not (role in ("test", "confirm") and a.role_ok == role):
+        print(f"sierra_to_ticks: refused: {e['date']} has role {role!r} in {Path(a.manifest).name}; only dev and seen days are exported "
               f"without --role-ok (orchestrator)", file=sys.stderr)
         return 2
     day = e["date"]
@@ -38452,7 +38665,7 @@ def hpo(cfg_path, root: Path | None = None) -> Path:
 
 ---
 
-## FILE: python\ragrl\ledger.py  (10,904 bytes)
+## FILE: python\ragrl\ledger.py  (10,912 bytes)
 
 ```python
 """The only module that opens sealed blocks (a pytest greps for open_sealed).
@@ -38598,7 +38811,7 @@ def log_dry_run(run: str, first: int, count: int, **meta):
                "pid": os.getpid(), "claim": "", "dry_run": True, **meta})
 
 
-REAL_KINDS = ("dev", "test", "confirm")
+REAL_KINDS = ("dev", "seen", "test", "confirm")
 _real_opened = []  # this process's open_real() kinds, in order
 _real_tapes = {}   # resolved tape path -> sha256 opened in this process (real.py loads only these)
 
@@ -39282,7 +39495,7 @@ def freeze_module(module):
 
 ---
 
-## FILE: python\ragrl\real.py  (16,189 bytes)
+## FILE: python\ragrl\real.py  (16,436 bytes)
 
 ```python
 """Recorded ES (OF16): the day manifest, the RTH clock, and opening tapes by role.
@@ -39304,6 +39517,9 @@ Process roles (C++ seed ledger + ledger.open_real):
               simulator environments (neutral: look, never select), which is how a
               diagnostic compares real features with the simulator's. Logged as
               real_dev in the usage ledger (audit only, never refused).
+    seen      a test day after its scoring (manifest "was": "test", A81): opened
+              freely like dev for exploration and training (OF17, OF16 phase 3),
+              logged as real_seen; never scored or claimed on again.
     test      `ragrl score-real RUN --days test` only: a fresh process (role
               "none", no real tape opened before), the run name and its config
               sha256; logged as real_test with the manifest sha256 and the tapes'
@@ -39324,7 +39540,7 @@ from pathlib import Path
 from . import ledger, native
 
 MANIFEST = native.REPO / "experiments" / "configs" / "of16_real_manifest.json"
-ROLES = ("test", "dev", "excluded", "confirm")
+ROLES = ("test", "dev", "seen", "excluded", "confirm")
 SC_EPOCH_US = 25569 * 86400 * 1_000_000  # Sierra time zero (1899-12-30) to the Unix epoch, microseconds
 UTC = timezone.utc
 TIME_UNIT = "s"  # export times: seconds since 08:30 CT of the day
@@ -39498,7 +39714,7 @@ def confirm_days(manifest: dict, root=None, count: int | None = None, exclude=()
 
 
 def days_for(role: str, manifest: dict, root=None, count: int | None = None) -> list:
-    if role in ("test", "dev"):
+    if role in ("test", "dev", "seen"):
         return listed_days(role, manifest)
     if role == "confirm":
         return confirm_days(manifest, root, count, exclude=ledger.used_real_confirm_days())
@@ -42119,7 +42335,7 @@ def test_train_priv_fill_and_orders(R):
 
 ---
 
-## FILE: python\tests\test_real.py  (34,469 bytes)
+## FILE: python\tests\test_real.py  (36,309 bytes)
 
 ```python
 """OF16 recorded ES: the Sierra converter, the RTH clock, the replay's fills, and the day
@@ -42174,8 +42390,10 @@ def test_dst_cdt_and_cst_days_cut_the_same_rth():
 def test_manifest_roles():
     from ragrl import real
     m = real.load_manifest()
-    assert real.listed_days("test", m) == ["2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11", "2026-11-05", "2026-11-09",
-                                           "2026-11-10", "2026-11-11"]
+    # OF16 phase 2 scored the 8 test days (A79); they are role "seen" since (A81), so no test day is left
+    seen = ["2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11", "2026-11-05", "2026-11-09", "2026-11-10", "2026-11-11"]
+    assert real.listed_days("test", m) == [] and real.listed_days("seen", m) == seen
+    assert all(real.day_entry(d, m)["was"] == "test" for d in seen)
     assert real.listed_days("dev", m) == ["2026-09-14", "2026-09-15", "2026-09-16", "2026-09-17", "2026-11-03"]
     assert set(real.listed_days("excluded", m)) == {"2026-09-07", "2026-09-18", "2026-11-04", "2026-11-06"}
     e = real.day_entry("2026-11-12", m)
@@ -42354,14 +42572,26 @@ def test_converter_batching_fallback_and_empty_tape(tmp_path):
 
 def test_converter_refuses_test_confirm_and_excluded_days(tmp_path):
     orch = ("--i-am-the-orchestrator",)
-    for day, extra in (("2026-09-08", ()), ("2026-11-12", ()), ("2026-11-04", ()), ("2026-11-05", ("--role-ok", "confirm", *orch)),
-                       ("2026-10-01", ()), ("2026-09-08", ("--role-ok", "test")), ("2026-11-12", ("--role-ok", "confirm")),
+    # the real manifest has no test day left (A81): a copy with 2026-09-08 back as a test day checks that role
+    m = json.loads((REPO / "experiments" / "configs" / "of16_real_manifest.json").read_text(encoding="utf-8"))
+    for d in m["days"]:
+        if d["date"] == "2026-09-08":
+            d["role"] = "test"
+    mt = tmp_path / "manifest_test.json"
+    mt.write_text(json.dumps(m), encoding="utf-8")
+    for day, extra in (("2026-09-08", ("--manifest", str(mt))), ("2026-11-12", ()), ("2026-11-04", ()),
+                       ("2026-09-08", ("--role-ok", "confirm", *orch, "--manifest", str(mt))), ("2026-10-01", ()),
+                       ("2026-09-08", ("--role-ok", "test", "--manifest", str(mt))), ("2026-11-12", ("--role-ok", "confirm")),
                        ("2026-11-03", ("--role-ok", "test"))):
         out = tmp_path / "out"
         p = subprocess.run([sys.executable, str(TOOL), day, "--depth-dir", str(tmp_path / "none"), "--scid-dir", str(tmp_path / "none"),
                             "--out-dir", str(out), *extra], capture_output=True, text=True, timeout=120)
         assert p.returncode == 2 and "refused" in p.stderr, (day, p.stderr)
         assert not out.exists()
+    # a seen day (a scored test day) exports like a dev day: no role refusal (it fails later, on the missing data)
+    p = subprocess.run([sys.executable, str(TOOL), "2026-09-08", "--depth-dir", str(tmp_path / "none"), "--scid-dir",
+                        str(tmp_path / "none"), "--out-dir", str(tmp_path / "out2")], capture_output=True, text=True, timeout=120)
+    assert "has role" not in p.stderr and p.returncode != 0, p.stderr
 
 
 # ---------------------------------------------------------------- the replay (fresh scorer processes)
@@ -42437,13 +42667,14 @@ def _tiny_manifest(tmp):
         {"date": "2030-01-07", "contract": "ESH30", "depth": "x.depth", "scid": "x.scid", "rth": "full", "role": "dev", "subset": "jan", "notes": ""},
         {"date": "2030-01-08", "contract": "ESH30", "depth": "x.depth", "scid": "x.scid", "rth": "full", "role": "test", "subset": "jan", "notes": ""},
         {"date": "2030-01-09", "contract": "ESH30", "depth": "x.depth", "scid": "x.scid", "rth": "none", "role": "excluded", "subset": "jan", "notes": ""},
+        {"date": "2030-01-10", "contract": "ESH30", "depth": "x.depth", "scid": "x.scid", "rth": "full", "role": "seen", "was": "test", "subset": "jan", "notes": ""},
     ]
     m["confirm_rule"].update({"from": "2030-02-01", "contracts": [{"contract": "ESH30", "from": "2030-02-01", "to": "2030-03-01"}]})
     mp = tmp / "manifest.json"
     mp.write_text(json.dumps(m, indent=1), encoding="utf-8")
     csv = _q(0.0, 100.0, 100.25) + "T,0.500000,100.25,1,B\n" + _q(30.0, 100.0, 100.25)
     from ragrl import real
-    for day in ("2030-01-07", "2030-01-08", "2030-01-09", "2030-02-03", "2030-02-04", "2030-02-05", "2030-02-06", "2030-02-07"):
+    for day in ("2030-01-07", "2030-01-08", "2030-01-09", "2030-01-10", "2030-02-03", "2030-02-04", "2030-02-05", "2030-02-06", "2030-02-07"):
         d = tmp / "exports" / day
         d.mkdir(parents=True)
         (d / "ticks.csv").write_bytes(csv.encode())
@@ -42484,6 +42715,10 @@ elif action == "test_no_run":
     attempt(lambda: real.open_tapes("test", **kw))
 elif action == "test_wrong_role":
     attempt(lambda: real.open_tapes("test", days=["2030-01-07"], run="runA", config_sha256="c0ffee", **kw))
+elif action == "seen":
+    attempt(lambda: real.open_tapes("seen", **kw))
+elif action == "test_on_seen":
+    attempt(lambda: real.open_tapes("test", days=["2030-01-10"], run="runS", config_sha256="5ee4", **kw))
 elif action == "excluded":
     attempt(lambda: real.open_tapes("excluded", **kw))
 elif action == "confirm_no_orchestrator":
@@ -42536,6 +42771,12 @@ def test_real_tapes_by_role_and_ledger(tmp_path, run_fresh):
     for _ in range(2):
         assert "OPENED ['2030-01-07'] scorer [300]" in go("dev")
     assert len(entries("real_dev")) == 3
+    # seen (a scored test day, A81): free like dev, logged as real_seen; never a test day again
+    for _ in range(2):
+        assert "OPENED ['2030-01-10'] scorer [300]" in go("seen")
+    assert len(entries("real_seen")) == 2
+    out = go("test_on_seen")
+    assert "REFUSED PermissionError" in out and "not test days" in out, out
     # test: never in a trainer, after a validation environment, or after dev tapes in the same process
     for a in ("test_after_trainer", "test_after_validation", "test_after_dev", "test_no_run", "test_wrong_role", "excluded"):
         out = go(a)

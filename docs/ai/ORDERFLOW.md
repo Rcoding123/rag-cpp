@@ -540,7 +540,12 @@ step. What remains, in order:
    round trip, as in v4). Phase 2 done 2026-11-12: **no edge on real ES**
    (no headline of 32 meets the rule, best t 1.2 against 4.63; the agents
    trade on real as they did in sim, orders/window correlation 0.994, and
-   lose a little more; A79). In parallel, simulator realism where the
+   lose a little more; A79). **OF17** (signal census of the 13 features on
+   the 8 real days, A82): nothing pays the 1.28-tick round trip at 1 s to
+   1 min (best gross +0.22); at 2-10 min none detected, but vwap_dist,
+   delta120 and ret120 predict within a month with a sign that flips
+   between Sep and Nov: a regime question for the ~224 days of `.scid`
+   trades. In parallel, simulator realism where the
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
    new real sessions (LESSONS 49).
