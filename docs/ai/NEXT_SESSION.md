@@ -51,7 +51,9 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > claim goes to the confirm block (days from 2026-11-12). OF17 (signal
 > census, A82): no rule on the agents' features pays a market-order round
 > trip at 1 s to 1 min; at 2-10 min none detected, with month-scale
-> momentum / reversal regimes as the one lead (EXPERIMENTS.md OF17). Without the data,
+> momentum / reversal regimes as the one lead (EXPERIMENTS.md OF17).
+> **Next: OF18** (`OF18_REGIME_PLAN.md`, pre-registered, not run): do those
+> regimes persist enough to trade, on ~230 days of `.scid` trades. Without the data,
 > do the opt-in simulator realism items
 > (v5) of §7. Done when every config is scored once on later days,
 > paired against flat and the 30 s delta rule, with orders/episode and
