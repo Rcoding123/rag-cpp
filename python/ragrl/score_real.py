@@ -24,7 +24,8 @@ replacement, B = 10000, seed 0) and the Sep / Nov subsets. Windows whose span (w
 overlaps a book gap > 5 s (a recording outage) are not played and are listed. --stress also plays latency 3
 buckets and $3 per side in the same opening.
 Red flags: R1 (A77, redflags.py); RG a learned policy's real gross above its simulator gross
-(sealed.json) by 2 SE (check the replay for leaks); RI the imbalance rule profiting (net > 0 by
+(sealed.json) by 2 SE AND above 0 by 2 SE, on >= MIN_ORDERS orders/window (check the replay for
+leaks; A80: otherwise the warning RGv, as R1 / R1v); RI the imbalance rule profiting (net > 0 by
 2 SE: check the bucket alignment); R10r more than one real test opening of the run's config
 sha256 (any run name, any manifest), or one logged outside the canonical ledger.
 Output: RUN/real/<days>-<stamp>/ (results.json, windows_<block>.npz, STATUS), never sealed.json.
@@ -254,8 +255,19 @@ def red_flags(block: dict, sim_gross: dict, learned: list) -> tuple:
             d = G[k]["mean"] - sim_gross[k]["mean"]
             se = math.sqrt(G[k]["se"] ** 2 + sim_gross[k]["se"] ** 2)
             if se > 0 and d > 2 * se:
-                hard.append({"id": "RG", "policy": k, "detail": f"real gross {G[k]['mean']:+.2f} beats its simulator gross {sim_gross[k]['mean']:+.2f} "
-                                                                f"by {d:+.2f} (> 2 SE = {2 * se:.2f}): check the replay for leaks"})
+                # A80: "beats its simulator" is a leak signal only when the real gross is good on its own (> 0 by 2 SE) and the
+                # policy trades; a policy that loses in the simulator and trades less on real is merely less bad (LESSONS 56)
+                beat = (f"real gross {G[k]['mean']:+.2f} (t {redflags._n(G[k].get('t'), 1)}) beats its simulator gross "
+                        f"{sim_gross[k]['mean']:+.2f} by {d:+.2f} (> 2 SE = {2 * se:.2f})")
+                good = G[k]["mean"] > 0 and redflags._gt(G[k].get("t"), 2.0)
+                s = S.get(k, {})
+                if good and not redflags.vacuous(s):
+                    hard.append({"id": "RG", "policy": k, "detail": beat + ": check the replay for leaks"})
+                elif good:
+                    warn.append({"id": "RGv", "policy": k, "detail": beat + f", on {s['orders']:.2f} orders/window < {redflags.MIN_ORDERS:g}: "
+                                                                            "too few trades to tell"})
+                else:
+                    warn.append({"id": "RGv", "policy": k, "detail": beat + ", but the real gross is not above 0 by 2 SE: less bad, not good"})
     s = S.get("imbalance_l1")
     if s and s["mean"] > 0 and redflags._gt(s["t"], 2.0):
         hard.append({"id": "RI", "policy": "imbalance_l1", "detail": f"the L1-imbalance rule nets {s['mean']:+.2f} (t {s['t']:.1f}): "

@@ -74,6 +74,27 @@ def test_day_clustered_bootstrap():
     assert np.isnan(day_bootstrap(x[:3], d[:3])["se"])
 
 
+def test_rg_needs_real_gross_good_and_trades():
+    """A80: real gross above the simulator's by 2 SE is a hard RG only if the real gross is > 0 by 2 SE on
+    >= MIN_ORDERS orders/window; less bad than the simulator (OF16 phase 2's six flags) or too few trades is RGv."""
+    from ragrl.score_real import red_flags
+
+    def block(gross_mean, gross_se, orders):
+        s = {"mean": gross_mean, "se": gross_se, "t": gross_mean / gross_se, "orders": orders, "n": 292, "sharpe_annual": None}
+        return {"summary": {"seed1": s}, "gross": {"seed1": {"mean": gross_mean, "se": gross_se, "t": gross_mean / gross_se}}}
+
+    sim = {"seed1": {"mean": -0.55, "se": 0.17}}
+    ids = lambda r: ([f["id"] for f in r[0]], [f["id"] for f in r[1]])  # noqa: E731
+    assert ids(red_flags(block(-0.30, 0.24, 0.7), sim, ["seed1"])) == ([], [])         # within 2 SE of the simulator: nothing
+    assert ids(red_flags(block(0.08, 0.24, 0.7), sim, ["seed1"])) == ([], ["RGv"])     # OF16 neuralq_ref_v3 seed11: was a hard RG
+    hard, warn = red_flags(block(0.15, 0.10, 3.0), sim, ["seed1"])                     # beats the simulator, real t 1.5: less bad
+    assert not hard and [f["id"] for f in warn] == ["RGv"] and "less bad" in warn[0]["detail"]
+    hard, warn = red_flags(block(0.50, 0.10, 0.5), sim, ["seed1"])                     # real t 5 on 0.5 orders/window
+    assert not hard and [f["id"] for f in warn] == ["RGv"] and "too few trades" in warn[0]["detail"]
+    hard, warn = red_flags(block(0.50, 0.10, 3.0), sim, ["seed1"])                     # real t 5 on 3 orders/window: a leak suspect
+    assert [f["id"] for f in hard] == ["RG"] and not warn
+
+
 # ---------------------------------------------------------------- the converter on a synthetic Sierra pair
 def _depth_file(path, events):
     """events: (sierra_us, cmd, flags, price, qty) -> a .depth file (64-byte header, <qBBHfII records)."""

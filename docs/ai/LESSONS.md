@@ -289,6 +289,6 @@ building learning systems in general, not just this task.
     exceeds its simulator gross by 2 SE. It fired 6 times, and each time
     the simulator gross was negative and the real one about 0: a policy
     that trades less, or more noisily, on real "beats" its simulator. A
-    leak would show real gross above 0 on its own. Before the next real
-    opening, RG should also require real gross > 0 by 2 SE and a minimum
-    number of trades, as R1 needs a lower bound and activity (A74, A77).
+    leak would show real gross above 0 on its own. RG now also requires
+    real gross > 0 by 2 SE on at least 2 orders/window, else the warning
+    RGv, as R1 needs a lower bound and activity (A74, A77, A80).
