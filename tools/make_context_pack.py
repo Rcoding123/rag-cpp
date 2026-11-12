@@ -50,6 +50,9 @@ SOURCE_GLOBS = [
     "tests/*.hpp",
     "tests/fuzz/*",
     "tools/*.py",
+    "python/*.cpp",
+    "python/ragrl/**/*.py",
+    "python/tests/*.py",
 ]
 FENCE = {".hpp": "cpp", ".cpp": "cpp", ".py": "python", ".yml": "yaml", ".txt": "cmake"}
 

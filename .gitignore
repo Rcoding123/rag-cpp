@@ -5,3 +5,4 @@ dist/
 .claude/
 research_corpus/
 __pycache__/
+.venv/

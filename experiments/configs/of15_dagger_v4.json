@@ -1,0 +1,94 @@
+{
+ "schema": "ragrl/1",
+ "name": "of15_dagger_v4",
+ "description": "OF15 acceptance: discovery_v4, warm-up 1050, 12 run seeds x 2000 episodes (of_train's budget), champion on validation 700M+[0,200), paired on the sealed test 901M+[0,300) (pre-registered for OF15: 900M+[0,100000) was viewed by OF2-OF14; family of15_v4 = the 8 agents + the HPO best config, all in the multiplicity bar) vs flat, delta30, oracles and the OF14 NeuralQ nets.",
+ "env": {
+  "market": "discovery_v4",
+  "warmup_seconds": 1050
+ },
+ "agent": {
+  "kind": "bc_dagger",
+  "params": {}
+ },
+ "train": {
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12
+  ],
+  "budget_steps": 1200000,
+  "workers": 12,
+  "env_threads": 1,
+  "torch_threads": 1,
+  "eval_threads": 2,
+  "recheck": true
+ },
+ "select": {
+  "val_ckpt": {
+   "first": 0,
+   "count": 200
+  },
+  "every_steps": 60000,
+  "select_threads": 24
+ },
+ "val_select": {
+  "first": 1000000,
+  "count": 400
+ },
+ "score": {
+  "block": "test",
+  "first": 1000000,
+  "count": 300,
+  "headline": "ensemble",
+  "family": "of15_v4",
+  "family_size": 9,
+  "baselines": [
+   "flat",
+   "delta30",
+   {
+    "oracle": [
+     0.5,
+     0.55,
+     0.75,
+     1.0,
+     2.0
+    ]
+   },
+   {
+    "neuralq_dir": "build-avx512/rl/of14",
+    "seeds": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12
+    ]
+   }
+  ],
+  "bootstrap": 10000,
+  "bootstrap_seed": 0,
+  "threads": 24
+ },
+ "live": {
+  "enabled": true,
+  "seed": 1,
+  "every_episodes": 50,
+  "probe": 5
+ }
+}

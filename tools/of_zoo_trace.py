@@ -189,10 +189,19 @@ def index_page(rows: list, episodes: int, failed: list) -> str:
         return (f'<td class="c" style="background:color-mix(in srgb,var({var}) {round(100 * a)}%,var(--neutral))" '
                 f'title="{v:+.2f} ticks">{v:+.0f}</td>')
 
-    ref = rows[0]
+    # one block per market (rows of different markets play different episodes): its agents, then its rule and oracle
+    groups = {}
+    for r in rows:
+        groups.setdefault((r["market"], r["warmup"]), []).append(r)
+    entries = []
+    for (market, _), grp in groups.items():
+        tag = f" · {html.escape(market)}" if len(groups) > 1 else ""
+        ref = grp[0]
+        entries += [(f'{html.escape(r["agent"])} · {html.escape(r["policy"])}{tag}', r["agent_pnl"], r["html"], r) for r in grp]
+        entries += [(f"30 s delta rule{tag}", ref["rule_pnl"], None, None),
+                    (f'fair-value oracle (gap &gt; {ref["oracle_gap"]:g} ticks){tag}', ref["oracle_pnl"], None, None)]
     lines = []
-    for label, pnl, link, extra in ([(f'{html.escape(r["agent"])} · {html.escape(r["policy"])}', r["agent_pnl"], r["html"], r) for r in rows] +
-                                     [("30 s delta rule", ref["rule_pnl"], None, None), (f'fair-value oracle (gap &gt; {ref["oracle_gap"]:g} ticks)', ref["oracle_pnl"], None, None)]):
+    for label, pnl, link, extra in entries:
         mean = sum(pnl) / len(pnl)
         name = f'<a href="{html.escape(link)}">{label}</a>' if link else f"<i>{label}</i>"
         info = (f'<td class="n">{sum(extra["orders"]) / len(extra["orders"]):.1f}</td><td class="n">{100 * extra["long_share"]:.0f}% / '
@@ -283,8 +292,6 @@ def main(argv=None):
         m = sum(res["agent_pnl"]) / a.episodes
         print(f"{run.name}: {res['agent']} {res['policy']} {m:+.2f} ticks/episode "
               f"(rule {sum(res['rule_pnl']) / a.episodes:+.2f}, oracle {sum(res['oracle_pnl']) / a.episodes:+.2f}), visualization block: not a score")
-    if len({(r["market"], r["warmup"]) for r in rows}) > 1:
-        print("note: the runs use different markets; the rule and oracle rows show the first run's", file=sys.stderr)
     if not rows:
         raise SystemExit("no run could be replayed")
     (a.out / "index.html").write_text(index_page(rows, a.episodes, failed), encoding="utf-8", newline="\n")

@@ -51,6 +51,8 @@ rag-cpp/
 │           ├── tick_env.hpp     TickScalpEnv: passive tick scalping with queue position
 │           ├── tick_csv.hpp     recorded ticks from CSV, bucketed
 │           ├── replay_env.hpp   TickTape + ReplayScalpEnv: backtests on recorded ticks
+│           ├── seed_ledger.hpp  the seed-block table + process-role guard (forbid_sealed, open_sealed; OF15, A71)
+│           ├── vec_scalp_env.hpp Pool, EpisodeSource, VecScalpEnv, VecReplayEnv, run_builtin (batched ScalpEnv; OF15)
 │           ├── stylized.hpp     stylized facts of a tick stream (calibration)
 │           ├── agent.hpp        Agent<Env>: TileQ / Episodic / ActorCritic / NeuralQ, n-step, distill, snapshots
 │           ├── evaluate.hpp     evaluate / compare on common random numbers (EvalStats)
@@ -77,6 +79,7 @@ rag-cpp/
 │   ├── policy_table_tests.cpp   lookup-table policies: grid, clamping, persistence, voting
 │   ├── rag_property_tests.cpp   engine property tests: TopK, SIMD, tokenizer, chunker, BM25, IVF, persistence (6 bugs)
 │   ├── api_examples_tests.cpp   compiles and runs every snippet in docs/ai/API.md
+│   ├── vec_scalp_env_tests.cpp  VecScalpEnv/VecReplayEnv vs serial ScalpEnv, the seed ledger's refusals (OF15)
 │   ├── pdf_tests.cpp            (Poppler) PDF extraction on generated PDFs
 │   ├── pdf_writer.hpp           minimal PDF writer for fixtures
 │   ├── stress.cpp               rag_stress: concurrent writer/readers with exact invariants
@@ -92,6 +95,7 @@ rag-cpp/
 │   ├── of_train.cpp             order-flow scalping agents trained in parallel (one seed per thread)
 │   ├── of_backtest.cpp          walk-forward backtest of scalping strategies on recorded ticks
 │   ├── of_calibrate.cpp         simulator vs recorded ticks: facts, fit (NLopt), export
+│   ├── of15_refdump.cpp         (RAG_PYTHON) serial ScalpEnv reference dump for the _ragof bit-identity tests
 │   └── agent_demo.cpp           the self-learning agent end to end (model-free, drift, model-based + model check)
 ├── docs/
 │   ├── agent.md                 the agent's architecture, with every measured lesson
@@ -103,17 +107,25 @@ rag-cpp/
 │       ├── API.md               compiled usage examples and config tables
 │       ├── RAG_ENGINE.md        engine internals, invariants, file format
 │       ├── TASK_SPECS.md        exact task dynamics, rewards, optima, learner updates, metrics
-│       ├── LESSONS.md           27 cross-cutting lessons with their evidence
+│       ├── LESSONS.md           54 cross-cutting lessons with their evidence
 │       ├── RESEARCH.md          literature review and ranked next experiments
 │       ├── EXPERIMENTS.md       experiment log, including negative results
 │       ├── DECISIONS.md         design decisions with evidence (R*, P*, A*)
 │       ├── CONVENTIONS.md       coding, testing and verification rules
 │       └── STATUS.md            what works, limitations, next steps
+├── python/                      (OF15, A72) the learning pipeline; run with PYTHONPATH=python and the venv .venv (gitignored)
+│   ├── ragof_module.cpp         nanobind module _ragof: ScalpParams, EpisodeSource, VecScalpEnv, VecReplayEnv, NeuralQNet, ledger
+│   ├── ragrl/                   config, runner/worker, agents/ (zoo: SB3 PPO/frame-stack/recurrent/DQN/QR-DQN, LightGBM,
+│   │                            BC/DAgger, NeuralQ ref), checkpoints, evaluate (paired), stats (bootstrap CIs), redflags,
+│   │                            registry, report, ledger, hpo (Optuna), live (of_train_live schema), cli (`python -m ragrl`)
+│   └── tests/                   pytest: bit identity, ledger, privileged channel, pipeline, smoke (one per agent)
 ├── tools/make_context_pack.py   bundles docs (and optionally sources) into one file for an AI
+├── tools/of_zoo_trace.py        replays any ragrl run's policy on viz episodes 960M+ as of_trace CSVs + of_viz pages
 ├── tools/research_crawler.py    anonymous, polite crawler for RL trading research -> research_corpus/ (gitignored)
 ├── handoff/                    generated bundles to paste into another AI (docs ~58k tokens, full ~240k)
 ├── experiments/                 the probe programs behind EXPERIMENTS.md and OF1-OF9 (snapshots; only of7 is built,
-│                                as of_tick_train), their result files, and research_synthesis.md
+│                                as of_tick_train), their result files, research_synthesis.md, the of*_regen.sh scripts
+│                                and configs/ (ragrl experiment configs, OF15)
 ├── llms.txt                     index of this pack for language models
 └── .github/workflows/ci.yml     CI: msvc-windows
 ```
@@ -145,10 +157,12 @@ The agent reuses the engine's SIMD kernels (`simd.hpp`), top-K selection
 | `rag_demo`, `agent_demo`, `rag_pdf` | examples and CLI | `rag_pdf` needs poppler-cpp |
 | `rag_optlib_tests`, `tune_agent` | tuning/analysis tests and tool | NLopt, Eigen |
 | `fuzz_load`, `fuzz_text`, `make_seeds` | with `-DRAG_FUZZ=ON` and Clang | libclang-rt |
+| `_ragof`, `of15_refdump`; ctest `ragrl_pytest`, `ragrl_smoke_*` (9) | with `-DRAG_PYTHON=ON`: the Python module, its reference dumper and the ragrl tests | `.venv` (Python 3.12, nanobind) |
 
 CMake options: `RAG_ARCH` (`-march` value, default `native`), `RAG_SANITIZE`
 (ASan+UBSan), `RAG_TSAN`, `RAG_HUGEPAGES` (default ON), `RAG_FUZZ`, `RAG_PDF`
-(default ON; used if Poppler is found).
+(default ON; used if Poppler is found), `RAG_PYTHON` (default OFF; the
+`_ragof` module and the ragrl tests, A72).
 
 ## CI (`.github/workflows/ci.yml`)
 

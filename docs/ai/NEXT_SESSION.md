@@ -15,13 +15,13 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > **Read first, in this order:** `docs/ai/README.md`, `docs/ai/ORDERFLOW.md`
 > (objectives, architecture, results OF1–OF10, honest status, ranked plan),
 > `docs/ai/STATUS.md`, `docs/ai/CONVENTIONS.md`, `docs/ai/LESSONS.md`
-> (32–49 are the trading lessons), `docs/ai/NEXT_SESSION.md` (this file:
+> (32–54 are the trading lessons), `docs/ai/NEXT_SESSION.md` (this file:
 > how to organise agents) and `experiments/research_synthesis.md`.
 >
-> **State on 2026-11-05:** iterations 1–3 of the goal below are done
-> (OF10 v3 at `e229af4`: stationary activity model fixes the warm-up; the
-> v3 `discovery` preset passes (a), (b), (d), naive (e) and (f1), fails
-> passive quoting, and needs a 1,050 s warm-up for its meta-orders;
+> **State on 2026-11-12:** iterations 1–3 of price-discovery work are
+> done (OF10 v3 at `e229af4`: stationary activity model fixes the warm-up;
+> the v3 `discovery` preset passes (a), (b), (d), naive (e) and (f1),
+> fails passive quoting, and needs a 1,050 s warm-up for its meta-orders;
 > A62–A66). Every OF2–OF9 episode ran at the legacy activity floor
 > (ORDERFLOW.md §5). The RL reruns on `discovery` are done (OF11,
 > `1a73bd6`): no edge; the 950M+ block is unused. OF12 compared v3 with
@@ -31,25 +31,27 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > 1,050 s (A67–A69), but both oracles lose after costs, so "no RL edge"
 > on v4 is close to true by construction (LESSONS 48). Run the live
 > viewer alongside every RL run (A70; ORDERFLOW.md §3). OF14 (RL on v4,
-> `6d678c6`): no edge (all 24 seeds negative). Next: ORDERFLOW.md §7.
+> `6d678c6`): no edge (all 24 seeds negative). OF15: a leak-proof
+> learning pipeline (`python/ragrl` over the C++ `VecScalpEnv`, bound as
+> `_ragof` with `-DRAG_PYTHON=ON`; seed ledger enforced in
+> `seed_ledger.hpp`; A71–A76) ran 8 agent families on v4 and v3, one
+> sealed opening each: all 16 NO_EDGE, most ensembles flat (LESSONS 50).
+> On both simulators no RL agent finds an edge after costs. WMI is broken
+> on this server (bypassed in `ragrl`; repairing it is the user's call),
+> and the 0xc0000374 heap crash is not root-caused. Next: ORDERFLOW.md §7.
 >
-> **Goal of this session:** plan item 1 in ORDERFLOW.md §7: fix slow price
-> discovery in `include/rag/orderflow/simulator.hpp`. Makers must re-price
-> at once when value moves (quote jumps, not rate tilts), as an opt-in
-> setting so earlier results reproduce. Done when, on 3 seeds × 2 h:
-> - the hidden value gap no longer predicts the next 30 s return (it does
->   at 0.58–0.65 today);
-> - book imbalance predicts only the next tick or two;
-> - the markout curve is flat after a few seconds;
-> - the stylized facts (`of_calibrate sim`) stay ES-like;
-> - naive rules are near breakeven after costs;
-> - no learned policy beats the fair-value oracle.
->
-> Then re-run the scalping baselines and RL (OF2, OF3, OF6, OF8) on the
-> fixed market. Use `of_train` for training: the user's 24-thread server
-> runs the long jobs, and this session runs only smoke runs. If the user
-> provides an ES tick CSV, do plan items 2–3 (calibration, backtest)
-> next.
+> **Goal of this session:** the first item of ORDERFLOW.md §7: run the
+> `ragrl` zoo on the user's recorded ES ticks through `VecReplayEnv`,
+> walk-forward by day (train on earlier days, score once on later days),
+> with the replay data registered as a sealed block in the ledger before
+> any agent is trained on it. Needs the user's tick export; without it,
+> do the t-based R1 flag first, then the opt-in simulator realism items
+> (v5) of §7. Done when every config is scored once on later days,
+> paired against flat and the 30 s delta rule, with orders/episode and
+> the mean of seeds beside the headline, and any positive result goes to
+> a fresh confirmation before it is claimed. The user's 24-thread server
+> runs the long jobs (`experiments/of15_regen.sh`-style scripts through
+> the kit); this session runs smoke runs.
 >
 > **Rules:**
 > - Every new simulator behaviour is opt-in, so the defaults reproduce
@@ -165,11 +167,17 @@ return { verdict, done, reviews, run, analysis }
 
 ## 4. Seed ledger (never reuse a block for a new choice)
 
+Since OF15 the block table is enforced in code: `include/rag/orderflow/seed_ledger.hpp`
+(block bases and sizes, sealed and privileged flags, the process-role guard;
+`python/ragrl` mirrors it and never hard-codes bases), and every sealed
+opening is appended to `build-avx512/rl/ledger_usage.jsonl`. This table
+records what each block has been used for.
+
 | Block | Use |
 |---|---|
-| run seed (1, 2, ...) | training streams (`Trainer` train_seed) |
-| 700,000,000+ | validation: champion selection |
-| 900,000,000+ | sealed scalping test (OF2, OF3, OF9) — viewed on the discovery market (OF10 v1, v2 and an iteration-3 smoke: `of2_baselines 300`, the `of_train` smoke tests' episodes): confirm discovery-market edges once on 950M+; OF11 scored all 24 v3 nets on the first 300 at warm-up 1,050 s (pre-RL smoke: the first 100); OF13 tuning's (e) ran `of2_baselines` on the first 300 on v4 |
+| run seed (1, 2, ...) | training streams (`Trainer` train_seed; ragrl `EpisodeSource.train(run_seed)`, run seeds in [1, 700M)); OF15 used run seeds 1–12 per config |
+| 700,000,000+ | validation: champion selection; OF15: checkpoints on 700M+[0,200) (`neuralq_ref` [40,240)), cross-agent selection on 701M+[0,400), HPO objective 702M+[0,400) (not used); the OF15 audits replayed 700M/701M only |
+| 900,000,000+ | sealed scalping test (OF2, OF3, OF9) — viewed on the discovery market (OF10 v1, v2 and an iteration-3 smoke: `of2_baselines 300`, the `of_train` smoke tests' episodes): confirm discovery-market edges once on 950M+; OF11 scored all 24 v3 nets on the first 300 at warm-up 1,050 s (pre-RL smoke: the first 100); OF13 tuning's (e) ran `of2_baselines` on the first 300 on v4. ragrl's seal refuses 900M+[0,100000) (viewed by OF2–OF14). **OF15:** 901M+[0,300) (indices 1,000,000–1,000,299) pre-registered for family `of15_v4` on v4 (9 slots, 8 used: one per agent; the HPO slot is free), 901M+[300,600) for `of15_v3` on v3 (8 of 8: full); each config opened once (16 ledger lines) |
 | 910,000,000+ | sealed tick-scalping test (OF4, OF5, OF7) — viewed many times, also on the discovery market (`of4_tick_baselines 300`, OF10 v1, v2 and an iteration-3 smoke): confirm once on 950M+ |
 | diagnostic simulator seeds 1–3 | OF10 tuning (`of_discovery`; v1/v2 on 2 h windows, v3 on 400 episodes + 16 sessions per seed; rule episodes 1,000,000 × seed + i): look as often as needed |
 | diagnostic seeds 4–6 | OF10 held-out sanity check (θ* pre-registered on 1–3) — viewed several times (v1, v2, skeptic's 600 s run): no longer held out |
@@ -184,8 +192,8 @@ return { verdict, done, reviews, run, analysis }
 | 920,000,000+ | stress scenarios (OF6; OF11 on discovery v3 at warm-up 1,050 s) |
 | 930,000,000+ | trading days (OF8; OF11 on discovery v3 at warm-up 1,050 s) |
 | 940,000,000+ | pairing probes (separate streams) |
-| 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it; OF12 exported sessions 960,012,001–012 for the real-vs-sim comparison, which OF13 then used as v4's tuning sessions; OF13 final sessions 960,013,001–012 (used once, with `of2_baselines` episodes 960,013,000,000 + i) and skeptic sessions 960,014,001–012 (episodes 960,014,000,000 + i): spent for gating v4; the live training viewer (`of_train_live`, A70) probes the net on this block |
-| **950,000,000+** | **fresh confirmation: unused; use once per claimed edge, then record it here** |
+| 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it; OF12 exported sessions 960,012,001–012 for the real-vs-sim comparison, which OF13 then used as v4's tuning sessions; OF13 final sessions 960,013,001–012 (used once, with `of2_baselines` episodes 960,013,000,000 + i) and skeptic sessions 960,014,001–012 (episodes 960,014,000,000 + i): spent for gating v4; the live training viewer (`of_train_live`, A70) probes the net on this block; OF15: the ragrl live hook's probe episodes, the skeptic's fresh-episode rerun 960,015,000,000+[0,600) (both markets, four conditions) and quirk probe 960,015,001,000+[0,400) (viewed: no longer fresh), and `tools/of_zoo_trace.py` replays on 960M+[0,5) (look only) |
+| **950,000,000+** | **fresh confirmation: unused (OF15 too); use once per claimed edge, then record it here. ragrl: `confirm --i-am-the-orchestrator --claim ID` only, taking the next free index after any earlier confirmation** |
 
 ## 5. Red flags (stop and diagnose before reporting a win)
 
@@ -196,7 +204,11 @@ return { verdict, done, reviews, run, analysis }
   1-min sd in the episode windows themselves (OF10 warm-up finding,
   LESSONS 40).
 - Annualized Sharpe above ~5, or no losing day, for a 1-lot directional
-  strategy (OF8: ~80 meant a too-easy simulator).
+  strategy (OF8: ~80 meant a too-easy simulator). In ragrl this is R1,
+  a warning (R1v) below 2 orders/episode (A74); annualized, Sharpe > 5 is
+  only t > 0.87 at 300 episodes, so read t too (LESSONS 51).
+- An ensemble headline that places ~0 orders: its "no edge" is vacuous;
+  read the mean of seeds and orders/episode (OF15, LESSONS 50).
 - A naive rule profits a lot after costs (naive quoting winning every
   episode exposed the queue model, OF4).
 - A validation lead that shrinks on sealed seeds (OF7: +1.0 → +0.1).
@@ -218,3 +230,6 @@ return { verdict, done, reviews, run, analysis }
 - **GPUs:** not useful at the current network size (2 × 64). They are
   worth renting only with much larger models (e.g. sequence models over
   raw book data), which would need a GPU framework fed by this simulator.
+  OF15 measured it for the SB3 zoo: PPO-family training is 61–80% C++
+  simulator on v4, the DQN family update-bound on 64×64 MLPs (per-update
+  overhead, not arithmetic): no GPU now (A75).

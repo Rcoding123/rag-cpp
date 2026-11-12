@@ -154,7 +154,9 @@ experiments/of13_skeptic_baselines_w150.txt
 experiments/of13_skeptic_probe_w1050.txt
 experiments/of13_skeptic_probe_w150.txt
 experiments/of13_skeptic_real_vs_v4.txt
+experiments/of14_days.txt
 experiments/of14_regen.sh
+experiments/of14_train.txt
 experiments/of1_stylized_facts.cpp
 experiments/of2_baselines.cpp
 experiments/of2_results.txt
@@ -260,6 +262,7 @@ tests/text_clean_tests.cpp
 tools/make_context_pack.py
 tools/of_train_live.py
 tools/of_viz.py
+tools/of_zoo_trace.py
 tools/real_vs_sim.py
 tools/research_crawler.py
 tools/test_research_crawler.py
@@ -505,7 +508,7 @@ documents alone.
 
 ---
 
-## FILE: docs/ai/PROJECT_MAP.md  (11,064 bytes)
+## FILE: docs/ai/PROJECT_MAP.md  (12,750 bytes)
 
 # Project map
 
@@ -560,6 +563,8 @@ rag-cpp/
 │           ├── tick_env.hpp     TickScalpEnv: passive tick scalping with queue position
 │           ├── tick_csv.hpp     recorded ticks from CSV, bucketed
 │           ├── replay_env.hpp   TickTape + ReplayScalpEnv: backtests on recorded ticks
+│           ├── seed_ledger.hpp  the seed-block table + process-role guard (forbid_sealed, open_sealed; OF15, A71)
+│           ├── vec_scalp_env.hpp Pool, EpisodeSource, VecScalpEnv, VecReplayEnv, run_builtin (batched ScalpEnv; OF15)
 │           ├── stylized.hpp     stylized facts of a tick stream (calibration)
 │           ├── agent.hpp        Agent<Env>: TileQ / Episodic / ActorCritic / NeuralQ, n-step, distill, snapshots
 │           ├── evaluate.hpp     evaluate / compare on common random numbers (EvalStats)
@@ -586,6 +591,7 @@ rag-cpp/
 │   ├── policy_table_tests.cpp   lookup-table policies: grid, clamping, persistence, voting
 │   ├── rag_property_tests.cpp   engine property tests: TopK, SIMD, tokenizer, chunker, BM25, IVF, persistence (6 bugs)
 │   ├── api_examples_tests.cpp   compiles and runs every snippet in docs/ai/API.md
+│   ├── vec_scalp_env_tests.cpp  VecScalpEnv/VecReplayEnv vs serial ScalpEnv, the seed ledger's refusals (OF15)
 │   ├── pdf_tests.cpp            (Poppler) PDF extraction on generated PDFs
 │   ├── pdf_writer.hpp           minimal PDF writer for fixtures
 │   ├── stress.cpp               rag_stress: concurrent writer/readers with exact invariants
@@ -601,6 +607,7 @@ rag-cpp/
 │   ├── of_train.cpp             order-flow scalping agents trained in parallel (one seed per thread)
 │   ├── of_backtest.cpp          walk-forward backtest of scalping strategies on recorded ticks
 │   ├── of_calibrate.cpp         simulator vs recorded ticks: facts, fit (NLopt), export
+│   ├── of15_refdump.cpp         (RAG_PYTHON) serial ScalpEnv reference dump for the _ragof bit-identity tests
 │   └── agent_demo.cpp           the self-learning agent end to end (model-free, drift, model-based + model check)
 ├── docs/
 │   ├── agent.md                 the agent's architecture, with every measured lesson
@@ -612,17 +619,25 @@ rag-cpp/
 │       ├── API.md               compiled usage examples and config tables
 │       ├── RAG_ENGINE.md        engine internals, invariants, file format
 │       ├── TASK_SPECS.md        exact task dynamics, rewards, optima, learner updates, metrics
-│       ├── LESSONS.md           27 cross-cutting lessons with their evidence
+│       ├── LESSONS.md           54 cross-cutting lessons with their evidence
 │       ├── RESEARCH.md          literature review and ranked next experiments
 │       ├── EXPERIMENTS.md       experiment log, including negative results
 │       ├── DECISIONS.md         design decisions with evidence (R*, P*, A*)
 │       ├── CONVENTIONS.md       coding, testing and verification rules
 │       └── STATUS.md            what works, limitations, next steps
+├── python/                      (OF15, A72) the learning pipeline; run with PYTHONPATH=python and the venv .venv (gitignored)
+│   ├── ragof_module.cpp         nanobind module _ragof: ScalpParams, EpisodeSource, VecScalpEnv, VecReplayEnv, NeuralQNet, ledger
+│   ├── ragrl/                   config, runner/worker, agents/ (zoo: SB3 PPO/frame-stack/recurrent/DQN/QR-DQN, LightGBM,
+│   │                            BC/DAgger, NeuralQ ref), checkpoints, evaluate (paired), stats (bootstrap CIs), redflags,
+│   │                            registry, report, ledger, hpo (Optuna), live (of_train_live schema), cli (`python -m ragrl`)
+│   └── tests/                   pytest: bit identity, ledger, privileged channel, pipeline, smoke (one per agent)
 ├── tools/make_context_pack.py   bundles docs (and optionally sources) into one file for an AI
+├── tools/of_zoo_trace.py        replays any ragrl run's policy on viz episodes 960M+ as of_trace CSVs + of_viz pages
 ├── tools/research_crawler.py    anonymous, polite crawler for RL trading research -> research_corpus/ (gitignored)
 ├── handoff/                    generated bundles to paste into another AI (docs ~58k tokens, full ~240k)
 ├── experiments/                 the probe programs behind EXPERIMENTS.md and OF1-OF9 (snapshots; only of7 is built,
-│                                as of_tick_train), their result files, and research_synthesis.md
+│                                as of_tick_train), their result files, research_synthesis.md, the of*_regen.sh scripts
+│                                and configs/ (ragrl experiment configs, OF15)
 ├── llms.txt                     index of this pack for language models
 └── .github/workflows/ci.yml     CI: msvc-windows
 ```
@@ -654,10 +669,12 @@ The agent reuses the engine's SIMD kernels (`simd.hpp`), top-K selection
 | `rag_demo`, `agent_demo`, `rag_pdf` | examples and CLI | `rag_pdf` needs poppler-cpp |
 | `rag_optlib_tests`, `tune_agent` | tuning/analysis tests and tool | NLopt, Eigen |
 | `fuzz_load`, `fuzz_text`, `make_seeds` | with `-DRAG_FUZZ=ON` and Clang | libclang-rt |
+| `_ragof`, `of15_refdump`; ctest `ragrl_pytest`, `ragrl_smoke_*` (9) | with `-DRAG_PYTHON=ON`: the Python module, its reference dumper and the ragrl tests | `.venv` (Python 3.12, nanobind) |
 
 CMake options: `RAG_ARCH` (`-march` value, default `native`), `RAG_SANITIZE`
 (ASan+UBSan), `RAG_TSAN`, `RAG_HUGEPAGES` (default ON), `RAG_FUZZ`, `RAG_PDF`
-(default ON; used if Poppler is found).
+(default ON; used if Poppler is found), `RAG_PYTHON` (default OFF; the
+`_ragof` module and the ragrl tests, A72).
 
 ## CI (`.github/workflows/ci.yml`)
 
@@ -829,7 +846,7 @@ count.
 
 ---
 
-## FILE: docs/ai/API.md  (17,260 bytes)
+## FILE: docs/ai/API.md  (18,715 bytes)
 
 # API cheat sheet
 
@@ -1167,6 +1184,31 @@ ReplayScalpEnv replay(tape);                      // same observations, recorded
 A new environment only needs to satisfy the `Environment` concept: an
 `Observation` type, `kNumActions`, `kStateDims`, `kLo`/`kHi`, and
 `reset(rng)`, `step(action, rng)` and `features(obs)`.
+
+## 15. The OF15 learning pipeline (Python; `-DRAG_PYTHON=ON`)
+
+Not compiled by `api_examples_tests.cpp`: the binding is tested by
+`python/tests` (ctest `ragrl_pytest`, `ragrl_smoke_*`). C++ side:
+`rag/orderflow/seed_ledger.hpp` (block table, process roles) and
+`rag/orderflow/vec_scalp_env.hpp` (`VecScalpEnv`, `VecReplayEnv`,
+`EpisodeSource`, `run_builtin`); module `_ragof` (`python/ragof_module.cpp`).
+
+```python
+import _ragof as R                        # RAGOF_DIR = the directory holding _ragof*.pyd
+R.forbid_sealed()                         # trainer process: sealed blocks can never open here
+p = R.ScalpParams("discovery_v4", 1050.0) # market, warm-up s; fee/latency/... keyword-only
+env = R.VecScalpEnv(p, R.EpisodeSource.train(1), n_envs=8, threads=1)  # run seed 1, auto-reset
+obs = env.reset()                         # float64 [8, 16] (ScalpEnv::features)
+obs, reward, done = env.step(actions)     # actions int64 [8] in {0 short, 1 flat, 2 long}
+val = R.EpisodeSource.block("validation", 0, 200)   # Rng(700M + i); test/confirm only via open_sealed
+```
+
+Experiments go through the `ragrl` CLI on a JSON config, never through
+raw seeds (`PYTHONPATH=python`, the venv `.venv`):
+`python -m ragrl run experiments/configs/of15_ppo_v4.json` (train,
+select on validation, recheck seed 1, then one sealed scoring in a fresh
+process); `report RUN` re-renders from stored files without opening a
+block; `confirm` (950M+) is the orchestrator's only.
 
 
 
@@ -2215,7 +2257,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (14,883 bytes)
+## FILE: docs/ai/LESSONS.md  (17,210 bytes)
 
 # Lessons, distilled
 
@@ -2459,6 +2501,40 @@ building learning systems in general, not just this task.
     for G2 and G4 was one calm RTH morning; a second, busy morning fell
     outside G4 and G2 itself. Record more real sessions before tightening
     gates around one of them (OF13).
+50. **A flat ensemble makes "no edge" vacuous; report the mean of seeds
+    and orders per episode.** OF15 declared the 12-seed ensemble as the
+    headline before training, as it should, but 5 of 8 v4 and 4 of 8 v3
+    ensembles placed 0 orders on the sealed test: their NO_EDGE was true
+    by construction. The mean of the seeds' per-episode P&L (≤ 0
+    everywhere on fresh episodes) carried the information. Put the mean
+    of seeds and orders/episode next to every ensemble number (OF15).
+51. **A Sharpe threshold needs a minimum-activity guard, and a t
+    calibration.** R1 (annualized Sharpe > 5) fired hard on rows trading
+    0.0-0.26 orders/episode, where a few trades make any Sharpe; and
+    annualizing a per-episode Sharpe (x sqrt(9828) ~ 99) makes "> 5" the
+    same as t > 0.87 at 300 episodes, so it would also fire on noise from
+    policies that do trade. Fix both before the sealed run: the guard was
+    added afterwards (R1v, A74), which is a post-hoc rule change even
+    when it only relaxes flags (OF15).
+52. **Pairing tightens less when the simulator reacts to our orders.**
+    Same seeds give the same market only until the first fill: PPO v4's
+    P&L on the same episodes at 100 ms vs 300 ms latency correlates 0.56,
+    the delta rule's 0.19, so a "paired" latency effect of -1.51 had an SE
+    of 0.99. The paired CIs stay valid; just don't expect the variance
+    reduction of a fixed path (LESSONS 35, OF15).
+53. **An intermittent native crash needs a log that retries can't
+    overwrite.** Five 0xc0000374 worker crashes and one unexplained stop
+    hit ~0.15% of evaluations; the stop's cause was lost because the
+    retry overwrote the runner's stdout log, and Windows kept no WER or
+    event-log entry. Write each attempt's logs under a unique name and
+    record the exit code of every process before retrying; a crash that
+    no longer reproduces (0 in ~1,450 evaluations) can't be fixed or
+    ruled out after the fact (OF15).
+54. **Know what a serve command writes before pointing it at a
+    directory.** `of_train_live.py serve DIR` writes its live page to
+    DIR/index.html, so serving the zoo replays (`build-avx512/zoo`) with
+    it replaces their index page; serve static output with a plain static
+    server (`python -m http.server`, the `of-zoo` launch entry) (OF15).
 
 
 
@@ -2871,7 +2947,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (103,734 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (114,851 bytes)
 
 # RL experiment log
 
@@ -4637,11 +4713,174 @@ seed blocks on `--market discovery_v4 --warmup 1050`:
   from real data (backtests on recorded ticks).
 
 
+## OF15. The agent zoo through a leak-proof learning pipeline (v4 and v3)
+
+`bash experiments/of15_regen.sh [agent ...]` (v4; `OF15_MARKET=v3` for
+v3): builds with `-DRAG_PYTHON=ON` (warning-free), copies `_ragof` and the
+programs to `build-avx512/runs/of15-<commit>/`, then `python -m ragrl run
+experiments/configs/of15_<agent>_<v4|v3>.json` per agent; each run's
+`report_results.md` (no timings or hashes) is copied to
+`experiments/of15_<agent>[_v3].txt`. The write-up with the runtime
+profile, crash history and audits is `of15_results.txt`. Runs and the
+registry: `build-avx512/rl/runs/` (`index.jsonl`); sealed openings:
+`build-avx512/rl/ledger_usage.jsonl`.
+
+* **Question:** with a proper pipeline (leak-proof by construction, paired,
+  with CIs and red flags), does any of eight agent families find an edge
+  on v4 (`discovery_v4`) or v3 (`discovery`) where the C++ NeuralQ did not
+  (OF11, OF14)?
+* **Pipeline** (Design 2, rigor-first, judged over a faster Design 1;
+  A71–A72): header-only C++ `seed_ledger.hpp` (the only seed-block table;
+  a process-wide role guard: a process that built a train, validation or
+  pairing env can't open a sealed block, a scorer can't train,
+  `forbid_sealed()` is the first call of every worker; the privileged
+  channel only on train and viz) and `vec_scalp_env.hpp` (`Pool`,
+  `EpisodeSource`, `VecScalpEnv`, `VecReplayEnv`, `run_builtin`),
+  bit-identical to serial `ScalpEnv` on the train stream and validation;
+  the nanobind module `_ragof`; the Python package `python/ragrl` (runner,
+  zoo registry, paired evaluation, bootstrap CIs, red flags, run registry,
+  Optuna HPO, live-viewer hook). Seal is write-once, runs in a fresh
+  process, refuses ranges viewed by another experiment (900M+[0,100000)
+  by OF2–OF14) and logs every opening.
+* **Zoo:** `neuralq_ref` (the C++ NeuralQ nets of OF14 for v4 and OF11
+  for v3, loaded, not retrained), SB3 PPO, PPO with an 8-frame stack
+  (`ppo_fs`), recurrent PPO (`rppo`), DQN, QR-DQN, a LightGBM threshold
+  policy (`lgbm`) and behaviour cloning + DAgger of the privileged teacher
+  (`dagger`). Venv `.venv` (gitignored): torch 2.15.0+cpu, SB3 and
+  sb3-contrib 2.9.2, Optuna 5.0.0, LightGBM 4.7.0, nanobind 3.1.0,
+  gymnasium 1.4.0.
+* **Setup:** ES, 1 contract, market orders, fee $1.5, latency 1 step, 1 s
+  decisions, 600 decisions/episode, warm-up 1,050 s (A63, A69). 12 run
+  seeds × 2,000 episodes (1.2M decisions, `of_train`'s budget) per agent.
+  Champion per seed on validation 700M+[0,200) every 60k decisions
+  (`neuralq_ref`: `of_train`'s own champion on [0,40), re-scored on
+  [40,240)); comparisons on 701M+[0,400). **Headline declared before
+  training: the 12-seed ensemble** ("ens", A73); "mos" = mean of the 12
+  seeds' per-episode P&L. One sealed scoring per config, all policies
+  paired on the same 300 episodes: v4 test 901M+[0,300) (family
+  `of15_v4`, 8 of 9 slots used; the HPO slot is unused), v3 test
+  901M+[300,600) (family `of15_v3`, 8 of 8: full). 95% bootstrap CIs over
+  episodes (B = 10,000). Module `_ragof` 9e3731fb for every row.
+* **v4** (ticks/episode net of fees; 300 sealed episodes):
+
+  | agent | val ens / mos | sealed ens [95% CI] | sealed mos [95% CI] | orders/ep ens / mos | ens − NeuralQ ens [CI] |
+  |---|---|---|---|---|---|
+  | neuralq_ref | −0.12 / −3.50 | −0.29 [−0.65, −0.04] | −3.80 [−4.29, −3.33] | 0.17 / 6.90 | – |
+  | ppo | −1.23 / −1.27 | −1.10 [−3.72, +1.51] | −0.29 [−1.90, +1.34] | 2.00 / 2.17 | −0.82 [−3.45, +1.82] |
+  | ppo_fs | −0.14 / −2.34 | −0.13 [−0.32, +0.05] | −2.66 [−3.17, −2.16] | 0.26 / 4.41 | +0.16 [−0.16, +0.55] |
+  | rppo | +0.00 / −0.00 | +0.00 (flat) | −0.00 [−0.00, +0.00] | 0.00 / 0.00 | +0.29 [+0.04, +0.65] |
+  | dqn | +0.00 / −0.20 | +0.00 (flat) | −0.10 [−0.19, −0.02] | 0.00 / 0.29 | +0.29 [+0.04, +0.65] |
+  | qrdqn | +0.00 / −0.32 | +0.00 (flat) | −0.21 [−0.46, +0.02] | 0.00 / 0.45 | +0.29 [+0.04, +0.65] |
+  | lgbm | +0.09 / −0.43 | +0.00 (flat) | −0.25 [−0.55, +0.02] | 0.00 / 0.34 | +0.29 [+0.04, +0.65] |
+  | dagger | +0.00 / +0.01 | +0.00 (flat) | +0.01 [+0.00, +0.04] | 0.00 / 0.00 | +0.29 [+0.04, +0.65] |
+
+* **v3:**
+
+  | agent | val ens / mos | sealed ens [95% CI] | sealed mos [95% CI] | orders/ep ens / mos | ens − NeuralQ ens [CI] |
+  |---|---|---|---|---|---|
+  | neuralq_ref | +0.01 / −0.49 | +0.00 [+0.00, +0.01] | −0.60 [−0.72, −0.47] | 0.01 / 1.22 | – |
+  | ppo | −1.17 / −1.27 | −0.60 [−2.04, +0.84] | −1.09 [−2.08, −0.15] | 2.38 / 2.69 | −0.60 [−2.04, +0.84] |
+  | ppo_fs | −0.19 / −1.03 | −0.34 [−0.65, −0.06] | −0.83 [−1.05, −0.60] | 0.64 / 2.36 | −0.35 [−0.65, −0.07] |
+  | rppo | +0.00 / −0.00 | +0.00 (flat) | −0.00 [−0.01, −0.00] | 0.00 / 0.00 | −0.00 [−0.01, +0.00] |
+  | dqn | +0.00 / −0.04 | +0.00 (flat) | +0.02 [−0.04, +0.08] | 0.00 / 0.12 | −0.00 [−0.01, +0.00] |
+  | qrdqn | +0.00 / −0.04 | +0.00 (flat) | −0.07 [−0.16, +0.01] | 0.00 / 0.30 | −0.00 [−0.01, +0.00] |
+  | lgbm | −0.02 / −0.12 | +0.10 [+0.00, +0.29] | −0.15 [−0.33, +0.04] | 0.01 / 0.27 | +0.10 [−0.01, +0.29] |
+  | dagger | +0.14 / +0.13 | −0.15 [−0.38, +0.05] | −0.23 [−0.48, −0.00] | 0.10 / 0.12 | −0.15 [−0.38, +0.04] |
+
+  Every agent is "better" than the 30 s delta rule (+4.6 … +5.8 on v4,
+  +1.3 … +2.0 on v3) only because the rule pays fees on ~6 orders/episode
+  (−5.75 v4, −1.88 v3). The +0.29 vs NeuralQ on v4 is the NeuralQ
+  ensemble's own loss. lgbm v3's +0.10 is a handful of trades in 300
+  episodes (0.01 orders/episode); dagger v3's validation +0.14 turned
+  into −0.15 on test.
+* **Status:** all 16 configs NO_EDGE, no hard red flag. Warnings: R9
+  (headline t far below t_req ≈ 5.1–5.2) and R11 (days/stress not run)
+  everywhere; R6 (the best fair-value oracle trades 0.0–0.2
+  orders/episode, so the oracle bound says nothing); R2w; R1v; R4 on qrdqn
+  v3 seed 1 only (validation +0.12, t 2.4 → test −0.19). Nothing went to
+  950M+.
+* **Skeptic** (fresh viz episodes, look-only; nothing sealed): 600
+  episodes at 960,015,000,000 + i per market, under base, latency 300 ms,
+  fees $3 and both: ppo v4 ens −0.18 ± 1.06 base, −1.93 both; ppo v4 mos
+  −0.75 ± 0.70; lgbm v3 ens (best sealed, +0.10) −0.00 ± 0.03; dagger v3
+  ens +0.00; neuralq_ref v4 mos −3.91 (t −23.6). The ranking held in every
+  condition; no seed is positive with t > 1.6 (best: qrdqn v4 seed 9,
+  +0.45, t 1.2, gone at 300 ms). Quirk probe (400 episodes at
+  960,015,001,000 + i): **PPO v4 does not scalp:** it enters once in the
+  first second and holds ~597 s, a 10-minute directional coin flip
+  (per-episode sd 26 ticks). NeuralQ, ppo v3, lgbm and ppo_fs enter with
+  the I1 imbalance sign 60–80% of the time: +0.1 … +0.3 ticks at the 1 s
+  markout, but ~0.55 ticks entry slippage, so gross per trade is negative.
+  ppo_fs seeds 3, 8, 9 and 12 fade the 30 s return on 88–98% of entries
+  and lose 2–5 ticks/episode. Pipeline checks held: privileged refusals on
+  validation, pairing and sealed blocks; configs written before the first
+  test opening (the v3 configs differ from v4 only in market, test range,
+  family and reference nets); auto-reset and terminal semantics; the
+  sealed table matches `sealed.json` and `sealed_episodes.npz` for all 16
+  runs. One unintended `open_sealed('test')` call, in a process that had
+  built a validation env, was refused by the guard; nothing was opened or
+  logged.
+* **Caveats:** (1) **The ensemble headline mostly measures "flat":** 5 of
+  8 v4 and 4 of 8 v3 ensembles place 0 orders on test, so their NO_EDGE is
+  true by construction; mos is the informative number, and it is ≤ 0
+  everywhere on the fresh episodes (LESSONS 50). (2) **R1 → R1v was
+  changed after seeing test results:** a non-oracle row with annualized
+  Sharpe > 5 that trades < 2 orders/episode (`MIN_ORDERS` in
+  `redflags.py`) is now the warning R1v. It only relaxed flags (7 runs
+  went RED_FLAGS → NO_EDGE, all on rows trading 0.0–0.26 orders/episode)
+  and no claim depends on it (A74). R1 is also miscalibrated: annualized
+  per-episode Sharpe > 5 ≈ t > 0.87 at 300 episodes, so a t-based rule is
+  the next step (LESSONS 51). `index.jsonl` is append-only and still lists
+  RED_FLAGS for those 7 runs; their STATUS files and reports say NO_EDGE.
+  (3) **Pairing tightens less than assumed:** the simulator reacts to our
+  orders, so paths diverge after the first fill (PPO v4 P&L at 100 vs
+  300 ms latency on the same episodes correlates 0.56, delta30 0.19;
+  LESSONS 52). (4) **Heap crash 0xc0000374, not root-caused:** 5 worker
+  crashes on 2026-11-05 (~0.15% of evaluations), all at `run_policy`
+  teardown; each crashed run was retried whole, nothing reused. On
+  2026-11-12 ~1,450 LightGBM evaluations under per-step `HeapValidate` and
+  an ASan build of `_ragof` gave 0 crashes (P ≈ 0.2% at the old rate).
+  Leading unconfirmed hypothesis: Python's `_wmi.exec_query` timeout path
+  (WMI broke on this server ~2026-11-07; `ragrl/__init__.py` now bypasses
+  `platform._wmi_query`, A76). Sealed results judged unaffected: crashes
+  produce no output; seed 1 of every run retrained bit-identical; all 16
+  runs' validation selections replay bit-identical (701M+[0,400)); the
+  baselines are bit-identical across seal processes. Residual risk: silent
+  damage in a seal process can't be excluded without reopening the test.
+  Settling it needs WMI repaired (the user's call) and ~150 lgbm
+  seed-runs with the bypass off and on. One rppo v4 run stopped after
+  ~5 min with no worker crash; the cause is unrecorded because the retry
+  overwrote the runner's log (LESSONS 53). (5) **Code versions:** 13
+  configs trained under ragrl 3aa6572a, dqn/rppo/qrdqn v3 under 6aa7b15a
+  (WMI bypass + R1v; same training code); qrdqn v4 was sealed with
+  `--allow-env-change`, recorded in its `sealed.json` `env_problems`. Run
+  records show git `e85dfe7`, which lacks the pipeline: until the OF15
+  commit only `ragrl_sha256` and each run's `bin/` module copy identify
+  the code. (6) Optuna was not exercised at acceptance scale; nothing ran
+  on real ticks.
+* **Where training time goes** (the GPU question; 10% profile, 12
+  workers): PPO, frame-stack PPO and recurrent PPO spend 61–80% of
+  training in the C++ simulator on v4 (~90% counting validation
+  checkpoints); DQN ~60% network, QR-DQN 88–93% (2 gradient steps of batch
+  256 × 32 quantiles per env step). Simulator ~9,000 decisions/s on v4
+  with 12 in parallel (11,200 alone), 24,700/s on v3 alone. A full market
+  takes ~2.0 h (v4) / 1.6 h (v3) of wall time; QR-DQN alone ~35 min. The
+  networks are 64×64 MLPs, so a GPU is not worth renting now (A75).
+* **Viewers:** every run writes `RUN/live.jsonl` for seed 1 in the
+  `of_train_live` schema (baked replays `build-avx512/live/of15_*`);
+  `tools/of_zoo_trace.py` replays any run's policy on viz episodes
+  960M+[0,5) for `of_viz.py` (look only).
+* **Conclusion:** on both simulators no agent family finds an edge after
+  costs. What they learn is to stay flat; the ones that trade lose (PPO
+  holds a 10-minute coin flip; I1 timing gains less than the slippage;
+  fading loses). Consistent with OF11–OF14. The next evidence has to come
+  from real ticks (`VecReplayEnv` exists) or a more realistic simulator.
+
 
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (27,010 bytes)
+## FILE: docs/ai/DECISIONS.md  (31,050 bytes)
 
 # Decision log
 
@@ -4756,6 +4995,12 @@ the code looks the way it does.
 | A68 | v4 is judged by the pre-registered gates G1–G8 from real ES (25 rows, Table 4 of `of13_real_vs_v4.txt`); the probe's legacy (d) bands (1-min sd 3–4.5 etc., from an older ES) do not judge v4 | The legacy bands came from an older ES and contradict the user's real data (real 1-min sd 9.3 ticks); a market matched to real ES must fail them. The efficiency gates (a), (b), (c), AGREE, (e), (f1) still apply (OF13). |
 | A69 | RL on `discovery_v4` uses a `ScalpEnv` warm-up of 1,050 s, pre-registered before any v4 net exists | At 150 s one AGREE row misses in 2 of 3 seed blocks (log A sd on tuning, active icebergs on skeptic) and the first 1,050 s of a fresh session show flow continuation (corr(30 s delta, next 30 s) +0.068 vs −0.012 afterwards); at 1,050 s all 29 AGREE rows agree on all three blocks (OF13). |
 | A70 | The live training viewer (`of_train_live` + `tools/of_train_live.py`) runs alongside every RL run; it probes the net only on visualization episodes from the 960,000,000+ block | Watching what the agent does while it learns catches degenerate policies early, but the probe episodes are look-only: never select, stop or score on them (the 960M+ block is visualization only; NEXT_SESSION §4). |
+| A71 | The OF15 learning pipeline is Design 2 (rigor-first): leaks and selection mistakes are impossible by construction. `seed_ledger.hpp` is the only seed-block table; a process-wide role guard refuses `open_sealed` in any process that built a train, validation or pairing env, refuses training in a scorer, and `forbid_sealed()` is the first call of every train/HPO/live worker; the privileged channel is open on train and viz only; seal is write-once, in a fresh process, logged to `ledger_usage.jsonl`, and refuses ranges another experiment viewed; 950M+ confirm needs `--i-am-the-orchestrator` and an unused claim id | Judged over Design 1, which was faster and closer to NeuralQ's recipe but kept its ledger by convention (a selection file, a token in an environment variable) and left privileged arrays open on validation, where a selection step could read them. Design 2's prototype also checked more: bit-identity on the train stream and validation, every ledger refusal, the of14_train.txt validation column reproduced for 4 seeds. Throughput was adequate (~71k env steps/s across 12 PPO processes). Grafted from Design 1: throughput settings, a Double-DQN-like recipe, provenance refusal with `--allow-env-change`, a gross-P&L oracle flag (OF15). |
+| A72 | Learning agents run in Python (`python/ragrl`: SB3, sb3-contrib, LightGBM, Optuna) over a C++ batched environment (`vec_scalp_env.hpp`) bound with nanobind (`_ragof`); the module builds only with CMake option `RAG_PYTHON` (OFF by default) from the project venv `.venv` (gitignored); no existing header changes | The zoo needs maintained RL libraries the C++ code doesn't have, while the simulator must stay the C++ one so results match `of_train`. The binding links `rag`, so it compiles with the same flags as the programs, and the environment is bit-identical to serial `ScalpEnv` (pytest against `of15_refdump`). OFF by default keeps the default build and every committed result independent of Python; with it ON the full ctest adds `ragrl_pytest` and 9 `ragrl_smoke_*` tests (OF15). |
+| A73 | The headline policy of every ragrl config (ensemble or mean of seeds) is declared in the config before training; the best seed on test is never the headline; the report shows the multiplicity bar t_req = 2 + sqrt(2 ln M) | Choosing the headline after seeing test results selects on test (OF7). OF15 declared the 12-seed ensemble; since 9 of 16 ensembles then stayed flat, the mean of seeds and orders/episode are reported beside it (LESSONS 50). |
+| A74 | R1 (annualized Sharpe > 5) becomes the warning R1v when the row trades < 2 orders/episode (`MIN_ORDERS` in `redflags.py`, shared with R6); recorded as a post-hoc change | Made **after** seeing the OF15 test results: 7 runs had hard R1 only on rows trading 0.0–0.26 orders/episode, where a Sharpe of a few trades says nothing. It only relaxed flags (RED_FLAGS → NO_EDGE) and no claim depends on it. R1 itself is miscalibrated (annualized per-episode Sharpe > 5 ≈ t > 0.87 at 300 episodes); replace it with a t-based rule before the next sealed run (OF15). |
+| A75 | No GPU for now | Measured: PPO-family training spends 61–80% of its time in the C++ simulator on v4 (~90% with validation checkpoints); DQN ~60% and QR-DQN 88–93% in updates, but on 64×64 MLPs the cost is per-update Python/SB3 overhead, not arithmetic. Cheaper levers first: fewer gradient steps for the DQN family, more torch threads and workers, a faster v4 simulator. Rent one only if training becomes model-bound (OF15). |
+| A76 | `ragrl/__init__.py` replaces `platform._wmi_query` with a function that raises, before torch or LightGBM load; repairing WMI on the server is the user's decision | Since ~2026-11-07 any WMI query crashes the calling process (0xC0000005) on this server, and Python 3.12's `platform` asks WMI for the Windows version when torch or LightGBM is imported; without WMI it falls back to the registry. Python's `_wmi.exec_query` timeout path is also the leading, unconfirmed suspect for the 0xc0000374 heap crashes (OF15). |
 
 
 
@@ -4846,7 +5091,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (10,139 bytes)
+## FILE: docs/ai/STATUS.md  (12,171 bytes)
 
 # Status, limitations and next steps
 
@@ -4884,7 +5129,26 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
   the real reference is one calm morning. A live training viewer
   (`of_train_live`, `tools/of_train_live.py`) watches RL runs (A70).
   OF14: RL on v4 finds no edge either
-  (all 24 seeds negative, mean −3.18 ticks/episode). **Caveat:** the legacy
+  (all 24 seeds negative, mean −3.18 ticks/episode).
+  **OF15 (2026-11-12):** a leak-proof learning pipeline (A71–A73): C++
+  `seed_ledger.hpp` (process roles, `forbid_sealed`, privileged channel
+  on train/viz only) and `vec_scalp_env.hpp` (`VecScalpEnv`,
+  `VecReplayEnv`, `run_builtin`), the nanobind module `_ragof` (CMake
+  `RAG_PYTHON`, OFF by default), and `python/ragrl` (runner, paired
+  evaluation, bootstrap CIs, red flags, Optuna, live-viewer hook;
+  `experiments/of15_regen.sh`). Eight agent families (NeuralQ reference,
+  PPO, frame-stack PPO, recurrent PPO, DQN, QR-DQN, LightGBM,
+  BC/DAgger) × v4 and v3, 12 seeds each, one sealed opening per config:
+  **all 16 NO_EDGE, no hard red flag.** Most ensembles stay flat (5/8 v4,
+  4/8 v3 place 0 orders), so the mean of seeds is the informative number:
+  ≤ 0 everywhere on fresh episodes. PPO v4 holds one ~597 s position (a
+  coin flip); I1-timing agents gain +0.1 … +0.3 ticks gross at 1 s but pay
+  ~0.55 ticks slippage. Open: the 0xc0000374 heap crash (not root-caused;
+  0 in ~1,450 evaluations since, sealed results judged unaffected), the
+  post-hoc R1v flag change (A74), and WMI broken on this server since
+  ~2026-11-07 (bypassed in `ragrl`, A76; repair is the user's call).
+  Training is simulator-bound for PPO and update-bound for the DQN family
+  on small MLPs: no GPU now (A75). **Caveat:** the legacy
   activity model is unchanged, so every OF2–OF9 result still ran at ~4
   trades/s instead of 15–22 (ORDERFLOW.md §5).
 
@@ -4946,7 +5210,10 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
   * the full suite runs on the user's AVX-512 server and in CI's
     `msvc-windows` (the sanitizer and fuzz jobs were Linux-only and are gone);
   * 287 ctest cases: 272 in `rag_tests`, 4 in `rag_optlib_tests`, 9 PDF tests (Poppler), the
-    stress run and a `rag_pdf` CLI smoke test.
+    stress run and a `rag_pdf` CLI smoke test. With `RAG_PYTHON` ON (as in
+    `build-avx512`) ctest also runs `ragrl_pytest` and 9 `ragrl_smoke_*`
+    tests: 379/379 passed on 2026-11-12; the kit's fast gate runs the
+    ragrl pytest suite (not the smokes).
   * The TSan CI job skips the single-threaded learning suites (`Agent*`,
     `ModelBased`, `ExecutionCosts`, `OffPolicy`, `MarketMaking`, `Reference`, `ApiExamples`), which ran
     for over an hour under TSan and have no threads to check.
@@ -4996,13 +5263,21 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
   `last_mid_move`; `ExecutionEnv::features` divides by `signal_sd`.
 * The online-gain numbers of E8, E11 and E15 were measured before the
   re-plan schedule fix (A40) and may shift slightly.
+* OF15's 0xc0000374 heap corruption: 5 worker crashes on 2026-11-05
+  (~0.15% of evaluations, all at `run_policy` teardown), none in ~1,450
+  LightGBM evaluations under `HeapValidate` and ASan on 2026-11-12. Not
+  root-caused; leading hypothesis Python's `_wmi.exec_query` timeout path.
+  Settling it needs WMI repaired and ~150 lgbm seed-runs with the bypass
+  off and on (EXPERIMENTS.md OF15).
 
 ## Next steps (in rough priority order)
 
 0. **ES order-flow trading** (the current focus): the ranked plan is in
-   `ORDERFLOW.md` §7: calibrate the simulator to the user's ES ticks,
-   backtest the agents on real ticks, paired evaluation on the same
-   market path, the tick scalper at 100 ms latency on fresh seeds.
+   `ORDERFLOW.md` §7. After OF15 (no RL edge on either simulator, through
+   a leak-proof pipeline): real-tick replay (`VecReplayEnv`) and richer
+   simulator realism, a t-based R1 flag, the heap crash once WMI is
+   repaired; then calibration to the user's ES ticks and the tick scalper
+   at 100 ms latency on fresh seeds.
 
 1. A neural `Embedder` (e.g. ONNX Runtime with a MiniLM model, 384 dims to
    match), on a machine that can download models.
@@ -5023,7 +5298,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/ORDERFLOW.md  (40,308 bytes)
+## FILE: docs/ai/ORDERFLOW.md  (44,108 bytes)
 
 # ES order-flow trading: simulator, agents, validation, plan
 
@@ -5121,7 +5396,15 @@ python tools\of_viz.py trace.csv trace.html                                     
 .\build-avx512\Release\of_train_live.exe --market discovery_v4 --warmup 1050 --episodes 2000 --every 50 --out DIR\live.jsonl --net DIR\seed1.net
 python tools\of_train_live.py serve DIR                                                        # live viewer on http://127.0.0.1:8770/
 python tools\of_train_live.py bake DIR\live.jsonl out.html                                     # one self-contained page afterwards
+bash experiments/of15_regen.sh [agent ...]                                                    # OF15 zoo on v4 (Git Bash; OF15_MARKET=v3 for v3)
+$env:PYTHONPATH="python"; $env:RAGOF_DIR="<snapshot dir>"; .venv\Scripts\python.exe -m ragrl --help   # run/train/select/report/diag/seal/recheck/hpo/live/zoo/confirm
+.venv\Scripts\python.exe tools\of_zoo_trace.py RUN [RUN ...] --out build-avx512\zoo --episodes 5    # replay ragrl runs on viz episodes (of_viz pages)
 ```
+`_ragof` needs `cmake --preset windows-msvc-avx512 -DRAG_PYTHON=ON` and
+the project venv `.venv` (A72). Serve `build-avx512\zoo` with a plain
+static server (the `of-zoo` launch entry: `python -m http.server 8772
+--directory build-avx512\zoo`), not with `of_train_live.py serve`, which
+writes its own `index.html` into the directory (LESSONS 54).
 Run the live viewer alongside every RL run (A70). `serve` writes the page
 and serves DIR on port 8770 (`--port`); if you write the page with `page`
 instead and serve it yourself, open `index.html?src=live.jsonl`.
@@ -5451,6 +5734,21 @@ trade more and lose more); the ensemble stops trading; OF8 days: every
 strategy loses (ensemble −50 ticks/day). No sign that RL exploits v4's
 known quirks (EXPERIMENTS.md OF14).
 
+**OF15 (the agent zoo through the `ragrl` pipeline, v4 and v3): no
+edge.** A leak-proof pipeline (C++ seed ledger with process roles,
+`VecScalpEnv` bound as `_ragof`, Python `ragrl`; A71–A73) trained 8
+agent families (NeuralQ reference, PPO, frame-stack PPO, recurrent PPO,
+DQN, QR-DQN, LightGBM threshold, BC/DAgger), 12 seeds × 2,000 episodes
+each, and scored each config once, paired, on fresh sealed ranges (v4
+901M+[0,300), v3 901M+[300,600)). All 16 configs NO_EDGE, no hard red
+flag. The declared headline, the 12-seed ensemble, is flat for 5 of 8 v4
+and 4 of 8 v3 agents (0 orders on test); the seeds that trade lose (mean
+of seeds −0.10 … −3.80 on v4, +0.02 … −1.09 on v3), and on 600 fresh viz
+episodes plus latency/fee stresses nothing is positive. PPO v4 holds one
+~597 s position per episode (a coin flip); agents timing entries on I1
+gain +0.1 … +0.3 ticks gross at 1 s but pay ~0.55 ticks slippage; fading
+30 s returns loses (EXPERIMENTS.md OF15).
+
 **Calibration** (`of_calibrate`): recorded-tick CSV round trip exact;
 in a recovery test (target = informed flow ×0.4) the fit matched
 predictability, R² and clustering but not activity or markout, and
@@ -5523,6 +5821,32 @@ leaked book imbalance (`stale_binomial`).
 
 ## 7. Plan for the next AI (ranked)
 
+**Where OF15 leaves it (2026-11-12).** OF15 closed the "maybe a better
+learner would find it" question on the simulators: through a leak-proof
+pipeline (seed ledger enforced in C++, one sealed opening per config,
+paired CIs, red flags), 8 agent families × 2 markets give 16 NO_EDGE
+results; what they learn is to stay flat (§4, EXPERIMENTS.md OF15). On
+both simulators no RL agent finds an edge after costs with 1-lot market
+orders at 1 s. More agents or HPO on the same markets is not the next
+step. What remains, in order:
+
+* **Real-tick replay through the pipeline:** `VecReplayEnv` (bound in
+   `_ragof`) exists but is unused; feed it the user's recorded ES ticks
+   (Sierra) and run the zoo walk-forward by day (item 2 below), with the replay
+   block sealed in the ledger. In parallel, simulator realism where the
+   skeptic found gaps (spread that widens, I1 persistence after latency,
+   100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
+   new real sessions (LESSONS 49).
+* **Red-flag calibration:** replace R1 (annualized Sharpe > 5 ≈ t > 0.87
+   at 300 episodes) with a t-based rule, with the minimum-activity guard
+   (R1v, A74) kept, pre-registered before the next sealed run.
+* **The 0xc0000374 heap crash**, once WMI is repaired (the user's
+   call): ~150 lgbm seed-runs with the WMI bypass off and on. Keep
+   per-attempt logs (LESSONS 53).
+* **Throughput (no GPU, A75):** fewer gradient steps per env step for
+   DQN/QR-DQN (`train_freq` 4), more torch threads and workers (24
+   hardware threads, OF15 used 12), a faster v4 step.
+
 1. **Fix slow price discovery, then calibrate to the user's ES ticks.**
    Iterations 1 (rigid quote jumps, rejected) and 2 (stale-side depletion:
    (a), (b) met, (c) marginal, (d), (e) fail) are done (OF10).
@@ -5544,7 +5868,7 @@ leaked book imbalance (`stale_binomial`).
    impact first; record RTH depth and tick-by-tick trades for a few weeks
    before fitting. **Done (OF13, `31f51c4`): v4 (`discovery_v4`)** passes
    the 25 real-ES gate rows and the efficiency gates on three seed blocks
-   (§4; A67–A69); OF14 (RL on v4, warm-up 1,050 s) is next. Before
+   (§4; A67–A69). **Done (OF14, OF15): no RL edge on v4 or v3.** Before
    tightening any gate, record more RTH depth and tick-by-tick trades
    (Sierra settings): the real reference is one calm morning. Fix the
    spread-never-widens and I1-persistence caveats in a v5 if RL shows it
@@ -5555,7 +5879,8 @@ leaked book imbalance (`stale_binomial`).
    OF2/OF3/OF6/OF8 on the calibrated market.
 2. **Backtest on real ticks:** `of_backtest` with the saved agents and the
    delta rule; walk-forward by day; train on recorded windows
-   (`ReplayScalpEnv::reset`) and test on later days only.
+   (`ReplayScalpEnv::reset`) and test on later days only. With OF15 the
+   same can run through `ragrl` on `VecReplayEnv` (the first bullet above).
 3. **Paired evaluation on the same market path:** `SimParams::separate_streams`
    (opt-in; one RNG stream per exogenous process) exists, but measured it
    barely helps: rule vs the rule with one forced deviation, 200 episodes,
@@ -5571,14 +5896,19 @@ leaked book imbalance (`stale_binomial`).
    0.61: paired comparisons have ~40% less variance. Use
    `separate_streams = true` for paired validation; the rest of the noise
    is the market's genuine reaction to our orders. Next: fewer
-   state-dependent draw counts inside a step.
+   state-dependent draw counts inside a step. OF15 measured the cost
+   between agents: PPO v4 at 100 vs 300 ms latency on the same episodes
+   correlates 0.56, the delta rule 0.19 (LESSONS 52).
 4. **Tick scalper:** action latency in `TickScalpEnv` (opt-in), tick
    diagnostics (no-trade share, spread capture vs carry, own-fill
    markouts), learn the advantage over the rule; success = match or beat
    the rule at 100 ms latency on fresh seeds (e.g. 940M+).
-5. **Validation hygiene:** a seed-block ledger, fresh-seed confirmation of
-   every claimed edge, CVaR in stress tests, domain randomization of
-   simulator parameters during training.
+5. **Validation hygiene:** the seed-block ledger is done and enforced in
+   C++ (`seed_ledger.hpp`, OF15, A71), with fresh-seed (950M+)
+   confirmation of any claim behind an orchestrator flag. Remaining: a
+   pre-registered stress list for v4 (none exists; OF15 ran no stress or
+   days on either market, R11), CVaR in stress tests, domain
+   randomization of simulator parameters during training.
 6. Market-structure features (session high/low, volume-profile POC/value
    area) and the remaining items of `experiments/research_synthesis.md`.
 
@@ -5586,7 +5916,7 @@ leaked book imbalance (`stale_binomial`).
 
 ---
 
-## FILE: docs/ai/NEXT_SESSION.md  (15,356 bytes)
+## FILE: docs/ai/NEXT_SESSION.md  (17,544 bytes)
 
 # Continuing the work: the prompt and the Claude Code agent architecture
 
@@ -5605,13 +5935,13 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > **Read first, in this order:** `docs/ai/README.md`, `docs/ai/ORDERFLOW.md`
 > (objectives, architecture, results OF1–OF10, honest status, ranked plan),
 > `docs/ai/STATUS.md`, `docs/ai/CONVENTIONS.md`, `docs/ai/LESSONS.md`
-> (32–49 are the trading lessons), `docs/ai/NEXT_SESSION.md` (this file:
+> (32–54 are the trading lessons), `docs/ai/NEXT_SESSION.md` (this file:
 > how to organise agents) and `experiments/research_synthesis.md`.
 >
-> **State on 2026-11-05:** iterations 1–3 of the goal below are done
-> (OF10 v3 at `e229af4`: stationary activity model fixes the warm-up; the
-> v3 `discovery` preset passes (a), (b), (d), naive (e) and (f1), fails
-> passive quoting, and needs a 1,050 s warm-up for its meta-orders;
+> **State on 2026-11-12:** iterations 1–3 of price-discovery work are
+> done (OF10 v3 at `e229af4`: stationary activity model fixes the warm-up;
+> the v3 `discovery` preset passes (a), (b), (d), naive (e) and (f1),
+> fails passive quoting, and needs a 1,050 s warm-up for its meta-orders;
 > A62–A66). Every OF2–OF9 episode ran at the legacy activity floor
 > (ORDERFLOW.md §5). The RL reruns on `discovery` are done (OF11,
 > `1a73bd6`): no edge; the 950M+ block is unused. OF12 compared v3 with
@@ -5621,25 +5951,27 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > 1,050 s (A67–A69), but both oracles lose after costs, so "no RL edge"
 > on v4 is close to true by construction (LESSONS 48). Run the live
 > viewer alongside every RL run (A70; ORDERFLOW.md §3). OF14 (RL on v4,
-> `6d678c6`): no edge (all 24 seeds negative). Next: ORDERFLOW.md §7.
+> `6d678c6`): no edge (all 24 seeds negative). OF15: a leak-proof
+> learning pipeline (`python/ragrl` over the C++ `VecScalpEnv`, bound as
+> `_ragof` with `-DRAG_PYTHON=ON`; seed ledger enforced in
+> `seed_ledger.hpp`; A71–A76) ran 8 agent families on v4 and v3, one
+> sealed opening each: all 16 NO_EDGE, most ensembles flat (LESSONS 50).
+> On both simulators no RL agent finds an edge after costs. WMI is broken
+> on this server (bypassed in `ragrl`; repairing it is the user's call),
+> and the 0xc0000374 heap crash is not root-caused. Next: ORDERFLOW.md §7.
 >
-> **Goal of this session:** plan item 1 in ORDERFLOW.md §7: fix slow price
-> discovery in `include/rag/orderflow/simulator.hpp`. Makers must re-price
-> at once when value moves (quote jumps, not rate tilts), as an opt-in
-> setting so earlier results reproduce. Done when, on 3 seeds × 2 h:
-> - the hidden value gap no longer predicts the next 30 s return (it does
->   at 0.58–0.65 today);
-> - book imbalance predicts only the next tick or two;
-> - the markout curve is flat after a few seconds;
-> - the stylized facts (`of_calibrate sim`) stay ES-like;
-> - naive rules are near breakeven after costs;
-> - no learned policy beats the fair-value oracle.
->
-> Then re-run the scalping baselines and RL (OF2, OF3, OF6, OF8) on the
-> fixed market. Use `of_train` for training: the user's 24-thread server
-> runs the long jobs, and this session runs only smoke runs. If the user
-> provides an ES tick CSV, do plan items 2–3 (calibration, backtest)
-> next.
+> **Goal of this session:** the first item of ORDERFLOW.md §7: run the
+> `ragrl` zoo on the user's recorded ES ticks through `VecReplayEnv`,
+> walk-forward by day (train on earlier days, score once on later days),
+> with the replay data registered as a sealed block in the ledger before
+> any agent is trained on it. Needs the user's tick export; without it,
+> do the t-based R1 flag first, then the opt-in simulator realism items
+> (v5) of §7. Done when every config is scored once on later days,
+> paired against flat and the 30 s delta rule, with orders/episode and
+> the mean of seeds beside the headline, and any positive result goes to
+> a fresh confirmation before it is claimed. The user's 24-thread server
+> runs the long jobs (`experiments/of15_regen.sh`-style scripts through
+> the kit); this session runs smoke runs.
 >
 > **Rules:**
 > - Every new simulator behaviour is opt-in, so the defaults reproduce
@@ -5755,11 +6087,17 @@ return { verdict, done, reviews, run, analysis }
 
 ## 4. Seed ledger (never reuse a block for a new choice)
 
+Since OF15 the block table is enforced in code: `include/rag/orderflow/seed_ledger.hpp`
+(block bases and sizes, sealed and privileged flags, the process-role guard;
+`python/ragrl` mirrors it and never hard-codes bases), and every sealed
+opening is appended to `build-avx512/rl/ledger_usage.jsonl`. This table
+records what each block has been used for.
+
 | Block | Use |
 |---|---|
-| run seed (1, 2, ...) | training streams (`Trainer` train_seed) |
-| 700,000,000+ | validation: champion selection |
-| 900,000,000+ | sealed scalping test (OF2, OF3, OF9) — viewed on the discovery market (OF10 v1, v2 and an iteration-3 smoke: `of2_baselines 300`, the `of_train` smoke tests' episodes): confirm discovery-market edges once on 950M+; OF11 scored all 24 v3 nets on the first 300 at warm-up 1,050 s (pre-RL smoke: the first 100); OF13 tuning's (e) ran `of2_baselines` on the first 300 on v4 |
+| run seed (1, 2, ...) | training streams (`Trainer` train_seed; ragrl `EpisodeSource.train(run_seed)`, run seeds in [1, 700M)); OF15 used run seeds 1–12 per config |
+| 700,000,000+ | validation: champion selection; OF15: checkpoints on 700M+[0,200) (`neuralq_ref` [40,240)), cross-agent selection on 701M+[0,400), HPO objective 702M+[0,400) (not used); the OF15 audits replayed 700M/701M only |
+| 900,000,000+ | sealed scalping test (OF2, OF3, OF9) — viewed on the discovery market (OF10 v1, v2 and an iteration-3 smoke: `of2_baselines 300`, the `of_train` smoke tests' episodes): confirm discovery-market edges once on 950M+; OF11 scored all 24 v3 nets on the first 300 at warm-up 1,050 s (pre-RL smoke: the first 100); OF13 tuning's (e) ran `of2_baselines` on the first 300 on v4. ragrl's seal refuses 900M+[0,100000) (viewed by OF2–OF14). **OF15:** 901M+[0,300) (indices 1,000,000–1,000,299) pre-registered for family `of15_v4` on v4 (9 slots, 8 used: one per agent; the HPO slot is free), 901M+[300,600) for `of15_v3` on v3 (8 of 8: full); each config opened once (16 ledger lines) |
 | 910,000,000+ | sealed tick-scalping test (OF4, OF5, OF7) — viewed many times, also on the discovery market (`of4_tick_baselines 300`, OF10 v1, v2 and an iteration-3 smoke): confirm once on 950M+ |
 | diagnostic simulator seeds 1–3 | OF10 tuning (`of_discovery`; v1/v2 on 2 h windows, v3 on 400 episodes + 16 sessions per seed; rule episodes 1,000,000 × seed + i): look as often as needed |
 | diagnostic seeds 4–6 | OF10 held-out sanity check (θ* pre-registered on 1–3) — viewed several times (v1, v2, skeptic's 600 s run): no longer held out |
@@ -5774,8 +6112,8 @@ return { verdict, done, reviews, run, analysis }
 | 920,000,000+ | stress scenarios (OF6; OF11 on discovery v3 at warm-up 1,050 s) |
 | 930,000,000+ | trading days (OF8; OF11 on discovery v3 at warm-up 1,050 s) |
 | 940,000,000+ | pairing probes (separate streams) |
-| 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it; OF12 exported sessions 960,012,001–012 for the real-vs-sim comparison, which OF13 then used as v4's tuning sessions; OF13 final sessions 960,013,001–012 (used once, with `of2_baselines` episodes 960,013,000,000 + i) and skeptic sessions 960,014,001–012 (episodes 960,014,000,000 + i): spent for gating v4; the live training viewer (`of_train_live`, A70) probes the net on this block |
-| **950,000,000+** | **fresh confirmation: unused; use once per claimed edge, then record it here** |
+| 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it; OF12 exported sessions 960,012,001–012 for the real-vs-sim comparison, which OF13 then used as v4's tuning sessions; OF13 final sessions 960,013,001–012 (used once, with `of2_baselines` episodes 960,013,000,000 + i) and skeptic sessions 960,014,001–012 (episodes 960,014,000,000 + i): spent for gating v4; the live training viewer (`of_train_live`, A70) probes the net on this block; OF15: the ragrl live hook's probe episodes, the skeptic's fresh-episode rerun 960,015,000,000+[0,600) (both markets, four conditions) and quirk probe 960,015,001,000+[0,400) (viewed: no longer fresh), and `tools/of_zoo_trace.py` replays on 960M+[0,5) (look only) |
+| **950,000,000+** | **fresh confirmation: unused (OF15 too); use once per claimed edge, then record it here. ragrl: `confirm --i-am-the-orchestrator --claim ID` only, taking the next free index after any earlier confirmation** |
 
 ## 5. Red flags (stop and diagnose before reporting a win)
 
@@ -5786,7 +6124,11 @@ return { verdict, done, reviews, run, analysis }
   1-min sd in the episode windows themselves (OF10 warm-up finding,
   LESSONS 40).
 - Annualized Sharpe above ~5, or no losing day, for a 1-lot directional
-  strategy (OF8: ~80 meant a too-easy simulator).
+  strategy (OF8: ~80 meant a too-easy simulator). In ragrl this is R1,
+  a warning (R1v) below 2 orders/episode (A74); annualized, Sharpe > 5 is
+  only t > 0.87 at 300 episodes, so read t too (LESSONS 51).
+- An ensemble headline that places ~0 orders: its "no edge" is vacuous;
+  read the mean of seeds and orders/episode (OF15, LESSONS 50).
 - A naive rule profits a lot after costs (naive quoting winning every
   episode exposed the queue model, OF4).
 - A validation lead that shrinks on sealed seeds (OF7: +1.0 → +0.1).
@@ -5808,6 +6150,9 @@ return { verdict, done, reviews, run, analysis }
 - **GPUs:** not useful at the current network size (2 × 64). They are
   worth renting only with much larger models (e.g. sequence models over
   raw book data), which would need a GPU framework fed by this simulator.
+  OF15 measured it for the SB3 zoo: PPO-family training is 61–80% C++
+  simulator on v4, the DQN family update-bound on 64×64 MLPs (per-update
+  overhead, not arithmetic): no GPU now (A75).
 
 
 

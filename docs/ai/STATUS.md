@@ -34,7 +34,26 @@
   the real reference is one calm morning. A live training viewer
   (`of_train_live`, `tools/of_train_live.py`) watches RL runs (A70).
   OF14: RL on v4 finds no edge either
-  (all 24 seeds negative, mean −3.18 ticks/episode). **Caveat:** the legacy
+  (all 24 seeds negative, mean −3.18 ticks/episode).
+  **OF15 (2026-11-12):** a leak-proof learning pipeline (A71–A73): C++
+  `seed_ledger.hpp` (process roles, `forbid_sealed`, privileged channel
+  on train/viz only) and `vec_scalp_env.hpp` (`VecScalpEnv`,
+  `VecReplayEnv`, `run_builtin`), the nanobind module `_ragof` (CMake
+  `RAG_PYTHON`, OFF by default), and `python/ragrl` (runner, paired
+  evaluation, bootstrap CIs, red flags, Optuna, live-viewer hook;
+  `experiments/of15_regen.sh`). Eight agent families (NeuralQ reference,
+  PPO, frame-stack PPO, recurrent PPO, DQN, QR-DQN, LightGBM,
+  BC/DAgger) × v4 and v3, 12 seeds each, one sealed opening per config:
+  **all 16 NO_EDGE, no hard red flag.** Most ensembles stay flat (5/8 v4,
+  4/8 v3 place 0 orders), so the mean of seeds is the informative number:
+  ≤ 0 everywhere on fresh episodes. PPO v4 holds one ~597 s position (a
+  coin flip); I1-timing agents gain +0.1 … +0.3 ticks gross at 1 s but pay
+  ~0.55 ticks slippage. Open: the 0xc0000374 heap crash (not root-caused;
+  0 in ~1,450 evaluations since, sealed results judged unaffected), the
+  post-hoc R1v flag change (A74), and WMI broken on this server since
+  ~2026-11-07 (bypassed in `ragrl`, A76; repair is the user's call).
+  Training is simulator-bound for PPO and update-bound for the DQN family
+  on small MLPs: no GPU now (A75). **Caveat:** the legacy
   activity model is unchanged, so every OF2–OF9 result still ran at ~4
   trades/s instead of 15–22 (ORDERFLOW.md §5).
 
@@ -96,7 +115,10 @@
   * the full suite runs on the user's AVX-512 server and in CI's
     `msvc-windows` (the sanitizer and fuzz jobs were Linux-only and are gone);
   * 287 ctest cases: 272 in `rag_tests`, 4 in `rag_optlib_tests`, 9 PDF tests (Poppler), the
-    stress run and a `rag_pdf` CLI smoke test.
+    stress run and a `rag_pdf` CLI smoke test. With `RAG_PYTHON` ON (as in
+    `build-avx512`) ctest also runs `ragrl_pytest` and 9 `ragrl_smoke_*`
+    tests: 379/379 passed on 2026-11-12; the kit's fast gate runs the
+    ragrl pytest suite (not the smokes).
   * The TSan CI job skips the single-threaded learning suites (`Agent*`,
     `ModelBased`, `ExecutionCosts`, `OffPolicy`, `MarketMaking`, `Reference`, `ApiExamples`), which ran
     for over an hour under TSan and have no threads to check.
@@ -146,13 +168,21 @@
   `last_mid_move`; `ExecutionEnv::features` divides by `signal_sd`.
 * The online-gain numbers of E8, E11 and E15 were measured before the
   re-plan schedule fix (A40) and may shift slightly.
+* OF15's 0xc0000374 heap corruption: 5 worker crashes on 2026-11-05
+  (~0.15% of evaluations, all at `run_policy` teardown), none in ~1,450
+  LightGBM evaluations under `HeapValidate` and ASan on 2026-11-12. Not
+  root-caused; leading hypothesis Python's `_wmi.exec_query` timeout path.
+  Settling it needs WMI repaired and ~150 lgbm seed-runs with the bypass
+  off and on (EXPERIMENTS.md OF15).
 
 ## Next steps (in rough priority order)
 
 0. **ES order-flow trading** (the current focus): the ranked plan is in
-   `ORDERFLOW.md` §7: calibrate the simulator to the user's ES ticks,
-   backtest the agents on real ticks, paired evaluation on the same
-   market path, the tick scalper at 100 ms latency on fresh seeds.
+   `ORDERFLOW.md` §7. After OF15 (no RL edge on either simulator, through
+   a leak-proof pipeline): real-tick replay (`VecReplayEnv`) and richer
+   simulator realism, a t-based R1 flag, the heap crash once WMI is
+   repaired; then calibration to the user's ES ticks and the tick scalper
+   at 100 ms latency on fresh seeds.
 
 1. A neural `Embedder` (e.g. ONNX Runtime with a MiniLM model, 384 dims to
    match), on a machine that can download models.

@@ -334,3 +334,28 @@ ReplayScalpEnv replay(tape);                      // same observations, recorded
 A new environment only needs to satisfy the `Environment` concept: an
 `Observation` type, `kNumActions`, `kStateDims`, `kLo`/`kHi`, and
 `reset(rng)`, `step(action, rng)` and `features(obs)`.
+
+## 15. The OF15 learning pipeline (Python; `-DRAG_PYTHON=ON`)
+
+Not compiled by `api_examples_tests.cpp`: the binding is tested by
+`python/tests` (ctest `ragrl_pytest`, `ragrl_smoke_*`). C++ side:
+`rag/orderflow/seed_ledger.hpp` (block table, process roles) and
+`rag/orderflow/vec_scalp_env.hpp` (`VecScalpEnv`, `VecReplayEnv`,
+`EpisodeSource`, `run_builtin`); module `_ragof` (`python/ragof_module.cpp`).
+
+```python
+import _ragof as R                        # RAGOF_DIR = the directory holding _ragof*.pyd
+R.forbid_sealed()                         # trainer process: sealed blocks can never open here
+p = R.ScalpParams("discovery_v4", 1050.0) # market, warm-up s; fee/latency/... keyword-only
+env = R.VecScalpEnv(p, R.EpisodeSource.train(1), n_envs=8, threads=1)  # run seed 1, auto-reset
+obs = env.reset()                         # float64 [8, 16] (ScalpEnv::features)
+obs, reward, done = env.step(actions)     # actions int64 [8] in {0 short, 1 flat, 2 long}
+val = R.EpisodeSource.block("validation", 0, 200)   # Rng(700M + i); test/confirm only via open_sealed
+```
+
+Experiments go through the `ragrl` CLI on a JSON config, never through
+raw seeds (`PYTHONPATH=python`, the venv `.venv`):
+`python -m ragrl run experiments/configs/of15_ppo_v4.json` (train,
+select on validation, recheck seed 1, then one sealed scoring in a fresh
+process); `report RUN` re-renders from stored files without opening a
+block; `confirm` (950M+) is the orchestrator's only.

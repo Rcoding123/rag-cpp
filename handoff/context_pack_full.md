@@ -154,7 +154,9 @@ experiments/of13_skeptic_baselines_w150.txt
 experiments/of13_skeptic_probe_w1050.txt
 experiments/of13_skeptic_probe_w150.txt
 experiments/of13_skeptic_real_vs_v4.txt
+experiments/of14_days.txt
 experiments/of14_regen.sh
+experiments/of14_train.txt
 experiments/of1_stylized_facts.cpp
 experiments/of2_baselines.cpp
 experiments/of2_results.txt
@@ -260,6 +262,7 @@ tests/text_clean_tests.cpp
 tools/make_context_pack.py
 tools/of_train_live.py
 tools/of_viz.py
+tools/of_zoo_trace.py
 tools/real_vs_sim.py
 tools/research_crawler.py
 tools/test_research_crawler.py
@@ -321,64 +324,100 @@ tools/test_research_crawler.py
 52. include\rag\orderflow\replay_env.hpp
 53. include\rag\orderflow\scalp_env.hpp
 54. include\rag\orderflow\scalp_run.hpp
-55. include\rag\orderflow\simulator.hpp
-56. include\rag\orderflow\stylized.hpp
-57. include\rag\orderflow\tick_csv.hpp
-58. include\rag\orderflow\tick_env.hpp
-59. include\rag\pdf.hpp
-60. include\rag\prompt.hpp
-61. include\rag\simd.hpp
-62. include\rag\text_clean.hpp
-63. include\rag\tokenizer.hpp
-64. include\rag\topk.hpp
-65. include\rag\vector_store.hpp
-66. include\rag.hpp
-67. examples\agent_demo.cpp
-68. examples\demo.cpp
-69. examples\of_backtest.cpp
-70. examples\of_calibrate.cpp
-71. examples\of_trace.cpp
-72. examples\of_train.cpp
-73. examples\of_train_live.cpp
-74. examples\rag_pdf.cpp
-75. examples\train_ensemble.cpp
-76. examples\tune_agent.cpp
-77. bench\latency.cpp
-78. bench\rag_bench.cpp
-79. bench\fixtures.hpp
-80. tests\agent_coverage_tests.cpp
-81. tests\agent_edge_case_tests.cpp
-82. tests\agent_tests.cpp
-83. tests\api_examples_tests.cpp
-84. tests\forgery_tests.cpp
-85. tests\market_making_tests.cpp
-86. tests\mlp_tests.cpp
-87. tests\model_based_tests.cpp
-88. tests\optional_libs_tests.cpp
-89. tests\orderflow_tests.cpp
-90. tests\pdf_tests.cpp
-91. tests\policy_table_tests.cpp
-92. tests\rag_property_tests.cpp
-93. tests\rag_tests.cpp
-94. tests\reference_tests.cpp
-95. tests\stress.cpp
-96. tests\stylized_tests.cpp
-97. tests\text_clean_tests.cpp
-98. tests\pdf_writer.hpp
-99. tests\pid.hpp
-100. tests\synthetic.hpp
-101. tests\test_util.hpp
-102. tests\fuzz\fuzz_common.hpp
-103. tests\fuzz\fuzz_load.cpp
-104. tests\fuzz\fuzz_policy_table.cpp
-105. tests\fuzz\fuzz_text.cpp
-106. tests\fuzz\make_seeds.cpp
-107. tools\make_context_pack.py
-108. tools\of_train_live.py
-109. tools\of_viz.py
-110. tools\real_vs_sim.py
-111. tools\research_crawler.py
-112. tools\test_research_crawler.py
+55. include\rag\orderflow\seed_ledger.hpp
+56. include\rag\orderflow\simulator.hpp
+57. include\rag\orderflow\stylized.hpp
+58. include\rag\orderflow\tick_csv.hpp
+59. include\rag\orderflow\tick_env.hpp
+60. include\rag\orderflow\vec_scalp_env.hpp
+61. include\rag\pdf.hpp
+62. include\rag\prompt.hpp
+63. include\rag\simd.hpp
+64. include\rag\text_clean.hpp
+65. include\rag\tokenizer.hpp
+66. include\rag\topk.hpp
+67. include\rag\vector_store.hpp
+68. include\rag.hpp
+69. examples\agent_demo.cpp
+70. examples\demo.cpp
+71. examples\of15_refdump.cpp
+72. examples\of_backtest.cpp
+73. examples\of_calibrate.cpp
+74. examples\of_trace.cpp
+75. examples\of_train.cpp
+76. examples\of_train_live.cpp
+77. examples\rag_pdf.cpp
+78. examples\train_ensemble.cpp
+79. examples\tune_agent.cpp
+80. bench\latency.cpp
+81. bench\rag_bench.cpp
+82. bench\fixtures.hpp
+83. tests\agent_coverage_tests.cpp
+84. tests\agent_edge_case_tests.cpp
+85. tests\agent_tests.cpp
+86. tests\api_examples_tests.cpp
+87. tests\forgery_tests.cpp
+88. tests\market_making_tests.cpp
+89. tests\mlp_tests.cpp
+90. tests\model_based_tests.cpp
+91. tests\optional_libs_tests.cpp
+92. tests\orderflow_tests.cpp
+93. tests\pdf_tests.cpp
+94. tests\policy_table_tests.cpp
+95. tests\rag_property_tests.cpp
+96. tests\rag_tests.cpp
+97. tests\reference_tests.cpp
+98. tests\stress.cpp
+99. tests\stylized_tests.cpp
+100. tests\text_clean_tests.cpp
+101. tests\vec_scalp_env_tests.cpp
+102. tests\pdf_writer.hpp
+103. tests\pid.hpp
+104. tests\synthetic.hpp
+105. tests\test_util.hpp
+106. tests\fuzz\fuzz_common.hpp
+107. tests\fuzz\fuzz_load.cpp
+108. tests\fuzz\fuzz_policy_table.cpp
+109. tests\fuzz\fuzz_text.cpp
+110. tests\fuzz\make_seeds.cpp
+111. tools\make_context_pack.py
+112. tools\of_train_live.py
+113. tools\of_viz.py
+114. tools\of_zoo_trace.py
+115. tools\real_vs_sim.py
+116. tools\research_crawler.py
+117. tools\test_research_crawler.py
+118. python\ragof_module.cpp
+119. python\ragrl\__init__.py
+120. python\ragrl\__main__.py
+121. python\ragrl\agents\__init__.py
+122. python\ragrl\agents\imitation.py
+123. python\ragrl\agents\neuralq.py
+124. python\ragrl\agents\sb3_agents.py
+125. python\ragrl\agents\supervised.py
+126. python\ragrl\checkpoints.py
+127. python\ragrl\cli.py
+128. python\ragrl\config.py
+129. python\ragrl\envs.py
+130. python\ragrl\evaluate.py
+131. python\ragrl\hpo.py
+132. python\ragrl\ledger.py
+133. python\ragrl\live.py
+134. python\ragrl\native.py
+135. python\ragrl\policies.py
+136. python\ragrl\redflags.py
+137. python\ragrl\registry.py
+138. python\ragrl\report.py
+139. python\ragrl\runner.py
+140. python\ragrl\stats.py
+141. python\ragrl\worker.py
+142. python\tests\conftest.py
+143. python\tests\test_bit_identity.py
+144. python\tests\test_ledger.py
+145. python\tests\test_pipeline.py
+146. python\tests\test_privileged.py
+147. python\tests\test_smoke.py
+148. python\tests\test_vec_env.py
 
 
 ---
@@ -597,7 +636,7 @@ documents alone.
 
 ---
 
-## FILE: docs/ai/PROJECT_MAP.md  (11,064 bytes)
+## FILE: docs/ai/PROJECT_MAP.md  (12,750 bytes)
 
 # Project map
 
@@ -652,6 +691,8 @@ rag-cpp/
 │           ├── tick_env.hpp     TickScalpEnv: passive tick scalping with queue position
 │           ├── tick_csv.hpp     recorded ticks from CSV, bucketed
 │           ├── replay_env.hpp   TickTape + ReplayScalpEnv: backtests on recorded ticks
+│           ├── seed_ledger.hpp  the seed-block table + process-role guard (forbid_sealed, open_sealed; OF15, A71)
+│           ├── vec_scalp_env.hpp Pool, EpisodeSource, VecScalpEnv, VecReplayEnv, run_builtin (batched ScalpEnv; OF15)
 │           ├── stylized.hpp     stylized facts of a tick stream (calibration)
 │           ├── agent.hpp        Agent<Env>: TileQ / Episodic / ActorCritic / NeuralQ, n-step, distill, snapshots
 │           ├── evaluate.hpp     evaluate / compare on common random numbers (EvalStats)
@@ -678,6 +719,7 @@ rag-cpp/
 │   ├── policy_table_tests.cpp   lookup-table policies: grid, clamping, persistence, voting
 │   ├── rag_property_tests.cpp   engine property tests: TopK, SIMD, tokenizer, chunker, BM25, IVF, persistence (6 bugs)
 │   ├── api_examples_tests.cpp   compiles and runs every snippet in docs/ai/API.md
+│   ├── vec_scalp_env_tests.cpp  VecScalpEnv/VecReplayEnv vs serial ScalpEnv, the seed ledger's refusals (OF15)
 │   ├── pdf_tests.cpp            (Poppler) PDF extraction on generated PDFs
 │   ├── pdf_writer.hpp           minimal PDF writer for fixtures
 │   ├── stress.cpp               rag_stress: concurrent writer/readers with exact invariants
@@ -693,6 +735,7 @@ rag-cpp/
 │   ├── of_train.cpp             order-flow scalping agents trained in parallel (one seed per thread)
 │   ├── of_backtest.cpp          walk-forward backtest of scalping strategies on recorded ticks
 │   ├── of_calibrate.cpp         simulator vs recorded ticks: facts, fit (NLopt), export
+│   ├── of15_refdump.cpp         (RAG_PYTHON) serial ScalpEnv reference dump for the _ragof bit-identity tests
 │   └── agent_demo.cpp           the self-learning agent end to end (model-free, drift, model-based + model check)
 ├── docs/
 │   ├── agent.md                 the agent's architecture, with every measured lesson
@@ -704,17 +747,25 @@ rag-cpp/
 │       ├── API.md               compiled usage examples and config tables
 │       ├── RAG_ENGINE.md        engine internals, invariants, file format
 │       ├── TASK_SPECS.md        exact task dynamics, rewards, optima, learner updates, metrics
-│       ├── LESSONS.md           27 cross-cutting lessons with their evidence
+│       ├── LESSONS.md           54 cross-cutting lessons with their evidence
 │       ├── RESEARCH.md          literature review and ranked next experiments
 │       ├── EXPERIMENTS.md       experiment log, including negative results
 │       ├── DECISIONS.md         design decisions with evidence (R*, P*, A*)
 │       ├── CONVENTIONS.md       coding, testing and verification rules
 │       └── STATUS.md            what works, limitations, next steps
+├── python/                      (OF15, A72) the learning pipeline; run with PYTHONPATH=python and the venv .venv (gitignored)
+│   ├── ragof_module.cpp         nanobind module _ragof: ScalpParams, EpisodeSource, VecScalpEnv, VecReplayEnv, NeuralQNet, ledger
+│   ├── ragrl/                   config, runner/worker, agents/ (zoo: SB3 PPO/frame-stack/recurrent/DQN/QR-DQN, LightGBM,
+│   │                            BC/DAgger, NeuralQ ref), checkpoints, evaluate (paired), stats (bootstrap CIs), redflags,
+│   │                            registry, report, ledger, hpo (Optuna), live (of_train_live schema), cli (`python -m ragrl`)
+│   └── tests/                   pytest: bit identity, ledger, privileged channel, pipeline, smoke (one per agent)
 ├── tools/make_context_pack.py   bundles docs (and optionally sources) into one file for an AI
+├── tools/of_zoo_trace.py        replays any ragrl run's policy on viz episodes 960M+ as of_trace CSVs + of_viz pages
 ├── tools/research_crawler.py    anonymous, polite crawler for RL trading research -> research_corpus/ (gitignored)
 ├── handoff/                    generated bundles to paste into another AI (docs ~58k tokens, full ~240k)
 ├── experiments/                 the probe programs behind EXPERIMENTS.md and OF1-OF9 (snapshots; only of7 is built,
-│                                as of_tick_train), their result files, and research_synthesis.md
+│                                as of_tick_train), their result files, research_synthesis.md, the of*_regen.sh scripts
+│                                and configs/ (ragrl experiment configs, OF15)
 ├── llms.txt                     index of this pack for language models
 └── .github/workflows/ci.yml     CI: msvc-windows
 ```
@@ -746,10 +797,12 @@ The agent reuses the engine's SIMD kernels (`simd.hpp`), top-K selection
 | `rag_demo`, `agent_demo`, `rag_pdf` | examples and CLI | `rag_pdf` needs poppler-cpp |
 | `rag_optlib_tests`, `tune_agent` | tuning/analysis tests and tool | NLopt, Eigen |
 | `fuzz_load`, `fuzz_text`, `make_seeds` | with `-DRAG_FUZZ=ON` and Clang | libclang-rt |
+| `_ragof`, `of15_refdump`; ctest `ragrl_pytest`, `ragrl_smoke_*` (9) | with `-DRAG_PYTHON=ON`: the Python module, its reference dumper and the ragrl tests | `.venv` (Python 3.12, nanobind) |
 
 CMake options: `RAG_ARCH` (`-march` value, default `native`), `RAG_SANITIZE`
 (ASan+UBSan), `RAG_TSAN`, `RAG_HUGEPAGES` (default ON), `RAG_FUZZ`, `RAG_PDF`
-(default ON; used if Poppler is found).
+(default ON; used if Poppler is found), `RAG_PYTHON` (default OFF; the
+`_ragof` module and the ragrl tests, A72).
 
 ## CI (`.github/workflows/ci.yml`)
 
@@ -921,7 +974,7 @@ count.
 
 ---
 
-## FILE: docs/ai/API.md  (17,260 bytes)
+## FILE: docs/ai/API.md  (18,715 bytes)
 
 # API cheat sheet
 
@@ -1259,6 +1312,31 @@ ReplayScalpEnv replay(tape);                      // same observations, recorded
 A new environment only needs to satisfy the `Environment` concept: an
 `Observation` type, `kNumActions`, `kStateDims`, `kLo`/`kHi`, and
 `reset(rng)`, `step(action, rng)` and `features(obs)`.
+
+## 15. The OF15 learning pipeline (Python; `-DRAG_PYTHON=ON`)
+
+Not compiled by `api_examples_tests.cpp`: the binding is tested by
+`python/tests` (ctest `ragrl_pytest`, `ragrl_smoke_*`). C++ side:
+`rag/orderflow/seed_ledger.hpp` (block table, process roles) and
+`rag/orderflow/vec_scalp_env.hpp` (`VecScalpEnv`, `VecReplayEnv`,
+`EpisodeSource`, `run_builtin`); module `_ragof` (`python/ragof_module.cpp`).
+
+```python
+import _ragof as R                        # RAGOF_DIR = the directory holding _ragof*.pyd
+R.forbid_sealed()                         # trainer process: sealed blocks can never open here
+p = R.ScalpParams("discovery_v4", 1050.0) # market, warm-up s; fee/latency/... keyword-only
+env = R.VecScalpEnv(p, R.EpisodeSource.train(1), n_envs=8, threads=1)  # run seed 1, auto-reset
+obs = env.reset()                         # float64 [8, 16] (ScalpEnv::features)
+obs, reward, done = env.step(actions)     # actions int64 [8] in {0 short, 1 flat, 2 long}
+val = R.EpisodeSource.block("validation", 0, 200)   # Rng(700M + i); test/confirm only via open_sealed
+```
+
+Experiments go through the `ragrl` CLI on a JSON config, never through
+raw seeds (`PYTHONPATH=python`, the venv `.venv`):
+`python -m ragrl run experiments/configs/of15_ppo_v4.json` (train,
+select on validation, recheck seed 1, then one sealed scoring in a fresh
+process); `report RUN` re-renders from stored files without opening a
+block; `confirm` (950M+) is the orchestrator's only.
 
 
 
@@ -2307,7 +2385,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (14,883 bytes)
+## FILE: docs/ai/LESSONS.md  (17,210 bytes)
 
 # Lessons, distilled
 
@@ -2551,6 +2629,40 @@ building learning systems in general, not just this task.
     for G2 and G4 was one calm RTH morning; a second, busy morning fell
     outside G4 and G2 itself. Record more real sessions before tightening
     gates around one of them (OF13).
+50. **A flat ensemble makes "no edge" vacuous; report the mean of seeds
+    and orders per episode.** OF15 declared the 12-seed ensemble as the
+    headline before training, as it should, but 5 of 8 v4 and 4 of 8 v3
+    ensembles placed 0 orders on the sealed test: their NO_EDGE was true
+    by construction. The mean of the seeds' per-episode P&L (≤ 0
+    everywhere on fresh episodes) carried the information. Put the mean
+    of seeds and orders/episode next to every ensemble number (OF15).
+51. **A Sharpe threshold needs a minimum-activity guard, and a t
+    calibration.** R1 (annualized Sharpe > 5) fired hard on rows trading
+    0.0-0.26 orders/episode, where a few trades make any Sharpe; and
+    annualizing a per-episode Sharpe (x sqrt(9828) ~ 99) makes "> 5" the
+    same as t > 0.87 at 300 episodes, so it would also fire on noise from
+    policies that do trade. Fix both before the sealed run: the guard was
+    added afterwards (R1v, A74), which is a post-hoc rule change even
+    when it only relaxes flags (OF15).
+52. **Pairing tightens less when the simulator reacts to our orders.**
+    Same seeds give the same market only until the first fill: PPO v4's
+    P&L on the same episodes at 100 ms vs 300 ms latency correlates 0.56,
+    the delta rule's 0.19, so a "paired" latency effect of -1.51 had an SE
+    of 0.99. The paired CIs stay valid; just don't expect the variance
+    reduction of a fixed path (LESSONS 35, OF15).
+53. **An intermittent native crash needs a log that retries can't
+    overwrite.** Five 0xc0000374 worker crashes and one unexplained stop
+    hit ~0.15% of evaluations; the stop's cause was lost because the
+    retry overwrote the runner's stdout log, and Windows kept no WER or
+    event-log entry. Write each attempt's logs under a unique name and
+    record the exit code of every process before retrying; a crash that
+    no longer reproduces (0 in ~1,450 evaluations) can't be fixed or
+    ruled out after the fact (OF15).
+54. **Know what a serve command writes before pointing it at a
+    directory.** `of_train_live.py serve DIR` writes its live page to
+    DIR/index.html, so serving the zoo replays (`build-avx512/zoo`) with
+    it replaces their index page; serve static output with a plain static
+    server (`python -m http.server`, the `of-zoo` launch entry) (OF15).
 
 
 
@@ -2963,7 +3075,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (103,734 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (114,851 bytes)
 
 # RL experiment log
 
@@ -4729,11 +4841,174 @@ seed blocks on `--market discovery_v4 --warmup 1050`:
   from real data (backtests on recorded ticks).
 
 
+## OF15. The agent zoo through a leak-proof learning pipeline (v4 and v3)
+
+`bash experiments/of15_regen.sh [agent ...]` (v4; `OF15_MARKET=v3` for
+v3): builds with `-DRAG_PYTHON=ON` (warning-free), copies `_ragof` and the
+programs to `build-avx512/runs/of15-<commit>/`, then `python -m ragrl run
+experiments/configs/of15_<agent>_<v4|v3>.json` per agent; each run's
+`report_results.md` (no timings or hashes) is copied to
+`experiments/of15_<agent>[_v3].txt`. The write-up with the runtime
+profile, crash history and audits is `of15_results.txt`. Runs and the
+registry: `build-avx512/rl/runs/` (`index.jsonl`); sealed openings:
+`build-avx512/rl/ledger_usage.jsonl`.
+
+* **Question:** with a proper pipeline (leak-proof by construction, paired,
+  with CIs and red flags), does any of eight agent families find an edge
+  on v4 (`discovery_v4`) or v3 (`discovery`) where the C++ NeuralQ did not
+  (OF11, OF14)?
+* **Pipeline** (Design 2, rigor-first, judged over a faster Design 1;
+  A71–A72): header-only C++ `seed_ledger.hpp` (the only seed-block table;
+  a process-wide role guard: a process that built a train, validation or
+  pairing env can't open a sealed block, a scorer can't train,
+  `forbid_sealed()` is the first call of every worker; the privileged
+  channel only on train and viz) and `vec_scalp_env.hpp` (`Pool`,
+  `EpisodeSource`, `VecScalpEnv`, `VecReplayEnv`, `run_builtin`),
+  bit-identical to serial `ScalpEnv` on the train stream and validation;
+  the nanobind module `_ragof`; the Python package `python/ragrl` (runner,
+  zoo registry, paired evaluation, bootstrap CIs, red flags, run registry,
+  Optuna HPO, live-viewer hook). Seal is write-once, runs in a fresh
+  process, refuses ranges viewed by another experiment (900M+[0,100000)
+  by OF2–OF14) and logs every opening.
+* **Zoo:** `neuralq_ref` (the C++ NeuralQ nets of OF14 for v4 and OF11
+  for v3, loaded, not retrained), SB3 PPO, PPO with an 8-frame stack
+  (`ppo_fs`), recurrent PPO (`rppo`), DQN, QR-DQN, a LightGBM threshold
+  policy (`lgbm`) and behaviour cloning + DAgger of the privileged teacher
+  (`dagger`). Venv `.venv` (gitignored): torch 2.15.0+cpu, SB3 and
+  sb3-contrib 2.9.2, Optuna 5.0.0, LightGBM 4.7.0, nanobind 3.1.0,
+  gymnasium 1.4.0.
+* **Setup:** ES, 1 contract, market orders, fee $1.5, latency 1 step, 1 s
+  decisions, 600 decisions/episode, warm-up 1,050 s (A63, A69). 12 run
+  seeds × 2,000 episodes (1.2M decisions, `of_train`'s budget) per agent.
+  Champion per seed on validation 700M+[0,200) every 60k decisions
+  (`neuralq_ref`: `of_train`'s own champion on [0,40), re-scored on
+  [40,240)); comparisons on 701M+[0,400). **Headline declared before
+  training: the 12-seed ensemble** ("ens", A73); "mos" = mean of the 12
+  seeds' per-episode P&L. One sealed scoring per config, all policies
+  paired on the same 300 episodes: v4 test 901M+[0,300) (family
+  `of15_v4`, 8 of 9 slots used; the HPO slot is unused), v3 test
+  901M+[300,600) (family `of15_v3`, 8 of 8: full). 95% bootstrap CIs over
+  episodes (B = 10,000). Module `_ragof` 9e3731fb for every row.
+* **v4** (ticks/episode net of fees; 300 sealed episodes):
+
+  | agent | val ens / mos | sealed ens [95% CI] | sealed mos [95% CI] | orders/ep ens / mos | ens − NeuralQ ens [CI] |
+  |---|---|---|---|---|---|
+  | neuralq_ref | −0.12 / −3.50 | −0.29 [−0.65, −0.04] | −3.80 [−4.29, −3.33] | 0.17 / 6.90 | – |
+  | ppo | −1.23 / −1.27 | −1.10 [−3.72, +1.51] | −0.29 [−1.90, +1.34] | 2.00 / 2.17 | −0.82 [−3.45, +1.82] |
+  | ppo_fs | −0.14 / −2.34 | −0.13 [−0.32, +0.05] | −2.66 [−3.17, −2.16] | 0.26 / 4.41 | +0.16 [−0.16, +0.55] |
+  | rppo | +0.00 / −0.00 | +0.00 (flat) | −0.00 [−0.00, +0.00] | 0.00 / 0.00 | +0.29 [+0.04, +0.65] |
+  | dqn | +0.00 / −0.20 | +0.00 (flat) | −0.10 [−0.19, −0.02] | 0.00 / 0.29 | +0.29 [+0.04, +0.65] |
+  | qrdqn | +0.00 / −0.32 | +0.00 (flat) | −0.21 [−0.46, +0.02] | 0.00 / 0.45 | +0.29 [+0.04, +0.65] |
+  | lgbm | +0.09 / −0.43 | +0.00 (flat) | −0.25 [−0.55, +0.02] | 0.00 / 0.34 | +0.29 [+0.04, +0.65] |
+  | dagger | +0.00 / +0.01 | +0.00 (flat) | +0.01 [+0.00, +0.04] | 0.00 / 0.00 | +0.29 [+0.04, +0.65] |
+
+* **v3:**
+
+  | agent | val ens / mos | sealed ens [95% CI] | sealed mos [95% CI] | orders/ep ens / mos | ens − NeuralQ ens [CI] |
+  |---|---|---|---|---|---|
+  | neuralq_ref | +0.01 / −0.49 | +0.00 [+0.00, +0.01] | −0.60 [−0.72, −0.47] | 0.01 / 1.22 | – |
+  | ppo | −1.17 / −1.27 | −0.60 [−2.04, +0.84] | −1.09 [−2.08, −0.15] | 2.38 / 2.69 | −0.60 [−2.04, +0.84] |
+  | ppo_fs | −0.19 / −1.03 | −0.34 [−0.65, −0.06] | −0.83 [−1.05, −0.60] | 0.64 / 2.36 | −0.35 [−0.65, −0.07] |
+  | rppo | +0.00 / −0.00 | +0.00 (flat) | −0.00 [−0.01, −0.00] | 0.00 / 0.00 | −0.00 [−0.01, +0.00] |
+  | dqn | +0.00 / −0.04 | +0.00 (flat) | +0.02 [−0.04, +0.08] | 0.00 / 0.12 | −0.00 [−0.01, +0.00] |
+  | qrdqn | +0.00 / −0.04 | +0.00 (flat) | −0.07 [−0.16, +0.01] | 0.00 / 0.30 | −0.00 [−0.01, +0.00] |
+  | lgbm | −0.02 / −0.12 | +0.10 [+0.00, +0.29] | −0.15 [−0.33, +0.04] | 0.01 / 0.27 | +0.10 [−0.01, +0.29] |
+  | dagger | +0.14 / +0.13 | −0.15 [−0.38, +0.05] | −0.23 [−0.48, −0.00] | 0.10 / 0.12 | −0.15 [−0.38, +0.04] |
+
+  Every agent is "better" than the 30 s delta rule (+4.6 … +5.8 on v4,
+  +1.3 … +2.0 on v3) only because the rule pays fees on ~6 orders/episode
+  (−5.75 v4, −1.88 v3). The +0.29 vs NeuralQ on v4 is the NeuralQ
+  ensemble's own loss. lgbm v3's +0.10 is a handful of trades in 300
+  episodes (0.01 orders/episode); dagger v3's validation +0.14 turned
+  into −0.15 on test.
+* **Status:** all 16 configs NO_EDGE, no hard red flag. Warnings: R9
+  (headline t far below t_req ≈ 5.1–5.2) and R11 (days/stress not run)
+  everywhere; R6 (the best fair-value oracle trades 0.0–0.2
+  orders/episode, so the oracle bound says nothing); R2w; R1v; R4 on qrdqn
+  v3 seed 1 only (validation +0.12, t 2.4 → test −0.19). Nothing went to
+  950M+.
+* **Skeptic** (fresh viz episodes, look-only; nothing sealed): 600
+  episodes at 960,015,000,000 + i per market, under base, latency 300 ms,
+  fees $3 and both: ppo v4 ens −0.18 ± 1.06 base, −1.93 both; ppo v4 mos
+  −0.75 ± 0.70; lgbm v3 ens (best sealed, +0.10) −0.00 ± 0.03; dagger v3
+  ens +0.00; neuralq_ref v4 mos −3.91 (t −23.6). The ranking held in every
+  condition; no seed is positive with t > 1.6 (best: qrdqn v4 seed 9,
+  +0.45, t 1.2, gone at 300 ms). Quirk probe (400 episodes at
+  960,015,001,000 + i): **PPO v4 does not scalp:** it enters once in the
+  first second and holds ~597 s, a 10-minute directional coin flip
+  (per-episode sd 26 ticks). NeuralQ, ppo v3, lgbm and ppo_fs enter with
+  the I1 imbalance sign 60–80% of the time: +0.1 … +0.3 ticks at the 1 s
+  markout, but ~0.55 ticks entry slippage, so gross per trade is negative.
+  ppo_fs seeds 3, 8, 9 and 12 fade the 30 s return on 88–98% of entries
+  and lose 2–5 ticks/episode. Pipeline checks held: privileged refusals on
+  validation, pairing and sealed blocks; configs written before the first
+  test opening (the v3 configs differ from v4 only in market, test range,
+  family and reference nets); auto-reset and terminal semantics; the
+  sealed table matches `sealed.json` and `sealed_episodes.npz` for all 16
+  runs. One unintended `open_sealed('test')` call, in a process that had
+  built a validation env, was refused by the guard; nothing was opened or
+  logged.
+* **Caveats:** (1) **The ensemble headline mostly measures "flat":** 5 of
+  8 v4 and 4 of 8 v3 ensembles place 0 orders on test, so their NO_EDGE is
+  true by construction; mos is the informative number, and it is ≤ 0
+  everywhere on the fresh episodes (LESSONS 50). (2) **R1 → R1v was
+  changed after seeing test results:** a non-oracle row with annualized
+  Sharpe > 5 that trades < 2 orders/episode (`MIN_ORDERS` in
+  `redflags.py`) is now the warning R1v. It only relaxed flags (7 runs
+  went RED_FLAGS → NO_EDGE, all on rows trading 0.0–0.26 orders/episode)
+  and no claim depends on it (A74). R1 is also miscalibrated: annualized
+  per-episode Sharpe > 5 ≈ t > 0.87 at 300 episodes, so a t-based rule is
+  the next step (LESSONS 51). `index.jsonl` is append-only and still lists
+  RED_FLAGS for those 7 runs; their STATUS files and reports say NO_EDGE.
+  (3) **Pairing tightens less than assumed:** the simulator reacts to our
+  orders, so paths diverge after the first fill (PPO v4 P&L at 100 vs
+  300 ms latency on the same episodes correlates 0.56, delta30 0.19;
+  LESSONS 52). (4) **Heap crash 0xc0000374, not root-caused:** 5 worker
+  crashes on 2026-11-05 (~0.15% of evaluations), all at `run_policy`
+  teardown; each crashed run was retried whole, nothing reused. On
+  2026-11-12 ~1,450 LightGBM evaluations under per-step `HeapValidate` and
+  an ASan build of `_ragof` gave 0 crashes (P ≈ 0.2% at the old rate).
+  Leading unconfirmed hypothesis: Python's `_wmi.exec_query` timeout path
+  (WMI broke on this server ~2026-11-07; `ragrl/__init__.py` now bypasses
+  `platform._wmi_query`, A76). Sealed results judged unaffected: crashes
+  produce no output; seed 1 of every run retrained bit-identical; all 16
+  runs' validation selections replay bit-identical (701M+[0,400)); the
+  baselines are bit-identical across seal processes. Residual risk: silent
+  damage in a seal process can't be excluded without reopening the test.
+  Settling it needs WMI repaired (the user's call) and ~150 lgbm
+  seed-runs with the bypass off and on. One rppo v4 run stopped after
+  ~5 min with no worker crash; the cause is unrecorded because the retry
+  overwrote the runner's log (LESSONS 53). (5) **Code versions:** 13
+  configs trained under ragrl 3aa6572a, dqn/rppo/qrdqn v3 under 6aa7b15a
+  (WMI bypass + R1v; same training code); qrdqn v4 was sealed with
+  `--allow-env-change`, recorded in its `sealed.json` `env_problems`. Run
+  records show git `e85dfe7`, which lacks the pipeline: until the OF15
+  commit only `ragrl_sha256` and each run's `bin/` module copy identify
+  the code. (6) Optuna was not exercised at acceptance scale; nothing ran
+  on real ticks.
+* **Where training time goes** (the GPU question; 10% profile, 12
+  workers): PPO, frame-stack PPO and recurrent PPO spend 61–80% of
+  training in the C++ simulator on v4 (~90% counting validation
+  checkpoints); DQN ~60% network, QR-DQN 88–93% (2 gradient steps of batch
+  256 × 32 quantiles per env step). Simulator ~9,000 decisions/s on v4
+  with 12 in parallel (11,200 alone), 24,700/s on v3 alone. A full market
+  takes ~2.0 h (v4) / 1.6 h (v3) of wall time; QR-DQN alone ~35 min. The
+  networks are 64×64 MLPs, so a GPU is not worth renting now (A75).
+* **Viewers:** every run writes `RUN/live.jsonl` for seed 1 in the
+  `of_train_live` schema (baked replays `build-avx512/live/of15_*`);
+  `tools/of_zoo_trace.py` replays any run's policy on viz episodes
+  960M+[0,5) for `of_viz.py` (look only).
+* **Conclusion:** on both simulators no agent family finds an edge after
+  costs. What they learn is to stay flat; the ones that trade lose (PPO
+  holds a 10-minute coin flip; I1 timing gains less than the slippage;
+  fading loses). Consistent with OF11–OF14. The next evidence has to come
+  from real ticks (`VecReplayEnv` exists) or a more realistic simulator.
+
 
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (27,010 bytes)
+## FILE: docs/ai/DECISIONS.md  (31,050 bytes)
 
 # Decision log
 
@@ -4848,6 +5123,12 @@ the code looks the way it does.
 | A68 | v4 is judged by the pre-registered gates G1–G8 from real ES (25 rows, Table 4 of `of13_real_vs_v4.txt`); the probe's legacy (d) bands (1-min sd 3–4.5 etc., from an older ES) do not judge v4 | The legacy bands came from an older ES and contradict the user's real data (real 1-min sd 9.3 ticks); a market matched to real ES must fail them. The efficiency gates (a), (b), (c), AGREE, (e), (f1) still apply (OF13). |
 | A69 | RL on `discovery_v4` uses a `ScalpEnv` warm-up of 1,050 s, pre-registered before any v4 net exists | At 150 s one AGREE row misses in 2 of 3 seed blocks (log A sd on tuning, active icebergs on skeptic) and the first 1,050 s of a fresh session show flow continuation (corr(30 s delta, next 30 s) +0.068 vs −0.012 afterwards); at 1,050 s all 29 AGREE rows agree on all three blocks (OF13). |
 | A70 | The live training viewer (`of_train_live` + `tools/of_train_live.py`) runs alongside every RL run; it probes the net only on visualization episodes from the 960,000,000+ block | Watching what the agent does while it learns catches degenerate policies early, but the probe episodes are look-only: never select, stop or score on them (the 960M+ block is visualization only; NEXT_SESSION §4). |
+| A71 | The OF15 learning pipeline is Design 2 (rigor-first): leaks and selection mistakes are impossible by construction. `seed_ledger.hpp` is the only seed-block table; a process-wide role guard refuses `open_sealed` in any process that built a train, validation or pairing env, refuses training in a scorer, and `forbid_sealed()` is the first call of every train/HPO/live worker; the privileged channel is open on train and viz only; seal is write-once, in a fresh process, logged to `ledger_usage.jsonl`, and refuses ranges another experiment viewed; 950M+ confirm needs `--i-am-the-orchestrator` and an unused claim id | Judged over Design 1, which was faster and closer to NeuralQ's recipe but kept its ledger by convention (a selection file, a token in an environment variable) and left privileged arrays open on validation, where a selection step could read them. Design 2's prototype also checked more: bit-identity on the train stream and validation, every ledger refusal, the of14_train.txt validation column reproduced for 4 seeds. Throughput was adequate (~71k env steps/s across 12 PPO processes). Grafted from Design 1: throughput settings, a Double-DQN-like recipe, provenance refusal with `--allow-env-change`, a gross-P&L oracle flag (OF15). |
+| A72 | Learning agents run in Python (`python/ragrl`: SB3, sb3-contrib, LightGBM, Optuna) over a C++ batched environment (`vec_scalp_env.hpp`) bound with nanobind (`_ragof`); the module builds only with CMake option `RAG_PYTHON` (OFF by default) from the project venv `.venv` (gitignored); no existing header changes | The zoo needs maintained RL libraries the C++ code doesn't have, while the simulator must stay the C++ one so results match `of_train`. The binding links `rag`, so it compiles with the same flags as the programs, and the environment is bit-identical to serial `ScalpEnv` (pytest against `of15_refdump`). OFF by default keeps the default build and every committed result independent of Python; with it ON the full ctest adds `ragrl_pytest` and 9 `ragrl_smoke_*` tests (OF15). |
+| A73 | The headline policy of every ragrl config (ensemble or mean of seeds) is declared in the config before training; the best seed on test is never the headline; the report shows the multiplicity bar t_req = 2 + sqrt(2 ln M) | Choosing the headline after seeing test results selects on test (OF7). OF15 declared the 12-seed ensemble; since 9 of 16 ensembles then stayed flat, the mean of seeds and orders/episode are reported beside it (LESSONS 50). |
+| A74 | R1 (annualized Sharpe > 5) becomes the warning R1v when the row trades < 2 orders/episode (`MIN_ORDERS` in `redflags.py`, shared with R6); recorded as a post-hoc change | Made **after** seeing the OF15 test results: 7 runs had hard R1 only on rows trading 0.0–0.26 orders/episode, where a Sharpe of a few trades says nothing. It only relaxed flags (RED_FLAGS → NO_EDGE) and no claim depends on it. R1 itself is miscalibrated (annualized per-episode Sharpe > 5 ≈ t > 0.87 at 300 episodes); replace it with a t-based rule before the next sealed run (OF15). |
+| A75 | No GPU for now | Measured: PPO-family training spends 61–80% of its time in the C++ simulator on v4 (~90% with validation checkpoints); DQN ~60% and QR-DQN 88–93% in updates, but on 64×64 MLPs the cost is per-update Python/SB3 overhead, not arithmetic. Cheaper levers first: fewer gradient steps for the DQN family, more torch threads and workers, a faster v4 simulator. Rent one only if training becomes model-bound (OF15). |
+| A76 | `ragrl/__init__.py` replaces `platform._wmi_query` with a function that raises, before torch or LightGBM load; repairing WMI on the server is the user's decision | Since ~2026-11-07 any WMI query crashes the calling process (0xC0000005) on this server, and Python 3.12's `platform` asks WMI for the Windows version when torch or LightGBM is imported; without WMI it falls back to the registry. Python's `_wmi.exec_query` timeout path is also the leading, unconfirmed suspect for the 0xc0000374 heap crashes (OF15). |
 
 
 
@@ -4938,7 +5219,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (10,139 bytes)
+## FILE: docs/ai/STATUS.md  (12,171 bytes)
 
 # Status, limitations and next steps
 
@@ -4976,7 +5257,26 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
   the real reference is one calm morning. A live training viewer
   (`of_train_live`, `tools/of_train_live.py`) watches RL runs (A70).
   OF14: RL on v4 finds no edge either
-  (all 24 seeds negative, mean −3.18 ticks/episode). **Caveat:** the legacy
+  (all 24 seeds negative, mean −3.18 ticks/episode).
+  **OF15 (2026-11-12):** a leak-proof learning pipeline (A71–A73): C++
+  `seed_ledger.hpp` (process roles, `forbid_sealed`, privileged channel
+  on train/viz only) and `vec_scalp_env.hpp` (`VecScalpEnv`,
+  `VecReplayEnv`, `run_builtin`), the nanobind module `_ragof` (CMake
+  `RAG_PYTHON`, OFF by default), and `python/ragrl` (runner, paired
+  evaluation, bootstrap CIs, red flags, Optuna, live-viewer hook;
+  `experiments/of15_regen.sh`). Eight agent families (NeuralQ reference,
+  PPO, frame-stack PPO, recurrent PPO, DQN, QR-DQN, LightGBM,
+  BC/DAgger) × v4 and v3, 12 seeds each, one sealed opening per config:
+  **all 16 NO_EDGE, no hard red flag.** Most ensembles stay flat (5/8 v4,
+  4/8 v3 place 0 orders), so the mean of seeds is the informative number:
+  ≤ 0 everywhere on fresh episodes. PPO v4 holds one ~597 s position (a
+  coin flip); I1-timing agents gain +0.1 … +0.3 ticks gross at 1 s but pay
+  ~0.55 ticks slippage. Open: the 0xc0000374 heap crash (not root-caused;
+  0 in ~1,450 evaluations since, sealed results judged unaffected), the
+  post-hoc R1v flag change (A74), and WMI broken on this server since
+  ~2026-11-07 (bypassed in `ragrl`, A76; repair is the user's call).
+  Training is simulator-bound for PPO and update-bound for the DQN family
+  on small MLPs: no GPU now (A75). **Caveat:** the legacy
   activity model is unchanged, so every OF2–OF9 result still ran at ~4
   trades/s instead of 15–22 (ORDERFLOW.md §5).
 
@@ -5038,7 +5338,10 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
   * the full suite runs on the user's AVX-512 server and in CI's
     `msvc-windows` (the sanitizer and fuzz jobs were Linux-only and are gone);
   * 287 ctest cases: 272 in `rag_tests`, 4 in `rag_optlib_tests`, 9 PDF tests (Poppler), the
-    stress run and a `rag_pdf` CLI smoke test.
+    stress run and a `rag_pdf` CLI smoke test. With `RAG_PYTHON` ON (as in
+    `build-avx512`) ctest also runs `ragrl_pytest` and 9 `ragrl_smoke_*`
+    tests: 379/379 passed on 2026-11-12; the kit's fast gate runs the
+    ragrl pytest suite (not the smokes).
   * The TSan CI job skips the single-threaded learning suites (`Agent*`,
     `ModelBased`, `ExecutionCosts`, `OffPolicy`, `MarketMaking`, `Reference`, `ApiExamples`), which ran
     for over an hour under TSan and have no threads to check.
@@ -5088,13 +5391,21 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
   `last_mid_move`; `ExecutionEnv::features` divides by `signal_sd`.
 * The online-gain numbers of E8, E11 and E15 were measured before the
   re-plan schedule fix (A40) and may shift slightly.
+* OF15's 0xc0000374 heap corruption: 5 worker crashes on 2026-11-05
+  (~0.15% of evaluations, all at `run_policy` teardown), none in ~1,450
+  LightGBM evaluations under `HeapValidate` and ASan on 2026-11-12. Not
+  root-caused; leading hypothesis Python's `_wmi.exec_query` timeout path.
+  Settling it needs WMI repaired and ~150 lgbm seed-runs with the bypass
+  off and on (EXPERIMENTS.md OF15).
 
 ## Next steps (in rough priority order)
 
 0. **ES order-flow trading** (the current focus): the ranked plan is in
-   `ORDERFLOW.md` §7: calibrate the simulator to the user's ES ticks,
-   backtest the agents on real ticks, paired evaluation on the same
-   market path, the tick scalper at 100 ms latency on fresh seeds.
+   `ORDERFLOW.md` §7. After OF15 (no RL edge on either simulator, through
+   a leak-proof pipeline): real-tick replay (`VecReplayEnv`) and richer
+   simulator realism, a t-based R1 flag, the heap crash once WMI is
+   repaired; then calibration to the user's ES ticks and the tick scalper
+   at 100 ms latency on fresh seeds.
 
 1. A neural `Embedder` (e.g. ONNX Runtime with a MiniLM model, 384 dims to
    match), on a machine that can download models.
@@ -5115,7 +5426,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/ORDERFLOW.md  (40,308 bytes)
+## FILE: docs/ai/ORDERFLOW.md  (44,108 bytes)
 
 # ES order-flow trading: simulator, agents, validation, plan
 
@@ -5213,7 +5524,15 @@ python tools\of_viz.py trace.csv trace.html                                     
 .\build-avx512\Release\of_train_live.exe --market discovery_v4 --warmup 1050 --episodes 2000 --every 50 --out DIR\live.jsonl --net DIR\seed1.net
 python tools\of_train_live.py serve DIR                                                        # live viewer on http://127.0.0.1:8770/
 python tools\of_train_live.py bake DIR\live.jsonl out.html                                     # one self-contained page afterwards
+bash experiments/of15_regen.sh [agent ...]                                                    # OF15 zoo on v4 (Git Bash; OF15_MARKET=v3 for v3)
+$env:PYTHONPATH="python"; $env:RAGOF_DIR="<snapshot dir>"; .venv\Scripts\python.exe -m ragrl --help   # run/train/select/report/diag/seal/recheck/hpo/live/zoo/confirm
+.venv\Scripts\python.exe tools\of_zoo_trace.py RUN [RUN ...] --out build-avx512\zoo --episodes 5    # replay ragrl runs on viz episodes (of_viz pages)
 ```
+`_ragof` needs `cmake --preset windows-msvc-avx512 -DRAG_PYTHON=ON` and
+the project venv `.venv` (A72). Serve `build-avx512\zoo` with a plain
+static server (the `of-zoo` launch entry: `python -m http.server 8772
+--directory build-avx512\zoo`), not with `of_train_live.py serve`, which
+writes its own `index.html` into the directory (LESSONS 54).
 Run the live viewer alongside every RL run (A70). `serve` writes the page
 and serves DIR on port 8770 (`--port`); if you write the page with `page`
 instead and serve it yourself, open `index.html?src=live.jsonl`.
@@ -5543,6 +5862,21 @@ trade more and lose more); the ensemble stops trading; OF8 days: every
 strategy loses (ensemble −50 ticks/day). No sign that RL exploits v4's
 known quirks (EXPERIMENTS.md OF14).
 
+**OF15 (the agent zoo through the `ragrl` pipeline, v4 and v3): no
+edge.** A leak-proof pipeline (C++ seed ledger with process roles,
+`VecScalpEnv` bound as `_ragof`, Python `ragrl`; A71–A73) trained 8
+agent families (NeuralQ reference, PPO, frame-stack PPO, recurrent PPO,
+DQN, QR-DQN, LightGBM threshold, BC/DAgger), 12 seeds × 2,000 episodes
+each, and scored each config once, paired, on fresh sealed ranges (v4
+901M+[0,300), v3 901M+[300,600)). All 16 configs NO_EDGE, no hard red
+flag. The declared headline, the 12-seed ensemble, is flat for 5 of 8 v4
+and 4 of 8 v3 agents (0 orders on test); the seeds that trade lose (mean
+of seeds −0.10 … −3.80 on v4, +0.02 … −1.09 on v3), and on 600 fresh viz
+episodes plus latency/fee stresses nothing is positive. PPO v4 holds one
+~597 s position per episode (a coin flip); agents timing entries on I1
+gain +0.1 … +0.3 ticks gross at 1 s but pay ~0.55 ticks slippage; fading
+30 s returns loses (EXPERIMENTS.md OF15).
+
 **Calibration** (`of_calibrate`): recorded-tick CSV round trip exact;
 in a recovery test (target = informed flow ×0.4) the fit matched
 predictability, R² and clustering but not activity or markout, and
@@ -5615,6 +5949,32 @@ leaked book imbalance (`stale_binomial`).
 
 ## 7. Plan for the next AI (ranked)
 
+**Where OF15 leaves it (2026-11-12).** OF15 closed the "maybe a better
+learner would find it" question on the simulators: through a leak-proof
+pipeline (seed ledger enforced in C++, one sealed opening per config,
+paired CIs, red flags), 8 agent families × 2 markets give 16 NO_EDGE
+results; what they learn is to stay flat (§4, EXPERIMENTS.md OF15). On
+both simulators no RL agent finds an edge after costs with 1-lot market
+orders at 1 s. More agents or HPO on the same markets is not the next
+step. What remains, in order:
+
+* **Real-tick replay through the pipeline:** `VecReplayEnv` (bound in
+   `_ragof`) exists but is unused; feed it the user's recorded ES ticks
+   (Sierra) and run the zoo walk-forward by day (item 2 below), with the replay
+   block sealed in the ledger. In parallel, simulator realism where the
+   skeptic found gaps (spread that widens, I1 persistence after latency,
+   100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
+   new real sessions (LESSONS 49).
+* **Red-flag calibration:** replace R1 (annualized Sharpe > 5 ≈ t > 0.87
+   at 300 episodes) with a t-based rule, with the minimum-activity guard
+   (R1v, A74) kept, pre-registered before the next sealed run.
+* **The 0xc0000374 heap crash**, once WMI is repaired (the user's
+   call): ~150 lgbm seed-runs with the WMI bypass off and on. Keep
+   per-attempt logs (LESSONS 53).
+* **Throughput (no GPU, A75):** fewer gradient steps per env step for
+   DQN/QR-DQN (`train_freq` 4), more torch threads and workers (24
+   hardware threads, OF15 used 12), a faster v4 step.
+
 1. **Fix slow price discovery, then calibrate to the user's ES ticks.**
    Iterations 1 (rigid quote jumps, rejected) and 2 (stale-side depletion:
    (a), (b) met, (c) marginal, (d), (e) fail) are done (OF10).
@@ -5636,7 +5996,7 @@ leaked book imbalance (`stale_binomial`).
    impact first; record RTH depth and tick-by-tick trades for a few weeks
    before fitting. **Done (OF13, `31f51c4`): v4 (`discovery_v4`)** passes
    the 25 real-ES gate rows and the efficiency gates on three seed blocks
-   (§4; A67–A69); OF14 (RL on v4, warm-up 1,050 s) is next. Before
+   (§4; A67–A69). **Done (OF14, OF15): no RL edge on v4 or v3.** Before
    tightening any gate, record more RTH depth and tick-by-tick trades
    (Sierra settings): the real reference is one calm morning. Fix the
    spread-never-widens and I1-persistence caveats in a v5 if RL shows it
@@ -5647,7 +6007,8 @@ leaked book imbalance (`stale_binomial`).
    OF2/OF3/OF6/OF8 on the calibrated market.
 2. **Backtest on real ticks:** `of_backtest` with the saved agents and the
    delta rule; walk-forward by day; train on recorded windows
-   (`ReplayScalpEnv::reset`) and test on later days only.
+   (`ReplayScalpEnv::reset`) and test on later days only. With OF15 the
+   same can run through `ragrl` on `VecReplayEnv` (the first bullet above).
 3. **Paired evaluation on the same market path:** `SimParams::separate_streams`
    (opt-in; one RNG stream per exogenous process) exists, but measured it
    barely helps: rule vs the rule with one forced deviation, 200 episodes,
@@ -5663,14 +6024,19 @@ leaked book imbalance (`stale_binomial`).
    0.61: paired comparisons have ~40% less variance. Use
    `separate_streams = true` for paired validation; the rest of the noise
    is the market's genuine reaction to our orders. Next: fewer
-   state-dependent draw counts inside a step.
+   state-dependent draw counts inside a step. OF15 measured the cost
+   between agents: PPO v4 at 100 vs 300 ms latency on the same episodes
+   correlates 0.56, the delta rule 0.19 (LESSONS 52).
 4. **Tick scalper:** action latency in `TickScalpEnv` (opt-in), tick
    diagnostics (no-trade share, spread capture vs carry, own-fill
    markouts), learn the advantage over the rule; success = match or beat
    the rule at 100 ms latency on fresh seeds (e.g. 940M+).
-5. **Validation hygiene:** a seed-block ledger, fresh-seed confirmation of
-   every claimed edge, CVaR in stress tests, domain randomization of
-   simulator parameters during training.
+5. **Validation hygiene:** the seed-block ledger is done and enforced in
+   C++ (`seed_ledger.hpp`, OF15, A71), with fresh-seed (950M+)
+   confirmation of any claim behind an orchestrator flag. Remaining: a
+   pre-registered stress list for v4 (none exists; OF15 ran no stress or
+   days on either market, R11), CVaR in stress tests, domain
+   randomization of simulator parameters during training.
 6. Market-structure features (session high/low, volume-profile POC/value
    area) and the remaining items of `experiments/research_synthesis.md`.
 
@@ -5678,7 +6044,7 @@ leaked book imbalance (`stale_binomial`).
 
 ---
 
-## FILE: docs/ai/NEXT_SESSION.md  (15,356 bytes)
+## FILE: docs/ai/NEXT_SESSION.md  (17,544 bytes)
 
 # Continuing the work: the prompt and the Claude Code agent architecture
 
@@ -5697,13 +6063,13 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > **Read first, in this order:** `docs/ai/README.md`, `docs/ai/ORDERFLOW.md`
 > (objectives, architecture, results OF1–OF10, honest status, ranked plan),
 > `docs/ai/STATUS.md`, `docs/ai/CONVENTIONS.md`, `docs/ai/LESSONS.md`
-> (32–49 are the trading lessons), `docs/ai/NEXT_SESSION.md` (this file:
+> (32–54 are the trading lessons), `docs/ai/NEXT_SESSION.md` (this file:
 > how to organise agents) and `experiments/research_synthesis.md`.
 >
-> **State on 2026-11-05:** iterations 1–3 of the goal below are done
-> (OF10 v3 at `e229af4`: stationary activity model fixes the warm-up; the
-> v3 `discovery` preset passes (a), (b), (d), naive (e) and (f1), fails
-> passive quoting, and needs a 1,050 s warm-up for its meta-orders;
+> **State on 2026-11-12:** iterations 1–3 of price-discovery work are
+> done (OF10 v3 at `e229af4`: stationary activity model fixes the warm-up;
+> the v3 `discovery` preset passes (a), (b), (d), naive (e) and (f1),
+> fails passive quoting, and needs a 1,050 s warm-up for its meta-orders;
 > A62–A66). Every OF2–OF9 episode ran at the legacy activity floor
 > (ORDERFLOW.md §5). The RL reruns on `discovery` are done (OF11,
 > `1a73bd6`): no edge; the 950M+ block is unused. OF12 compared v3 with
@@ -5713,25 +6079,27 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > 1,050 s (A67–A69), but both oracles lose after costs, so "no RL edge"
 > on v4 is close to true by construction (LESSONS 48). Run the live
 > viewer alongside every RL run (A70; ORDERFLOW.md §3). OF14 (RL on v4,
-> `6d678c6`): no edge (all 24 seeds negative). Next: ORDERFLOW.md §7.
+> `6d678c6`): no edge (all 24 seeds negative). OF15: a leak-proof
+> learning pipeline (`python/ragrl` over the C++ `VecScalpEnv`, bound as
+> `_ragof` with `-DRAG_PYTHON=ON`; seed ledger enforced in
+> `seed_ledger.hpp`; A71–A76) ran 8 agent families on v4 and v3, one
+> sealed opening each: all 16 NO_EDGE, most ensembles flat (LESSONS 50).
+> On both simulators no RL agent finds an edge after costs. WMI is broken
+> on this server (bypassed in `ragrl`; repairing it is the user's call),
+> and the 0xc0000374 heap crash is not root-caused. Next: ORDERFLOW.md §7.
 >
-> **Goal of this session:** plan item 1 in ORDERFLOW.md §7: fix slow price
-> discovery in `include/rag/orderflow/simulator.hpp`. Makers must re-price
-> at once when value moves (quote jumps, not rate tilts), as an opt-in
-> setting so earlier results reproduce. Done when, on 3 seeds × 2 h:
-> - the hidden value gap no longer predicts the next 30 s return (it does
->   at 0.58–0.65 today);
-> - book imbalance predicts only the next tick or two;
-> - the markout curve is flat after a few seconds;
-> - the stylized facts (`of_calibrate sim`) stay ES-like;
-> - naive rules are near breakeven after costs;
-> - no learned policy beats the fair-value oracle.
->
-> Then re-run the scalping baselines and RL (OF2, OF3, OF6, OF8) on the
-> fixed market. Use `of_train` for training: the user's 24-thread server
-> runs the long jobs, and this session runs only smoke runs. If the user
-> provides an ES tick CSV, do plan items 2–3 (calibration, backtest)
-> next.
+> **Goal of this session:** the first item of ORDERFLOW.md §7: run the
+> `ragrl` zoo on the user's recorded ES ticks through `VecReplayEnv`,
+> walk-forward by day (train on earlier days, score once on later days),
+> with the replay data registered as a sealed block in the ledger before
+> any agent is trained on it. Needs the user's tick export; without it,
+> do the t-based R1 flag first, then the opt-in simulator realism items
+> (v5) of §7. Done when every config is scored once on later days,
+> paired against flat and the 30 s delta rule, with orders/episode and
+> the mean of seeds beside the headline, and any positive result goes to
+> a fresh confirmation before it is claimed. The user's 24-thread server
+> runs the long jobs (`experiments/of15_regen.sh`-style scripts through
+> the kit); this session runs smoke runs.
 >
 > **Rules:**
 > - Every new simulator behaviour is opt-in, so the defaults reproduce
@@ -5847,11 +6215,17 @@ return { verdict, done, reviews, run, analysis }
 
 ## 4. Seed ledger (never reuse a block for a new choice)
 
+Since OF15 the block table is enforced in code: `include/rag/orderflow/seed_ledger.hpp`
+(block bases and sizes, sealed and privileged flags, the process-role guard;
+`python/ragrl` mirrors it and never hard-codes bases), and every sealed
+opening is appended to `build-avx512/rl/ledger_usage.jsonl`. This table
+records what each block has been used for.
+
 | Block | Use |
 |---|---|
-| run seed (1, 2, ...) | training streams (`Trainer` train_seed) |
-| 700,000,000+ | validation: champion selection |
-| 900,000,000+ | sealed scalping test (OF2, OF3, OF9) — viewed on the discovery market (OF10 v1, v2 and an iteration-3 smoke: `of2_baselines 300`, the `of_train` smoke tests' episodes): confirm discovery-market edges once on 950M+; OF11 scored all 24 v3 nets on the first 300 at warm-up 1,050 s (pre-RL smoke: the first 100); OF13 tuning's (e) ran `of2_baselines` on the first 300 on v4 |
+| run seed (1, 2, ...) | training streams (`Trainer` train_seed; ragrl `EpisodeSource.train(run_seed)`, run seeds in [1, 700M)); OF15 used run seeds 1–12 per config |
+| 700,000,000+ | validation: champion selection; OF15: checkpoints on 700M+[0,200) (`neuralq_ref` [40,240)), cross-agent selection on 701M+[0,400), HPO objective 702M+[0,400) (not used); the OF15 audits replayed 700M/701M only |
+| 900,000,000+ | sealed scalping test (OF2, OF3, OF9) — viewed on the discovery market (OF10 v1, v2 and an iteration-3 smoke: `of2_baselines 300`, the `of_train` smoke tests' episodes): confirm discovery-market edges once on 950M+; OF11 scored all 24 v3 nets on the first 300 at warm-up 1,050 s (pre-RL smoke: the first 100); OF13 tuning's (e) ran `of2_baselines` on the first 300 on v4. ragrl's seal refuses 900M+[0,100000) (viewed by OF2–OF14). **OF15:** 901M+[0,300) (indices 1,000,000–1,000,299) pre-registered for family `of15_v4` on v4 (9 slots, 8 used: one per agent; the HPO slot is free), 901M+[300,600) for `of15_v3` on v3 (8 of 8: full); each config opened once (16 ledger lines) |
 | 910,000,000+ | sealed tick-scalping test (OF4, OF5, OF7) — viewed many times, also on the discovery market (`of4_tick_baselines 300`, OF10 v1, v2 and an iteration-3 smoke): confirm once on 950M+ |
 | diagnostic simulator seeds 1–3 | OF10 tuning (`of_discovery`; v1/v2 on 2 h windows, v3 on 400 episodes + 16 sessions per seed; rule episodes 1,000,000 × seed + i): look as often as needed |
 | diagnostic seeds 4–6 | OF10 held-out sanity check (θ* pre-registered on 1–3) — viewed several times (v1, v2, skeptic's 600 s run): no longer held out |
@@ -5866,8 +6240,8 @@ return { verdict, done, reviews, run, analysis }
 | 920,000,000+ | stress scenarios (OF6; OF11 on discovery v3 at warm-up 1,050 s) |
 | 930,000,000+ | trading days (OF8; OF11 on discovery v3 at warm-up 1,050 s) |
 | 940,000,000+ | pairing probes (separate streams) |
-| 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it; OF12 exported sessions 960,012,001–012 for the real-vs-sim comparison, which OF13 then used as v4's tuning sessions; OF13 final sessions 960,013,001–012 (used once, with `of2_baselines` episodes 960,013,000,000 + i) and skeptic sessions 960,014,001–012 (episodes 960,014,000,000 + i): spent for gating v4; the live training viewer (`of_train_live`, A70) probes the net on this block |
-| **950,000,000+** | **fresh confirmation: unused; use once per claimed edge, then record it here** |
+| 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it; OF12 exported sessions 960,012,001–012 for the real-vs-sim comparison, which OF13 then used as v4's tuning sessions; OF13 final sessions 960,013,001–012 (used once, with `of2_baselines` episodes 960,013,000,000 + i) and skeptic sessions 960,014,001–012 (episodes 960,014,000,000 + i): spent for gating v4; the live training viewer (`of_train_live`, A70) probes the net on this block; OF15: the ragrl live hook's probe episodes, the skeptic's fresh-episode rerun 960,015,000,000+[0,600) (both markets, four conditions) and quirk probe 960,015,001,000+[0,400) (viewed: no longer fresh), and `tools/of_zoo_trace.py` replays on 960M+[0,5) (look only) |
+| **950,000,000+** | **fresh confirmation: unused (OF15 too); use once per claimed edge, then record it here. ragrl: `confirm --i-am-the-orchestrator --claim ID` only, taking the next free index after any earlier confirmation** |
 
 ## 5. Red flags (stop and diagnose before reporting a win)
 
@@ -5878,7 +6252,11 @@ return { verdict, done, reviews, run, analysis }
   1-min sd in the episode windows themselves (OF10 warm-up finding,
   LESSONS 40).
 - Annualized Sharpe above ~5, or no losing day, for a 1-lot directional
-  strategy (OF8: ~80 meant a too-easy simulator).
+  strategy (OF8: ~80 meant a too-easy simulator). In ragrl this is R1,
+  a warning (R1v) below 2 orders/episode (A74); annualized, Sharpe > 5 is
+  only t > 0.87 at 300 episodes, so read t too (LESSONS 51).
+- An ensemble headline that places ~0 orders: its "no edge" is vacuous;
+  read the mean of seeds and orders/episode (OF15, LESSONS 50).
 - A naive rule profits a lot after costs (naive quoting winning every
   episode exposed the queue model, OF4).
 - A validation lead that shrinks on sealed seeds (OF7: +1.0 → +0.1).
@@ -5900,6 +6278,9 @@ return { verdict, done, reviews, run, analysis }
 - **GPUs:** not useful at the current network size (2 × 64). They are
   worth renting only with much larger models (e.g. sequence models over
   raw book data), which would need a GPU framework fed by this simulator.
+  OF15 measured it for the SB3 zoo: PPO-family training is 61–80% C++
+  simulator on v4, the DQN family update-bound on 64×64 MLPs (per-update
+  overhead, not arithmetic): no GPU now (A75).
 
 
 
@@ -6672,7 +7053,7 @@ jobs build with `-Werror`:
 
 ---
 
-## FILE: CMakeLists.txt  (14,789 bytes)
+## FILE: CMakeLists.txt  (18,235 bytes)
 
 ```cmake
 cmake_minimum_required(VERSION 3.20)
@@ -6752,7 +7133,7 @@ enable_testing()
 # a binary built for a newer ISA than the build machine's (e.g. the AVX-512
 # preset on an AVX2 CI runner) then still builds.
 set(CMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
-add_executable(rag_tests tests/rag_tests.cpp tests/forgery_tests.cpp tests/reference_tests.cpp tests/text_clean_tests.cpp tests/agent_tests.cpp tests/api_examples_tests.cpp tests/model_based_tests.cpp tests/market_making_tests.cpp tests/mlp_tests.cpp tests/agent_edge_case_tests.cpp tests/agent_coverage_tests.cpp tests/rag_property_tests.cpp tests/policy_table_tests.cpp tests/orderflow_tests.cpp tests/stylized_tests.cpp)
+add_executable(rag_tests tests/rag_tests.cpp tests/forgery_tests.cpp tests/reference_tests.cpp tests/text_clean_tests.cpp tests/agent_tests.cpp tests/api_examples_tests.cpp tests/model_based_tests.cpp tests/market_making_tests.cpp tests/mlp_tests.cpp tests/agent_edge_case_tests.cpp tests/agent_coverage_tests.cpp tests/rag_property_tests.cpp tests/policy_table_tests.cpp tests/orderflow_tests.cpp tests/stylized_tests.cpp tests/vec_scalp_env_tests.cpp)
 target_link_libraries(rag_tests PRIVATE rag GTest::gtest_main Threads::Threads)
 include(GoogleTest)
 gtest_discover_tests(rag_tests DISCOVERY_TIMEOUT 120)
@@ -6927,6 +7308,58 @@ if(RAG_PDF)
   else()
     message(STATUS "rag-cpp: poppler-cpp not found; PDF support disabled")
   endif()
+endif()
+
+# OF15 (opt-in, OFF by default): the `_ragof` Python module (nanobind) — a
+# batched ScalpEnv with the seed-ledger API (rag/orderflow/vec_scalp_env.hpp,
+# seed_ledger.hpp) — the serial reference dumper its bit-identity tests use,
+# and the pytest suite (python/tests). Python and nanobind come from the
+# project venv (.venv, Python 3.12) unless Python_EXECUTABLE is given. The
+# module links `rag`, so it compiles with the same flags as the programs.
+#   cmake --preset windows-msvc-avx512 -DRAG_PYTHON=ON
+#   cmake --build --preset windows-avx512-release --target _ragof of15_refdump
+option(RAG_PYTHON "Build the _ragof Python module (nanobind, from .venv) and its tests" OFF)
+if(RAG_PYTHON)
+  if(NOT Python_EXECUTABLE)
+    if(WIN32)
+      set(Python_EXECUTABLE ${CMAKE_CURRENT_SOURCE_DIR}/.venv/Scripts/python.exe CACHE FILEPATH "Python for the _ragof module")
+    else()
+      set(Python_EXECUTABLE ${CMAKE_CURRENT_SOURCE_DIR}/.venv/bin/python CACHE FILEPATH "Python for the _ragof module")
+    endif()
+  endif()
+  find_package(Python 3.10 REQUIRED COMPONENTS Interpreter Development.Module)
+  execute_process(COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir OUTPUT_VARIABLE nanobind_ROOT
+                  OUTPUT_STRIP_TRAILING_WHITESPACE RESULT_VARIABLE rag_nanobind_rc)
+  if(NOT rag_nanobind_rc EQUAL 0)
+    message(FATAL_ERROR "RAG_PYTHON: nanobind not found for ${Python_EXECUTABLE} (pip install nanobind in that environment)")
+  endif()
+  find_package(nanobind CONFIG REQUIRED)
+  nanobind_add_module(_ragof NB_STATIC python/ragof_module.cpp)
+  target_link_libraries(_ragof PRIVATE rag)
+  add_executable(of15_refdump examples/of15_refdump.cpp)
+  target_link_libraries(of15_refdump PRIVATE rag)
+  # The pytest suite (fast; `smoke`-marked tests are separate ctests). RAGOF_REQUIRED=1: a module that
+  # does not import, or a missing of15_refdump, fails the suite instead of skipping it; -rs lists skips.
+  add_test(NAME ragrl_pytest COMMAND ${Python_EXECUTABLE} -m pytest -q -rs -p no:cacheprovider -m "not smoke" ${CMAKE_CURRENT_SOURCE_DIR}/python/tests
+           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+  set_tests_properties(ragrl_pytest PROPERTIES TIMEOUT 900
+    ENVIRONMENT "RAGOF_REQUIRED=1;RAGOF_DIR=$<TARGET_FILE_DIR:_ragof>;RAGOF_REFDUMP=$<TARGET_FILE:of15_refdump>;PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/python")
+  # One end-to-end smoke per agent of the ragrl zoo (python/tests/test_smoke.py; experiments/configs/smoke/),
+  # separate tests so `ctest -j` runs them in parallel. Each trains 2 seeds (2 worker processes) and never
+  # opens the sealed test (dry-run scoring on the visualization block); run files go to the pytest tmp dir.
+  foreach(agent ppo ppo_framestack recurrent_ppo dqn qrdqn lgbm_threshold bc_dagger neuralq_ref hpo)
+    if(agent STREQUAL "hpo")
+      set(rag_smoke_k "test_smoke_hpo")
+    else()
+      set(rag_smoke_k "test_smoke[${agent}]")
+    endif()
+    add_test(NAME ragrl_smoke_${agent}
+             COMMAND ${Python_EXECUTABLE} -m pytest -q -rs -p no:cacheprovider -m smoke
+                     "${CMAKE_CURRENT_SOURCE_DIR}/python/tests/test_smoke.py::${rag_smoke_k}"
+             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_tests_properties(ragrl_smoke_${agent} PROPERTIES TIMEOUT 600 PROCESSORS 4
+      ENVIRONMENT "RAGOF_REQUIRED=1;RAGOF_DIR=$<TARGET_FILE_DIR:_ragof>;PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/python")
+  endforeach()
 endif()
 
 ```
@@ -13808,6 +14241,178 @@ inline std::vector<StressScenario> stress_scenarios(bool discovery) {
 
 ---
 
+## FILE: include\rag\orderflow\seed_ledger.hpp  (7,636 bytes)
+
+```cpp
+// rag/orderflow/seed_ledger.hpp — the seed blocks of the order-flow
+// experiments (docs/ai/NEXT_SESSION.md section 4) as code, and a process-wide
+// guard that keeps sealed blocks away from code that trains or selects.
+//
+// The OF15 Python pipeline (python/ragof_module.cpp, the `_ragof` module)
+// names episodes only through this table: a block name and a block-relative
+// index, never a raw seed. The C++ programs (of_train, of2..of8) keep their
+// own literals; this header does not change them.
+//
+//   block       seeds                         sealed  privileged outputs
+//   train       run seeds 1 .. 700M - 1       no      yes (teacher / oracle training)
+//   validation  700M + [0, 200M)              no      no
+//   test        900M + [0, 10M)  (tick test 910M+ is not exposed)  yes  no
+//   stress      920M + [0, 10M)               yes     no
+//   days        930M + [0, 10M)               yes     no
+//   pairing     940M + [0, 10M)               no      no
+//   confirm     950M + [0, 10M)  orchestrator only, with a claim id   yes  no
+//   viz         960M + ...       look, never select                no   yes
+//   real        recorded ticks (replay; not seeds)                 yes  no
+//
+// Process roles (Ledger): a process starts as "none". Building an
+// environment on train, validation or pairing makes it a "trainer"; a trainer
+// can never open a sealed block. open_sealed() makes it a "scorer"; a scorer
+// can no longer build train, validation or pairing environments (so it can't
+// tune after seeing sealed episodes). forbid_sealed() closes sealed blocks for
+// the rest of the process (every training / HPO / live worker calls it
+// first). viz is neutral: probes for looking at training.
+//
+// This guards against accidents, not against a determined caller (a fresh
+// process can always open a block); the Python pipeline adds the audit trail.
+#pragma once
+
+#include <array>
+#include <cstdint>
+#include <mutex>
+#include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
+
+namespace rag::orderflow::seeds {
+
+enum class Block : int { Train, Validation, Test, Stress, Days, Pairing, Confirm, Viz, Real };
+inline constexpr int kBlocks = 9;
+
+struct BlockInfo {
+  const char* name;
+  std::uint64_t base, size;  // seeds base .. base + size - 1 (train: run seeds)
+  bool sealed;               // closed until open_sealed() in this process
+  bool privileged_ok;        // hidden simulator state may be exported (teacher / display only)
+  bool indexed;              // EpisodeSource::indexed(name, first, count) accepts it
+  bool needs_claim;          // confirm: orchestrator claim id required
+};
+
+inline constexpr std::array<BlockInfo, kBlocks> kBlockTable = {{
+    {"train", 1, 699'999'999, false, true, false, false},
+    {"validation", 700'000'000, 200'000'000, false, false, true, false},
+    {"test", 900'000'000, 10'000'000, true, false, true, false},
+    {"stress", 920'000'000, 10'000'000, true, false, false, false},
+    {"days", 930'000'000, 10'000'000, true, false, false, false},
+    {"pairing", 940'000'000, 10'000'000, false, false, true, false},
+    {"confirm", 950'000'000, 10'000'000, true, false, true, true},
+    {"viz", 960'000'000, ~0ull - 960'000'000, false, true, true, false},
+    {"real", 0, 0, true, false, false, false},
+}};
+
+[[nodiscard]] inline const BlockInfo& info(Block b) { return kBlockTable[static_cast<std::size_t>(b)]; }
+
+[[nodiscard]] inline Block block_of(const std::string& name) {
+  for (int i = 0; i < kBlocks; ++i)
+    if (name == kBlockTable[static_cast<std::size_t>(i)].name) return static_cast<Block>(i);
+  throw std::invalid_argument("unknown seed block '" + name + "' (train, validation, test, stress, days, pairing, confirm, viz, real)");
+}
+
+// Episodes first .. first + count - 1 of block b exist (count > 0, no overflow).
+inline void check_range(Block b, std::uint64_t first, std::uint64_t count) {
+  const BlockInfo& bi = info(b);
+  if (count == 0) throw std::invalid_argument(std::string("seed block ") + bi.name + ": count must be > 0");
+  if (first >= bi.size || count > bi.size - first)
+    throw std::invalid_argument(std::string("episodes [") + std::to_string(first) + ", " + std::to_string(first) + " + " + std::to_string(count) +
+                                ") are outside seed block " + bi.name + " (size " + std::to_string(bi.size) + ")");
+}
+
+enum class Role : int { None, Trainer, Scorer };
+[[nodiscard]] inline const char* role_name(Role r) { return r == Role::Trainer ? "trainer" : r == Role::Scorer ? "scorer" : "none"; }
+
+class Ledger {
+ public:
+  // The one instance environments use by default (tests build their own).
+  static Ledger& process() {
+    static Ledger l;
+    return l;
+  }
+
+  // Opens a sealed block for this process (the scoring step). Refused after
+  // forbid_sealed() and in a trainer process; makes this process a scorer.
+  void open_sealed(Block b, const std::string& reason) {
+    std::lock_guard g(m_);
+    const BlockInfo& bi = info(b);
+    if (!bi.sealed) throw std::invalid_argument(std::string("seed block ") + bi.name + " is not sealed");
+    if (reason.empty()) throw std::invalid_argument("open_sealed needs a reason (it is logged)");
+    if (forbidden_) throw std::runtime_error(std::string("this process may not open sealed blocks (forbid_sealed was called); refused: ") + bi.name);
+    if (role_ == Role::Trainer)
+      throw std::runtime_error(std::string("this process trained or selected (built a train, validation or pairing environment); it may not open ") +
+                               bi.name + ": score in a fresh process");
+    role_ = Role::Scorer;
+    open_ |= 1u << static_cast<int>(b);
+    openings_.emplace_back(bi.name, reason);
+  }
+  // Sealed blocks stay closed for the rest of the process.
+  void forbid_sealed() {
+    std::lock_guard g(m_);
+    forbidden_ = true;
+    open_ = 0;
+  }
+  [[nodiscard]] bool is_open(Block b) const {
+    std::lock_guard g(m_);
+    return (open_ >> static_cast<int>(b)) & 1u;
+  }
+  // Throws unless b is usable here; sealed blocks must be open.
+  void require_open(Block b) const {
+    std::lock_guard g(m_);
+    if (info(b).sealed && !((open_ >> static_cast<int>(b)) & 1u))
+      throw std::runtime_error(std::string("seed block ") + info(b).name + " is sealed in this process (open_sealed in a scoring process only)");
+  }
+  // Called when episodes of block b are about to be played: checks and records the role.
+  void use(Block b) {
+    std::lock_guard g(m_);
+    const BlockInfo& bi = info(b);
+    if (bi.sealed) {
+      if (!((open_ >> static_cast<int>(b)) & 1u))
+        throw std::runtime_error(std::string("seed block ") + bi.name + " is sealed in this process (open_sealed in a scoring process only)");
+      return;
+    }
+    if (b == Block::Train || b == Block::Validation || b == Block::Pairing) {
+      if (role_ == Role::Scorer)
+        throw std::runtime_error(std::string("this process opened a sealed block; it may not train or select (") + bi.name + " episodes refused)");
+      role_ = Role::Trainer;
+    }
+  }
+  [[nodiscard]] Role role() const {
+    std::lock_guard g(m_);
+    return role_;
+  }
+  [[nodiscard]] bool forbidden() const {
+    std::lock_guard g(m_);
+    return forbidden_;
+  }
+  // (block, reason) of every open_sealed() in this process, in order.
+  [[nodiscard]] std::vector<std::pair<std::string, std::string>> openings() const {
+    std::lock_guard g(m_);
+    return openings_;
+  }
+
+ private:
+  mutable std::mutex m_;
+  bool forbidden_ = false;
+  unsigned open_ = 0;
+  Role role_ = Role::None;
+  std::vector<std::pair<std::string, std::string>> openings_;
+};
+
+}  // namespace rag::orderflow::seeds
+
+```
+
+
+---
+
 ## FILE: include\rag\orderflow\simulator.hpp  (72,739 bytes)
 
 ```cpp
@@ -15858,6 +16463,738 @@ static_assert(rag::agent::Environment<TickScalpEnv>);
 
 ---
 
+## FILE: include\rag\orderflow\vec_scalp_env.hpp  (32,169 bytes)
+
+```cpp
+// rag/orderflow/vec_scalp_env.hpp — N ScalpEnv episodes stepped together on
+// a thread pool (OF15: the batched environment behind the `_ragof` Python
+// module, python/ragof_module.cpp), episodes named only through the seed
+// ledger (seed_ledger.hpp), plus the C++ built-in policies (flat, hold, rules,
+// the fair-value oracle, an of_train network) evaluated with no Python loop.
+//
+// Same episodes, observations and rewards as ScalpEnv, bit for bit:
+//   * EpisodeSource::train(s): episode k is the k-th reset on one Rng(s)
+//     stream — of_train's Trainer stream for run seed s — whatever n_envs is:
+//     slot j of round r is stream episode r * n_envs + j. The draws happen
+//     serially (copy the stream, advance it with ScalpEnv::draw_market, the
+//     only thing reset() draws) and every reset checks it consumed exactly
+//     those draws, so a change to ScalpEnv::reset fails loudly here.
+//   * EpisodeSource::indexed(name, first, count): slot i = Rng(base + first + i),
+//     as rag::agent::evaluate and of_train's score(); one round, n_envs = count,
+//     so every policy evaluated on a source plays the same episodes (paired).
+//   * days (OF8: Rng(930M + d * 100 + k), start at day_session_start(k)) and
+//     stress (OF6: Rng(920M + i) with a scenario's change).
+// Results don't depend on the thread count. Every ScalpEnv episode has the
+// same number of decisions, so all slots finish on the same step (checked).
+//
+// Privileged outputs (hidden fair value, ...) go to a separate buffer, only
+// when asked for at construction and only on blocks with privileged_ok
+// (train, viz). Observations are ScalpEnv::features() verbatim.
+#pragma once
+
+#include <algorithm>
+#include <atomic>
+#include <cmath>
+#include <condition_variable>
+#include <cstdint>
+#include <exception>
+#include <functional>
+#include <limits>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <utility>
+#include <vector>
+
+#include "rag/agent/mlp.hpp"
+#include "rag/orderflow/replay_env.hpp"
+#include "rag/orderflow/scalp_env.hpp"
+#include "rag/orderflow/scalp_run.hpp"
+#include "rag/orderflow/seed_ledger.hpp"
+
+namespace rag::orderflow {
+
+// ------------------------------------------------------------------ thread pool
+// A persistent pool: run(n, f) calls f(0..n-1) on the workers and the caller
+// (an atomic work index), returns when all are done, and rethrows the first
+// exception a call threw.
+class Pool {
+ public:
+  explicit Pool(unsigned threads) {
+    for (unsigned t = 1; t < threads; ++t) ws_.emplace_back([this] { loop(); });
+  }
+  Pool(const Pool&) = delete;
+  Pool& operator=(const Pool&) = delete;
+  ~Pool() {
+    {
+      std::lock_guard l(m_);
+      stop_ = true;
+      ++gen_;
+    }
+    cv_.notify_all();
+    for (auto& w : ws_) w.join();
+  }
+  [[nodiscard]] unsigned threads() const noexcept { return static_cast<unsigned>(ws_.size()) + 1; }
+
+  void run(std::size_t n, const std::function<void(std::size_t)>& f) {
+    err_ = nullptr;
+    if (ws_.empty() || n < 2) {
+      for (std::size_t i = 0; i < n; ++i) f(i);
+      return;
+    }
+    {
+      std::lock_guard l(m_);
+      f_ = &f;
+      n_ = n;
+      next_ = 0;
+      busy_ = ws_.size();
+      ++gen_;
+    }
+    cv_.notify_all();
+    work();
+    {
+      std::unique_lock l(m_);
+      done_cv_.wait(l, [&] { return busy_ == 0; });
+    }
+    if (err_) std::rethrow_exception(err_);
+  }
+
+ private:
+  void work() {
+    for (std::size_t i; (i = next_.fetch_add(1)) < n_;) {
+      try {
+        (*f_)(i);
+      } catch (...) {
+        std::lock_guard l(em_);
+        if (!err_) err_ = std::current_exception();
+      }
+    }
+  }
+  void loop() {
+    std::uint64_t seen = 0;
+    for (;;) {
+      {
+        std::unique_lock l(m_);
+        cv_.wait(l, [&] { return gen_ != seen; });
+        seen = gen_;
+        if (stop_) return;
+      }
+      work();
+      std::lock_guard l(m_);
+      if (--busy_ == 0) done_cv_.notify_one();
+    }
+  }
+  std::vector<std::thread> ws_;
+  std::mutex m_, em_;
+  std::condition_variable cv_, done_cv_;
+  const std::function<void(std::size_t)>* f_ = nullptr;
+  std::size_t n_ = 0, busy_ = 0;
+  std::atomic<std::size_t> next_{0};
+  std::uint64_t gen_ = 0;
+  bool stop_ = false;
+  std::exception_ptr err_;
+};
+
+// ------------------------------------------------------------------ run parameters
+// ScalpParams plus the market preset's name (network records, stress lists)
+// and the simulator overrides applied on top of the preset (a whitelist).
+struct RunParams {
+  std::string market = "default";
+  ScalpParams p;
+  std::map<std::string, double> sim_overrides;
+};
+
+// The SimParams fields a run may override (all doubles, validated by EsSimulator).
+inline const std::vector<std::pair<const char*, double SimParams::*>>& sim_override_fields() {
+  static const std::vector<std::pair<const char*, double SimParams::*>> f = {
+      {"value_vol", &SimParams::value_vol},
+      {"jump_rate", &SimParams::jump_rate},
+      {"jump_sd", &SimParams::jump_sd},
+      {"noise_rate", &SimParams::noise_rate},
+      {"informed_meta_rate", &SimParams::informed_meta_rate},
+      {"uninformed_meta_rate", &SimParams::uninformed_meta_rate},
+      {"momentum_rate", &SimParams::momentum_rate},
+      {"maker_rate", &SimParams::maker_rate},
+      {"cancel_rate", &SimParams::cancel_rate},
+      {"fade", &SimParams::fade},
+      {"reprice_cancel", &SimParams::reprice_cancel},
+      {"reprice_take", &SimParams::reprice_take},
+      {"value_impact", &SimParams::value_impact},
+      {"sweep_follow", &SimParams::sweep_follow},
+  };
+  return f;
+}
+
+// Builds and validates a run's parameters (market preset, warm-up, ScalpEnv's
+// guards, the simulator's own checks). Throws std::invalid_argument.
+inline RunParams run_params(const std::string& market, double warmup_seconds, double decide_seconds = 1.0, double episode_seconds = 600,
+                            double start_second = -1, std::uint32_t latency_steps = 1, std::uint32_t contracts = 1, double fee_dollars = 1.5,
+                            const std::map<std::string, double>& sim_overrides = {}) {
+  RunParams r;
+  r.market = market;
+  r.p.sim = market_preset(market);
+  if (!std::isfinite(warmup_seconds) || warmup_seconds < 0) throw std::invalid_argument("warmup_seconds must be a finite number >= 0");
+  if (!std::isfinite(decide_seconds) || decide_seconds <= 0) throw std::invalid_argument("decide_seconds must be > 0");
+  if (!std::isfinite(episode_seconds) || episode_seconds < decide_seconds) throw std::invalid_argument("episode_seconds must be >= decide_seconds");
+  if (!std::isfinite(start_second)) throw std::invalid_argument("start_second must be finite (< 0: random)");
+  if (!std::isfinite(fee_dollars) || fee_dollars < 0) throw std::invalid_argument("fee_dollars must be >= 0");
+  if (contracts < 1) throw std::invalid_argument("contracts must be >= 1");
+  r.p.warmup_seconds = warmup_seconds;
+  r.p.decide_seconds = decide_seconds;
+  r.p.episode_seconds = episode_seconds;
+  r.p.start_second = start_second;
+  r.p.latency_steps = latency_steps;
+  r.p.contracts = contracts;
+  r.p.fee_dollars = fee_dollars;
+  for (const auto& [k, v] : sim_overrides) {
+    const auto& f = sim_override_fields();
+    const auto it = std::find_if(f.begin(), f.end(), [&](const auto& e) { return k == e.first; });
+    if (it == f.end()) {
+      std::string names;
+      for (const auto& e : f) names += std::string(names.empty() ? "" : ", ") + e.first;
+      throw std::invalid_argument("sim_overrides: '" + k + "' is not overridable (" + names + ")");
+    }
+    if (!std::isfinite(v)) throw std::invalid_argument("sim_overrides: '" + k + "' must be finite");
+    r.p.sim.*(it->second) = v;
+  }
+  r.sim_overrides = sim_overrides;
+  if (const std::string why = warmup_error(r.p); !why.empty()) throw std::invalid_argument(why);
+  (void)ScalpEnv(r.p);                  // contracts > 1 guards
+  (void)EsSimulator(r.p.sim, 1, 0.0);   // the simulator's parameter checks
+  return r;
+}
+
+inline bool operator==(const RunParams& a, const RunParams& b) {
+  const ScalpParams &x = a.p, &y = b.p;
+  return a.market == b.market && a.sim_overrides == b.sim_overrides && x.decide_seconds == y.decide_seconds && x.episode_seconds == y.episode_seconds &&
+         x.warmup_seconds == y.warmup_seconds && x.start_second == y.start_second && x.latency_steps == y.latency_steps && x.contracts == y.contracts &&
+         x.fee_dollars == y.fee_dollars;
+}
+
+// Decisions per ScalpEnv episode (ScalpEnv::step's own clock).
+[[nodiscard]] inline std::uint32_t steps_per_episode(const ScalpParams& p) {
+  double elapsed = 0;
+  for (std::uint32_t n = 1;; ++n) {
+    elapsed += p.decide_seconds;
+    if (elapsed >= p.episode_seconds - 1e-9) return n;
+  }
+}
+
+// ------------------------------------------------------------------ episode sources
+// The only way to name episodes: a train stream (run seed) or block-relative
+// indices. Sealed blocks must be open in the process (seeds::Ledger).
+struct EpisodeSource {
+  enum class Kind { Train, Indexed, Days, Stress };
+  Kind kind = Kind::Train;
+  seeds::Block block = seeds::Block::Train;
+  std::uint64_t run_seed = 0;          // train
+  std::uint64_t first = 0, count = 0;  // indexed / stress: episodes; days: first day and slots
+  std::uint32_t n_days = 0, sessions_per_day = 0;
+  std::string scenario, list, orchestrator;
+
+  static EpisodeSource train(std::uint64_t run_seed) {
+    const auto& bi = seeds::info(seeds::Block::Train);
+    if (run_seed < bi.base || run_seed - bi.base >= bi.size)
+      throw std::invalid_argument("train run_seed must be in [1, 700,000,000) (validation and sealed blocks start at 700M)");
+    EpisodeSource s;
+    s.run_seed = run_seed;
+    return s;
+  }
+  static EpisodeSource indexed(const std::string& name, std::uint64_t first, std::uint64_t count, const std::string& orchestrator = {},
+                             const seeds::Ledger& L = seeds::Ledger::process()) {
+    EpisodeSource s;
+    s.kind = Kind::Indexed;
+    s.block = seeds::block_of(name);
+    const auto& bi = seeds::info(s.block);
+    if (!bi.indexed)
+      throw std::invalid_argument(std::string("block ") + bi.name + " has no indexed episodes (train(run_seed), days(...), stress(...))");
+    seeds::check_range(s.block, first, count);
+    if (bi.needs_claim && orchestrator.empty())
+      throw std::invalid_argument("the confirm block (950M+) is the orchestrator's: it needs orchestrator=<claim id>, once per claimed edge");
+    if (!bi.needs_claim && !orchestrator.empty()) throw std::invalid_argument("orchestrator= is only for the confirm block");
+    L.require_open(s.block);
+    s.first = first;
+    s.count = count;
+    s.orchestrator = orchestrator;
+    return s;
+  }
+  // OF8's days: day d session k = Rng(930M + d * 100 + k), warm-up starting at day_session_start(k).
+  static EpisodeSource days(std::uint32_t first_day, std::uint32_t n_days, std::uint32_t sessions_per_day,
+                            const seeds::Ledger& L = seeds::Ledger::process()) {
+    if (n_days == 0 || sessions_per_day == 0 || sessions_per_day > 39) throw std::invalid_argument("days: n_days >= 1, sessions_per_day in [1, 39]");
+    if (std::uint64_t{first_day} + n_days > 100'000) throw std::invalid_argument("days: day indices must be < 100,000 (seed block days is 10M)");
+    L.require_open(seeds::Block::Days);
+    EpisodeSource s;
+    s.kind = Kind::Days;
+    s.block = seeds::Block::Days;
+    s.first = first_day;
+    s.n_days = n_days;
+    s.sessions_per_day = sessions_per_day;
+    s.count = std::uint64_t{n_days} * sessions_per_day;
+    return s;
+  }
+  // OF6's stress episodes Rng(920M + i) under a scenario of stress_scenarios(); list "legacy" or
+  // "discovery", or "" for the market's own (refused on discovery_v4, which has no pre-registered list).
+  static EpisodeSource stress(const std::string& scenario, std::uint64_t first, std::uint64_t count, const std::string& list = {},
+                              const seeds::Ledger& L = seeds::Ledger::process()) {
+    if (!list.empty() && list != "legacy" && list != "discovery") throw std::invalid_argument("stress list must be 'legacy' or 'discovery'");
+    seeds::check_range(seeds::Block::Stress, first, count);
+    L.require_open(seeds::Block::Stress);
+    EpisodeSource s;
+    s.kind = Kind::Stress;
+    s.block = seeds::Block::Stress;
+    s.first = first;
+    s.count = count;
+    s.scenario = scenario;
+    s.list = list;
+    return s;
+  }
+
+  [[nodiscard]] bool is_train() const noexcept { return kind == Kind::Train; }
+  // Slot j's episode seed (indexed kinds).
+  [[nodiscard]] std::uint64_t seed_of(std::uint64_t j) const {
+    switch (kind) {
+      case Kind::Indexed:
+      case Kind::Stress:
+        return seeds::info(block).base + first + j;
+      case Kind::Days:
+        return seeds::info(block).base + (first + j / sessions_per_day) * 100 + j % sessions_per_day;
+      case Kind::Train:
+        break;
+    }
+    throw std::logic_error("seed_of: train episodes come from the run stream");
+  }
+  // Slot j's parameters (days: the session start; stress: the scenario's change).
+  [[nodiscard]] ScalpParams params_of(const RunParams& r, std::uint64_t j) const {
+    ScalpParams p = r.p;
+    if (kind == Kind::Days) p.start_second = day_session_start(static_cast<unsigned>(j % sessions_per_day), r.p.warmup_seconds);
+    if (kind == Kind::Stress) stress_scenario(r).change(p);
+    return p;
+  }
+  [[nodiscard]] StressScenario stress_scenario(const RunParams& r) const {
+    std::string l = list;
+    if (l.empty()) {
+      if (r.market == "discovery_v4")
+        throw std::invalid_argument("stress on discovery_v4: no pre-registered v4 stress list; name list='legacy' or 'discovery' explicitly");
+      l = r.market == "discovery" ? "discovery" : "legacy";
+    }
+    for (auto& sc : stress_scenarios(l == "discovery"))
+      if (sc.name == scenario) return sc;
+    throw std::invalid_argument("stress scenario '" + scenario + "' is not in the " + l + " list");
+  }
+};
+
+// ------------------------------------------------------------------ built-in policies
+// of2_baselines' strategies, of_train's delta rule and of_train networks,
+// acting on the observation (and, for the oracle, the hidden fair value: it
+// stays in C++).
+struct BuiltinPolicy {
+  enum class Kind { Flat, Hold, Rule, Oracle, NeuralQ };
+  Kind kind = Kind::Flat;
+  std::size_t feature = 0;
+  double threshold = 0;
+  bool reverse = false;
+  std::shared_ptr<const rag::agent::Mlp> net;
+
+  static BuiltinPolicy flat() { return {}; }
+  static BuiltinPolicy hold() { return {Kind::Hold, 0, 0, false, nullptr}; }
+  static BuiltinPolicy rule(std::size_t k, double th, bool rev) {
+    if (k >= kFeatures) throw std::invalid_argument("rule: feature index must be < 13");
+    return {Kind::Rule, k, th, rev, nullptr};
+  }
+  static BuiltinPolicy delta30() { return rule(1, 1.5, false); }  // of_train's 30 s delta rule
+  static BuiltinPolicy oracle(double th) { return {Kind::Oracle, 0, th, false, nullptr}; }
+  static BuiltinPolicy neuralq(std::shared_ptr<const rag::agent::Mlp> n) {
+    if (!n || n->inputs() != ScalpEnv::kStateDims || n->outputs() != ScalpEnv::kNumActions)
+      throw std::invalid_argument("neuralq: the network must map 16 inputs to 3 Q-values");
+    return {Kind::NeuralQ, 0, 0, false, std::move(n)};
+  }
+
+  // Keep the position: short, flat or long as now.
+  [[nodiscard]] static rag::agent::Action keep(const ScalpObs& o) { return o.position > 0 ? 2 : o.position < 0 ? 0 : 1; }
+  // scratch: net->scratch_size() doubles (NeuralQ only).
+  [[nodiscard]] rag::agent::Action act(const ScalpObs& o, const ScalpEnv& e, double* scratch) const {
+    switch (kind) {
+      case Kind::Flat:
+        return 1;
+      case Kind::Hold:
+        return keep(o);
+      case Kind::Rule: {
+        const double x = reverse ? -o.f[feature] : o.f[feature];
+        return x > threshold ? 2 : x < -threshold ? 0 : keep(o);
+      }
+      case Kind::Oracle: {
+        const double gap = e.market().fair_value() - e.market().mid();
+        return gap > threshold ? 2 : gap < -threshold ? 0 : keep(o);
+      }
+      case Kind::NeuralQ: {
+        const auto x = e.features(o);
+        double q[ScalpEnv::kNumActions];
+        net->forward(x.data(), q, scratch);
+        return greedy(q);
+      }
+    }
+    return 1;
+  }
+  // Agent::act(o, false): the first maximum.
+  [[nodiscard]] static rag::agent::Action greedy(const double* q) {
+    rag::agent::Action best = 0;
+    for (rag::agent::Action a = 1; a < ScalpEnv::kNumActions; ++a)
+      if (q[a] > q[best]) best = a;
+    return best;
+  }
+};
+
+// Per-episode results of a built-in policy on an indexed source.
+struct BuiltinResult {
+  std::vector<double> net_pnl_ticks, orders, fees_ticks;
+};
+
+// Plays every episode of an indexed source with `policy` (of2_baselines' loop).
+inline BuiltinResult run_builtin(const RunParams& r, const EpisodeSource& src, const BuiltinPolicy& policy, unsigned threads,
+                                 seeds::Ledger& L = seeds::Ledger::process()) {
+  if (src.is_train()) throw std::invalid_argument("run_builtin: needs an indexed source (block, days or stress)");
+  L.use(src.block);
+  if (src.kind == EpisodeSource::Kind::Stress) (void)src.stress_scenario(r);
+  const std::size_t n = src.count;
+  BuiltinResult res;
+  res.net_pnl_ticks.assign(n, 0);
+  res.orders.assign(n, 0);
+  res.fees_ticks.assign(n, 0);
+  const unsigned t = threads == 0 ? std::max(1u, std::thread::hardware_concurrency()) : threads;
+  Pool pool(static_cast<unsigned>(std::min<std::size_t>(t, n)));
+  pool.run(n, [&](std::size_t j) {
+    ScalpEnv env(src.params_of(r, j));
+    rag::agent::Rng rng(src.seed_of(j));
+    std::vector<double> scratch(policy.net ? policy.net->scratch_size() : 0);
+    auto o = env.reset(rng);
+    for (;;) {
+      const auto st = env.step(policy.act(o, env, scratch.data()), rng);
+      o = st.obs;
+      if (st.done) break;
+    }
+    res.net_pnl_ticks[j] = env.net_pnl_ticks();
+    res.orders[j] = env.orders();
+    res.fees_ticks[j] = env.fees_ticks();
+  });
+  return res;
+}
+
+// ------------------------------------------------------------------ batched environment
+// Refuses concurrent use of one environment from two threads (e.g. two Python
+// threads with the GIL released). Reentrant on the owning thread, so a binding
+// can hold it across a call AND the copy of its results (hold()), and the
+// call's own guard nests inside.
+class UseGuard {
+ public:
+  UseGuard(std::atomic<std::thread::id>& owner, const char* what) : owner_(owner) {
+    const auto me = std::this_thread::get_id();
+    std::thread::id expected{};
+    if (owner_.compare_exchange_strong(expected, me))
+      held_ = true;
+    else if (expected != me)
+      throw std::runtime_error(std::string(what) + " is already in use by another thread");
+  }
+  ~UseGuard() {
+    if (held_) owner_.store(std::thread::id{});
+  }
+  UseGuard(const UseGuard&) = delete;
+  UseGuard& operator=(const UseGuard&) = delete;
+
+ private:
+  std::atomic<std::thread::id>& owner_;
+  bool held_ = false;
+};
+
+class VecScalpEnv {
+ public:
+  static constexpr std::size_t D = ScalpEnv::kStateDims;
+  // Privileged columns: hidden fair value, mid, gap = fair value - mid, session second,
+  // this decision's fill price (NaN: none, or two orders; recovered from the cash change,
+  // so it can differ from the fill's average price in the last bits: display only),
+  // orders so far, cash (ticks).
+  static constexpr std::size_t P = 7;
+  static constexpr const char* kPrivColumns[P] = {"fair_value", "mid", "gap", "session_s", "fill_price", "orders", "cash_ticks"};
+
+  VecScalpEnv(const RunParams& r, const EpisodeSource& src, std::size_t n_envs = 8, unsigned threads = 1, bool privileged = false,
+              seeds::Ledger& L = seeds::Ledger::process())
+      : r_(r), src_(src), n_(src.is_train() ? n_envs : static_cast<std::size_t>(src.count)), priv_on_(privileged), stream_(src.run_seed) {
+    if (privileged && !seeds::info(src.block).privileged_ok)
+      throw std::runtime_error(std::string("privileged outputs are refused on block ") + seeds::info(src.block).name + " (train and viz only)");
+    if (n_ == 0) throw std::invalid_argument("n_envs must be > 0");
+    if (src.kind == EpisodeSource::Kind::Stress) (void)src.stress_scenario(r);
+    L.use(src.block);
+    unsigned t = threads == 0 ? std::max(1u, std::thread::hardware_concurrency()) : threads;
+    pool_ = std::make_unique<Pool>(static_cast<unsigned>(std::min<std::size_t>(t, n_)));
+    envs_.reserve(n_);
+    for (std::size_t j = 0; j < n_; ++j) envs_.emplace_back(src.is_train() ? r.p : src.params_of(r, j));
+    obs_.assign(n_ * D, 0);
+    final_obs_.assign(n_ * D, 0);
+    rew_.assign(n_, 0);
+    done_.assign(n_, 0);
+    ids_.assign(n_, 0);
+    final_ids_.assign(n_, 0);
+    pnl_.assign(n_, 0);
+    orders_.assign(n_, 0);
+    trips_.assign(n_, 0);
+    fees_.assign(n_, 0);
+    pos_.assign(n_, 0);
+    start_.assign(n_, 0);
+    rngs_.assign(n_, rag::agent::Rng(0));
+    after_.assign(n_, rag::agent::Rng(0));
+    if (priv_on_) {
+      priv_.assign(n_ * P, 0);
+      final_priv_.assign(n_ * P, 0);
+    }
+  }
+
+  [[nodiscard]] std::size_t size() const noexcept { return n_; }
+  [[nodiscard]] bool privileged() const noexcept { return priv_on_; }
+  [[nodiscard]] const RunParams& params() const noexcept { return r_; }
+  [[nodiscard]] const EpisodeSource& source() const noexcept { return src_; }
+  [[nodiscard]] unsigned threads() const noexcept { return pool_->threads(); }
+  [[nodiscard]] std::uint64_t episodes_started() const noexcept { return started_; }
+
+  // Starts the next n_envs episodes in every slot (train: the next stream
+  // episodes; indexed: the source's episodes, once).
+  // Holds the environment for the calling thread (see UseGuard).
+  [[nodiscard]] UseGuard hold() const { return UseGuard(owner_, "VecScalpEnv"); }
+
+  void reset() {
+    const UseGuard g(owner_, "VecScalpEnv");
+    start_round();
+  }
+
+  // actions[j] in {0 short, 1 flat, 2 long}. Train sources reset finished
+  // slots (all finish together): the observation returned at done is the
+  // next episode's first; final_obs() holds the terminal one.
+  void step(const std::int64_t* actions) {
+    const UseGuard g(owner_, "VecScalpEnv");
+    if (!live_) throw std::runtime_error(round_ == 0 ? "step before reset" : "the episodes are over (indexed sources are played once)");
+    for (std::size_t j = 0; j < n_; ++j)
+      if (actions[j] < 0 || actions[j] > 2) throw std::invalid_argument("action " + std::to_string(actions[j]) + " is not 0, 1 or 2");
+    rag::agent::Rng unused(0);
+    pool_->run(n_, [&](std::size_t j) {
+      ScalpEnv& e = envs_[j];
+      const double c0 = cash(e, pos_[j]);
+      const auto orders0 = e.orders();
+      rag::agent::Rng rr = unused;
+      const auto st = e.step(static_cast<rag::agent::Action>(actions[j]), rr);
+      const int dpos = st.obs.position - pos_[j];
+      pos_[j] = st.obs.position;
+      rew_[j] = st.reward;
+      done_[j] = st.done ? 1 : 0;
+      write(j, st.obs, obs_.data());
+      if (priv_on_) {
+        double fill = std::nan("");
+        if (e.orders() - orders0 == 1 && dpos != 0) fill = -(cash(e, st.obs.position) - c0) / dpos;
+        write_priv(j, priv_.data(), fill);
+      }
+      if (st.done) {
+        std::copy_n(obs_.data() + j * D, D, final_obs_.data() + j * D);
+        if (priv_on_) std::copy_n(priv_.data() + j * P, P, final_priv_.data() + j * P);
+        pnl_[j] = e.net_pnl_ticks();
+        orders_[j] = e.orders();
+        trips_[j] = e.round_trips();
+        fees_[j] = e.fees_ticks();
+        final_ids_[j] = ids_[j];
+      }
+    });
+    for (std::size_t j = 1; j < n_; ++j)
+      if (done_[j] != done_[0]) throw std::logic_error("VecScalpEnv: slots finished on different steps (episodes must have equal length)");
+    if (!done_[0]) return;
+    ++finished_;
+    live_ = false;
+    if (src_.is_train()) start_round();
+  }
+
+  // Buffers (n x D obs, n rewards, ...), valid until the next call.
+  [[nodiscard]] const double* obs() const noexcept { return obs_.data(); }
+  [[nodiscard]] const double* final_obs() const noexcept { return final_obs_.data(); }
+  [[nodiscard]] const double* rewards() const noexcept { return rew_.data(); }
+  [[nodiscard]] const std::uint8_t* dones() const noexcept { return done_.data(); }
+  [[nodiscard]] const std::uint64_t* episode_ids() const noexcept { return ids_.data(); }
+  [[nodiscard]] const std::uint64_t* final_episode_ids() const noexcept { return final_ids_.data(); }
+  // Statistics of the episodes that finished last.
+  [[nodiscard]] const double* net_pnl_ticks() const noexcept { return pnl_.data(); }
+  [[nodiscard]] const double* orders() const noexcept { return orders_.data(); }
+  [[nodiscard]] const double* round_trips() const noexcept { return trips_.data(); }
+  [[nodiscard]] const double* fees_ticks() const noexcept { return fees_.data(); }
+  [[nodiscard]] std::uint64_t rounds_finished() const noexcept { return finished_; }
+  // Privileged buffers (n x P); throw unless constructed with privileged = true.
+  [[nodiscard]] const double* priv() const {
+    if (!priv_on_) throw std::runtime_error("privileged outputs were not requested (privileged=True, train or viz blocks only)");
+    return priv_.data();
+  }
+  [[nodiscard]] const double* final_priv() const {
+    if (!priv_on_) throw std::runtime_error("privileged outputs were not requested (privileged=True, train or viz blocks only)");
+    return final_priv_.data();
+  }
+
+ private:
+  // Starts the next round: train streams draw serially, the resets run on the pool.
+  void start_round() {
+    if (!src_.is_train() && round_ > 0) throw std::runtime_error("an indexed source is played once (one round of paired episodes)");
+    for (std::size_t j = 0; j < n_; ++j) {
+      if (src_.is_train()) {
+        rngs_[j] = stream_;
+        start_[j] = ScalpEnv::draw_market(r_.p, stream_).start;  // advances the stream as reset() will
+        after_[j] = stream_;
+        ids_[j] = next_train_++;
+      } else {
+        ids_[j] = src_.seed_of(j) - seeds::info(src_.block).base;  // block-relative (days: d * 100 + k)
+        rngs_[j] = rag::agent::Rng(src_.seed_of(j));
+        rag::agent::Rng c = rngs_[j];
+        start_[j] = ScalpEnv::draw_market(envs_[j].params(), c).start;
+        after_[j] = c;
+      }
+    }
+    pool_->run(n_, [&](std::size_t j) {
+      rag::agent::Rng rr = rngs_[j];
+      const ScalpObs o = envs_[j].reset(rr);
+      rag::agent::Rng x = rr, y = after_[j];
+      if (x.next() != y.next() || x.next() != y.next())
+        throw std::logic_error("VecScalpEnv: ScalpEnv::reset drew more than draw_market; the train-stream identity no longer holds");
+      pos_[j] = o.position;
+      write(j, o, obs_.data());
+      if (priv_on_) write_priv(j, priv_.data(), std::nan(""));
+    });
+    ++round_;
+    started_ += n_;
+    live_ = true;
+  }
+  static double cash(const ScalpEnv& e, int position) { return e.net_pnl_ticks() + e.fees_ticks() - position * e.market().mid(); }
+  void write(std::size_t j, const ScalpObs& o, double* out) const {
+    const auto x = envs_[j].features(o);
+    std::copy(x.begin(), x.end(), out + j * D);
+  }
+  void write_priv(std::size_t j, double* out, double fill) const {
+    const ScalpEnv& e = envs_[j];
+    const auto& m = e.market();
+    double* p = out + j * P;
+    p[0] = m.fair_value();
+    p[1] = m.mid();
+    p[2] = m.fair_value() - m.mid();
+    p[3] = start_[j] + static_cast<double>(m.t_ns()) * 1e-9;
+    p[4] = fill;
+    p[5] = e.orders();
+    p[6] = cash(e, pos_[j]);
+  }
+
+  RunParams r_;
+  EpisodeSource src_;
+  std::size_t n_;
+  bool priv_on_;
+  std::unique_ptr<Pool> pool_;
+  rag::agent::Rng stream_;
+  std::uint64_t next_train_ = 0, round_ = 0, started_ = 0, finished_ = 0;
+  bool live_ = false;
+  mutable std::atomic<std::thread::id> owner_{};
+  std::vector<ScalpEnv> envs_;
+  std::vector<double> obs_, final_obs_, rew_, priv_, final_priv_, pnl_, orders_, trips_, fees_, start_;
+  std::vector<std::uint8_t> done_;
+  std::vector<std::uint64_t> ids_, final_ids_;
+  std::vector<int> pos_;
+  std::vector<rag::agent::Rng> rngs_, after_;
+};
+
+// ------------------------------------------------------------------ recorded ticks
+// ReplayScalpEnv on M windows of one tape, stepped together (backtests on
+// real data). Real data is sealed: the "real" block must be open. Windows are
+// full (ReplayScalpEnv::windows()), so all slots finish together.
+class VecReplayEnv {
+ public:
+  static constexpr std::size_t D = ReplayScalpEnv::kStateDims;
+
+  VecReplayEnv(std::shared_ptr<const TickTape> tape, const ReplayParams& p, std::vector<std::int64_t> windows, unsigned threads = 1,
+               seeds::Ledger& L = seeds::Ledger::process())
+      : windows_(std::move(windows)), n_(windows_.size()) {
+    L.use(seeds::Block::Real);
+    if (n_ == 0) throw std::invalid_argument("VecReplayEnv: no windows");
+    envs_.reserve(n_);
+    for (std::size_t j = 0; j < n_; ++j) envs_.emplace_back(tape, p);
+    const std::size_t w = envs_[0].windows();
+    for (auto k : windows_)
+      if (k < 0 || static_cast<std::size_t>(k) >= w)
+        throw std::out_of_range("VecReplayEnv: window " + std::to_string(k) + " not on the tape (" + std::to_string(w) + " full windows)");
+    pool_ = std::make_unique<Pool>(static_cast<unsigned>(std::min<std::size_t>(std::max(1u, threads), n_)));
+    obs_.assign(n_ * D, 0);
+    final_obs_.assign(n_ * D, 0);
+    rew_.assign(n_, 0);
+    done_.assign(n_, 0);
+    pnl_.assign(n_, 0);
+    orders_.assign(n_, 0);
+    fees_.assign(n_, 0);
+  }
+  [[nodiscard]] std::size_t size() const noexcept { return n_; }
+  [[nodiscard]] std::size_t windows_on_tape() const noexcept { return envs_[0].windows(); }
+  [[nodiscard]] const std::vector<std::int64_t>& windows() const noexcept { return windows_; }
+  [[nodiscard]] UseGuard hold() const { return UseGuard(owner_, "VecReplayEnv"); }
+
+  void reset() {
+    const UseGuard g(owner_, "VecReplayEnv");
+    pool_->run(n_, [&](std::size_t j) {
+      const ScalpObs o = envs_[j].seek(static_cast<std::size_t>(windows_[j]));
+      write(j, o, obs_.data());
+    });
+    live_ = true;
+  }
+  void step(const std::int64_t* actions) {
+    const UseGuard g(owner_, "VecReplayEnv");
+    if (!live_) throw std::runtime_error("step before reset, or after the windows ended");
+    for (std::size_t j = 0; j < n_; ++j)
+      if (actions[j] < 0 || actions[j] > 2) throw std::invalid_argument("action " + std::to_string(actions[j]) + " is not 0, 1 or 2");
+    rag::agent::Rng unused(0);
+    pool_->run(n_, [&](std::size_t j) {
+      rag::agent::Rng rr = unused;
+      const auto st = envs_[j].step(static_cast<rag::agent::Action>(actions[j]), rr);
+      rew_[j] = st.reward;
+      done_[j] = st.done ? 1 : 0;
+      write(j, st.obs, obs_.data());
+      if (st.done) {
+        std::copy_n(obs_.data() + j * D, D, final_obs_.data() + j * D);
+        pnl_[j] = envs_[j].net_pnl_ticks();
+        orders_[j] = envs_[j].orders();
+        fees_[j] = envs_[j].fees_ticks();
+      }
+    });
+    for (std::size_t j = 1; j < n_; ++j)
+      if (done_[j] != done_[0]) throw std::logic_error("VecReplayEnv: windows finished on different steps");
+    if (done_[0]) live_ = false;
+  }
+  [[nodiscard]] const double* obs() const noexcept { return obs_.data(); }
+  [[nodiscard]] const double* final_obs() const noexcept { return final_obs_.data(); }
+  [[nodiscard]] const double* rewards() const noexcept { return rew_.data(); }
+  [[nodiscard]] const std::uint8_t* dones() const noexcept { return done_.data(); }
+  [[nodiscard]] const double* net_pnl_ticks() const noexcept { return pnl_.data(); }
+  [[nodiscard]] const double* orders() const noexcept { return orders_.data(); }
+  [[nodiscard]] const double* fees_ticks() const noexcept { return fees_.data(); }
+
+ private:
+  void write(std::size_t j, const ScalpObs& o, double* out) const {
+    const auto x = envs_[j].features(o);
+    std::copy(x.begin(), x.end(), out + j * D);
+  }
+  std::vector<std::int64_t> windows_;
+  std::size_t n_;
+  std::unique_ptr<Pool> pool_;
+  bool live_ = false;
+  mutable std::atomic<std::thread::id> owner_{};
+  std::vector<ReplayScalpEnv> envs_;
+  std::vector<double> obs_, final_obs_, rew_, pnl_, orders_, fees_;
+  std::vector<std::uint8_t> done_;
+};
+
+}  // namespace rag::orderflow
+
+```
+
+
+---
+
 ## FILE: include\rag\pdf.hpp  (3,964 bytes)
 
 ```cpp
@@ -17271,6 +18608,170 @@ int main() {
   for (const auto& h : r.hits) {
     const auto c = engine.chunk(h.id);
     std::printf("  rrf=%.4f doc=%u chunk=%u  %.60s...\n", h.score, c.doc_id, c.ordinal, c.text.data());
+  }
+}
+
+```
+
+
+---
+
+## FILE: examples\of15_refdump.cpp  (5,833 bytes)
+
+```cpp
+// of15_refdump — serial reference episodes for the OF15 binding's bit-identity
+// tests (python/tests/test_bit_identity.py). Plain ScalpEnv / ReplayScalpEnv
+// loops, written independently of vec_scalp_env.hpp; built only with
+// -DRAG_PYTHON=ON. Actions follow a fixed pattern: decision t of the run's
+// k-th episode plays (t * 7 + k * 3 + t / 13) % 3.
+//
+//   of15_refdump scalp <market> <warmup> train <run_seed> <episodes> <out.bin>
+//       one Rng(run_seed) stream for every reset (of_train's Trainer stream)
+//   of15_refdump scalp <market> <warmup> seeds <seed0> <episodes> <out.bin>
+//       episode i = Rng(seed0 + i) (evaluate(), of_train's score())
+//     per episode, doubles: obs0[16] priv0[7], then per decision obs[16]
+//     reward priv[7], then net P&L, orders, fees (ticks). priv = fair value,
+//     mid, gap, session second, fill price (NaN: none or two orders), orders,
+//     cash (of_train_live's probe track).
+//   of15_refdump tape <seconds> <sim_seed> <out.csv>
+//       default-market simulator ticks (time unit s) for replay tests
+//   of15_refdump replay <csv> <time_unit> <window_s> <warmup_s> <first_window> <windows> <out.bin>
+//       ReplayScalpEnv::seek(first_window + k), k = 0 .. windows - 1: obs0[16],
+//       per decision obs[16] reward, then net P&L, orders, fees.
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <exception>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "rag/orderflow/replay_env.hpp"
+#include "rag/orderflow/scalp_run.hpp"
+#include "rag/orderflow/tick_csv.hpp"
+
+using namespace rag::orderflow;
+using rag::agent::Action;
+using rag::agent::Rng;
+
+namespace {
+
+Action pattern(unsigned long long t, unsigned long long k) { return static_cast<Action>((t * 7 + k * 3 + t / 13) % 3); }
+
+struct Out {
+  std::FILE* f;
+  void put(const double* x, std::size_t n) { std::fwrite(x, sizeof(double), n, f); }
+  void put(double x) { put(&x, 1); }
+};
+
+double cash(const ScalpEnv& e, int position) { return e.net_pnl_ticks() + e.fees_ticks() - position * e.market().mid(); }
+
+void put_priv(Out& o, const ScalpEnv& e, double start, double fill, int position) {
+  const double fv = e.market().fair_value(), mid = e.market().mid();
+  const double p[7] = {fv, mid, fv - mid, start + static_cast<double>(e.market().t_ns()) * 1e-9, fill, static_cast<double>(e.orders()),
+                       cash(e, position)};
+  o.put(p, 7);
+}
+
+int scalp(int argc, char** argv) {
+  if (argc != 8) return 2;
+  const ScalpParams p = scalp_params(argv[2], std::atof(argv[3]));
+  const std::string mode = argv[4];
+  const unsigned long long s = std::strtoull(argv[5], nullptr, 10);
+  const unsigned long long episodes = std::strtoull(argv[6], nullptr, 10);
+  if (mode != "train" && mode != "seeds") return 2;
+  Out out{std::fopen(argv[7], "wb")};
+  if (!out.f) return 1;
+  Rng stream(s);
+  for (unsigned long long k = 0; k < episodes; ++k) {
+    Rng own(s + k);
+    Rng& r = mode == "train" ? stream : own;
+    Rng peek = r;
+    const double start = ScalpEnv::draw_market(p, peek).start;
+    ScalpEnv env(p);
+    auto o = env.reset(r);
+    auto x = env.features(o);
+    out.put(x.data(), x.size());
+    put_priv(out, env, start, std::nan(""), o.position);
+    for (unsigned long long t = 0;; ++t) {
+      const double c0 = cash(env, o.position);
+      const auto orders0 = env.orders();
+      const auto st = env.step(pattern(t, k), r);
+      const int dpos = st.obs.position - o.position;
+      double fill = std::nan("");
+      if (env.orders() - orders0 == 1 && dpos != 0) fill = -(cash(env, st.obs.position) - c0) / dpos;
+      o = st.obs;
+      x = env.features(o);
+      out.put(x.data(), x.size());
+      out.put(st.reward);
+      put_priv(out, env, start, fill, o.position);
+      if (st.done) break;
+    }
+    out.put(env.net_pnl_ticks());
+    out.put(env.orders());
+    out.put(env.fees_ticks());
+  }
+  std::fclose(out.f);
+  return 0;
+}
+
+int tape(int argc, char** argv) {
+  if (argc != 5) return 2;
+  const double seconds = std::atof(argv[2]);
+  EsSimulator sim(SimParams{}, std::strtoull(argv[3], nullptr, 10));
+  std::FILE* f = std::fopen(argv[4], "wb");
+  if (!f) return 1;
+  write_sim_ticks(sim, static_cast<std::size_t>(std::lround(seconds / SimParams{}.dt)), [&](const char* s, std::size_t n) { std::fwrite(s, 1, n, f); });
+  std::fclose(f);
+  return 0;
+}
+
+int replay(int argc, char** argv) {
+  if (argc != 9) return 2;
+  TickCsvOptions o;
+  o.time_unit = argv[3];
+  auto t = std::make_shared<const TickTape>(TickTape::from_csv(argv[2], o));
+  ReplayParams rp;
+  rp.window_seconds = std::atof(argv[4]);
+  rp.warmup_seconds = std::atof(argv[5]);
+  const unsigned long long first = std::strtoull(argv[6], nullptr, 10), n = std::strtoull(argv[7], nullptr, 10);
+  Out out{std::fopen(argv[8], "wb")};
+  if (!out.f) return 1;
+  Rng unused(0);
+  for (unsigned long long k = 0; k < n; ++k) {
+    ReplayScalpEnv env(t, rp);
+    auto ob = env.seek(first + k);
+    auto x = env.features(ob);
+    out.put(x.data(), x.size());
+    for (unsigned long long s = 0;; ++s) {
+      const auto st = env.step(pattern(s, k), unused);
+      x = env.features(st.obs);
+      out.put(x.data(), x.size());
+      out.put(st.reward);
+      if (st.done) break;
+    }
+    out.put(env.net_pnl_ticks());
+    out.put(env.orders());
+    out.put(env.fees_ticks());
+  }
+  std::fclose(out.f);
+  return 0;
+}
+
+}  // namespace
+
+int main(int argc, char** argv) {
+  try {
+    const std::string cmd = argc > 1 ? argv[1] : "";
+    int rc = 2;
+    if (cmd == "scalp") rc = scalp(argc, argv);
+    else if (cmd == "tape") rc = tape(argc, argv);
+    else if (cmd == "replay") rc = replay(argc, argv);
+    if (rc == 2) std::fprintf(stderr, "usage: see examples/of15_refdump.cpp\n");
+    return rc;
+  } catch (const std::exception& e) {
+    std::fprintf(stderr, "of15_refdump: %s\n", e.what());
+    return 1;
   }
 }
 
@@ -30011,6 +31512,447 @@ TEST(PagedIngest, SourcesAndPagesSurviveSaveAndLoadAndKeepInterning) {
 
 ---
 
+## FILE: tests\vec_scalp_env_tests.cpp  (18,910 bytes)
+
+```cpp
+// vec_scalp_env_tests.cpp — OF15's batched ScalpEnv (vec_scalp_env.hpp) and
+// seed ledger (seed_ledger.hpp): the same episodes, observations and rewards
+// as serial ScalpEnv loops (of_train's Trainer stream, evaluate()/score(),
+// OF8's days, OF6's stresses, the replay env), whatever the thread count, and
+// the ledger's refusals. Each test uses its own Ledger (the process one is the
+// Python module's).
+#include <gtest/gtest.h>
+
+#include <cmath>
+#include <cstdint>
+#include <cstring>
+#include <memory>
+#include <sstream>
+#include <stdexcept>
+#include <thread>
+#include <vector>
+
+#include "rag/orderflow/vec_scalp_env.hpp"
+
+using namespace rag::orderflow;
+using rag::agent::Action;
+using rag::agent::Rng;
+using seeds::Block;
+using seeds::Ledger;
+
+namespace {
+
+constexpr std::size_t D = VecScalpEnv::D;
+
+// The fixed action pattern of examples/of15_refdump.cpp: decision t of the run's episode k.
+std::int64_t pattern(std::uint64_t t, std::uint64_t k) { return static_cast<std::int64_t>((t * 7 + k * 3 + t / 13) % 3); }
+
+struct Episode {
+  std::vector<double> obs;  // (T + 1) x D
+  std::vector<double> rew;
+  double pnl = 0, orders = 0, fees = 0;
+};
+
+// One serial ScalpEnv episode on `rng` (the Trainer's loop: reset and step on one stream).
+Episode serial(const ScalpParams& p, Rng& rng, std::uint64_t k) {
+  ScalpEnv env(p);
+  Episode e;
+  auto o = env.reset(rng);
+  auto x = env.features(o);
+  e.obs.insert(e.obs.end(), x.begin(), x.end());
+  for (std::uint64_t t = 0;; ++t) {
+    const auto st = env.step(static_cast<Action>(pattern(t, k)), rng);
+    x = env.features(st.obs);
+    e.obs.insert(e.obs.end(), x.begin(), x.end());
+    e.rew.push_back(st.reward);
+    if (st.done) break;
+  }
+  e.pnl = env.net_pnl_ticks();
+  e.orders = env.orders();
+  e.fees = env.fees_ticks();
+  return e;
+}
+
+bool same_bytes(const double* a, const double* b, std::size_t n) { return std::memcmp(a, b, n * sizeof(double)) == 0; }
+
+// Plays one round of `env` with the pattern (k = the slot's episode id) and
+// checks every slot against want[id] bit for bit.
+void check_round(VecScalpEnv& env, const std::vector<Episode>& want, bool first_round) {
+  const std::size_t n = env.size();
+  if (first_round) env.reset();
+  std::vector<std::uint64_t> ids(env.episode_ids(), env.episode_ids() + n);
+  for (std::size_t j = 0; j < n; ++j) {
+    ASSERT_LT(ids[j], want.size());
+    ASSERT_TRUE(same_bytes(env.obs() + j * D, want[ids[j]].obs.data(), D)) << "first obs, slot " << j;
+  }
+  const std::size_t T = want[ids[0]].rew.size();
+  std::vector<std::int64_t> a(n);
+  for (std::size_t t = 0; t < T; ++t) {
+    for (std::size_t j = 0; j < n; ++j) a[j] = pattern(t, ids[j]);
+    env.step(a.data());
+    const bool done = t + 1 == T;
+    for (std::size_t j = 0; j < n; ++j) {
+      const Episode& w = want[ids[j]];
+      ASSERT_EQ(env.dones()[j], done ? 1 : 0);
+      ASSERT_TRUE(same_bytes(env.rewards() + j, &w.rew[t], 1)) << "reward t " << t << " slot " << j;
+      const double* o = done ? env.final_obs() : env.obs();
+      ASSERT_TRUE(same_bytes(o + j * D, w.obs.data() + (t + 1) * D, D)) << "obs t " << t << " slot " << j;
+    }
+  }
+  for (std::size_t j = 0; j < n; ++j) {
+    EXPECT_EQ(env.final_episode_ids()[j], ids[j]);
+    EXPECT_EQ(env.net_pnl_ticks()[j], want[ids[j]].pnl);
+    EXPECT_EQ(env.orders()[j], want[ids[j]].orders);
+    EXPECT_EQ(env.fees_ticks()[j], want[ids[j]].fees);
+  }
+}
+
+RunParams short_default(double episode = 120) { return run_params("default", 150, 1.0, episode); }
+
+}  // namespace
+
+TEST(VecScalpEnv, TrainStreamMatchesTrainerStream) {
+  const RunParams r = run_params("default", 150);  // of_train's ScalpParams{}
+  std::vector<Episode> want;
+  Rng stream(5);  // of_train / Trainer: run seed 5, one stream for reset and step
+  for (std::uint64_t k = 0; k < 9; ++k) want.push_back(serial(r.p, stream, k));
+  for (const std::size_t n : {std::size_t{1}, std::size_t{3}, std::size_t{8}}) {
+    Ledger L;
+    VecScalpEnv env(r, EpisodeSource::train(5), n, 4, false, L);
+    const std::size_t rounds = n == 8 ? 1 : 9 / n;
+    for (std::size_t round = 0; round < rounds; ++round) {
+      if (round == 0) env.reset();
+      for (std::size_t j = 0; j < n; ++j) ASSERT_EQ(env.episode_ids()[j], round * n + j);
+      check_round(env, want, false);
+    }
+    EXPECT_EQ(env.episodes_started(), (rounds + 1) * n);  // auto-reset started the next round
+    EXPECT_EQ(L.role(), seeds::Role::Trainer);
+  }
+}
+
+TEST(VecScalpEnv, IndexedMatchesEvaluateAndBuiltinRules) {
+  const RunParams r = short_default();
+  std::vector<Episode> want(8);
+  for (std::uint64_t i = 3; i < 8; ++i) {
+    Rng rng(700'000'000 + i);  // evaluate() / of_train score(): episode i = Rng(seed + i)
+    want[i] = serial(r.p, rng, i);
+  }
+  Ledger L;
+  VecScalpEnv env(r, EpisodeSource::indexed("validation", 3, 5, {}, L), 99, 3, false, L);
+  ASSERT_EQ(env.size(), 5u);  // n_envs = count
+  check_round(env, want, true);
+  EXPECT_THROW(env.reset(), std::runtime_error);  // played once
+  const std::int64_t a[5] = {1, 1, 1, 1, 1};
+  EXPECT_THROW(env.step(a), std::runtime_error);
+
+  // run_builtin(delta30) = of_train's rule in a serial loop = the rule acting on VecScalpEnv's obs.
+  const auto src = EpisodeSource::indexed("validation", 10, 6, {}, L);
+  const auto res = run_builtin(r, src, BuiltinPolicy::delta30(), 4, L);
+  VecScalpEnv v(r, src, 0, 2, false, L);
+  v.reset();
+  std::vector<std::int64_t> act(6);
+  for (;;) {
+    for (std::size_t j = 0; j < 6; ++j) {
+      const double* o = v.obs() + j * D;
+      act[j] = o[1] > 1.5 ? 2 : o[1] < -1.5 ? 0 : static_cast<std::int64_t>(o[kFeatures] + 1);
+    }
+    v.step(act.data());
+    if (v.dones()[0]) break;
+  }
+  for (std::uint64_t i = 0; i < 6; ++i) {
+    ScalpEnv e(r.p);
+    Rng rng(700'000'010 + i);
+    auto o = e.reset(rng);
+    for (;;) {
+      const auto st = e.step(o.f[1] > 1.5 ? 2 : o.f[1] < -1.5 ? 0 : static_cast<Action>(o.position + 1), rng);
+      o = st.obs;
+      if (st.done) break;
+    }
+    EXPECT_EQ(res.net_pnl_ticks[i], e.net_pnl_ticks());
+    EXPECT_EQ(res.orders[i], e.orders());
+    EXPECT_EQ(v.net_pnl_ticks()[i], e.net_pnl_ticks());
+  }
+}
+
+TEST(VecScalpEnv, HoldNestsOnItsThreadAndRefusesOthers) {
+  const RunParams r = short_default(5);
+  Ledger L;
+  VecScalpEnv env(r, EpisodeSource::train(3), 2, 1, false, L);
+  std::vector<std::int64_t> a(2, 1);
+  {
+    const auto g = env.hold();  // a binding holds it across a call and the copy of its results
+    env.reset();                // nests on the owning thread
+    env.step(a.data());
+    bool refused = false;
+    std::thread other([&] {
+      try {
+        env.step(a.data());
+      } catch (const std::runtime_error&) {
+        refused = true;
+      }
+    });
+    other.join();
+    EXPECT_TRUE(refused);
+  }
+  std::thread other([&] { env.step(a.data()); });  // released: another thread may use it now
+  other.join();
+  EXPECT_EQ(env.rounds_finished(), 0u);
+}
+
+TEST(VecScalpEnv, ThreadCountInvariant) {
+  const RunParams r = short_default(60);
+  auto run = [&](unsigned threads, std::size_t n) {
+    Ledger L;
+    VecScalpEnv env(r, EpisodeSource::train(11), n, threads, false, L);
+    std::vector<double> out;
+    env.reset();
+    std::vector<std::int64_t> a(n);
+    for (std::uint64_t t = 0; t < 130; ++t) {  // two rounds and a bit (60 decisions each)
+      for (std::size_t j = 0; j < n; ++j) a[j] = pattern(t, env.episode_ids()[j]);
+      env.step(a.data());
+      out.insert(out.end(), env.obs(), env.obs() + n * D);
+      out.insert(out.end(), env.rewards(), env.rewards() + n);
+    }
+    return out;
+  };
+  const auto one = run(1, 8);
+  const auto many = run(8, 8);
+  ASSERT_EQ(one.size(), many.size());
+  EXPECT_TRUE(same_bytes(one.data(), many.data(), one.size()));
+  EXPECT_TRUE(same_bytes(run(3, 8).data(), one.data(), one.size()));
+}
+
+TEST(VecScalpEnv, DaysAndStressMatchOf8AndOf6) {
+  const RunParams r = short_default();
+  Ledger L;
+  L.open_sealed(Block::Days, "unit test");
+  L.open_sealed(Block::Stress, "unit test");
+  // OF8: day d session k = Rng(930M + d * 100 + k), warm-up starting at day_session_start(k).
+  std::vector<Episode> want(400);
+  for (std::uint64_t d = 2; d < 4; ++d)
+    for (unsigned k = 0; k < 3; ++k) {
+      ScalpParams p = r.p;
+      p.start_second = day_session_start(k, p.warmup_seconds);
+      Rng rng(930'000'000ull + d * 100 + k);
+      want[d * 100 + k] = serial(p, rng, d * 100 + k);
+    }
+  VecScalpEnv days(r, EpisodeSource::days(2, 2, 3, L), 0, 3, false, L);
+  ASSERT_EQ(days.size(), 6u);
+  check_round(days, want, true);
+  // OF6: stress episode i = Rng(920M + i) under the scenario's change.
+  std::vector<Episode> sw(4);
+  for (std::uint64_t i = 1; i < 4; ++i) {
+    ScalpParams p = r.p;
+    p.latency_steps = 3;
+    Rng rng(920'000'000ull + i);
+    sw[i] = serial(p, rng, i);
+  }
+  VecScalpEnv stress(r, EpisodeSource::stress("latency 300 ms", 1, 3, {}, L), 0, 2, false, L);
+  check_round(stress, sw, true);
+  EXPECT_EQ(L.role(), seeds::Role::Scorer);
+  EXPECT_THROW(VecScalpEnv(r, EpisodeSource::stress("no such stress", 0, 2, {}, L), 0, 1, false, L), std::invalid_argument);
+  const RunParams v4 = run_params("discovery_v4", 1050, 1.0, 60);
+  EXPECT_THROW(VecScalpEnv(v4, EpisodeSource::stress("nominal", 0, 2, {}, L), 0, 1, false, L), std::invalid_argument);
+}
+
+TEST(VecScalpEnv, PrivilegedColumnsSeparateAndExact) {
+  const RunParams r = short_default(60);
+  Ledger L;
+  EXPECT_THROW(VecScalpEnv(r, EpisodeSource::indexed("validation", 0, 2, {}, L), 0, 1, true, L), std::runtime_error);
+  VecScalpEnv plain(r, EpisodeSource::indexed("viz", 0, 2, {}, L), 0, 1, false, L);
+  EXPECT_THROW((void)plain.priv(), std::runtime_error);
+  VecScalpEnv env(r, EpisodeSource::indexed("viz", 0, 2, {}, L), 0, 2, true, L);
+  plain.reset();
+  env.reset();
+  // A serial copy of slot 0's episode, for the hidden state at every decision.
+  ScalpEnv ref(r.p);
+  Rng rng(960'000'000);
+  Rng copy(960'000'000);
+  const double start = ScalpEnv::draw_market(r.p, copy).start;
+  auto o = ref.reset(rng);
+  std::int64_t a[2];
+  for (std::uint64_t t = 0;; ++t) {
+    const double* pv = env.priv();
+    EXPECT_EQ(pv[0], ref.market().fair_value());
+    EXPECT_EQ(pv[1], ref.market().mid());
+    EXPECT_EQ(pv[2], ref.market().fair_value() - ref.market().mid());
+    EXPECT_EQ(pv[3], start + static_cast<double>(ref.market().t_ns()) * 1e-9);
+    EXPECT_EQ(pv[5], ref.orders());
+    EXPECT_TRUE(same_bytes(env.obs(), plain.obs(), 2 * D));  // obs never depend on the privileged flag
+    a[0] = a[1] = pattern(t, 0);
+    const int pos0 = o.position;
+    const double c0 = ref.net_pnl_ticks() + ref.fees_ticks() - pos0 * ref.market().mid();
+    const auto orders0 = ref.orders();
+    const auto st = ref.step(static_cast<Action>(a[0]), rng);
+    o = st.obs;
+    env.step(a);
+    plain.step(a);
+    const double* q = st.done ? env.final_priv() : env.priv();
+    const double cash = ref.net_pnl_ticks() + ref.fees_ticks() - o.position * ref.market().mid();
+    EXPECT_EQ(q[6], cash);
+    if (ref.orders() - orders0 == 1 && o.position != pos0) {
+      EXPECT_EQ(q[4], -(cash - c0) / (o.position - pos0));
+      EXPECT_TRUE(std::isfinite(q[4]));
+    } else {
+      EXPECT_TRUE(std::isnan(q[4]));
+    }
+    if (st.done) break;
+  }
+  EXPECT_EQ(L.role(), seeds::Role::None);  // viz is neutral
+}
+
+TEST(VecScalpEnv, NeuralQBuiltinIsGreedyFirstMax) {
+  const RunParams r = short_default(60);
+  Rng init(3);
+  auto net = std::make_shared<rag::agent::Mlp>(std::vector<std::uint32_t>{16, 8, 3}, init);
+  Ledger L;
+  const auto src = EpisodeSource::indexed("pairing", 0, 3, {}, L);
+  const auto res = run_builtin(r, src, BuiltinPolicy::neuralq(net), 3, L);
+  std::vector<double> scratch(net->scratch_size());
+  for (std::uint64_t i = 0; i < 3; ++i) {
+    ScalpEnv e(r.p);
+    Rng rng(940'000'000 + i);
+    auto o = e.reset(rng);
+    for (;;) {
+      double q[3];
+      const auto x = e.features(o);
+      net->forward(x.data(), q, scratch.data());
+      const Action a = q[1] > q[0] ? (q[2] > q[1] ? 2 : 1) : (q[2] > q[0] ? 2 : 0);
+      const auto st = e.step(a, rng);
+      o = st.obs;
+      if (st.done) break;
+    }
+    EXPECT_EQ(res.net_pnl_ticks[i], e.net_pnl_ticks());
+  }
+  EXPECT_THROW(BuiltinPolicy::neuralq(std::make_shared<rag::agent::Mlp>(std::vector<std::uint32_t>{15, 3}, init)), std::invalid_argument);
+}
+
+TEST(VecReplayEnv, MatchesReplayScalpEnvAndIsSealed) {
+  std::string csv;
+  {
+    EsSimulator sim(SimParams{}, 9);
+    write_sim_ticks(sim, 4000, [&](const char* s, std::size_t n) { csv.append(s, n); });
+  }
+  std::istringstream in(csv);
+  auto tape = std::make_shared<const TickTape>(TickTape::from_stream(in, {.time_unit = "s"}));
+  const ReplayParams p{.window_seconds = 60, .warmup_seconds = 30};
+  Ledger L;
+  EXPECT_THROW(VecReplayEnv(tape, p, {0}, 1, L), std::runtime_error);
+  L.open_sealed(Block::Real, "unit test");
+  EXPECT_THROW(VecReplayEnv(tape, p, {0, 999}, 1, L), std::out_of_range);
+  const std::vector<std::int64_t> wins = {0, 3, 1};
+  VecReplayEnv env(tape, p, wins, 3, L);
+  env.reset();
+  std::vector<ReplayScalpEnv> ref;
+  std::vector<std::vector<double>> o0;
+  for (auto k : wins) {
+    ref.emplace_back(tape, p);
+    const auto x = ref.back().features(ref.back().seek(static_cast<std::size_t>(k)));
+    o0.emplace_back(x.begin(), x.end());
+  }
+  for (std::size_t j = 0; j < wins.size(); ++j) ASSERT_TRUE(same_bytes(env.obs() + j * D, o0[j].data(), D));
+  Rng unused(0);
+  std::int64_t a[3];
+  for (std::uint64_t t = 0;; ++t) {
+    for (std::size_t j = 0; j < 3; ++j) a[j] = pattern(t, j);
+    env.step(a);
+    bool done = false;
+    for (std::size_t j = 0; j < 3; ++j) {
+      const auto st = ref[j].step(static_cast<Action>(a[j]), unused);
+      const auto x = ref[j].features(st.obs);
+      ASSERT_TRUE(same_bytes(env.rewards() + j, &st.reward, 1));
+      ASSERT_TRUE(same_bytes((st.done ? env.final_obs() : env.obs()) + j * D, x.data(), D));
+      ASSERT_EQ(env.dones()[j], st.done ? 1 : 0);
+      done = st.done;
+    }
+    if (done) {
+      ASSERT_EQ(t + 1, 60u);
+      break;
+    }
+  }
+  for (std::size_t j = 0; j < 3; ++j) EXPECT_EQ(env.net_pnl_ticks()[j], ref[j].net_pnl_ticks());
+}
+
+TEST(SeedLedger, Refusals) {
+  const RunParams r = short_default(30);
+  {
+    Ledger L;  // ranges, names, claims
+    EXPECT_THROW(EpisodeSource::train(0), std::invalid_argument);
+    EXPECT_THROW(EpisodeSource::train(700'000'000), std::invalid_argument);
+    EXPECT_NO_THROW(EpisodeSource::train(699'999'999));
+    EXPECT_THROW(EpisodeSource::indexed("validation", 199'999'999, 2, {}, L), std::invalid_argument);
+    EXPECT_THROW(EpisodeSource::indexed("validation", 0, 0, {}, L), std::invalid_argument);
+    EXPECT_THROW(EpisodeSource::indexed("train", 0, 1, {}, L), std::invalid_argument);
+    EXPECT_THROW(EpisodeSource::indexed("stress", 0, 1, {}, L), std::invalid_argument);
+    EXPECT_THROW(EpisodeSource::indexed("real", 0, 1, {}, L), std::invalid_argument);
+    EXPECT_THROW(EpisodeSource::indexed("tick_test", 0, 1, {}, L), std::invalid_argument);
+    EXPECT_THROW(EpisodeSource::indexed("test", 0, 1, {}, L), std::runtime_error);  // sealed
+    EXPECT_THROW(EpisodeSource::indexed("test", 9'999'999, 2, {}, L), std::invalid_argument);  // 910M+ (tick test) not exposed
+    EXPECT_THROW(EpisodeSource::indexed("confirm", 0, 1, {}, L), std::invalid_argument);  // no claim id
+    EXPECT_THROW(EpisodeSource::indexed("confirm", 0, 1, "claim-1", L), std::runtime_error);  // claim, but sealed
+    EXPECT_THROW(EpisodeSource::indexed("validation", 0, 1, "claim-1", L), std::invalid_argument);
+    EXPECT_THROW(EpisodeSource::days(0, 1, 39, L), std::runtime_error);
+    EXPECT_THROW(EpisodeSource::stress("nominal", 0, 1, {}, L), std::runtime_error);
+    EXPECT_THROW(L.open_sealed(Block::Validation, "x"), std::invalid_argument);  // not sealed
+    EXPECT_THROW(L.open_sealed(Block::Test, ""), std::invalid_argument);         // no reason
+    EXPECT_EQ(L.role(), seeds::Role::None);
+  }
+  {
+    Ledger L;  // a trainer never opens a sealed block
+    VecScalpEnv env(r, EpisodeSource::train(1), 2, 1, true, L);  // privileged is fine on train
+    EXPECT_EQ(L.role(), seeds::Role::Trainer);
+    EXPECT_THROW(L.open_sealed(Block::Test, "score"), std::runtime_error);
+    EXPECT_FALSE(L.is_open(Block::Test));
+  }
+  {
+    Ledger L;  // selection (validation, pairing) also makes a trainer
+    (void)run_builtin(r, EpisodeSource::indexed("pairing", 0, 1, {}, L), BuiltinPolicy::flat(), 1, L);
+    EXPECT_THROW(L.open_sealed(Block::Test, "score"), std::runtime_error);
+  }
+  {
+    Ledger L;  // a scorer never trains or selects again
+    L.open_sealed(Block::Test, "score");
+    EXPECT_EQ(L.role(), seeds::Role::Scorer);
+    const auto test = EpisodeSource::indexed("test", 0, 2, {}, L);
+    EXPECT_THROW(VecScalpEnv(r, test, 0, 1, true, L), std::runtime_error);  // privileged refused on test
+    EXPECT_NO_THROW(VecScalpEnv(r, test, 0, 1, false, L));
+    EXPECT_NO_THROW((void)run_builtin(r, test, BuiltinPolicy::oracle(0.5), 2, L));
+    EXPECT_NO_THROW(VecScalpEnv(r, EpisodeSource::indexed("viz", 0, 1, {}, L), 0, 1, false, L));
+    EXPECT_THROW(VecScalpEnv(r, EpisodeSource::train(1), 1, 1, false, L), std::runtime_error);
+    EXPECT_THROW(VecScalpEnv(r, EpisodeSource::indexed("validation", 0, 1, {}, L), 0, 1, false, L), std::runtime_error);
+    EXPECT_THROW((void)run_builtin(r, EpisodeSource::indexed("pairing", 0, 1, {}, L), BuiltinPolicy::flat(), 1, L), std::runtime_error);
+    EXPECT_THROW(EpisodeSource::indexed("confirm", 0, 1, {}, L), std::invalid_argument);  // a claim id is needed even when open
+    L.open_sealed(Block::Confirm, "orchestrator");
+    EXPECT_NO_THROW(EpisodeSource::indexed("confirm", 0, 1, "claim-1", L));
+    ASSERT_EQ(L.openings().size(), 2u);
+    EXPECT_EQ(L.openings()[1].first, "confirm");
+    // forbid_sealed closes what was open: a source made earlier no longer plays.
+    L.forbid_sealed();
+    EXPECT_THROW(VecScalpEnv(r, test, 0, 1, false, L), std::runtime_error);
+    EXPECT_THROW(L.open_sealed(Block::Test, "again"), std::runtime_error);
+  }
+  {
+    Ledger L;
+    L.forbid_sealed();
+    EXPECT_THROW(L.open_sealed(Block::Real, "replay"), std::runtime_error);
+  }
+  // Parameters: market, warm-up, overrides, ScalpEnv's guards.
+  EXPECT_THROW(run_params("nope", 150), std::invalid_argument);
+  EXPECT_THROW(run_params("default", 30'000), std::invalid_argument);
+  EXPECT_THROW(run_params("default", -1), std::invalid_argument);
+  EXPECT_THROW(run_params("default", 150, 1, 600, -1, 1, 1, 1.5, {{"dt", 0.2}}), std::invalid_argument);
+  EXPECT_THROW(run_params("discovery_v4", 1050, 1, 600, -1, 1, 2), std::invalid_argument);  // contracts > 1 on v4
+  EXPECT_EQ(run_params("default", 150, 1, 600, -1, 1, 1, 1.5, {{"value_vol", 0.5}}).p.sim.value_vol, 0.5);
+  EXPECT_TRUE(run_params("discovery_v4", 1050) == run_params("discovery_v4", 1050));
+  EXPECT_FALSE(run_params("discovery_v4", 1050) == run_params("discovery_v4", 150));
+  EXPECT_EQ(steps_per_episode(run_params("default", 150).p), 600u);
+}
+
+```
+
+
+---
+
 ## FILE: tests\pdf_writer.hpp  (3,805 bytes)
 
 ```cpp
@@ -30779,7 +32721,7 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: tools\make_context_pack.py  (3,874 bytes)
+## FILE: tools\make_context_pack.py  (3,947 bytes)
 
 ````python
 #!/usr/bin/env python3
@@ -30834,6 +32776,9 @@ SOURCE_GLOBS = [
     "tests/*.hpp",
     "tests/fuzz/*",
     "tools/*.py",
+    "python/*.cpp",
+    "python/ragrl/**/*.py",
+    "python/tests/*.py",
 ]
 FENCE = {".hpp": "cpp", ".cpp": "cpp", ".py": "python", ".yml": "yaml", ".txt": "cmake"}
 
@@ -31189,7 +33134,7 @@ if __name__ == "__main__":
 
 ---
 
-## FILE: tools\of_viz.py  (28,602 bytes)
+## FILE: tools\of_viz.py  (29,152 bytes)
 
 ```python
 #!/usr/bin/env python3
@@ -31220,6 +33165,7 @@ FEATURES = ["f_delta5", "f_delta30", "f_delta120", "f_ofi5", "f_ofi30", "f_relvo
 STRATS = [("agent", "pos", "pnl"), ("rule", "rule_pos", "rule_pnl"), ("oracle", "oracle_pos", "oracle_pnl")]
 IMB_BINS = 10    # raw L1 imbalance (bid-ask)/(bid+ask) over [-1, 1]
 DELTA_BINS = 8   # normalized 30 s delta feature over [-4, 4] (the feature clip)
+SCORE_LABEL = {"q": "Q-values", "prob": "log-probabilities", "score": "model scores", "vote": "votes"}
 
 
 def num(s):
@@ -31310,7 +33256,10 @@ def main(argv):
                if c not in cols]
     if missing:
         sys.exit(f"{src}: missing columns {missing}")
-    data = {"meta": meta, "source": os.path.basename(src), "features": FEATURES, "episodes": episodes, **aggregate(episodes)}
+    kv = dict(t.split("=", 1) for t in meta.split() if "=" in t)  # of_zoo_trace: agent=, policy=, score_kind=
+    agent = f'{kv["agent"]} ({kv.get("policy", "")})' if "agent" in kv else "RL agent"
+    data = {"meta": meta, "source": os.path.basename(src), "features": FEATURES, "episodes": episodes, "agent": agent,
+            "scores": SCORE_LABEL.get(kv.get("score_kind", "q"), "scores"), **aggregate(episodes)}
     payload = json.dumps(data, separators=(",", ":")).replace("</", "<\\/")
     page = PAGE.replace("/*DATA*/null", payload)
     with open(dst, "w", encoding="utf-8", newline="\n") as f:
@@ -31375,7 +33324,7 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}table.sum tr.e
 "use strict";
 const D=/*DATA*/null;
 const NS="http://www.w3.org/2000/svg",STR=[["agent","pos","pnl"],["rule","rule_pos","rule_pnl"],["oracle","oracle_pos","oracle_pnl"]];
-const NAMES={agent:"RL agent",rule:"30 s delta rule",oracle:"fair-value oracle"},ACT=["short","flat","long"];
+const NAMES={agent:D.agent||"RL agent",rule:"30 s delta rule",oracle:"fair-value oracle"},ACT=["short","flat","long"];
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e}
 function h(tag,parent,text,cls){const e=document.createElement(tag);if(text!=null)e.textContent=text;if(cls)e.className=cls;if(parent)parent.appendChild(e);return e}
@@ -31413,10 +33362,10 @@ function render(){
  const rel=a=>a.map(v=>v==null?null:v-m0);
  // price
  const [plo,phi]=ext([rel(ep.bid),rel(ep.ask),rel(ep.fair_value)]);
- const pp=panel(host,"Price (ticks from the episode's first mid) with the agent's position shaded",230,plo-0.5,phi+0.5,[["mid",css("--ink")],["bid / ask",css("--axis")],["hidden fair value",css("--fv"),1],["buy ▲ / sell ▼ fills",css("--ink2")]]);
+ const pp=panel(host,"Price (ticks from the episode's first mid) with the agent's position shaded",230,plo-0.5,phi+0.5,[["mid",css("--ink")],...(ep.bid[0]!=null?[["bid / ask",css("--axis")]]:[]),["hidden fair value",css("--fv"),1],["buy ▲ / sell ▼ fills",css("--ink2")]]);
  posBands(pp,ep.pos,pp.y(phi+0.5),pp.y(plo-0.5));
- let d="";for(let i=0;i<n;i++)d+=(i?"L":"M")+pp.x(i).toFixed(1)+","+pp.y(ep.ask[i]-m0).toFixed(1);for(let i=n-1;i>=0;i--)d+="L"+pp.x(i).toFixed(1)+","+pp.y(ep.bid[i]-m0).toFixed(1);
- el("path",{d:d+"Z",fill:css("--band"),stroke:"none"},pp.svg);
+ if(ep.bid[0]!=null){let d="";for(let i=0;i<n;i++)d+=(i?"L":"M")+pp.x(i).toFixed(1)+","+pp.y(ep.ask[i]-m0).toFixed(1);for(let i=n-1;i>=0;i--)d+="L"+pp.x(i).toFixed(1)+","+pp.y(ep.bid[i]-m0).toFixed(1);
+ el("path",{d:d+"Z",fill:css("--band"),stroke:"none"},pp.svg)}  // of_zoo_trace has no quotes
  path(pp,rel(ep.mid),{stroke:css("--ink"),"stroke-width":1.5});path(pp,rel(ep.fair_value),{stroke:css("--fv"),"stroke-dasharray":"5 3"});
  for(let i=0;i<n;i++){const dp=ep.pos[i]-(i?ep.pos[i-1]:0);if(!dp&&!(i==n-1&&ep.pos[i-1]))continue;
   const buy=dp>0||(dp==0&&ep.pos[i-1]<0),px=ep.fill_px[i]!=null?ep.fill_px[i]:ep.mid[i],X=pp.x(i),Y=pp.y(px-m0);
@@ -31434,7 +33383,7 @@ function render(){
  // Q
  const relq=document.getElementById("relq")?document.getElementById("relq").checked:true;
  const qs=[ep.q_short,ep.q_flat,ep.q_long].map(a=>relq?a.map((v,i)=>v-ep.q_flat[i]):a);const [qlo,qhi]=ext(qs);
- const qp=panel(host,relq?"Q-values relative to flat (advantage of short / long over flat)":"Q-values",150,qlo,qhi,[["short",css("--short")],["flat",css("--muted")],["long",css("--long")]]);
+ const qp=panel(host,relq?`${D.scores||"Q-values"} relative to flat (advantage of short / long over flat)`:(D.scores||"Q-values"),150,qlo,qhi,[["short",css("--short")],["flat",css("--muted")],["long",css("--long")]]);
  const qc=[css("--short"),css("--muted"),css("--long")];qs.forEach((a,k)=>path(qp,a,{stroke:qc[k],"stroke-width":k==1?1:1.5}));
  const cb=h("label",qp.svg.closest(".card").querySelector("h3"));cb.style.cssText="font-weight:400;margin-left:12px;color:var(--ink2)";
  const inp=h("input",cb);inp.type="checkbox";inp.id="relq";inp.checked=relq;cb.append(" relative to flat");inp.onchange=render;
@@ -31450,7 +33399,7 @@ function render(){
 function setHover(i,ev){hoverStep=i;const ep=D.episodes[cur];for(const c of cross){const X=c.x(i);c.cl.setAttribute("x1",X);c.cl.setAttribute("x2",X);c.cl.setAttribute("visibility","visible")}
  document.getElementById("sidehead").textContent=`Step ${i} · ${clock(ep.tod_s[i])}`;const t=document.getElementById("side");t.replaceChildren();
  const row=(k,v)=>{const r=h("tr",t);h("td",r,k);h("td",r,v)};const m0=ep.mid[0];
- row("bid / ask",`${ep.bid[i]-m0} / ${ep.ask[i]-m0}`);row("fair value − mid",sg(ep.fair_value[i]-ep.mid[i]));row("L1 sizes bid / ask",`${ep.bid_sz1[i]} / ${ep.ask_sz1[i]}`);row("L1 imbalance",sg(ep.imb_l1[i],3));
+ row("bid / ask",ep.bid[i]==null?"–":`${ep.bid[i]-m0} / ${ep.ask[i]-m0}`);row("fair value − mid",sg(ep.fair_value[i]-ep.mid[i]));row("L1 sizes bid / ask",ep.bid_sz1[i]==null?"–":`${ep.bid_sz1[i]} / ${ep.ask_sz1[i]}`);row("L1 imbalance",sg(ep.imb_l1[i],3));
  for(const k of D.features)row(k.replace("f_","feat "),sg(ep[k][i],2));row("open P&L",sg(ep.open_pnl[i]));
  row("Q short / flat / long",`${f(ep.q_short[i])} / ${f(ep.q_flat[i])} / ${f(ep.q_long[i])}`);row("action",ACT[ep.action[i]]);row("position after",ep.pos[i]);
  row("fill price",ep.fill_px[i]==null?"–":sg(ep.fill_px[i]-m0));row("orders / fees",`${ep.orders[i]} / ${f(ep.fees[i])}`);
@@ -31524,6 +33473,318 @@ renderEpTable();render();renderAgg();
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
+
+```
+
+
+---
+
+## FILE: tools\of_zoo_trace.py  (17,087 bytes)
+
+```python
+#!/usr/bin/env python3
+"""of_zoo_trace.py - episode replays of any ragrl agent (OF15 zoo) for tools/of_viz.py.
+
+    python tools/of_zoo_trace.py RUN [RUN ...] --out DIR [--episodes 20] [--policy ensemble|seedK]
+                                 [--oracle best|TICKS] [--threads 4]
+
+RUN is a ragrl run directory (build-avx512/rl/runs/<name>: config.json, bin/_ragof*.pyd,
+seeds/seedK/policy.json). For each run this replays the chosen policy (default: the
+run's headline ensemble) on visualization episodes 0..N-1 (seeds 960,000,000+: look,
+never select or score on them) and writes DIR/<run>.csv in the of_trace schema, with
+the 30 s delta rule and the fair-value oracle on the same episodes, then DIR/<run>.html
+(tools/of_viz.py) and DIR/index.html: every agent side by side, P&L per episode.
+
+Run it with the Python that trained the runs (the one with torch / stable-baselines3 /
+lightgbm, e.g. C:/rag-cpp/.venv/Scripts/python.exe). ragrl is imported from the
+directory the run's provenance.json names (ragrl_dir), and each run is replayed in its
+own process with RAGOF_DIR=RUN/bin, so every agent sees the simulator binary it was
+trained and scored with.
+
+Differences from of_trace: VecScalpEnv exposes no quotes or L1 sizes, so bid, ask,
+bid_sz1 and ask_sz1 are empty (of_viz then draws no spread band); imb_l1 is
+feature 6 / 2, exactly as the live viewer bins it; q_* are the policy's display
+scores (Q-values, log-probabilities or model scores: the header's score_kind);
+open_pnl comes from the observation (ScalpEnv::features: open P&L / 4, clipped at
++-4), so it saturates at +-16 ticks. The oracle trades on the hidden gap at the run's
+best_oracle threshold (select.json, chosen on validation; of_trace's fixed 2 ticks
+never trades on discovery, where the gap rarely reaches 2) unless --oracle is given.
+Checked against of_trace (NeuralQ seed, discovery, 5 episodes): every other column
+matches exactly.
+The policy sees observations only; the privileged channel (fair value, fills) is
+written for display and drives only the oracle.
+"""
+import argparse
+import csv
+import html
+import json
+import math
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+TICK_VALUE = 12.5  # ES dollars per tick (of_trace's kTickValue)
+FEATURES = ["f_delta5", "f_delta30", "f_delta120", "f_ofi5", "f_ofi30", "f_relvol", "f_imb_l1",
+            "f_imb_l5", "f_ret5", "f_ret30", "f_ret120", "f_vwap", "f_absorb"]
+COLUMNS = (["episode", "seed", "step", "tod_s", "bid", "ask", "mid", "fair_value", "bid_sz1", "ask_sz1", "imb_l1"] + FEATURES +
+           ["open_pnl", "time_left", "q_short", "q_flat", "q_long", "action", "pos", "fill_px", "orders", "fees", "pnl",
+            "rule_pos", "rule_pnl", "oracle_pos", "oracle_pnl"])
+
+
+def fmt(x, nd):
+    if x is None:
+        return ""
+    x = float(x)
+    return "" if not math.isfinite(x) else f"{x:.{nd}f}"
+
+
+# ---------------------------------------------------------------- one run (child process)
+
+def keep_action(obs):
+    import numpy as np
+    return (np.sign(obs[:, 13]) + 1).astype(np.int64)
+
+
+# ragrl.envs' delta_rule_actions / oracle_actions, copied: that module imports stable-baselines3
+# (and so torch), which agents that need no torch (LightGBM, NeuralQ) shouldn't depend on.
+def delta_rule_actions(obs, th: float = 1.5):
+    import numpy as np
+    x = obs[:, 1]
+    return np.where(x > th, 2, np.where(x < -th, 0, keep_action(obs))).astype(np.int64)
+
+
+def oracle_actions(obs, priv, th: float):
+    import numpy as np
+    gap = priv[:, 2]
+    return np.where(gap > th, 2, np.where(gap < -th, 0, keep_action(obs))).astype(np.int64)
+
+
+def load_run_policy(run: Path, cfg: dict, which: str):
+    """runner.learned_policies without importing the runner (torch): seedK or the ensemble of every seed."""
+    from ragrl.policies import Ensemble, load_policy
+    seeds = [int(s) for s in cfg["train"]["seeds"]]
+    dirs = {s: run / "seeds" / f"seed{s}" for s in seeds}
+    if which == "ensemble":
+        return Ensemble([load_policy(d) for d in dirs.values()]) if len(dirs) > 1 else load_policy(next(iter(dirs.values())))
+    if which.startswith("seed") and which[4:].isdigit() and int(which[4:]) in dirs:
+        return load_policy(dirs[int(which[4:])])
+    raise SystemExit(f"{run.name}: no policy {which!r} (have ensemble, " + ", ".join(f"seed{s}" for s in seeds) + ")")
+
+
+def trace_one(run: Path, out_csv: Path, episodes: int, which: str, oracle_gap: float, threads: int) -> dict:
+    import numpy as np
+    from ragrl import config, native
+
+    cfg = json.loads((run / "config.json").read_text(encoding="utf-8"))
+    params = config.make_params(cfg["env"])
+    policy = load_run_policy(run, cfg, which)
+    R = native.load()
+    base = int(native.block("viz")["base"])
+
+    def env():
+        return R.VecScalpEnv(params, R.EpisodeSource.block("viz", 0, episodes), n_envs=episodes, threads=threads, privileged=True)
+
+    ea, er, eo = env(), env(), env()
+    oa, orl, oor = ea.reset(), er.reset(), eo.reset()
+    policy.reset(episodes)
+    n, steps = episodes, []
+    cum = np.zeros((3, n))
+    fee_ticks = params.fee_dollars / TICK_VALUE
+    while True:
+        pa = ea.priv.copy()
+        a, s = policy.step(oa)
+        q = policy.display_scores(oa, s)
+        q = np.full((n, 3), np.nan) if q is None else np.asarray(q, dtype=np.float64)
+        ar, ao = delta_rule_actions(orl), oracle_actions(oor, eo.priv, oracle_gap)
+        pre = {"tod": pa[:, 3], "mid": pa[:, 1], "fv": pa[:, 0], "obs": oa.copy(), "q": q, "a": np.asarray(a, dtype=np.int64)}
+        oa, ra, da = ea.step(a)
+        orl, rr, _ = er.step(ar)
+        oor, ro, _ = eo.step(ao)
+        done = bool(da[0])
+        cum += np.stack([ra, rr, ro])
+        po = ea.final_priv if done else ea.priv
+        obs_after = [e.final_obs if done else o for e, o in ((ea, oa), (er, orl), (eo, oor))]
+        pos = [np.rint(o[:, 13] * params.contracts).astype(int) for o in obs_after]
+        steps.append({**pre, "pos": pos, "fill": po[:, 4].copy(), "orders": po[:, 5].copy(), "pnl": cum.copy()})
+        if done:
+            break
+
+    stats = [e.episode_stats for e in (ea, er, eo)]
+    for k, st in enumerate(stats):  # integrity: the summed rewards are the episodes' net P&L
+        dev = float(np.max(np.abs(cum[k] - np.asarray(st["net_pnl_ticks"]))))
+        if dev > 1e-6:
+            raise SystemExit(f"{run.name}: summed rewards differ from net P&L by {dev:g} ticks ({['agent', 'rule', 'oracle'][k]})")
+    if float(np.max(np.abs(steps[-1]["orders"] - np.asarray(stats[0]["orders"])))) > 1e-9:
+        raise SystemExit(f"{run.name}: the privileged order count disagrees with episode_stats")
+
+    kind = cfg["agent"]["kind"]
+    meta = (f"# of_zoo_trace run={run.name} agent={kind} policy={which} score_kind={policy.score_kind} market={params.market} "
+            f"warmup_seconds={params.warmup_seconds:g} oracle_gap={oracle_gap:g} fee_dollars={params.fee_dollars:g} tick_value={TICK_VALUE:g} "
+            f"seeds={base}+ (visualization block: look, never select)")
+    out_csv.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_csv, "w", encoding="utf-8", newline="\n") as f:
+        f.write(meta + "\n")
+        w = csv.writer(f, lineterminator="\n")
+        w.writerow(COLUMNS)
+        for j in range(n):
+            for t, st in enumerate(steps):
+                o = st["obs"][j]
+                w.writerow([j, base + j, t, fmt(st["tod"][j], 1), "", "", fmt(st["mid"][j], 1), fmt(st["fv"][j], 3), "", "",
+                            fmt(o[6] / 2.0, 4)] + [fmt(o[k], 4) for k in range(13)] +
+                           [fmt(o[14] * 4.0, 2), fmt(o[15], 4)] + [fmt(st["q"][j, k], 4) for k in range(3)] +
+                           [int(st["a"][j]), int(st["pos"][0][j]), fmt(st["fill"][j], 2), int(round(st["orders"][j])),
+                            fmt(st["orders"][j] * fee_ticks, 2), fmt(st["pnl"][0, j], 2),
+                            int(st["pos"][1][j]), fmt(st["pnl"][1, j], 2), int(st["pos"][2][j]), fmt(st["pnl"][2, j], 2)])
+    pos = np.stack([st["pos"][0] for st in steps])
+    return {"run": run.name, "agent": kind, "policy": which, "score_kind": policy.score_kind, "market": params.market, "oracle_gap": oracle_gap,
+            "warmup": params.warmup_seconds, "agent_pnl": cum[0].round(2).tolist(), "rule_pnl": cum[1].round(2).tolist(),
+            "oracle_pnl": cum[2].round(2).tolist(), "orders": np.asarray(stats[0]["orders"]).tolist(),
+            "long_share": float((pos > 0).mean()), "short_share": float((pos < 0).mean())}
+
+
+# ---------------------------------------------------------------- parent: one child per run, then the pages
+
+def ragrl_path(run: Path) -> str:
+    prov = json.loads((run / "provenance.json").read_text(encoding="utf-8"))
+    d = Path(prov.get("ragrl_dir", ""))
+    if not (d / "__init__.py").is_file():
+        raise SystemExit(f"{run.name}: provenance names ragrl_dir {d}, which does not exist")
+    return str(d.parent)
+
+
+def oracle_gap(run: Path, arg: str) -> float:
+    if arg != "best":
+        return float(arg)
+    try:
+        best = json.loads((run / "select.json").read_text(encoding="utf-8"))["best_oracle"]  # e.g. "oracle_1"
+        return float(best.split("_", 1)[1])
+    except (OSError, KeyError, ValueError, IndexError):
+        print(f"{run.name}: no best_oracle in select.json; the oracle uses of_trace's 2 ticks", file=sys.stderr)
+        return 2.0
+
+
+def index_page(rows: list, episodes: int, failed: list) -> str:
+    def cell(v):
+        # diverging: blue (+) / red (−) around a neutral midpoint, |v| >= 20 ticks saturates
+        a = min(1.0, abs(v) / 20.0)
+        var = "--long" if v > 0 else "--short"
+        return (f'<td class="c" style="background:color-mix(in srgb,var({var}) {round(100 * a)}%,var(--neutral))" '
+                f'title="{v:+.2f} ticks">{v:+.0f}</td>')
+
+    # one block per market (rows of different markets play different episodes): its agents, then its rule and oracle
+    groups = {}
+    for r in rows:
+        groups.setdefault((r["market"], r["warmup"]), []).append(r)
+    entries = []
+    for (market, _), grp in groups.items():
+        tag = f" · {html.escape(market)}" if len(groups) > 1 else ""
+        ref = grp[0]
+        entries += [(f'{html.escape(r["agent"])} · {html.escape(r["policy"])}{tag}', r["agent_pnl"], r["html"], r) for r in grp]
+        entries += [(f"30 s delta rule{tag}", ref["rule_pnl"], None, None),
+                    (f'fair-value oracle (gap &gt; {ref["oracle_gap"]:g} ticks){tag}', ref["oracle_pnl"], None, None)]
+    lines = []
+    for label, pnl, link, extra in entries:
+        mean = sum(pnl) / len(pnl)
+        name = f'<a href="{html.escape(link)}">{label}</a>' if link else f"<i>{label}</i>"
+        info = (f'<td class="n">{sum(extra["orders"]) / len(extra["orders"]):.1f}</td><td class="n">{100 * extra["long_share"]:.0f}% / '
+                f'{100 * extra["short_share"]:.0f}%</td>') if extra else '<td></td><td></td>'
+        lines.append(f'<tr><th>{name}</th><td class="n">{mean:+.2f}</td>{info}' + "".join(cell(v) for v in pnl) + "</tr>")
+    fails = ("<p>Not replayed: " + "; ".join(f"{html.escape(n)} ({html.escape(w)})" for n, w in failed) + "</p>") if failed else ""
+    markets = sorted({f'{r["market"]} (warm-up {r["warmup"]:g} s)' for r in rows})
+    heads = "".join(f"<th class=\"c\">{i}</th>" for i in range(episodes))
+    return f"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agent zoo replays</title>
+<style>
+:root{{--surface:#fcfcfb;--ink:#1d1d1b;--ink2:#5d5c58;--axis:#d6d5d0;--long:#2a78d6;--short:#e34948;--neutral:#f0efec;color-scheme:light}}
+@media (prefers-color-scheme:dark){{:root:not([data-theme="light"]){{--surface:#1b1b1a;--ink:#ecebe7;--ink2:#a5a49e;--axis:#383835;--long:#3987e5;--short:#e66767;--neutral:#383835;color-scheme:dark}}}}
+:root[data-theme="dark"]{{--surface:#1b1b1a;--ink:#ecebe7;--ink2:#a5a49e;--axis:#383835;--long:#3987e5;--short:#e66767;--neutral:#383835;color-scheme:dark}}
+body{{margin:0;padding:16px;background:var(--surface);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}}
+h1{{font-size:20px;margin:0 0 4px}} p{{color:var(--ink2);margin:4px 0 12px;max-width:900px}}
+.wrap{{overflow-x:auto}} table{{border-collapse:separate;border-spacing:2px;font-variant-numeric:tabular-nums}}
+th{{text-align:left;font-weight:500;white-space:nowrap;padding:3px 8px 3px 0}} td.n{{text-align:right;padding:3px 10px;white-space:nowrap}}
+td.c,th.c{{min-width:30px;text-align:center;font-size:12px;padding:4px 2px;border-radius:3px}} th.c{{color:var(--ink2);font-weight:400}}
+a{{color:var(--long)}} thead th{{color:var(--ink2);font-weight:400;font-size:12px}}
+</style></head><body>
+<h1>Agent zoo replays</h1>
+<p>{html.escape(", ".join(markets))}. Visualization episodes 0–{episodes - 1} (seeds 960,000,000+): look as often as you like, never select or score on them.
+Each cell is one episode's net P&amp;L in ticks (blue gain, red loss, saturating at ±20). Click an agent for its step-by-step replay.</p>
+<div class="wrap"><table><thead><tr><th>agent · policy</th><th>mean</th><th>orders</th><th>long / short</th>{heads}</tr></thead>
+<tbody>{"".join(lines)}</tbody></table></div>
+{fails}</body></html>
+"""
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("runs", nargs="*", type=Path)
+    ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--episodes", type=int, default=20)
+    ap.add_argument("--policy", default="ensemble")
+    ap.add_argument("--oracle", default="best", help="oracle gap threshold in ticks, or best: the run's select.json best_oracle")
+    ap.add_argument("--threads", type=int, default=4)
+    ap.add_argument("--one", type=Path, help=argparse.SUPPRESS)
+    a = ap.parse_args(argv)
+    if not 1 <= a.episodes <= 500:
+        ap.error("--episodes wants 1..500")
+    if a.one:  # child: RAGOF_DIR and PYTHONPATH are set by the parent
+        if sys.platform == "win32":
+            # On this server (2026-11-11) every WMI query hangs ~20 s and then crashes the process, and
+            # Python 3.12's platform module asks WMI for the OS version: torch and lightgbm call it on
+            # import. Its own fallback (registry / `ver`) runs when the query raises OSError.
+            import platform
+
+            def _no_wmi(*_a, **_k):
+                raise OSError("WMI bypassed by of_zoo_trace")
+            platform._wmi_query = _no_wmi
+        res =trace_one(a.one, a.out, a.episodes, a.policy, float(a.oracle), a.threads)
+        print(json.dumps(res))
+        return 0
+    if not a.runs:
+        ap.error("give at least one run directory")
+    a.out.mkdir(parents=True, exist_ok=True)
+    sys.path.insert(0, str(HERE))
+    import of_viz
+    rows, failed = [], []
+    for run in a.runs:
+        run = run.resolve()
+        if not (run / "config.json").is_file() or not (run / "bin").is_dir():
+            raise SystemExit(f"{run}: not a ragrl run directory (config.json, bin/)")
+        env = os.environ.copy()
+        env["RAGOF_DIR"] = str(run / "bin")
+        env["PYTHONPATH"] = ragrl_path(run) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+        env["PYTHONHASHSEED"] = "0"
+        out_csv = a.out / f"{run.name}.csv"
+        gap = oracle_gap(run, a.oracle)
+        cmd = [sys.executable, str(Path(__file__).resolve()), "--one", str(run), "--out", str(out_csv), "--episodes", str(a.episodes),
+               "--policy", a.policy, "--oracle", repr(gap), "--threads", str(a.threads)]
+        p = subprocess.run(cmd, env=env, capture_output=True, text=True)
+        if p.returncode != 0:
+            sys.stderr.write(p.stdout[-2000:] + p.stderr[-2000:])
+            hint = (" - a native crash (0xC0000005); check that `python -c \"import torch\"` works in this Python"
+                    if p.returncode in (3221225477, -1073741819) else "")
+            print(f"{run.name}: replay failed (exit {p.returncode}){hint}", file=sys.stderr)
+            failed.append((run.name, f"exit {p.returncode}{hint}"))
+            continue
+        res = json.loads(p.stdout.strip().splitlines()[-1])
+        if of_viz.main(["of_viz", str(out_csv), str(a.out / f"{run.name}.html")]) != 0:
+            raise SystemExit(f"{run.name}: of_viz failed")
+        res["html"] = f"{run.name}.html"
+        rows.append(res)
+        m = sum(res["agent_pnl"]) / a.episodes
+        print(f"{run.name}: {res['agent']} {res['policy']} {m:+.2f} ticks/episode "
+              f"(rule {sum(res['rule_pnl']) / a.episodes:+.2f}, oracle {sum(res['oracle_pnl']) / a.episodes:+.2f}), visualization block: not a score")
+    if not rows:
+        raise SystemExit("no run could be replayed")
+    (a.out / "index.html").write_text(index_page(rows, a.episodes, failed), encoding="utf-8", newline="\n")
+    print(f"wrote {a.out / 'index.html'}: {len(rows)} agents x {a.episodes} episodes" + (f", {len(failed)} not replayed" if failed else ""))
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
 
 ```
 
@@ -33373,5 +35634,4983 @@ class Helpers(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+```
+
+
+---
+
+## FILE: python\ragof_module.cpp  (23,094 bytes)
+
+```cpp
+// _ragof — the OF15 Python binding (nanobind; built only with -DRAG_PYTHON=ON).
+//
+// A thin wrapper over rag/orderflow/vec_scalp_env.hpp and seed_ledger.hpp:
+// numpy arrays in and out (fresh copies, never views of internal buffers),
+// the GIL released while C++ steps the environments. Python never passes a
+// raw seed: episodes come from EpisodeSource (train(run_seed), block(name,
+// first, count), days, stress), checked against the seed ledger, and sealed
+// blocks open only through open_sealed() in a process that has not trained.
+//
+//   import _ragof as R
+//   p = R.ScalpParams("discovery_v4", 1050.0)
+//   env = R.VecScalpEnv(p, R.EpisodeSource.train(1), n_envs=8, threads=1)
+//   obs = env.reset()                       # float64 [8, 16]
+//   obs, reward, done = env.step(actions)   # actions int64 [8] in {0, 1, 2}
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+
+#include <cstdint>
+#include <fstream>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+#include "rag/agent/mlp.hpp"
+#include "rag/orderflow/scalp_run.hpp"
+#include "rag/orderflow/seed_ledger.hpp"
+#include "rag/orderflow/vec_scalp_env.hpp"
+
+namespace nb = nanobind;
+using namespace nb::literals;
+using namespace rag::orderflow;
+
+namespace {
+
+constexpr std::size_t D = VecScalpEnv::D, P = VecScalpEnv::P;
+
+// A fresh numpy array holding a copy of p[0 .. prod(shape)).
+template <class T, class S = T>
+nb::ndarray<nb::numpy, T> copy_array(const S* p, std::initializer_list<std::size_t> shape) {
+  std::size_t n = 1;
+  for (auto s : shape) n *= s;
+  T* buf = new T[n > 0 ? n : 1];
+  for (std::size_t i = 0; i < n; ++i) buf[i] = static_cast<T>(p[i]);
+  nb::capsule owner(buf, [](void* q) noexcept { delete[] static_cast<T*>(q); });
+  return nb::ndarray<nb::numpy, T>(buf, shape.size(), shape.begin(), owner);
+}
+
+using Actions = nb::ndarray<const std::int64_t, nb::ndim<1>, nb::c_contig, nb::device::cpu>;
+using Obs2 = nb::ndarray<const double, nb::ndim<2>, nb::c_contig, nb::device::cpu>;
+
+std::vector<std::int64_t> take_actions(const Actions& a, std::size_t n) {
+  if (a.shape(0) != n) throw std::invalid_argument("actions: expected " + std::to_string(n) + " values, got " + std::to_string(a.shape(0)));
+  return {a.data(), a.data() + n};
+}
+
+nb::dict params_dict(const RunParams& r) {
+  nb::dict d;
+  d["market"] = r.market;
+  d["warmup_seconds"] = r.p.warmup_seconds;
+  d["decide_seconds"] = r.p.decide_seconds;
+  d["episode_seconds"] = r.p.episode_seconds;
+  d["start_second"] = r.p.start_second;
+  d["latency_steps"] = r.p.latency_steps;
+  d["contracts"] = r.p.contracts;
+  d["fee_dollars"] = r.p.fee_dollars;
+  d["sim_overrides"] = r.sim_overrides;
+  return d;
+}
+
+const char* kind_name(EpisodeSource::Kind k) {
+  switch (k) {
+    case EpisodeSource::Kind::Train: return "train";
+    case EpisodeSource::Kind::Indexed: return "indexed";
+    case EpisodeSource::Kind::Days: return "days";
+    case EpisodeSource::Kind::Stress: return "stress";
+  }
+  return "?";
+}
+
+nb::dict source_dict(const EpisodeSource& s) {
+  nb::dict d;
+  d["kind"] = kind_name(s.kind);
+  d["block"] = seeds::info(s.block).name;
+  if (s.kind == EpisodeSource::Kind::Train) {
+    d["run_seed"] = s.run_seed;
+    return d;
+  }
+  d["first"] = s.first;
+  d["count"] = s.count;
+  if (s.kind == EpisodeSource::Kind::Days) {
+    d["n_days"] = s.n_days;
+    d["sessions_per_day"] = s.sessions_per_day;
+  }
+  if (s.kind == EpisodeSource::Kind::Stress) {
+    d["scenario"] = s.scenario;
+    d["list"] = s.list;
+  }
+  if (!s.orchestrator.empty()) d["orchestrator"] = s.orchestrator;
+  return d;
+}
+
+// An of_train network, loaded with its record checked (check_net).
+struct NeuralQNet {
+  std::shared_ptr<const rag::agent::Mlp> net;
+  std::string path;
+  std::map<std::string, std::string> record;
+};
+
+BuiltinPolicy parse_policy(nb::handle h) {
+  if (nb::isinstance<nb::str>(h)) {
+    const std::string s = nb::cast<std::string>(h);
+    if (s == "flat") return BuiltinPolicy::flat();
+    if (s == "hold") return BuiltinPolicy::hold();
+    if (s == "delta30") return BuiltinPolicy::delta30();
+    throw std::invalid_argument("policy '" + s + "': flat, hold, delta30, ('rule', k, th, reverse), ('oracle', th) or ('neuralq', net)");
+  }
+  if (nb::isinstance<nb::tuple>(h)) {
+    const nb::tuple t = nb::borrow<nb::tuple>(h);
+    if (t.size() >= 1 && nb::isinstance<nb::str>(t[0])) {
+      const std::string k = nb::cast<std::string>(t[0]);
+      if (k == "rule" && t.size() == 4) return BuiltinPolicy::rule(nb::cast<std::size_t>(t[1]), nb::cast<double>(t[2]), nb::cast<bool>(t[3]));
+      if (k == "oracle" && t.size() == 2) return BuiltinPolicy::oracle(nb::cast<double>(t[1]));
+      if (k == "neuralq" && t.size() == 2) return BuiltinPolicy::neuralq(nb::cast<const NeuralQNet&>(t[1]).net);
+    }
+  }
+  throw std::invalid_argument("policy: flat, hold, delta30, ('rule', k, th, reverse), ('oracle', th) or ('neuralq', net)");
+}
+
+nb::dict stats_dict(const double* pnl, const double* orders, const double* trips, const double* fees, std::size_t n) {
+  nb::dict d;
+  d["net_pnl_ticks"] = copy_array<double>(pnl, {n});
+  d["orders"] = copy_array<double>(orders, {n});
+  if (trips) d["round_trips"] = copy_array<double>(trips, {n});
+  d["fees_ticks"] = copy_array<double>(fees, {n});
+  return d;
+}
+
+}  // namespace
+
+NB_MODULE(_ragof, m) {
+  m.doc() = "OF15: batched ScalpEnv on the ES order-flow simulator, episodes named through the seed ledger";
+  m.attr("OBS_DIM") = D;
+  m.attr("N_ACTIONS") = ScalpEnv::kNumActions;
+  m.attr("N_FEATURES") = kFeatures;
+  {
+    nb::list cols;
+    for (const char* c : VecScalpEnv::kPrivColumns) cols.append(c);
+    m.attr("PRIV_COLUMNS") = nb::tuple(cols);
+    nb::list blocks;
+    for (const auto& b : seeds::kBlockTable) {
+      nb::dict d;
+      d["name"] = b.name;
+      d["base"] = b.base;
+      d["size"] = b.size;
+      d["sealed"] = b.sealed;
+      d["privileged_ok"] = b.privileged_ok;
+      d["indexed"] = b.indexed;
+      d["needs_claim"] = b.needs_claim;
+      blocks.append(d);
+    }
+    m.attr("BLOCKS") = nb::tuple(blocks);
+    nb::list keys;
+    for (const auto& f : sim_override_fields()) keys.append(f.first);
+    m.attr("SIM_OVERRIDE_KEYS") = nb::tuple(keys);
+    nb::dict build;
+#if defined(_MSC_VER)
+    build["compiler"] = "msvc " + std::to_string(_MSC_FULL_VER);
+#elif defined(__clang__)
+    build["compiler"] = std::string("clang ") + __clang_version__;
+#elif defined(__GNUC__)
+    build["compiler"] = std::string("gcc ") + __VERSION__;
+#endif
+#if defined(__AVX512F__)
+    build["avx512"] = true;
+#else
+    build["avx512"] = false;
+#endif
+#if defined(__AVX2__)
+    build["avx2"] = true;
+#else
+    build["avx2"] = false;
+#endif
+    build["nanobind"] = std::to_string(NB_VERSION_MAJOR) + "." + std::to_string(NB_VERSION_MINOR) + "." + std::to_string(NB_VERSION_PATCH);
+    m.attr("BUILD_INFO") = build;
+  }
+
+  // ------------------------------------------------------------ ledger
+  m.def(
+      "open_sealed",
+      [](const std::string& block, const std::string& reason) { seeds::Ledger::process().open_sealed(seeds::block_of(block), reason); }, "block"_a,
+      "reason"_a, "Open a sealed block (test, stress, days, confirm, real) in this process: scoring only; refused after forbid_sealed() or training.");
+  m.def(
+      "forbid_sealed", [] { seeds::Ledger::process().forbid_sealed(); },
+      "Close every sealed block for the rest of this process (training, HPO and live workers call it first).");
+  m.def(
+      "process_role", [] { return std::string(seeds::role_name(seeds::Ledger::process().role())); }, "'none', 'trainer' or 'scorer'.");
+  m.def(
+      "sealed_forbidden", [] { return seeds::Ledger::process().forbidden(); }, "True after forbid_sealed().");
+  m.def(
+      "is_open", [](const std::string& block) { return seeds::Ledger::process().is_open(seeds::block_of(block)); }, "block"_a);
+  m.def(
+      "sealed_openings", [] { return seeds::Ledger::process().openings(); }, "(block, reason) of every open_sealed() in this process.");
+
+  // ------------------------------------------------------------ parameters
+  nb::class_<RunParams>(m, "ScalpParams", "A run's ScalpParams: market preset, warm-up and the ScalpEnv options (validated).")
+      .def(
+          "__init__",
+          [](RunParams* self, const std::string& market, double warmup, double decide, double episode, double start, std::uint32_t latency,
+             std::uint32_t contracts, double fee, const std::map<std::string, double>& overrides) {
+            new (self) RunParams(run_params(market, warmup, decide, episode, start, latency, contracts, fee, overrides));
+          },
+          "market"_a = "default", "warmup_seconds"_a = kDefaultWarmup, nb::kw_only(), "decide_seconds"_a = 1.0, "episode_seconds"_a = 600.0,
+          "start_second"_a = -1.0, "latency_steps"_a = 1, "contracts"_a = 1, "fee_dollars"_a = 1.5,
+          "sim_overrides"_a = std::map<std::string, double>{})
+      .def_prop_ro("market", [](const RunParams& r) { return r.market; })
+      .def_prop_ro("warmup_seconds", [](const RunParams& r) { return r.p.warmup_seconds; })
+      .def_prop_ro("decide_seconds", [](const RunParams& r) { return r.p.decide_seconds; })
+      .def_prop_ro("episode_seconds", [](const RunParams& r) { return r.p.episode_seconds; })
+      .def_prop_ro("start_second", [](const RunParams& r) { return r.p.start_second; })
+      .def_prop_ro("latency_steps", [](const RunParams& r) { return r.p.latency_steps; })
+      .def_prop_ro("contracts", [](const RunParams& r) { return r.p.contracts; })
+      .def_prop_ro("fee_dollars", [](const RunParams& r) { return r.p.fee_dollars; })
+      .def_prop_ro("sim_overrides", [](const RunParams& r) { return r.sim_overrides; })
+      .def_prop_ro("steps_per_episode", [](const RunParams& r) { return steps_per_episode(r.p); })
+      .def("to_dict", &params_dict)
+      .def("__eq__", [](const RunParams& a, const RunParams& b) { return a == b; })
+      .def("__ne__", [](const RunParams& a, const RunParams& b) { return !(a == b); })
+      .def("__repr__", [](const RunParams& r) {
+        return "ScalpParams(" + nb::cast<std::string>(nb::repr(params_dict(r))) + ")";
+      });
+  m.def(
+      "steps_per_episode", [](const RunParams& r) { return steps_per_episode(r.p); }, "params"_a);
+
+  // ------------------------------------------------------------ episode sources
+  nb::class_<EpisodeSource>(m, "EpisodeSource", "Names episodes: a train stream or block-relative indices; never raw seeds.")
+      .def_static("train", &EpisodeSource::train, "run_seed"_a, "Episode k = the k-th reset on Rng(run_seed), of_train's Trainer stream.")
+      .def_static(
+          "block",
+          [](const std::string& name, std::uint64_t first, std::uint64_t count, const std::string& orchestrator) {
+            return EpisodeSource::indexed(name, first, count, orchestrator);
+          },
+          "name"_a, "first"_a, "count"_a, nb::kw_only(), "orchestrator"_a = "",
+          "Episodes first .. first+count-1 of block name (validation, pairing, viz, test, confirm): episode i = Rng(base + first + i).")
+      .def_static(
+          "days", [](std::uint32_t first_day, std::uint32_t n_days, std::uint32_t spd) { return EpisodeSource::days(first_day, n_days, spd); },
+          "first_day"_a, "n_days"_a, "sessions_per_day"_a = 39, "OF8's sealed days: Rng(930M + d * 100 + k), session start day_session_start(k).")
+      .def_static(
+          "stress",
+          [](const std::string& scenario, std::uint64_t first, std::uint64_t count, const std::string& list) {
+            return EpisodeSource::stress(scenario, first, count, list);
+          },
+          "scenario"_a, "first"_a, "count"_a, "list"_a = "", "OF6's sealed stresses: Rng(920M + i) under a scenario of the legacy or discovery list.")
+      .def_prop_ro("kind", [](const EpisodeSource& s) { return std::string(kind_name(s.kind)); })
+      .def_prop_ro("block_name", [](const EpisodeSource& s) { return std::string(seeds::info(s.block).name); })
+      .def_prop_ro("count", [](const EpisodeSource& s) { return s.count; })
+      .def("describe", &source_dict)
+      .def("__repr__", [](const EpisodeSource& s) { return "EpisodeSource(" + nb::cast<std::string>(nb::repr(source_dict(s))) + ")"; });
+
+  // ------------------------------------------------------------ batched environment
+  nb::class_<VecScalpEnv>(m, "VecScalpEnv", "N ScalpEnv episodes stepped together in C++ (lockstep; train sources auto-reset).")
+      .def(
+          "__init__",
+          [](VecScalpEnv* self, const RunParams& r, const EpisodeSource& s, std::size_t n_envs, unsigned threads, bool privileged) {
+            new (self) VecScalpEnv(r, s, n_envs, threads, privileged);
+          },
+          "params"_a, "source"_a, "n_envs"_a = 8, "threads"_a = 1, "privileged"_a = false)
+      .def("reset",
+           [](VecScalpEnv& e) {
+             const auto held = e.hold();  // held across reset and the copy (UseGuard)
+             {
+               nb::gil_scoped_release g;
+               e.reset();
+             }
+             return copy_array<double>(e.obs(), {e.size(), D});
+           })
+      .def(
+          "step",
+          [](VecScalpEnv& e, const Actions& a) {
+            const auto held = e.hold();  // held across step and the copies (UseGuard)
+            const auto act = take_actions(a, e.size());
+            {
+              nb::gil_scoped_release g;
+              e.step(act.data());
+            }
+            const std::size_t n = e.size();
+            return nb::make_tuple(copy_array<double>(e.obs(), {n, D}), copy_array<double>(e.rewards(), {n}), copy_array<bool>(e.dones(), {n}));
+          },
+          "actions"_a)
+      .def_prop_ro("final_obs", [](const VecScalpEnv& e) { const auto held = e.hold(); return copy_array<double>(e.final_obs(), {e.size(), D}); }, nb::rv_policy::move)
+      .def_prop_ro("priv", [](const VecScalpEnv& e) { const auto held = e.hold(); return copy_array<double>(e.priv(), {e.size(), P}); }, nb::rv_policy::move)
+      .def_prop_ro("final_priv", [](const VecScalpEnv& e) { const auto held = e.hold(); return copy_array<double>(e.final_priv(), {e.size(), P}); }, nb::rv_policy::move)
+      .def_prop_ro("episode_ids", [](const VecScalpEnv& e) { const auto held = e.hold(); return copy_array<std::uint64_t>(e.episode_ids(), {e.size()}); }, nb::rv_policy::move)
+      .def_prop_ro(
+          "final_episode_ids", [](const VecScalpEnv& e) { const auto held = e.hold(); return copy_array<std::uint64_t>(e.final_episode_ids(), {e.size()}); }, nb::rv_policy::move)
+      .def_prop_ro("episode_stats",
+                   [](const VecScalpEnv& e) { const auto held = e.hold(); return stats_dict(e.net_pnl_ticks(), e.orders(), e.round_trips(), e.fees_ticks(), e.size()); })
+      .def_prop_ro("n_envs", &VecScalpEnv::size)
+      .def_prop_ro("threads", &VecScalpEnv::threads)
+      .def_prop_ro("privileged", &VecScalpEnv::privileged)
+      .def_prop_ro("params", [](const VecScalpEnv& e) { return e.params(); })
+      .def_prop_ro("source", [](const VecScalpEnv& e) { return e.source(); })
+      .def_prop_ro("rounds_finished", &VecScalpEnv::rounds_finished)
+      .def_prop_ro("episodes_started", &VecScalpEnv::episodes_started);
+
+  // ------------------------------------------------------------ of_train networks and built-in policies
+  nb::class_<NeuralQNet>(m, "NeuralQNet", "An of_train network (seedK.net), refused unless its record matches market and warm-up.")
+      .def_static(
+          "load",
+          [](const std::string& path, const std::string& market, double warmup) {
+            if (const std::string why = check_net(path, market, warmup); !why.empty()) throw std::runtime_error(why);
+            auto net = std::make_shared<const rag::agent::Mlp>(rag::agent::Mlp::load(path));
+            if (net->inputs() != D || net->outputs() != ScalpEnv::kNumActions) throw std::runtime_error(path + ": not a 16 -> 3 ScalpEnv network");
+            NeuralQNet q{std::move(net), path, {}};
+            std::ifstream in(record_path_of_net(path));
+            for (std::string line; std::getline(in, line);)
+              if (const auto eq = line.find('='); eq != std::string::npos) q.record[line.substr(0, eq)] = line.substr(eq + 1);
+            return q;
+          },
+          "path"_a, "market"_a, "warmup_seconds"_a)
+      .def(
+          "q",
+          [](const NeuralQNet& q, const Obs2& x) {
+            if (x.shape(1) != D) throw std::invalid_argument("obs must be [N, 16]");
+            const std::size_t n = x.shape(0);
+            std::vector<double> out(n * ScalpEnv::kNumActions), scratch(q.net->scratch_size());
+            for (std::size_t i = 0; i < n; ++i) q.net->forward(x.data() + i * D, out.data() + i * ScalpEnv::kNumActions, scratch.data());
+            return copy_array<double>(out.data(), {n, ScalpEnv::kNumActions});
+          },
+          "obs"_a)
+      .def(
+          "act",
+          [](const NeuralQNet& q, const Obs2& x) {
+            if (x.shape(1) != D) throw std::invalid_argument("obs must be [N, 16]");
+            const std::size_t n = x.shape(0);
+            std::vector<std::int64_t> out(n);
+            std::vector<double> scratch(q.net->scratch_size());
+            double v[ScalpEnv::kNumActions];
+            for (std::size_t i = 0; i < n; ++i) {
+              q.net->forward(x.data() + i * D, v, scratch.data());
+              out[i] = BuiltinPolicy::greedy(v);
+            }
+            return copy_array<std::int64_t>(out.data(), {n});
+          },
+          "obs"_a, "Greedy action, first maximum (Agent::act(o, false)).")
+      .def_prop_ro("record", [](const NeuralQNet& q) { return q.record; })
+      .def_prop_ro("path", [](const NeuralQNet& q) { return q.path; })
+      .def_prop_ro("parameters", [](const NeuralQNet& q) { return q.net->parameters(); });
+
+  m.def(
+      "run_builtin",
+      [](const RunParams& r, const EpisodeSource& s, nb::handle policy, unsigned threads) {
+        const BuiltinPolicy pol = parse_policy(policy);
+        BuiltinResult res;
+        {
+          nb::gil_scoped_release g;
+          res = run_builtin(r, s, pol, threads);
+        }
+        const std::size_t n = res.net_pnl_ticks.size();
+        return stats_dict(res.net_pnl_ticks.data(), res.orders.data(), nullptr, res.fees_ticks.data(), n);
+      },
+      "params"_a, "source"_a, "policy"_a, "threads"_a = 24,
+      "Per-episode results of a C++ policy on an indexed source: 'flat', 'hold', 'delta30', ('rule', k, th, reverse), ('oracle', th), "
+      "('neuralq', net). The oracle's fair value stays in C++.");
+
+  // ------------------------------------------------------------ recorded ticks (sealed: open_sealed('real'))
+  nb::class_<TickTape>(m, "TickTape", "Recorded ticks, bucketed (TickTape::from_csv). Needs open_sealed('real').")
+      .def_static(
+          "from_csv",
+          [](const std::string& path, const std::string& time_unit, double tick_size, double bucket_seconds, double max_gap_seconds) {
+            seeds::Ledger::process().use(seeds::Block::Real);
+            TickCsvOptions o;
+            o.time_unit = time_unit;
+            o.tick_size = tick_size;
+            o.bucket_seconds = bucket_seconds;
+            o.max_gap_seconds = max_gap_seconds;
+            std::shared_ptr<TickTape> t;
+            {
+              nb::gil_scoped_release g;
+              t = std::make_shared<TickTape>(TickTape::from_csv(path, o));
+            }
+            return t;
+          },
+          "path"_a, "time_unit"_a = "ns", "tick_size"_a = 0.25, "bucket_seconds"_a = 0.1, "max_gap_seconds"_a = 60.0)
+      .def_prop_ro("size", &TickTape::size)
+      .def_prop_ro("bucket_seconds", &TickTape::bucket_seconds)
+      .def_prop_ro("stats", [](const TickTape& t) {
+        const auto& s = t.stats();
+        nb::dict d;
+        d["lines"] = s.lines;
+        d["trades"] = s.trades;
+        d["quotes"] = s.quotes;
+        d["buckets"] = s.buckets;
+        d["skipped"] = s.skipped;
+        d["gaps"] = s.gaps;
+        return d;
+      });
+
+  nb::class_<ReplayParams>(m, "ReplayParams")
+      .def(
+          "__init__",
+          [](ReplayParams* self, double decide, double window, double warmup, std::uint32_t latency, std::uint32_t contracts, double fee) {
+            if (!(decide > 0) || !(window >= decide) || !(warmup >= 0) || contracts < 1 || !(fee >= 0))
+              throw std::invalid_argument("ReplayParams: decide_seconds > 0, window_seconds >= decide_seconds, warmup_seconds >= 0, contracts >= 1");
+            new (self) ReplayParams{decide, window, warmup, latency, contracts, fee};
+          },
+          nb::kw_only(), "decide_seconds"_a = 1.0, "window_seconds"_a = 600.0, "warmup_seconds"_a = 150.0, "latency_buckets"_a = 1, "contracts"_a = 1,
+          "fee_dollars"_a = 1.5)
+      .def_ro("decide_seconds", &ReplayParams::decide_seconds)
+      .def_ro("window_seconds", &ReplayParams::window_seconds)
+      .def_ro("warmup_seconds", &ReplayParams::warmup_seconds)
+      .def_ro("latency_buckets", &ReplayParams::latency_buckets)
+      .def_ro("contracts", &ReplayParams::contracts)
+      .def_ro("fee_dollars", &ReplayParams::fee_dollars);
+
+  nb::class_<VecReplayEnv>(m, "VecReplayEnv", "ReplayScalpEnv on M full windows of a tape, stepped together (scoring only).")
+      .def(
+          "__init__",
+          [](VecReplayEnv* self, std::shared_ptr<TickTape> tape, const ReplayParams& p, const std::vector<std::int64_t>& windows, unsigned threads) {
+            new (self) VecReplayEnv(std::move(tape), p, windows, threads);
+          },
+          "tape"_a, "params"_a, "windows"_a, "threads"_a = 1)
+      .def("reset",
+           [](VecReplayEnv& e) {
+             const auto held = e.hold();  // held across reset and the copy (UseGuard)
+             {
+               nb::gil_scoped_release g;
+               e.reset();
+             }
+             return copy_array<double>(e.obs(), {e.size(), D});
+           })
+      .def(
+          "step",
+          [](VecReplayEnv& e, const Actions& a) {
+            const auto held = e.hold();  // held across step and the copies (UseGuard)
+            const auto act = take_actions(a, e.size());
+            {
+              nb::gil_scoped_release g;
+              e.step(act.data());
+            }
+            const std::size_t n = e.size();
+            return nb::make_tuple(copy_array<double>(e.obs(), {n, D}), copy_array<double>(e.rewards(), {n}), copy_array<bool>(e.dones(), {n}));
+          },
+          "actions"_a)
+      .def_prop_ro("final_obs", [](const VecReplayEnv& e) { const auto held = e.hold(); return copy_array<double>(e.final_obs(), {e.size(), D}); }, nb::rv_policy::move)
+      .def_prop_ro("episode_stats", [](const VecReplayEnv& e) { const auto held = e.hold(); return stats_dict(e.net_pnl_ticks(), e.orders(), nullptr, e.fees_ticks(), e.size()); })
+      .def_prop_ro("n_envs", &VecReplayEnv::size)
+      .def_prop_ro("windows_on_tape", &VecReplayEnv::windows_on_tape)
+      .def_prop_ro("windows", [](const VecReplayEnv& e) { return e.windows(); });
+}
+
+```
+
+
+---
+
+## FILE: python\ragrl\__init__.py  (1,248 bytes)
+
+```python
+"""ragrl: the OF15 learning pipeline on top of the `_ragof` C++ simulator binding.
+
+Config-driven experiments (experiments/configs/*.json): K seeds trained in
+parallel worker processes, champions chosen on validation only, one sealed
+scoring in a fresh process, paired evaluation against baselines, bootstrap
+CIs, red flags and a run registry under build-avx512/rl/runs/.
+
+    PYTHONPATH=python RAGOF_DIR=<snapshot dir> .venv/Scripts/python.exe -m ragrl --help
+
+Seeds are named only through the seed ledger (docs/ai/NEXT_SESSION.md
+section 4, enforced in C++ by rag/orderflow/seed_ledger.hpp): run seeds for
+training, block-relative indices for validation/test/viz. Only ledger.py
+opens sealed blocks.
+"""
+import sys as _sys
+
+if _sys.platform == "win32":
+    # On this server every WMI query crashes the calling process (0xC0000005)
+    # since ~2026-11-07, and Python 3.12's `platform` module asks WMI for the
+    # Windows version when torch or lightgbm is imported. Without WMI,
+    # `platform` falls back to the registry. Must run before torch/lightgbm load.
+    import platform as _platform
+
+    def _no_wmi(*_a, **_k):
+        raise OSError("WMI bypassed (ragrl)")
+
+    _platform._wmi_query = _no_wmi
+
+__version__ = "1.0"
+SCHEMA = "ragrl/1"
+
+```
+
+
+---
+
+## FILE: python\ragrl\__main__.py  (52 bytes)
+
+```python
+import sys
+
+from .cli import main
+
+sys.exit(main())
+
+```
+
+
+---
+
+## FILE: python\ragrl\agents\__init__.py  (5,564 bytes)
+
+```python
+"""The agent zoo: name -> AgentSpec (defaults, n_envs, train function).
+
+Every agent trains on EpisodeSource.train(run_seed) (of_train's Trainer
+stream for that run seed) and offers frozen policies to ctx.ckpt (champion on
+val_ckpt). Budgets are env steps (decisions); the default 1.2M = of_train's
+2000 episodes x 600 decisions, rounded up to whole rounds of n_envs episodes.
+"""
+from dataclasses import dataclass, field
+from typing import Callable
+
+
+@dataclass(frozen=True)
+class AgentSpec:
+    name: str
+    description: str
+    defaults: dict
+    n_envs: int
+    train: Callable  # train(ctx) -> None; offers policies to ctx.ckpt
+    prepare: Callable | None = None  # prepare(cfg, run_dir) in the parent before the workers
+    choices_per_seed: Callable = field(default=lambda p: 1)  # validation choices beyond checkpoints (multiplicity)
+    live_header: Callable = field(default=lambda p: {})
+
+
+def _lazy(module, fn):
+    def call(*a, **k):
+        import importlib
+        return getattr(importlib.import_module(f"ragrl.agents.{module}"), fn)(*a, **k)
+    call.__name__ = fn
+    return call
+
+
+PPO_DEFAULTS = {"learning_rate": 3e-4, "n_steps": 300, "batch_size": 1200, "n_epochs": 4, "gamma": 0.99, "gae_lambda": 0.95,
+                "clip_range": 0.2, "ent_coef": 0.01, "vf_coef": 0.5, "max_grad_norm": 0.5, "net_arch": [64, 64], "activation": "tanh"}
+DQN_DEFAULTS = {"learning_rate": 1e-3, "buffer_size": 300_000, "learning_starts": 2000, "batch_size": 256, "gamma": 0.97,
+                "n_steps_return": 5, "train_freq": 1, "gradient_steps": 2, "target_update_interval": 16_000, "tau": 1.0,
+                "exploration_fraction": 0.5, "exploration_initial_eps": 1.0, "exploration_final_eps": 0.02, "max_grad_norm": 10.0,
+                "net_arch": [64, 64], "double_q": True, "polyak_eval": 1e-4}
+
+
+def _sb3_header(p):
+    return {"hidden": (p.get("net_arch") or [None])[0], "gamma": p.get("gamma"), "lr": p.get("learning_rate"),
+            "nstep": p.get("n_steps_return"), "score_kind": "q" if "buffer_size" in p else "log_prob"}
+
+
+ZOO = {
+    "ppo": AgentSpec("ppo", "SB3 PPO, MLP policy/value [64, 64] tanh", dict(PPO_DEFAULTS), 16, _lazy("sb3_agents", "train_ppo"),
+                     live_header=_sb3_header),
+    "ppo_framestack": AgentSpec("ppo_framestack", "SB3 PPO on VecFrameStack(n_stack) observations (flow memory)",
+                                dict(PPO_DEFAULTS, n_stack=8), 16, _lazy("sb3_agents", "train_ppo"), live_header=_sb3_header),
+    "recurrent_ppo": AgentSpec("recurrent_ppo", "sb3-contrib RecurrentPPO, MlpLstmPolicy (flow memory)",
+                               dict(PPO_DEFAULTS, n_steps=120, batch_size=3000, lstm_hidden_size=64, n_lstm_layers=1), 50,
+                               _lazy("sb3_agents", "train_recurrent_ppo"), live_header=_sb3_header),
+    "dqn": AgentSpec("dqn", "SB3 DQN made NeuralQ-like: Double DQN, n-step 5, Polyak-averaged eval weights, of_train's replay ratio",
+                     dict(DQN_DEFAULTS), 16, _lazy("sb3_agents", "train_dqn"), live_header=_sb3_header),
+    "qrdqn": AgentSpec("qrdqn", "sb3-contrib QR-DQN (distributional), n-step 5, Polyak-averaged eval weights",
+                       {**{k: v for k, v in DQN_DEFAULTS.items() if k != "double_q"}, "n_quantiles": 32}, 16,
+                       _lazy("sb3_agents", "train_qrdqn"), live_header=_sb3_header),
+    "lgbm_threshold": AgentSpec("lgbm_threshold",
+                                "LightGBM regression of the H-second mid change on the 13 features; cost-aware threshold policy",
+                                {"horizons": [5, 10, 30], "theta_multiples": [0.5, 1.0, 1.5, 2.0, 3.0], "spread_ticks": 1.0,
+                                 "num_leaves": 31, "n_estimators": 400, "learning_rate": 0.05, "min_child_samples": 200,
+                                 "subsample": 0.8, "colsample_bytree": 0.8},
+                                20, _lazy("supervised", "train_lgbm"),  # every (H, theta) is a val_ckpt offer
+                                live_header=lambda p: {"score_kind": "lgbm_prediction_minus_theta"}),
+    "bc_dagger": AgentSpec("bc_dagger", "Imitation of the privileged fair-value oracle: behaviour cloning + DAgger, student sees obs only",
+                           {"teacher_thresholds": [0.5, 0.55, 0.75, 1.0, 2.0], "bc_fraction": 0.25, "dagger_iterations": 5,
+                            "beta0": 0.5, "hidden": [64, 64], "epochs": 10, "batch_size": 4096, "learning_rate": 1e-3},
+                           20, _lazy("imitation", "train_bc_dagger"),
+                           choices_per_seed=lambda p: len(p["teacher_thresholds"]),
+                           live_header=lambda p: {"hidden": p["hidden"][0], "lr": p["learning_rate"], "score_kind": "log_prob"}),
+    "neuralq_ref": AgentSpec("neuralq_ref", "The C++ NeuralQ reference (of_train: Double DQN, Polyak 1e-4, hidden 64, gamma 0.97, n-step 5)",
+                             {"nets_dir": None, "run_of_train": True, "hidden": 64, "gamma": 0.97, "nstep": 5, "batch": 32, "lr": 1e-3},
+                             1, _lazy("neuralq", "train_neuralq_ref"), prepare=_lazy("neuralq", "prepare_neuralq_ref"),
+                             # of_train picked each champion from its 20 evaluations (eval_every = episodes / 20) on
+                             # validation [0, 40): that choice counts in M (config.resolve keeps val_ckpt off [0, 40))
+                             choices_per_seed=lambda p: 20,
+                             live_header=lambda p: {"hidden": p["hidden"], "gamma": p["gamma"], "nstep": p["nstep"], "lr": p["lr"]}),
+}
+
+```
+
+
+---
+
+## FILE: python\ragrl\agents\imitation.py  (4,767 bytes)
+
+```python
+"""Imitation of a privileged teacher: behaviour cloning, then DAgger.
+
+Teacher: the fair-value oracle (BuiltinPolicy::oracle) on gap = fair value - mid,
+threshold chosen on val_ckpt with the C++ run_builtin (nothing hidden leaves
+C++ on validation). Labels on the train stream come from the privileged gap
+column (train block only). Student: an MLP on observations only (16 -> hidden
+-> 3), cross-entropy. DAgger iteration i executes the teacher's action with
+probability beta0^i (per env and step, seeded) and the student's otherwise, and
+labels every visited state with the teacher's action; the dataset aggregates.
+
+On discovery_v4 both oracles lose after costs, so the student is expected to
+lose too: its value is the learnability probe (the share of the teacher's gross
+and net the student keeps on val_ckpt)."""
+import numpy as np
+
+from .. import native
+from ..envs import oracle_actions
+from ..policies import MLPStudent, freeze_module
+
+
+def _fit(student, X, Y, p, gen):
+    import torch as th
+    opt = th.optim.Adam(student.parameters(), lr=p["learning_rate"])
+    Xt = th.as_tensor(X, dtype=th.float32)
+    Yt = th.as_tensor(Y, dtype=th.long)
+    n = len(Xt)
+    student.train()
+    for _ in range(p["epochs"]):
+        perm = th.randperm(n, generator=gen)
+        for i in range(0, n, p["batch_size"]):
+            idx = perm[i: i + p["batch_size"]]
+            loss = th.nn.functional.cross_entropy(student(Xt[idx]), Yt[idx])
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
+    student.eval()
+
+
+def train_bc_dagger(ctx):
+    import torch as th
+    R = native.load()
+    p = ctx.p
+    vsrc = ctx.ckpt.source()
+    teacher_val = {}
+    for th_t in p["teacher_thresholds"]:
+        teacher_val[th_t] = R.run_builtin(ctx.params, vsrc, ("oracle", float(th_t)), threads=ctx.eval_threads)
+    means = {k: float(np.mean(v["net_pnl_ticks"])) for k, v in teacher_val.items()}
+    th_t = max(means, key=lambda k: (means[k], -p["teacher_thresholds"].index(k)))
+    ctx.extra.update(teacher_threshold=th_t, teacher_val_ckpt=means)
+
+    th.manual_seed(ctx.seed)
+    gen = th.Generator().manual_seed(ctx.seed)
+    rng = np.random.default_rng(ctx.seed)
+    student = MLPStudent.build(p["hidden"])
+    env = ctx.train_env(privileged=True)
+    n, T = env.n_envs, ctx.steps_per_episode
+    rounds_total = ctx.episodes // n
+    bc_rounds = max(1, int(round(p["bc_fraction"] * rounds_total)))
+    iters = int(p["dagger_iterations"])
+    rest = rounds_total - bc_rounds
+    plan = [(bc_rounds, 1.0)] + [(rest // iters + (1 if i < rest % iters else 0), p["beta0"] ** (i + 1)) for i in range(iters)]
+    plan = [x for x in plan if x[0] > 0]
+    obs = env.reset()
+    Xs, Ys = [], []
+    steps = episodes = 0
+    if ctx.live:
+        ctx.live.ckpt(MLPStudent(freeze_module(student), p["hidden"]), 0, [], [], 1.0)
+    for k, (rounds, beta) in enumerate(plan):
+        returns = []
+        for _ in range(rounds):
+            for _t in range(T):
+                teach = oracle_actions(obs, env.priv, th_t)
+                if beta < 1.0:
+                    with th.no_grad():
+                        stud = th.argmax(student(th.as_tensor(obs.astype(np.float32))), dim=1).numpy().astype(np.int64)
+                    a = np.where(rng.random(n) < beta, teach, stud)
+                else:
+                    a = teach
+                Xs.append(obs.astype(np.float32))
+                Ys.append(teach)
+                obs, _, done = env.step(a)
+                steps += n
+            assert done[0]
+            episodes += n
+            returns += env.episode_stats["net_pnl_ticks"].tolist()
+        _fit(student, np.concatenate(Xs), np.concatenate(Ys), p, gen)
+        frozen = MLPStudent(freeze_module(student), p["hidden"])
+        ctx.ckpt.offer(frozen, steps, episodes, {"phase": "bc" if k == 0 else f"dagger{k}", "beta": beta})
+        if ctx.live:
+            ctx.live.ckpt(frozen, episodes, returns, ctx.ckpt.pop_evals(), beta)
+    if ctx.live:
+        ctx.live.done(ctx.ckpt.champion_score, "")
+    # learnability probe on val_ckpt: the student's share of the teacher's net and gross
+    tv = teacher_val[th_t]
+    t_net = float(np.mean(tv["net_pnl_ticks"]))
+    t_gross = float(np.mean(tv["net_pnl_ticks"] + tv["fees_ticks"]))
+    from ..evaluate import run_policy
+    sv = run_policy(ctx.params, vsrc, ctx.ckpt.champion, ctx.eval_threads)
+    s_net = float(np.mean(sv["net_pnl_ticks"]))
+    s_gross = float(np.mean(sv["net_pnl_ticks"] + sv["fees_ticks"]))
+    ctx.extra.update(dataset_rows=int(sum(len(x) for x in Xs)), teacher_net=t_net, teacher_gross=t_gross, student_net=s_net,
+                     student_gross=s_gross, gross_share=s_gross / t_gross if t_gross else None,
+                     net_share=s_net / t_net if t_net else None)
+
+```
+
+
+---
+
+## FILE: python\ragrl\agents\neuralq.py  (3,152 bytes)
+
+```python
+"""The C++ NeuralQ reference (of_train): existing networks, or a fresh of_train run.
+
+prepare (parent, before the workers): with nets_dir, check the networks exist;
+otherwise run RUN/bin/of_train.exe once for seeds 1..max(seeds) (the OF3/OF14
+recipe) into RUN/nets/. of_train always scores what it trains; here it scores 2
+visualization episodes (--test 2 --test-seed 960000000: look-only, never read),
+so the sealed test is not touched. Champion selection stays of_train's own
+(700M+0..39, 20 evaluations: choices_per_seed = 20 in the multiplicity); the
+worker loads the champion with check_net and offers it once, scored on val_ckpt,
+which config.resolve keeps off [0, 40)."""
+import subprocess
+from pathlib import Path
+
+from .. import native
+from ..config import DEFAULTS, ConfigError, of_train_env_problems
+from ..policies import NeuralQ
+
+
+def nets_dir(cfg, run_dir: Path) -> Path:
+    d = cfg["agent"]["params"]["nets_dir"]
+    if d:
+        d = Path(d)
+        return d if d.is_absolute() else native.REPO / d
+    return Path(run_dir) / "nets"
+
+
+def prepare_neuralq_ref(cfg, run_dir):
+    p = cfg["agent"]["params"]
+    env = cfg["env"]
+    for k in of_train_env_problems(env):
+        raise ConfigError(f"neuralq_ref: of_train supports market and warmup only (env.{k} must stay {DEFAULTS['env'][k]!r})")
+    d = nets_dir(cfg, run_dir)
+    seeds = cfg["train"]["seeds"]
+    if p["nets_dir"]:
+        missing = [s for s in seeds if not (d / f"seed{s}.net").exists()]
+        if missing:
+            raise FileNotFoundError(f"{d}: no networks for seeds {missing}")
+        return
+    if not p["run_of_train"]:
+        raise ConfigError("neuralq_ref: give nets_dir or run_of_train=true")
+    exe = Path(run_dir) / "bin" / "of_train.exe"
+    if not exe.exists():
+        raise FileNotFoundError(f"{exe}: of_train is copied from RAGOF_DIR (snapshot) into the run's bin/")
+    d.mkdir(parents=True, exist_ok=True)
+    threads = min(max(seeds), cfg["train"]["workers"] * (cfg["train"]["env_threads"] + cfg["train"]["torch_threads"]))
+    cmd = [str(exe), "--seeds", str(max(seeds)), "--threads", str(threads), "--episodes", str(cfg["train"]["episodes"]),
+           "--market", env["market"], "--warmup", f"{env['warmup_seconds']:g}", "--hidden", str(p["hidden"]), "--gamma", f"{p['gamma']!r}",
+           "--nstep", str(p["nstep"]), "--batch", str(p["batch"]), "--lr", f"{p['lr']!r}", "--test", "2", "--test-seed", "960000000",
+           "--out", str(d)]
+    with open(d / "of_train.log", "w", encoding="utf-8") as log:
+        log.write(" ".join(cmd) + "\n")
+        log.flush()
+        subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT, check=True)
+
+
+def train_neuralq_ref(ctx):
+    d = nets_dir(ctx.cfg, ctx.run_dir)
+    net = NeuralQ.from_file(d / f"seed{ctx.seed}.net", ctx.cfg["env"]["market"], ctx.cfg["env"]["warmup_seconds"])
+    ctx.extra["record"] = dict(net.net.record)
+    ctx.ckpt.offer(net, ctx.env_steps, ctx.episodes, {"net": str(d / f"seed{ctx.seed}.net")})
+    if ctx.live:
+        ctx.live.ckpt(net, ctx.episodes, [], ctx.ckpt.pop_evals(), 0.0)
+        ctx.live.done(ctx.ckpt.champion_score, str(d / f"seed{ctx.seed}.net"))
+
+```
+
+
+---
+
+## FILE: python\ragrl\agents\sb3_agents.py  (8,909 bytes)
+
+```python
+"""SB3 / sb3-contrib agents: PPO (MLP, optional frame stack), RecurrentPPO (LSTM),
+DQN made NeuralQ-like (Double DQN, n-step, Polyak-averaged evaluation weights,
+of_train's replay ratio: 16 envs x gradient_steps 2 x batch 256 = 32 samples per
+transition, as NeuralQ's batch 32 per step) and QR-DQN.
+
+Determinism: torch threads fixed by the worker, use_deterministic_algorithms,
+SB3 seed = run seed; the environment's episodes come from the train stream."""
+import copy
+
+import numpy as np
+from stable_baselines3.common.callbacks import BaseCallback
+
+from ..envs import RagVecEnv
+from ..policies import SB3ActorCritic, SB3Q, SB3Recurrent
+from ..worker import Progress
+
+
+def _act_fn(name):
+    import torch.nn as nn
+    return {"tanh": nn.Tanh, "relu": nn.ReLU}[name]
+
+
+class Hooks(BaseCallback):
+    def __init__(self, progress: Progress):
+        super().__init__(0)
+        self.progress = progress
+
+    def _on_step(self) -> bool:
+        dones = self.locals["dones"]
+        infos = self.locals["infos"]
+        fin = [infos[i]["episode"]["r"] for i in np.flatnonzero(dones)]
+        self.progress.update(self.num_timesteps, fin)
+        return True
+
+
+def _frozen_copy(policy):
+    """A detached copy of an SB3 policy: rebuilt from its constructor parameters, weights copied.
+    The torch RNG is restored afterwards, so freezing (checkpoints, live probes) never changes training."""
+    import torch as th
+    from ..policies import ctor_data
+    with th.random.fork_rng(devices=[]):
+        p = type(policy)(**ctor_data(policy))
+    p.load_state_dict(policy.state_dict())
+    p.optimizer = None
+    for x in p.parameters():
+        x.requires_grad_(False)
+    p.set_training_mode(False)
+    return p
+
+
+def _ppo_kwargs(p):
+    arch = list(p["net_arch"])
+    return dict(learning_rate=p["learning_rate"], n_steps=p["n_steps"], batch_size=p["batch_size"], n_epochs=p["n_epochs"],
+                gamma=p["gamma"], gae_lambda=p["gae_lambda"], clip_range=p["clip_range"], ent_coef=p["ent_coef"], vf_coef=p["vf_coef"],
+                max_grad_norm=p["max_grad_norm"]), {"net_arch": {"pi": arch, "vf": arch}, "activation_fn": _act_fn(p["activation"])}
+
+
+def _learn(ctx, model, freeze, epsilon=lambda: 0.0):
+    prog = Progress(ctx, freeze, epsilon)
+    model.learn(total_timesteps=ctx.env_steps, callback=Hooks(prog), progress_bar=False)
+    prog.finish(model.num_timesteps)
+    ctx.extra["env_steps_done"] = int(model.num_timesteps)
+
+
+def train_ppo(ctx):
+    from stable_baselines3 import PPO
+    from stable_baselines3.common.vec_env import VecFrameStack
+    p = ctx.p
+    n_stack = int(p.get("n_stack", 1))
+    env = RagVecEnv(ctx.train_env(), ctx.reward_scale)
+    if n_stack > 1:
+        env = VecFrameStack(env, n_stack)
+    kw, pk = _ppo_kwargs(p)
+    model = PPO("MlpPolicy", env, policy_kwargs=pk, seed=ctx.seed, device="cpu", verbose=0, **kw)
+    _learn(ctx, model, lambda: SB3ActorCritic(_frozen_copy(model.policy), n_stack))
+
+
+def train_recurrent_ppo(ctx):
+    from sb3_contrib import RecurrentPPO
+    p = ctx.p
+    env = RagVecEnv(ctx.train_env(), ctx.reward_scale)
+    kw, pk = _ppo_kwargs(p)
+    pk.update(lstm_hidden_size=p["lstm_hidden_size"], n_lstm_layers=p["n_lstm_layers"])
+    model = RecurrentPPO("MlpLstmPolicy", env, policy_kwargs=pk, seed=ctx.seed, device="cpu", verbose=0, **kw)
+    _learn(ctx, model, lambda: SB3Recurrent(_frozen_copy(model.policy)))
+
+
+def _dqn_kwargs(p):
+    return dict(learning_rate=p["learning_rate"], buffer_size=p["buffer_size"], learning_starts=p["learning_starts"],
+                batch_size=p["batch_size"], gamma=p["gamma"], n_steps=p["n_steps_return"], train_freq=p["train_freq"],
+                gradient_steps=p["gradient_steps"], target_update_interval=p["target_update_interval"], tau=p["tau"],
+                exploration_fraction=p["exploration_fraction"], exploration_initial_eps=p["exploration_initial_eps"],
+                exploration_final_eps=p["exploration_final_eps"], max_grad_norm=p["max_grad_norm"])
+
+
+def _dqn_classes():
+    import torch as th
+    import torch.nn.functional as F
+    from sb3_contrib import QRDQN
+    from stable_baselines3 import DQN
+    from stable_baselines3.common.utils import polyak_update
+
+    class NeuralQLikeDQN(DQN):
+        """DQN with an optional Double-DQN target (online argmax, target value) and a Polyak
+        average of the online weights (NeuralQ's nn_polyak) used for evaluation only."""
+
+        def __init__(self, *a, double_q=True, polyak_eval=1e-4, **k):
+            self.double_q = bool(double_q)
+            self.polyak_eval = float(polyak_eval)
+            super().__init__(*a, **k)
+
+        def _setup_model(self):
+            super()._setup_model()
+            self.q_net_avg = copy.deepcopy(self.q_net)
+            for x in self.q_net_avg.parameters():
+                x.requires_grad_(False)
+
+        def _excluded_save_params(self):
+            return [*super()._excluded_save_params(), "q_net_avg"]
+
+        def train(self, gradient_steps, batch_size=100):
+            self.policy.set_training_mode(True)
+            self._update_learning_rate(self.policy.optimizer)
+            losses = []
+            for _ in range(gradient_steps):
+                d = self.replay_buffer.sample(batch_size, env=self._vec_normalize_env)
+                discounts = d.discounts if d.discounts is not None else self.gamma
+                with th.no_grad():
+                    nq_target = self.q_net_target(d.next_observations)
+                    if self.double_q:
+                        best = self.q_net(d.next_observations).argmax(dim=1, keepdim=True)
+                        nq = th.gather(nq_target, dim=1, index=best)
+                    else:
+                        nq = nq_target.max(dim=1)[0].reshape(-1, 1)
+                    target = d.rewards + (1 - d.dones) * discounts * nq
+                q = th.gather(self.q_net(d.observations), dim=1, index=d.actions.long())
+                loss = F.smooth_l1_loss(q, target)
+                losses.append(loss.item())
+                self.policy.optimizer.zero_grad()
+                loss.backward()
+                th.nn.utils.clip_grad_norm_(self.policy.parameters(), self.max_grad_norm)
+                self.policy.optimizer.step()
+                if self.polyak_eval > 0:
+                    polyak_update(self.q_net.parameters(), self.q_net_avg.parameters(), self.polyak_eval)
+            self._n_updates += gradient_steps
+            self.logger.record("train/n_updates", self._n_updates, exclude="tensorboard")
+            self.logger.record("train/loss", float(np.mean(losses)))
+
+        def frozen(self):
+            pol = _frozen_copy(self.policy)
+            if self.polyak_eval > 0:
+                pol.q_net.load_state_dict(self.q_net_avg.state_dict())
+            return SB3Q(pol, quantile=False)
+
+    class AveragedQRDQN(QRDQN):
+        """QR-DQN with a Polyak average of the online quantile network used for evaluation only."""
+
+        def __init__(self, *a, polyak_eval=1e-4, **k):
+            self.polyak_eval = float(polyak_eval)
+            super().__init__(*a, **k)
+
+        def _setup_model(self):
+            super()._setup_model()
+            self.quantile_net_avg = copy.deepcopy(self.quantile_net)
+            for x in self.quantile_net_avg.parameters():
+                x.requires_grad_(False)
+
+        def _excluded_save_params(self):
+            return [*super()._excluded_save_params(), "quantile_net_avg"]
+
+        def train(self, gradient_steps, batch_size=100):
+            for _ in range(gradient_steps):  # one update at a time, averaging after each (same updates as QRDQN.train)
+                super().train(1, batch_size)
+                if self.polyak_eval > 0:
+                    polyak_update(self.quantile_net.parameters(), self.quantile_net_avg.parameters(), self.polyak_eval)
+
+        def frozen(self):
+            pol = _frozen_copy(self.policy)
+            if self.polyak_eval > 0:
+                pol.quantile_net.load_state_dict(self.quantile_net_avg.state_dict())
+            return SB3Q(pol, quantile=True)
+
+    return NeuralQLikeDQN, AveragedQRDQN
+
+
+def train_dqn(ctx):
+    DQNc, _ = _dqn_classes()
+    p = ctx.p
+    env = RagVecEnv(ctx.train_env(), ctx.reward_scale)
+    model = DQNc("MlpPolicy", env, double_q=p["double_q"], polyak_eval=p["polyak_eval"],
+                 policy_kwargs={"net_arch": list(p["net_arch"])}, seed=ctx.seed, device="cpu", verbose=0, **_dqn_kwargs(p))
+    _learn(ctx, model, model.frozen, lambda: float(model.exploration_rate))
+
+
+def train_qrdqn(ctx):
+    _, QRc = _dqn_classes()
+    p = ctx.p
+    env = RagVecEnv(ctx.train_env(), ctx.reward_scale)
+    model = QRc("MlpPolicy", env, polyak_eval=p["polyak_eval"],
+                policy_kwargs={"net_arch": list(p["net_arch"]), "n_quantiles": p["n_quantiles"]}, seed=ctx.seed, device="cpu",
+                verbose=0, **_dqn_kwargs(p))
+    _learn(ctx, model, model.frozen, lambda: float(model.exploration_rate))
+
+```
+
+
+---
+
+## FILE: python\ragrl\agents\supervised.py  (2,849 bytes)
+
+```python
+"""Supervised baseline: LightGBM regression of the H-second mid change (ticks)
+on the 13 order-flow features, and a cost-aware threshold policy.
+
+Data: the FLAT policy on the run seed's train-stream episodes (privileged=True
+on the train block, for the mid only: the label; X is the observation). One
+model per horizon H; (H, theta) with theta = multiple x round-trip cost
+(spread + 2 fees, ticks) are offered to the val_ckpt checkpointer, which keeps
+the best (every choice counts toward the multiplicity)."""
+import numpy as np
+
+from ..policies import LGBMThreshold
+
+TICK_DOLLARS = 12.5  # ES
+
+
+def collect_flat(ctx):
+    env = ctx.train_env(privileged=True)
+    n, T = env.n_envs, ctx.steps_per_episode
+    rounds = ctx.episodes // n
+    X = np.empty((rounds, T, n, 16))
+    mid = np.empty((rounds, T + 1, n))
+    flat = np.ones(n, dtype=np.int64)
+    obs = env.reset()
+    for r in range(rounds):
+        for t in range(T):
+            X[r, t] = obs
+            mid[r, t] = env.priv[:, 1]
+            obs, _, done = env.step(flat)
+        assert done[0]
+        mid[r, T] = env.final_priv[:, 1]
+    return X, mid
+
+
+def train_lgbm(ctx):
+    import lightgbm as lgb
+    p = ctx.p
+    X, mid = collect_flat(ctx)
+    rounds, T, n, _ = X.shape
+    fee_ticks = ctx.params.fee_dollars / TICK_DOLLARS
+    cost = p["spread_ticks"] + 2 * fee_ticks
+    ctx.extra.update(rows=int(rounds * T * n), round_trip_cost_ticks=cost)
+    step = 0
+    for H in p["horizons"]:
+        h = int(round(H / ctx.params.decide_seconds))
+        if not 1 <= h < T:
+            raise ValueError(f"horizon {H} s is not inside an episode")
+        xs = X[:, : T - h + 1].reshape(-1, 16)[:, :13]
+        y = (mid[:, h:] - mid[:, : T + 1 - h])[:, : T - h + 1].reshape(-1)
+        lp = {"objective": "regression", "num_leaves": p["num_leaves"], "learning_rate": p["learning_rate"],
+              "min_child_samples": p["min_child_samples"], "bagging_fraction": p["subsample"], "bagging_freq": 1,
+              "feature_fraction": p["colsample_bytree"], "deterministic": True, "force_row_wise": True, "num_threads": 1,
+              "seed": ctx.seed, "verbose": -1}
+        booster = lgb.train(lp, lgb.Dataset(xs, y, params={"verbose": -1}), num_boost_round=p["n_estimators"])
+        r2 = 1 - float(np.mean((booster.predict(xs, num_threads=1) - y) ** 2) / max(1e-12, np.var(y)))
+        ctx.extra[f"train_r2_H{H}"] = r2
+        for m in p["theta_multiples"]:
+            step += 1
+            pol = LGBMThreshold(booster, m * cost, H)
+            ctx.ckpt.offer(pol, step, ctx.episodes, {"horizon": H, "theta": m * cost})
+            if ctx.live:
+                ctx.live.ckpt(pol, ctx.episodes, [], ctx.ckpt.pop_evals(), 0.0)
+    if ctx.live:
+        ctx.live.done(ctx.ckpt.champion_score, "")
+    ctx.extra.update(horizon=ctx.ckpt.champion.horizon, theta=ctx.ckpt.champion.theta)
+
+```
+
+
+---
+
+## FILE: python\ragrl\checkpoints.py  (1,975 bytes)
+
+```python
+"""Champion selection on validation (val_ckpt), as rag::agent::Trainer does:
+every offered policy is frozen, scored on the same validation episodes as the
+champion, and promoted if its mean is higher. Records go to metrics.jsonl and
+(for the live viewer) to pending evals."""
+import time
+
+import numpy as np
+
+from .envs import indexed_source
+from .evaluate import run_policy
+
+
+class ValCheckpointer:
+    def __init__(self, params, val_ckpt: dict, threads: int, metrics, seed: int):
+        self.params = params
+        self.first, self.count = int(val_ckpt["first"]), int(val_ckpt["count"])
+        self.threads = threads
+        self.metrics = metrics
+        self.seed = seed
+        self.champion = None
+        self.champion_score = float("nan")
+        self.champion_step = None
+        self.offers = 0
+        self.pending = []  # evals since the last live checkpoint
+        self.eval_seconds = 0.0
+
+    def source(self):
+        return indexed_source("validation", self.first, self.count)
+
+    def score(self, policy) -> float:
+        t0 = time.perf_counter()
+        res = run_policy(self.params, self.source(), policy, self.threads)
+        self.eval_seconds += time.perf_counter() - t0
+        return float(np.mean(res["net_pnl_ticks"]))
+
+    def offer(self, policy, step: int, episode: int, extra: dict | None = None) -> bool:
+        s = self.score(policy)
+        promoted = self.champion is None or s > self.champion_score
+        if promoted:
+            self.champion, self.champion_score, self.champion_step = policy, s, step
+        self.offers += 1
+        self.metrics.write("val", step=step, episode=episode, challenger=s, champion=self.champion_score, promoted=promoted,
+                           **(extra or {}))
+        self.pending.append({"episode": episode, "challenger": s, "champion": self.champion_score, "promoted": promoted})
+        return promoted
+
+    def pop_evals(self):
+        out, self.pending = self.pending, []
+        return out
+
+```
+
+
+---
+
+## FILE: python\ragrl\cli.py  (5,400 bytes)
+
+```python
+"""python -m ragrl <command> ...   (PYTHONPATH=python; RAGOF_DIR = the directory holding _ragof*.pyd)
+
+  run CFG [--no-seal] [--reuse-ok]   train K seeds (workers), select on validation, then seal in a fresh process
+  train RUN --seed K           one worker (spawned by run)
+  select RUN                   validation-only selection record (select.json)
+  seal RUN [--allow-env-change] [--reuse-ok]   the only test opener: paired scoring once (sealed.json is write-once);
+                               refuses a range viewed before (pre-viewed / other experiments) unless --reuse-ok
+  report RUN                   rewrite report.md (and redflags) from the run's files; no environment
+  recheck RUN [--seed K]       retrain one seed and compare bit for bit (red flag R8)
+  hpo CFG                      Optuna on validation only -> best_config.json (never seals)
+  live CFG --seed K --out DIR/live.jsonl   train one seed with the live hook (serve: python tools/of_train_live.py serve DIR)
+  diag RUN                     hidden-state correlation probe (train block)
+  zoo                          the agents and their defaults
+  confirm RUN --i-am-the-orchestrator --claim ID   950M+ confirmation (orchestrator only, once per claim)
+"""
+import argparse
+import json
+import sys
+from pathlib import Path
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="ragrl", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    p = sub.add_parser("run")
+    p.add_argument("config")
+    p.add_argument("--no-seal", action="store_true")
+    p.add_argument("--reuse-ok", action="store_true")
+    p = sub.add_parser("train")
+    p.add_argument("run")
+    p.add_argument("--seed", type=int, required=True)
+    p.add_argument("--out-dir")
+    for name in ("select", "report", "diag"):
+        sub.add_parser(name).add_argument("run")
+    p = sub.add_parser("seal")
+    p.add_argument("run")
+    p.add_argument("--allow-env-change", action="store_true")
+    p.add_argument("--reuse-ok", action="store_true")
+    p = sub.add_parser("recheck")
+    p.add_argument("run")
+    p.add_argument("--seed", type=int)
+    sub.add_parser("hpo").add_argument("config")
+    p = sub.add_parser("live")
+    p.add_argument("config")
+    p.add_argument("--seed", type=int, default=1)
+    p.add_argument("--out", required=True)
+    sub.add_parser("zoo")
+    p = sub.add_parser("confirm")
+    p.add_argument("run")
+    p.add_argument("--claim", default="")
+    p.add_argument("--count", type=int, default=300)
+    p.add_argument("--i-am-the-orchestrator", dest="orchestrator", action="store_true")
+    a = ap.parse_args(argv)
+
+    if a.cmd == "zoo":
+        from .agents import ZOO
+        for k, s in ZOO.items():
+            print(f"{k:16s} n_envs {s.n_envs:3d}  {s.description}\n{'':16s} {json.dumps(s.defaults)}")
+        return 0
+    from . import runner
+    if a.cmd == "run":
+        runner.run(a.config, a.no_seal, reuse_ok=a.reuse_ok)
+    elif a.cmd == "train":
+        from .runner import use_run_module
+        from .worker import train_worker
+        use_run_module(Path(a.run))
+        train_worker(Path(a.run), a.seed, out_dir=a.out_dir)
+    elif a.cmd == "select":
+        from . import ledger
+        from . import registry
+        runner.use_run_module(Path(a.run))
+        ledger.as_trainer()
+        runner.setup_torch(registry.read_json(Path(a.run) / "config.json")["train"]["torch_threads"])
+        runner.select(Path(a.run))
+    elif a.cmd == "seal":
+        runner.seal(Path(a.run), a.allow_env_change, a.reuse_ok)
+    elif a.cmd == "report":
+        from . import redflags, report
+        run = Path(a.run)
+        if (run / "sealed.json").exists():
+            redflags.evaluate(run)
+        report.write(run)
+        print((run / "report.md").read_text(encoding="utf-8"))
+    elif a.cmd == "recheck":
+        print(json.dumps(runner.recheck(Path(a.run), a.seed), indent=1))
+    elif a.cmd == "diag":
+        from . import ledger, registry
+        run = Path(a.run)
+        runner.use_run_module(run)
+        ledger.as_trainer()
+        print(json.dumps(runner.diag(run, registry.read_json(run / "config.json")), indent=1))
+    elif a.cmd == "hpo":
+        from . import hpo
+        hpo.hpo(a.config)
+    elif a.cmd == "live":
+        live(a.config, a.seed, a.out)
+    elif a.cmd == "confirm":
+        print(json.dumps(runner.confirm(Path(a.run), a.claim, a.orchestrator, a.count), indent=1))
+    return 0
+
+
+def live(cfg_path, seed, out):
+    """Trains one seed with the live hook into a scratch run (validation-only; never seals)."""
+    import copy
+
+    from . import config, ledger, registry
+    from .runner import use_run_module
+    from .worker import train_worker
+    cfg = config.load(cfg_path)
+    c = copy.deepcopy(cfg)
+    c["name"] = cfg["name"] + "_live"
+    c["train"]["seeds"] = [int(seed)]
+    c["live"]["enabled"] = True
+    c["live"]["seed"] = int(seed)
+    c = config.resolve(c)
+    run = registry.new_run(c, config.sha256(c))
+    use_run_module(run)
+    ledger.as_trainer()
+    config.dump(c, run / "config.json")
+    out = Path(out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    print(f"live: {run} -> {out}  (serve: python tools/of_train_live.py serve {out.parent} --file {out.name})", flush=True)
+    train_worker(run, int(seed), live_path=out)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+```
+
+
+---
+
+## FILE: python\ragrl\config.py  (12,159 bytes)
+
+```python
+"""Experiment configs (schema ragrl/1): JSON, strict (unknown keys are errors),
+merged over defaults, resolved (agent defaults from the zoo, budget rounded to
+whole training rounds) and written back into the run directory.
+
+    {"schema": "ragrl/1", "name": "of15_ppo_v4",
+     "env":   {"market": "discovery_v4", "warmup_seconds": 1050, ...},
+     "agent": {"kind": "ppo", "params": {...}},          # merged over ZOO defaults
+     "train": {"seeds": [1, ..., 12], "budget_steps": 1200000, "n_envs": null, ...},
+     "select": {"val_ckpt": {"first": 0, "count": 200}, "every_steps": 60000, ...},
+     "val_select": {"first": 1000000, "count": 400},
+     "score": {"block": "test", "first": F, "count": 300, "headline": "ensemble", "family": ..., "family_size": K, ...},
+     "hpo": null | {..., "select": {"first": 2000000, "count": 400}}, "live": {...}}
+
+score.first has no default: a sealed range is pre-registered per experiment family
+(900M+[0, 100000) was viewed by OF2-OF14). family / family_size declare how many
+runs share it (all of them count in the multiplicity bar). hpo.select (the HPO
+objective) is disjoint from val_ckpt and val_select (which compare agents afterwards).
+
+Seeds are run seeds (train block, 1..700M-1); every other range is block-relative
+(the C++ side checks it against the seed ledger).
+"""
+import copy
+import hashlib
+import json
+import math
+import os
+from pathlib import Path
+
+from . import SCHEMA
+
+DEFAULTS = {
+    "schema": SCHEMA,
+    "name": None,
+    "description": "",
+    "env": {"market": "default", "warmup_seconds": 150.0, "latency_steps": 1, "fee_dollars": 1.5, "contracts": 1,
+            "decide_seconds": 1.0, "episode_seconds": 600.0, "sim_overrides": {}},
+    "agent": {"kind": None, "params": {}},
+    "train": {"seeds": [1], "budget_steps": 1_200_000, "n_envs": None, "env_threads": 1, "torch_threads": 1, "eval_threads": 1,
+              "workers": 1, "reward_scale": 1.0, "recheck": False,
+              "episodes": None, "env_steps": None, "budget_rounded": None},  # computed by resolve()
+    "select": {"val_ckpt": {"first": 0, "count": 200}, "every_steps": 60_000, "multiplicity_extra": 1, "select_threads": 24},
+    "val_select": {"first": 1_000_000, "count": 400},
+    "score": {"block": "test", "first": None, "count": 300, "headline": "ensemble", "family": None, "family_size": 1,
+              "baselines": ["flat", "delta30", {"oracle": [0.5, 0.55, 0.75, 1.0, 2.0]}],
+              "bootstrap": 10_000, "bootstrap_seed": 0, "threads": 24},
+    "hpo": None,
+    "live": {"enabled": False, "seed": None, "every_episodes": 50, "probe": 5},
+}
+HPO_DEFAULTS = {"n_trials": 20, "trial_budget_steps": 300_000, "trial_seeds": [1, 2], "sampler_seed": 1, "space": {},
+                "pruner_startup_trials": 5, "retrain_first_seed": 101, "select": {"first": 2_000_000, "count": 400}}
+SMOKE_MAX_BUDGET = 100_000   # 'viz' dry-run scoring only under this training budget ...
+SMOKE_MAX_SCORE = 100        # ... and on at most this many episodes
+OF_TRAIN_VAL = (0, 40)       # of_train's champion selection range: validation 700M+[0, 40), 20 evaluations
+FREE_DICTS = {("env", "sim_overrides"), ("agent", "params"), ("hpo", "space")}
+
+
+class ConfigError(ValueError):
+    pass
+
+
+def _merge(base, over, path=()):
+    if over is None:
+        return copy.deepcopy(base)
+    if not isinstance(base, dict) or path in FREE_DICTS:
+        return copy.deepcopy(over)
+    if not isinstance(over, dict):
+        raise ConfigError(f"{'.'.join(path) or 'config'}: expected an object")
+    out = copy.deepcopy(base)
+    for k, v in over.items():
+        if k not in base:
+            raise ConfigError(f"unknown key {'.'.join(path + (k,))}")
+        if k == "hpo":
+            out[k] = None if v is None else _merge(HPO_DEFAULTS, v, path + (k,))
+        elif isinstance(base[k], dict) and (path + (k,)) not in FREE_DICTS:
+            out[k] = _merge(base[k], v, path + (k,))
+        else:
+            out[k] = copy.deepcopy(v)
+    return out
+
+
+def load(path) -> dict:
+    with open(path, encoding="utf-8") as f:
+        raw = json.load(f)
+    return resolve(raw)
+
+
+def resolve(raw: dict) -> dict:
+    """Defaults + zoo defaults + validation. Idempotent: resolve(resolve(x)) == resolve(x)."""
+    from .agents import ZOO
+    if raw.get("schema") != SCHEMA:
+        raise ConfigError(f"schema must be {SCHEMA!r}")
+    cfg = _merge(DEFAULTS, raw)
+    if not cfg["name"] or not isinstance(cfg["name"], str) or any(c in cfg["name"] for c in '/\\:*?"<>| '):
+        raise ConfigError("name: a short identifier (no spaces or path characters)")
+    kind = cfg["agent"]["kind"]
+    if kind not in ZOO:
+        raise ConfigError(f"agent.kind {kind!r}: one of {sorted(ZOO)}")
+    spec = ZOO[kind]
+    params = dict(spec.defaults)
+    for k, v in cfg["agent"]["params"].items():
+        if k not in params:
+            raise ConfigError(f"agent.params.{k}: not a parameter of {kind} ({sorted(params)})")
+        params[k] = v
+    cfg["agent"]["params"] = params
+    t = cfg["train"]
+    if t["n_envs"] is None:
+        t["n_envs"] = spec.n_envs
+    seeds = t["seeds"]
+    if not seeds or len(set(seeds)) != len(seeds) or not all(isinstance(s, int) and 1 <= s < 700_000_000 for s in seeds):
+        raise ConfigError("train.seeds: distinct run seeds in [1, 700000000)")
+    for k in ["n_envs", "env_threads", "torch_threads", "eval_threads", "workers", "budget_steps"]:
+        if not isinstance(t[k], int) or t[k] < 1:
+            raise ConfigError(f"train.{k}: a positive integer")
+    budget = cpu_budget()
+    if t["workers"] * (t["env_threads"] + t["torch_threads"]) > budget:
+        raise ConfigError(f"train: workers x (env_threads + torch_threads) = {t['workers'] * (t['env_threads'] + t['torch_threads'])} "
+                          f"> {budget} hardware threads")
+    steps = steps_per_episode(cfg["env"])
+    rounds = math.ceil(t["budget_steps"] / (steps * t["n_envs"]))
+    t["episodes"] = rounds * t["n_envs"]          # whole rounds: the train stream's episodes 0..episodes-1
+    t["env_steps"] = t["episodes"] * steps
+    t["budget_rounded"] = t["env_steps"] != t["budget_steps"]
+    ranges = {"select.val_ckpt": cfg["select"]["val_ckpt"], "val_select": cfg["val_select"]}
+    if cfg["hpo"] is not None:
+        ranges["hpo.select"] = cfg["hpo"]["select"]
+    for name, blk in ranges.items():
+        if not (isinstance(blk["first"], int) and isinstance(blk["count"], int) and blk["first"] >= 0 and blk["count"] >= 1):
+            raise ConfigError(f"{name}: integers first >= 0, count >= 1")
+    names = list(ranges)
+    for i, x in enumerate(names):
+        for y in names[i + 1:]:
+            a, b = ranges[x], ranges[y]
+            if a["first"] < b["first"] + b["count"] and b["first"] < a["first"] + a["count"]:
+                raise ConfigError(f"validation ranges {x} and {y} must not overlap")
+    if kind == "neuralq_ref" and cfg["select"]["val_ckpt"]["first"] < OF_TRAIN_VAL[1]:
+        raise ConfigError(f"neuralq_ref: select.val_ckpt must start at >= {OF_TRAIN_VAL[1]} (of_train picked its champions on "
+                          f"validation [0, {OF_TRAIN_VAL[1]}))")
+    if cfg["select"]["every_steps"] < 1:
+        raise ConfigError("select.every_steps >= 1")
+    s = cfg["score"]
+    if s["block"] not in ("test", "viz"):
+        raise ConfigError("score.block: 'test' (sealed) or 'viz' (dry run for smoke tests; never a result)")
+    if s["block"] == "viz" and (t["budget_steps"] > SMOKE_MAX_BUDGET or not isinstance(s["count"], int) or s["count"] > SMOKE_MAX_SCORE):
+        raise ConfigError(f"score.block 'viz' is for smoke runs only (train.budget_steps <= {SMOKE_MAX_BUDGET}, "
+                          f"score.count <= {SMOKE_MAX_SCORE}); the visualization block is never a result")
+    if s["first"] is None:
+        raise ConfigError("score.first: pre-register the sealed range explicitly (test 900M+[0, 100000) was viewed by OF2-OF14)")
+    if not (isinstance(s["first"], int) and isinstance(s["count"], int) and s["first"] >= 0 and s["count"] >= 2):
+        raise ConfigError("score: integers first >= 0, count >= 2")
+    if s["family"] is not None and not (isinstance(s["family"], str) and s["family"]):
+        raise ConfigError("score.family: null or a name shared by the runs pre-registered on one sealed range")
+    if not (isinstance(s["family_size"], int) and s["family_size"] >= 1):
+        raise ConfigError("score.family_size: the number of runs pre-registered on the range (>= 1)")
+    if s["headline"] not in ("ensemble", "mean_of_seeds"):
+        raise ConfigError("score.headline: 'ensemble' or 'mean_of_seeds' (declared before training; never the best seed)")
+    for bl in s["baselines"]:
+        _check_baseline(bl)
+        if isinstance(bl, dict) and "neuralq_dir" in bl:
+            bad = of_train_env_problems(cfg["env"])
+            if bad:
+                raise ConfigError(f"score.baselines neuralq_dir: of_train trains with the default {bad}; "
+                                  "its nets would run outside their training conditions")
+    lv = cfg["live"]
+    if lv["seed"] is None:
+        lv["seed"] = seeds[0]
+    if lv["enabled"] and lv["seed"] not in seeds:
+        raise ConfigError("live.seed must be one of train.seeds")
+    h = cfg["hpo"]
+    if h is not None:
+        if not all(isinstance(x, int) and 1 <= x < 700_000_000 for x in h["trial_seeds"]):
+            raise ConfigError("hpo.trial_seeds: run seeds")
+        for name, dist in h["space"].items():
+            if name not in params:
+                raise ConfigError(f"hpo.space.{name}: not a parameter of {kind}")
+            if not (isinstance(dist, list) and dist and dist[0] in ("log", "float", "int", "cat")):
+                raise ConfigError(f"hpo.space.{name}: ['log'|'float'|'int', lo, hi] or ['cat', v1, v2, ...]")
+    return cfg
+
+
+def _check_baseline(bl):
+    if bl in ("flat", "hold", "delta30"):
+        return
+    if isinstance(bl, dict) and len(bl) >= 1:
+        if "oracle" in bl and isinstance(bl["oracle"], list) and all(isinstance(x, (int, float)) for x in bl["oracle"]):
+            return
+        if "neuralq_dir" in bl and isinstance(bl["neuralq_dir"], str):
+            return
+        if "rule" in bl and isinstance(bl["rule"], list) and len(bl["rule"]) == 3:
+            return
+    raise ConfigError(f"score.baselines: 'flat', 'hold', 'delta30', {{'oracle': [th...]}}, {{'rule': [k, th, reverse]}} or "
+                      f"{{'neuralq_dir': DIR, 'seeds': [...]}}; got {bl!r}")
+
+
+def of_train_env_problems(env: dict) -> list[str]:
+    """env keys that differ from of_train's (it supports market and warm-up only)."""
+    return [k for k in ["latency_steps", "fee_dollars", "contracts", "decide_seconds", "episode_seconds", "sim_overrides"]
+            if env[k] != DEFAULTS["env"][k]]
+
+
+def cpu_budget() -> int:
+    return int(os.environ.get("RAGRL_CPU_BUDGET", os.cpu_count() or 1))
+
+
+def steps_per_episode(env: dict) -> int:
+    """Decisions per episode, counted exactly as C++ steps_per_episode / ScalpEnv::step do (no module needed)."""
+    d, e = float(env["decide_seconds"]), float(env["episode_seconds"])
+    if not (d > 0 and e > 0):
+        raise ConfigError("env.decide_seconds and env.episode_seconds must be > 0")
+    elapsed, n = 0.0, 0
+    while True:
+        n += 1
+        elapsed += d
+        if elapsed >= e - 1e-9:
+            return n
+
+
+def canonical(cfg: dict) -> str:
+    return json.dumps(cfg, sort_keys=True, separators=(",", ":"))
+
+
+def sha256(cfg: dict) -> str:
+    return hashlib.sha256(canonical(cfg).encode()).hexdigest()
+
+
+def dump(cfg: dict, path):
+    Path(path).write_text(json.dumps(cfg, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def make_params(env: dict):
+    from . import native
+    R = native.load()
+    return R.ScalpParams(env["market"], float(env["warmup_seconds"]), decide_seconds=float(env["decide_seconds"]),
+                         episode_seconds=float(env["episode_seconds"]), latency_steps=int(env["latency_steps"]),
+                         contracts=int(env["contracts"]), fee_dollars=float(env["fee_dollars"]),
+                         sim_overrides={k: float(v) for k, v in env["sim_overrides"].items()})
+
+```
+
+
+---
+
+## FILE: python\ragrl\envs.py  (4,361 bytes)
+
+```python
+"""SB3-facing environments over `_ragof.VecScalpEnv`.
+
+RagVecEnv: an SB3 VecEnv on a train stream (auto-reset in C++). float32
+observations (ScalpEnv::features), terminal observations and episode results in
+infos, never the privileged channel. TeacherVecEnv (imitation): the same train
+stream with privileged=True, exposing .priv for labels only.
+"""
+import numpy as np
+from gymnasium import spaces
+from stable_baselines3.common.vec_env.base_vec_env import VecEnv
+
+from . import native
+
+OBS_DIM = 16
+N_ACTIONS = 3
+OBS_SPACE = spaces.Box(low=-10.0, high=10.0, shape=(OBS_DIM,), dtype=np.float32)
+ACT_SPACE = spaces.Discrete(N_ACTIONS)
+
+
+def train_env(params, run_seed: int, n_envs: int, threads: int = 1, privileged: bool = False):
+    R = native.load()
+    return R.VecScalpEnv(params, R.EpisodeSource.train(int(run_seed)), n_envs=n_envs, threads=threads, privileged=privileged)
+
+
+def indexed_source(block: str, first: int, count: int, orchestrator: str = ""):
+    R = native.load()
+    if orchestrator:
+        return R.EpisodeSource.block(block, int(first), int(count), orchestrator=orchestrator)
+    return R.EpisodeSource.block(block, int(first), int(count))
+
+
+class RagVecEnv(VecEnv):
+    """A VecScalpEnv train stream as an SB3 VecEnv (no privileged outputs)."""
+
+    def __init__(self, venv, reward_scale: float = 1.0):
+        if venv.privileged:
+            raise ValueError("RagVecEnv takes a non-privileged environment (the agent sees observations only)")
+        if venv.source.kind != "train":
+            raise ValueError("RagVecEnv trains on a train stream (EpisodeSource.train)")
+        self.venv = venv
+        self.reward_scale = float(reward_scale)
+        self.steps = venv.params.steps_per_episode
+        self._actions = None
+        self.episodes_done = 0
+        super().__init__(venv.n_envs, OBS_SPACE, ACT_SPACE)
+
+    def reset(self):
+        if self.venv.episodes_started:  # a second reset would skip stream episodes
+            raise RuntimeError("RagVecEnv.reset: the train stream is already running (episodes auto-reset in C++)")
+        return self.venv.reset().astype(np.float32)
+
+    def step_async(self, actions):
+        self._actions = np.asarray(actions, dtype=np.int64).reshape(-1)
+
+    def step_wait(self):
+        obs, rew, done = self.venv.step(self._actions)
+        infos = [{} for _ in range(self.num_envs)]
+        if done.any():
+            final = self.venv.final_obs.astype(np.float32)
+            st = self.venv.episode_stats
+            for i in np.flatnonzero(done):
+                infos[i] = {"terminal_observation": final[i], "TimeLimit.truncated": False,
+                            "episode": {"r": float(st["net_pnl_ticks"][i]), "l": self.steps, "t": 0.0,
+                                        "orders": float(st["orders"][i])}}
+            self.episodes_done += int(done.sum())
+        return obs.astype(np.float32), (rew * self.reward_scale).astype(np.float32), done.copy(), infos
+
+    def close(self):
+        pass
+
+    def _idx(self, indices):
+        if indices is None:
+            return range(self.num_envs)
+        return [indices] if isinstance(indices, int) else indices
+
+    def get_attr(self, attr_name, indices=None):
+        return [getattr(self, attr_name, None) for _ in self._idx(indices)]
+
+    def set_attr(self, attr_name, value, indices=None):
+        pass
+
+    def env_method(self, method_name, *method_args, indices=None, **method_kwargs):
+        return [None for _ in self._idx(indices)]
+
+    def env_is_wrapped(self, wrapper_class, indices=None):
+        return [False for _ in self._idx(indices)]
+
+
+def keep_action(obs: np.ndarray) -> np.ndarray:
+    """Keep the position (short/flat/long as now): BuiltinPolicy::keep on obs[13] = position / contracts."""
+    return (np.sign(obs[:, 13]) + 1).astype(np.int64)
+
+
+def oracle_actions(obs: np.ndarray, priv: np.ndarray, th: float) -> np.ndarray:
+    """The fair-value oracle (BuiltinPolicy::oracle) from the privileged gap column: teacher labels only."""
+    gap = priv[:, 2]
+    return np.where(gap > th, 2, np.where(gap < -th, 0, keep_action(obs))).astype(np.int64)
+
+
+def delta_rule_actions(obs: np.ndarray, th: float = 1.5) -> np.ndarray:
+    """of_train's 30 s delta rule (BuiltinPolicy::delta30) on observations."""
+    x = obs[:, 1]
+    return np.where(x > th, 2, np.where(x < -th, 0, keep_action(obs))).astype(np.int64)
+
+```
+
+
+---
+
+## FILE: python\ragrl\evaluate.py  (6,619 bytes)
+
+```python
+"""Paired evaluation: every policy plays the same episodes of one indexed source.
+
+An indexed EpisodeSource is one lockstep round (slot i = Rng(base + first + i)),
+so a FrozenPolicy (Python step loop, observations only) and a C++ built-in
+(R.run_builtin: flat, hold, delta30, rules, the fair-value oracle, of_train
+nets) evaluated on it play identical markets. Results are per-episode arrays.
+"""
+import hashlib
+
+import numpy as np
+
+from . import native
+from .policies import FrozenPolicy, NeuralQ
+
+
+class Builtin:
+    """A C++ built-in policy, evaluated entirely in C++ (the oracle's fair value never reaches Python)."""
+
+    def __init__(self, spec, name: str | None = None):
+        self.spec = spec
+        self.name = name or (spec if isinstance(spec, str) else "_".join(str(x) for x in spec))
+
+    @staticmethod
+    def oracle(th: float):
+        return Builtin(("oracle", float(th)), f"oracle_{th:g}")
+
+    def __repr__(self):
+        return f"Builtin({self.spec!r})"
+
+
+def run_policy(params, source, policy, threads: int = 1, actions_hash: bool = False) -> dict:
+    """Plays `policy` on every episode of the indexed `source`; per-episode results."""
+    R = native.load()
+    if isinstance(policy, Builtin):
+        res = R.run_builtin(params, source, policy.spec, threads=max(1, threads))
+        return {"net_pnl_ticks": res["net_pnl_ticks"], "orders": res["orders"], "fees_ticks": res["fees_ticks"]}
+    if isinstance(policy, NeuralQ) and not actions_hash:
+        res = R.run_builtin(params, source, ("neuralq", policy.net), threads=max(1, threads))
+        return {"net_pnl_ticks": res["net_pnl_ticks"], "orders": res["orders"], "fees_ticks": res["fees_ticks"]}
+    if not isinstance(policy, FrozenPolicy):
+        raise TypeError(f"not a policy: {policy!r}")
+    env = R.VecScalpEnv(params, source, n_envs=source.count, threads=max(1, threads))
+    if env.privileged:  # cannot happen (privileged must be asked for); kept as the evaluator's invariant
+        raise RuntimeError("evaluation environments are never privileged")
+    obs = env.reset()
+    policy.reset(env.n_envs)
+    h = hashlib.sha256() if actions_hash else None
+    while True:
+        a, _ = policy.step(obs)
+        if h is not None:
+            h.update(np.ascontiguousarray(a, dtype=np.int64).tobytes())
+        obs, _, done = env.step(a)
+        if done[0]:
+            break
+    st = env.episode_stats
+    out = {"net_pnl_ticks": st["net_pnl_ticks"], "orders": st["orders"], "fees_ticks": st["fees_ticks"]}
+    if h is not None:
+        out["actions_sha256"] = h.hexdigest()
+    return out
+
+
+def paired_eval(params, source, policies: dict, threads: int = 1) -> dict:
+    """{name: per-episode results} for every policy on the same episodes."""
+    out = {}
+    for name, pol in policies.items():
+        out[name] = run_policy(params, source, pol, threads)
+        if len(out[name]["net_pnl_ticks"]) != source.count:
+            raise RuntimeError(f"{name}: {len(out[name]['net_pnl_ticks'])} episodes, expected {source.count}")
+    return out
+
+
+def _nq_baselines(cfg: dict):
+    """[(key, source dir, seeds)] for the config's neuralq_dir baselines."""
+    from pathlib import Path
+    out = []
+    for i, bl in enumerate(b for b in cfg["score"]["baselines"] if isinstance(b, dict) and "neuralq_dir" in b):
+        d = Path(bl["neuralq_dir"])
+        if not d.is_absolute():
+            d = native.REPO / d
+        seeds = bl.get("seeds") or sorted(int(p.stem[4:]) for p in d.glob("seed*.net"))
+        out.append((f"nq{i}", d, [int(s) for s in seeds]))
+    return out
+
+
+def stage_baselines(cfg: dict, run_dir) -> dict:
+    """Copies the baseline of_train nets (seedK.net + seedK.txt record) into RUN/baselines/nqI/ at run
+    start and records their sha256 in RUN/baselines.json: select and seal load the copies, verified,
+    so a rerun of of14_regen.sh between select and seal cannot change the paired references."""
+    import shutil
+    from pathlib import Path
+    run_dir = Path(run_dir)
+    out = {}
+    for key, d, seeds in _nq_baselines(cfg):
+        dst = run_dir / "baselines" / key
+        dst.mkdir(parents=True, exist_ok=True)
+        files = {}
+        for s in seeds:
+            for suffix in (".net", ".txt"):
+                f = d / f"seed{s}{suffix}"
+                if f.exists():
+                    shutil.copy2(f, dst / f.name)
+                    files[f.name] = native.sha256_file(dst / f.name)
+                elif suffix == ".net":
+                    raise FileNotFoundError(f"baseline net {f} missing (experiments/of14_regen.sh)")
+        out[key] = {"source": str(d), "seeds": seeds, "sha256": files}
+    from .registry import write_json
+    write_json(run_dir / "baselines.json", out)
+    return out
+
+
+def baseline_policies(cfg: dict, run_dir=None) -> dict:
+    """The config's baselines as {name: Builtin | FrozenPolicy} (NeuralQ nets: each seed and their mean-Q ensemble).
+    With run_dir, NeuralQ nets come from the run's verified copies (stage_baselines); without, from their source."""
+    from pathlib import Path
+
+    from .policies import Ensemble
+    out = {}
+    env = cfg["env"]
+    staged = None
+    if run_dir is not None and _nq_baselines(cfg):
+        from .registry import read_json
+        bj = Path(run_dir) / "baselines.json"
+        if not bj.exists():
+            raise FileNotFoundError(f"{bj} missing: baseline nets are staged into the run at its start")
+        staged = read_json(bj)
+        for key, rec in staged.items():
+            for name, sha in rec["sha256"].items():
+                if native.sha256_file(Path(run_dir) / "baselines" / key / name) != sha:
+                    raise RuntimeError(f"baseline {key}/{name} changed since the run started (sha256 mismatch)")
+    nq = iter(_nq_baselines(cfg))
+    for bl in cfg["score"]["baselines"]:
+        if isinstance(bl, str):
+            out[bl] = Builtin(bl)
+        elif "oracle" in bl:
+            for th in bl["oracle"]:
+                b = Builtin.oracle(th)
+                out[b.name] = b
+        elif "rule" in bl:
+            k, th, rev = bl["rule"]
+            out[f"rule_{k}_{th:g}{'_rev' if rev else ''}"] = Builtin(("rule", int(k), float(th), bool(rev)))
+        elif "neuralq_dir" in bl:
+            key, d, seeds = next(nq)
+            if staged is not None:
+                d = Path(run_dir) / "baselines" / key
+            nets = {s: NeuralQ.from_file(d / f"seed{s}.net", env["market"], env["warmup_seconds"]) for s in seeds}
+            for s, n in nets.items():
+                out[f"neuralq_ref_seed{s}"] = n
+            out["neuralq_ref_ensemble"] = Ensemble(list(nets.values()))
+    return out
+
+```
+
+
+---
+
+## FILE: python\ragrl\hpo.py  (6,451 bytes)
+
+```python
+"""Optuna search on validation only, with a fixed budget (n_trials x trial_budget_steps x trial seeds).
+
+TPESampler(seed=sampler_seed, multivariate=True), trials run one after another
+(determinism); each trial trains its trial_seeds in parallel worker processes.
+Intermediate values (for MedianPruner) are the mean val_ckpt champion score over
+the trial seeds at each checkpoint, reported once every seed has reached it, so
+pruning decisions don't depend on timing. The objective is the mean of the
+trial seeds' champions on hpo.select, a validation range disjoint from val_ckpt
+and val_select (which compare the retrained best config with the baselines
+afterwards, so they are not inflated by the search). Never seals. Writes hpo.jsonl, hpo.db
+(sqlite) and best_config.json: the best parameters, retrained on fresh run
+seeds (retrain_first_seed, ...), with the trial count added to the multiplicity.
+"""
+import copy
+import json
+import warnings
+from pathlib import Path
+
+import numpy as np
+
+from . import config, ledger, registry
+from .envs import indexed_source
+from .evaluate import run_policy
+from .policies import load_policy
+from .worker import setup_torch
+from .runner import dump_json_line, spawn_workers, trial_config, use_run_module
+
+
+def _suggest(trial, name, dist):
+    kind = dist[0]
+    if kind == "log":
+        return trial.suggest_float(name, float(dist[1]), float(dist[2]), log=True)
+    if kind == "float":
+        return trial.suggest_float(name, float(dist[1]), float(dist[2]))
+    if kind == "int":
+        return trial.suggest_int(name, int(dist[1]), int(dist[2]))
+    choices = [json.dumps(c) for c in dist[1:]]
+    return json.loads(trial.suggest_categorical(name, choices))
+
+
+def _val_records(path: Path):
+    """The val records of a worker's metrics.jsonl; a last line still being appended (no newline yet) is skipped."""
+    if not path.exists():
+        return []
+    lines = path.read_text(encoding="utf-8").split("\n")[:-1]  # everything before the last newline
+    return [json.loads(l) for l in lines if l.strip() and '"type": "val"' in l]
+
+
+def hpo(cfg_path, root: Path | None = None) -> Path:
+    import optuna
+    warnings.filterwarnings("ignore", category=optuna.exceptions.ExperimentalWarning)
+    optuna.logging.set_verbosity(optuna.logging.WARNING)
+    cfg = config.load(cfg_path)
+    h = cfg["hpo"]
+    if h is None:
+        raise ValueError("the config has no hpo section")
+    base = copy.deepcopy(cfg)
+    base["name"] = cfg["name"] + "_hpo"
+    run_dir = registry.new_run(base, config.sha256(cfg), root)
+    use_run_module(run_dir)
+    ledger.as_trainer()
+    setup_torch(cfg["train"]["torch_threads"])
+    config.dump(cfg, run_dir / "config.json")
+    registry.write_json(run_dir / "provenance.json", registry.provenance(run_dir / "bin"))
+    params = config.make_params(cfg["env"])
+    vs = h["select"]
+    study = optuna.create_study(direction="maximize", study_name=cfg["name"], storage=f"sqlite:///{(run_dir / 'hpo.db').as_posix()}",
+                                sampler=optuna.samplers.TPESampler(seed=h["sampler_seed"], multivariate=True),
+                                pruner=optuna.pruners.MedianPruner(n_startup_trials=h["pruner_startup_trials"]))
+    log = run_dir / "hpo.jsonl"
+    for i in range(h["n_trials"]):
+        trial = study.ask()
+        sampled = {k: _suggest(trial, k, d) for k, d in h["space"].items()}
+        tcfg = trial_config(cfg, sampled, f"{cfg['name']}_t{i:03d}")
+        tcfg["train"]["seeds"] = list(h["trial_seeds"])
+        tcfg["train"]["budget_steps"] = h["trial_budget_steps"]
+        tcfg["train"]["workers"] = min(cfg["train"]["workers"], len(h["trial_seeds"]))
+        tcfg = config.resolve(tcfg)
+        tdir = run_dir / "trials" / f"t{i:03d}"
+        tdir.mkdir(parents=True)
+        config.dump(tcfg, tdir / "config.json")
+        (tdir / "bin").mkdir()
+        for f in (run_dir / "bin").iterdir():
+            (tdir / "bin" / f.name).write_bytes(f.read_bytes())
+        reported = [0]
+
+        def poll():
+            recs = [_val_records(tdir / "seeds" / f"seed{s}" / "metrics.jsonl") for s in tcfg["train"]["seeds"]]
+            k = min(len(r) for r in recs)
+            while reported[0] < k:
+                c = reported[0]
+                trial.report(float(np.mean([r[c]["champion"] for r in recs])), c)
+                reported[0] += 1
+                if trial.should_prune():
+                    return False
+            return True
+
+        done = spawn_workers(tdir, tcfg, tcfg["train"]["seeds"], on_poll=poll)
+        rec = {"trial": i, "params": sampled}
+        if not done:
+            study.tell(trial, state=optuna.trial.TrialState.PRUNED)
+            rec.update(state="pruned", checkpoints=reported[0])
+        else:
+            src = indexed_source("validation", vs["first"], vs["count"])
+            means = [float(np.mean(run_policy(params, src, load_policy(tdir / "seeds" / f"seed{s}"), cfg["select"]["select_threads"])
+                                   ["net_pnl_ticks"])) for s in tcfg["train"]["seeds"]]
+            value = float(np.mean(means))
+            study.tell(trial, value)
+            rec.update(state="complete", value=value, seed_values=means)
+        dump_json_line(log, rec)
+        print(f"trial {i}: {rec['state']} {rec.get('value', '')} {sampled}", flush=True)
+    best = study.best_trial
+    out = copy.deepcopy(cfg)
+    out["name"] = cfg["name"] + "_best"
+    out["agent"]["params"].update({k: json.loads(json.dumps(v)) for k, v in best.params.items()})
+    for k, d in h["space"].items():
+        if d[0] == "cat":
+            out["agent"]["params"][k] = json.loads(best.params[k])
+    out["hpo"] = None
+    first = h["retrain_first_seed"]
+    out["train"]["seeds"] = list(range(first, first + len(cfg["train"]["seeds"])))
+    out["select"]["multiplicity_extra"] = cfg["select"]["multiplicity_extra"] * h["n_trials"]
+    for k in ("episodes", "env_steps", "budget_rounded"):
+        out["train"][k] = None
+    out = config.resolve(out)
+    config.dump(out, run_dir / "best_config.json")
+    registry.write_json(run_dir / "hpo_summary.json", {"best_trial": best.number, "best_value": best.value, "best_params": best.params,
+                                                       "n_trials": h["n_trials"], "budget_steps_per_seed": h["trial_budget_steps"]})
+    print(f"best trial {best.number}: {best.value} {best.params}; retrain with: python -m ragrl run {run_dir / 'best_config.json'}")
+    return run_dir
+
+```
+
+
+---
+
+## FILE: python\ragrl\ledger.py  (6,101 bytes)
+
+```python
+"""The only module that opens sealed blocks (a pytest greps for open_sealed).
+
+    as_trainer()   first line of every training, selection, HPO and live
+                   process: forbid_sealed() makes opening a sealed block in
+                   this process impossible from then on (C++ guard).
+    as_scorer()    `ragrl seal` / `ragrl confirm` only, in a fresh process:
+                   open_sealed() makes the process a scorer (it can no longer
+                   build train/validation environments), and the opening is
+                   appended to the usage ledger.
+
+The usage ledger is ONE file per machine, build-avx512/rl/ledger_usage.jsonl
+under the repository, whatever $RAGRL_ROOT is (a different run root must not
+give a fresh audit log). $RAGRL_LEDGER_FILE redirects it for tests only: every
+entry and sealed.json record the file used, and a sealed test opening logged
+anywhere but the canonical file is a hard red flag (R10).
+
+Pre-viewed ranges: 900M+[0, 100000) of the test block was viewed by OF2-OF14
+(of_train --test, of2_baselines, OF11/OF13/OF14 scorings, on every market).
+`range_reuse` reports overlaps with it and with earlier openings in the ledger.
+"""
+import json
+import os
+import time
+from pathlib import Path
+
+from . import native
+
+# Block-relative ranges viewed before the pipeline's ledger existed (NEXT_SESSION.md section 4).
+PREVIEWED = {"test": [(0, 100_000, "OF2-OF14: of_train --test / of2_baselines / OF11-OF14 scorings (all markets)")]}
+
+
+def canonical_usage_file() -> Path:
+    return native.REPO / "build-avx512" / "rl" / "ledger_usage.jsonl"
+
+
+def usage_file() -> Path:
+    o = os.environ.get("RAGRL_LEDGER_FILE")
+    return Path(o) if o else canonical_usage_file()
+
+
+def is_canonical() -> bool:
+    return usage_file().resolve() == canonical_usage_file().resolve()
+
+
+def as_trainer():
+    native.load().forbid_sealed()
+
+
+def _now():
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def log_usage(entry: dict):
+    f = usage_file()
+    f.parent.mkdir(parents=True, exist_ok=True)
+    with open(f, "a", encoding="utf-8") as out:
+        out.write(json.dumps({**entry, "ledger_file": str(f)}, sort_keys=True) + "\n")
+
+
+def read_usage():
+    """Complete lines only (a line still being appended has no trailing newline yet)."""
+    f = usage_file()
+    if not f.exists():
+        return []
+    text = f.read_text(encoding="utf-8")
+    lines = text.split("\n")
+    if not text.endswith("\n"):
+        lines = lines[:-1]
+    return [json.loads(l) for l in lines if l.strip()]
+
+
+def _overlap(a0, n0, a1, n1) -> bool:
+    return a0 < a1 + n1 and a1 < a0 + n0
+
+
+def range_reuse(block: str, first: int, count: int, market: str, run: str, experiment: str, family: str, family_size: int) -> dict:
+    """Earlier views of block[first, +count) on `market`.
+
+    Openings by the same experiment (identical config sha256 and ragrl code: a regeneration
+    plays the identical policies, so it is not a new look) don't count. Up to family_size - 1
+    other experiments of the declared family may share the range (their multiplicity is
+    declared: t_req uses M x family_size). Everything else is reuse: pre-viewed ranges,
+    openings outside the family, and family members beyond family_size."""
+    pre = [{"range": [a, n], "what": w} for a, n, w in PREVIEWED.get(block, []) if _overlap(first, count, a, n)]
+    family_exps, outside = set(), []
+    for u in read_usage():
+        if u.get("dry_run") or u.get("block") != block or u.get("run") == run:
+            continue
+        if not _overlap(first, count, int(u.get("first", 0)), int(u.get("count", 0))):
+            continue
+        if u.get("market") not in (None, market):  # entries without a market count against every market
+            continue
+        if u.get("experiment") and u.get("experiment") == experiment:
+            continue
+        if family and u.get("family") == family and u.get("experiment"):
+            family_exps.add(u["experiment"])
+        else:
+            outside.append({"run": u.get("run"), "first": u.get("first"), "count": u.get("count"), "family": u.get("family")})
+    over = max(0, len(family_exps) - (family_size - 1))
+    return {"previewed": pre, "outside_family": outside, "family_experiments": len(family_exps), "family_over": over,
+            "reused": bool(pre or outside or over)}
+
+
+def next_confirm_first() -> int:
+    """The first 950M+ index no earlier confirmation used (confirmations never share episodes)."""
+    ends = [int(u.get("first", 0)) + int(u.get("count", 0)) for u in read_usage() if u.get("block") == "confirm" and not u.get("dry_run")]
+    return max(ends, default=0)
+
+
+def as_scorer(block: str, reason: str, run: str, first: int, count: int, claim: str = "", **meta):
+    """Opens a sealed block for scoring and logs it. confirm needs a claim id never used before and a fresh range."""
+    R = native.load()
+    if block == "confirm":
+        if not claim:
+            raise PermissionError("confirm needs an orchestrator claim id")
+        used = read_usage()
+        if any(u.get("block") == "confirm" and u.get("claim") == claim for u in used):
+            raise PermissionError(f"claim id {claim!r} was already used (950M+ is once per claim)")
+        if any(u.get("block") == "confirm" and not u.get("dry_run") and _overlap(first, count, int(u.get("first", 0)), int(u.get("count", 0)))
+               for u in used):
+            raise PermissionError(f"confirm [{first}, +{count}) overlaps an earlier confirmation (next free index {next_confirm_first()})")
+    R.open_sealed(block, reason)
+    log_usage({"time": _now(), "run": run, "block": block, "first": first, "count": count, "reason": reason, "pid": os.getpid(),
+               "claim": claim, "dry_run": False, **meta})
+
+
+def log_dry_run(run: str, first: int, count: int, **meta):
+    """A smoke-test 'seal' on the viz block (look-only, never sealed): logged, nothing opened."""
+    log_usage({"time": _now(), "run": run, "block": "viz", "first": first, "count": count, "reason": "dry run (smoke)",
+               "pid": os.getpid(), "claim": "", "dry_run": True, **meta})
+
+```
+
+
+---
+
+## FILE: python\ragrl\live.py  (7,103 bytes)
+
+```python
+"""Live-viewer hook: writes the of_train_live JSONL schema (examples/of_train_live.cpp)
+so tools/of_train_live.py (serve / bake) shows any agent's training.
+
+    header  market, warmup, episodes, every, seed, hidden, gamma, nstep, lr, probe,
+            probe_seed=960000000, imb_bins 10, delta_bins 8, fee_dollars, cell_states,
+            rule_pnl, rule (the 30 s delta rule's probe track); extra: agent, score_kind
+    ckpt    episode, elapsed, epsilon, returns, evals, probe_pnl, orders, long_share,
+            short_share, policy[3*10*8*3], track{tod, mid, fv, pos, pnl, fill, qs, qf, ql}
+    done    champion_validation, net
+
+Probe episodes are the visualization block (960M+, look, never select), played
+with privileged=True only to show the hidden fair value and fills; the policy
+sees observations only. Policy-map states are the probes as a flat strategy
+sees them, binned by L1 imbalance (obs[6] / 2: feature 6 is 2 x imbalance,
+never clipped) x 30 s delta (obs[1]), exactly as of_train_live bins them.
+Memory agents (frame stack, LSTM) see each map state as an episode's first step.
+"""
+import json
+import math
+import time
+
+import numpy as np
+
+from . import native
+from .envs import delta_rule_actions, indexed_source
+from .registry import finite
+
+IMB_BINS, DELTA_BINS, CLIP = 10, 8, 4.0
+
+
+def _bin(x, lo, hi, n):
+    k = np.floor((x - lo) / (hi - lo) * n)
+    return np.clip(k, 0.0, n - 1.0).astype(np.int64)
+
+
+def _r(v, nd):
+    out = []
+    for x in np.asarray(v, dtype=np.float64).tolist():
+        out.append(round(x, nd) if math.isfinite(x) else None)
+    return out
+
+
+def probe_states(params, probe: int):
+    """Observations of the probe episodes under the flat policy (every decision; not the terminal one)."""
+    R = native.load()
+    env = R.VecScalpEnv(params, indexed_source("viz", 0, probe), n_envs=probe, threads=1)
+    obs = env.reset()
+    states = [obs]
+    flat = np.ones(probe, dtype=np.int64)
+    while True:
+        obs, _, done = env.step(flat)
+        if done[0]:
+            break
+        states.append(obs)
+    # of_train_live's order: probe by probe, step by step
+    return np.stack(states, axis=1).reshape(-1, 16)
+
+
+def play_probes(params, probe: int, act_fn, threads: int = 1):
+    """Plays act_fn(obs) -> (actions, display_scores or None) on the probes; returns results and the first probe's track."""
+    R = native.load()
+    env = R.VecScalpEnv(params, indexed_source("viz", 0, probe), n_envs=probe, threads=threads, privileged=True)
+    obs = env.reset()
+    priv = env.priv
+    tr = {k: [] for k in ["tod", "mid", "fv", "pos", "pnl", "fill", "qs", "qf", "ql"]}
+    pnl0, long_s, short_s, steps = 0.0, 0, 0, 0
+    while True:
+        a, q = act_fn(obs)
+        tr["tod"].append(priv[0, 3])
+        tr["mid"].append(priv[0, 1])
+        tr["fv"].append(priv[0, 0])
+        obs, rew, done = env.step(a)
+        priv = env.final_priv if done[0] else env.priv
+        o = env.final_obs if done[0] else obs
+        pnl0 += rew[0]
+        pos = np.rint(o[:, 13] * params.contracts).astype(int)
+        tr["pos"].append(int(pos[0]))
+        tr["pnl"].append(pnl0)
+        tr["fill"].append(priv[0, 4])
+        for k, j in (("qs", 0), ("qf", 1), ("ql", 2)):
+            tr[k].append(q[0, j] if q is not None else float("nan"))
+        long_s += int((pos > 0).sum())
+        short_s += int((pos < 0).sum())
+        steps += len(pos)
+        if done[0]:
+            break
+    st = env.episode_stats
+    track = {"tod": _r(tr["tod"], 1), "mid": _r(tr["mid"], 1), "fv": _r(tr["fv"], 2), "pos": tr["pos"], "pnl": _r(tr["pnl"], 2),
+             "fill": _r(tr["fill"], 2), "qs": _r(tr["qs"], 3), "qf": _r(tr["qf"], 3), "ql": _r(tr["ql"], 3)}
+    return {"pnl": st["net_pnl_ticks"], "orders": float(np.mean(st["orders"])), "long_share": long_s / steps,
+            "short_share": short_s / steps, "track": track}
+
+
+class LiveWriter:
+    def __init__(self, path, params, cfg: dict, seed: int, episodes: int, header_extra: dict | None = None, threads: int = 1):
+        self.path = path
+        self.params = params
+        lv = cfg["live"]
+        self.probe = int(lv["probe"])
+        self.every = int(lv["every_episodes"])
+        self.threads = threads
+        self.t0 = time.perf_counter()
+        states = probe_states(params, self.probe)
+        self.states = states
+        self.bi = _bin(states[:, 6] / 2.0, -1.0, 1.0, IMB_BINS)
+        self.bd = _bin(states[:, 1], -CLIP, CLIP, DELTA_BINS)
+        cells = np.bincount(self.bi * DELTA_BINS + self.bd, minlength=IMB_BINS * DELTA_BINS)
+        rule = play_probes(params, self.probe, lambda o: (delta_rule_actions(o), None), threads)
+        head = {"type": "header", "market": params.market, "warmup": params.warmup_seconds, "episodes": int(episodes), "every": self.every,
+                "seed": int(seed), "hidden": None, "gamma": None, "nstep": None, "lr": None, "probe": self.probe,
+                "probe_seed": native.block("viz")["base"], "imb_bins": IMB_BINS, "delta_bins": DELTA_BINS, "fee_dollars": params.fee_dollars,
+                "cell_states": cells.tolist(), "rule_pnl": _r(rule["pnl"], 2), "rule": rule["track"],
+                "agent": cfg["agent"]["kind"], **(header_extra or {})}
+        with open(path, "w", encoding="utf-8", newline="\n") as f:
+            f.write(json.dumps(finite(head), allow_nan=False) + "\n")
+
+    def _emit(self, rec):
+        with open(self.path, "a", encoding="utf-8", newline="\n") as f:
+            f.write(json.dumps(finite(rec), allow_nan=False) + "\n")
+
+    def policy_map(self, policy) -> list:
+        pol = np.zeros(3 * IMB_BINS * DELTA_BINS * 3, dtype=np.int64)
+        for held in (-1, 0, 1):
+            x = self.states.copy()
+            x[:, 13] = held
+            x[:, 14] = 0.0
+            policy.reset(len(x))
+            a, _ = policy.step(x)
+            idx = (((held + 1) * IMB_BINS + self.bi) * DELTA_BINS + self.bd) * 3 + a
+            np.add.at(pol, idx, 1)
+        return pol.tolist()
+
+    def ckpt(self, policy, episode: int, returns, evals, epsilon: float = 0.0):
+        policy.reset(self.probe)
+
+        def act(o):
+            a, s = policy.step(o)
+            return a, policy.display_scores(o, s)
+
+        pr = play_probes(self.params, self.probe, act, self.threads)
+        pm = self.policy_map(policy)
+        rec = {"type": "ckpt", "episode": int(episode), "elapsed": round(time.perf_counter() - self.t0, 1),
+               "epsilon": float(epsilon), "returns": _r(returns, 2),
+               "evals": [{"episode": int(e["episode"]), "challenger": e["challenger"], "champion": e["champion"],
+                          "promoted": bool(e["promoted"])} for e in evals],
+               "probe_pnl": _r(pr["pnl"], 2), "orders": round(pr["orders"], 2), "long_share": round(pr["long_share"], 4),
+               "short_share": round(pr["short_share"], 4), "policy": pm, "track": pr["track"]}
+        self._emit(rec)
+
+    def done(self, champion_validation: float, net: str = ""):
+        self._emit({"type": "done", "champion_validation": champion_validation if math.isfinite(champion_validation) else None,
+                    "net": net})
+
+```
+
+
+---
+
+## FILE: python\ragrl\native.py  (1,592 bytes)
+
+```python
+"""Loads the `_ragof` module (the C++ simulator binding) from $RAGOF_DIR.
+
+A run copies the module into RUN/bin and its workers import it from there
+(RAGOF_DIR=RUN/bin), so a rebuild of build-avx512/Release can never swap or
+lock the module under a running job, and the run's provenance names the exact
+binary (sha256)."""
+import hashlib
+import os
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[2]
+_R = None
+
+
+def ragof_dir() -> Path:
+    return Path(os.environ.get("RAGOF_DIR", REPO / "build-avx512" / "Release"))
+
+
+def load():
+    """The `_ragof` module (imported once per process)."""
+    global _R
+    if _R is None:
+        d = str(ragof_dir())
+        if d not in sys.path:
+            sys.path.insert(0, d)
+        import _ragof
+        _R = _ragof
+    return _R
+
+
+def module_file() -> Path:
+    return Path(load().__file__)
+
+
+def find_module(directory: Path) -> Path:
+    found = sorted(Path(directory).glob("_ragof*.pyd")) + sorted(Path(directory).glob("_ragof*.so"))
+    if not found:
+        raise FileNotFoundError(f"no _ragof module in {directory} (build with -DRAG_PYTHON=ON, or set RAGOF_DIR)")
+    return found[0]
+
+
+def sha256_file(path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def block(name: str) -> dict:
+    """The ledger's entry for a block (R.BLOCKS, the C++ table; never hard-coded here)."""
+    for b in load().BLOCKS:
+        if b["name"] == name:
+            return dict(b)
+    raise KeyError(name)
+
+```
+
+
+---
+
+## FILE: python\ragrl\policies.py  (13,083 bytes)
+
+```python
+"""Frozen policies: what every agent produces and what evaluation plays.
+
+A FrozenPolicy sees observations only (float64 [N, 16], ScalpEnv::features):
+    reset(n)             start n lockstep episodes (memory agents clear state)
+    step(obs)            -> (actions int64[N] in {0 short, 1 flat, 2 long}, scores f64[N, 3])
+    save(dir) -> meta    artifacts written into dir (policy.json via save_policy)
+`scores` are Q-values (score_kind "q"), action probabilities ("prob") or votes
+("vote"); an Ensemble averages members' scores and takes the first maximum, as
+of_train's mean-Q ensemble does. Actions are the policy's greedy choice
+(first maximum: Agent::act(o, false); SB3's deterministic predict).
+
+Determinism contract: torch's CPU GEMM gives batch-LAYOUT-dependent last bits
+(measured with the venv's torch: a row's scores alone, or as row 5 of a 5-row
+batch, can differ from the same row inside a 300-row batch; padding to a
+minimum row count does not remove it). Every evaluation here plays one indexed
+source in one lockstep batch (n = source.count), so scoring the same policy on
+the same source is bitwise repeatable (checked: select's determinism record,
+R8), but the same policy on a different batch layout (e.g. one replay window,
+or n_envs=1) may differ in the last bits of its scores and, at exact ties, in
+an action. Compare such results paired, never bit for bit.
+"""
+import copy
+import importlib
+import json
+from pathlib import Path
+
+import numpy as np
+
+from . import native
+
+TYPES = {}
+
+
+def register(cls):
+    TYPES[cls.type] = cls
+    return cls
+
+
+def first_max(scores: np.ndarray) -> np.ndarray:
+    return np.argmax(scores, axis=1).astype(np.int64)
+
+
+class FrozenPolicy:
+    type = "base"
+    score_kind = "q"
+
+    def reset(self, n: int):
+        pass
+
+    def step(self, obs: np.ndarray):
+        raise NotImplementedError
+
+    def display_scores(self, obs, scores):
+        """What the live viewer plots as qs/qf/ql (Q-values, log-probabilities or model scores)."""
+        if self.score_kind == "prob":
+            return np.log(np.maximum(scores, 1e-12))
+        return scores
+
+    def save(self, d: Path) -> dict:
+        raise NotImplementedError
+
+    @classmethod
+    def load(cls, d: Path, meta: dict):
+        raise NotImplementedError
+
+
+def save_policy(policy: FrozenPolicy, d: Path, extra: dict | None = None) -> dict:
+    d = Path(d)
+    d.mkdir(parents=True, exist_ok=True)
+    meta = policy.save(d)
+    files = sorted(p.name for p in d.iterdir() if p.is_file() and p.name not in ("policy.json", "val.json", "worker.log", "metrics.jsonl"))
+    rec = {"type": policy.type, "score_kind": policy.score_kind, "meta": meta,
+           "sha256": {f: native.sha256_file(d / f) for f in files if not f.endswith(".log")}, **(extra or {})}
+    (d / "policy.json").write_text(json.dumps(rec, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    return rec
+
+
+def load_policy(d: Path) -> FrozenPolicy:
+    d = Path(d)
+    rec = json.loads((d / "policy.json").read_text(encoding="utf-8"))
+    for f, h in rec["sha256"].items():
+        if native.sha256_file(d / f) != h:
+            raise RuntimeError(f"{d / f}: artifact changed since it was saved (sha256)")
+    return TYPES[rec["type"]].load(d, rec["meta"])
+
+
+def _torch():
+    import torch
+    return torch
+
+
+def ctor_data(policy) -> dict:
+    """An SB3 policy's constructor parameters (sb3-contrib's recurrent policy omits its LSTM sizes: added here)."""
+    data = policy._get_constructor_parameters()
+    if hasattr(policy, "lstm_actor"):
+        data.update(lstm_hidden_size=policy.lstm_output_dim, n_lstm_layers=policy.lstm_actor.num_layers,
+                    shared_lstm=policy.shared_lstm, enable_critic_lstm=policy.enable_critic_lstm)
+    return data
+
+
+def _class_path(obj) -> str:
+    c = type(obj)
+    return f"{c.__module__}:{c.__qualname__}"
+
+
+def _import(path: str):
+    mod, name = path.split(":")
+    return getattr(importlib.import_module(mod), name)
+
+
+@register
+class SB3ActorCritic(FrozenPolicy):
+    """PPO-style policy (optionally on a frame stack, as VecFrameStack builds it); scores = action probabilities."""
+    type = "sb3_ac"
+    score_kind = "prob"
+
+    def __init__(self, policy, n_stack: int = 1):
+        self.policy = policy
+        self.policy.set_training_mode(False)
+        self.n_stack = int(n_stack)
+        self._stack = None
+
+    def reset(self, n):
+        self._stack = np.zeros((n, 16 * self.n_stack), dtype=np.float32) if self.n_stack > 1 else None
+
+    def _input(self, obs):
+        x = obs.astype(np.float32)
+        if self.n_stack == 1:
+            return x
+        if self._stack is None or self._stack.shape[0] != x.shape[0]:
+            self.reset(x.shape[0])
+        self._stack = np.roll(self._stack, shift=-16, axis=-1)
+        self._stack[:, -16:] = x
+        return self._stack
+
+    def step(self, obs):
+        th = _torch()
+        with th.no_grad():
+            dist = self.policy.get_distribution(th.as_tensor(self._input(obs)))
+            probs = dist.distribution.probs
+            act = th.argmax(probs, dim=1)
+        return act.numpy().astype(np.int64), probs.numpy().astype(np.float64)
+
+    def save(self, d):
+        self.policy.save(str(d / "policy.pt"))
+        return {"class": _class_path(self.policy), "n_stack": self.n_stack}
+
+    @classmethod
+    def load(cls, d, meta):
+        return cls(_import(meta["class"]).load(str(d / "policy.pt"), device="cpu"), meta["n_stack"])
+
+
+@register
+class SB3Recurrent(FrozenPolicy):
+    """RecurrentPPO (LSTM) policy; the actor's LSTM state is carried through the episode."""
+    type = "sb3_recurrent"
+    score_kind = "prob"
+
+    def __init__(self, policy):
+        self.policy = policy
+        self.policy.set_training_mode(False)
+        self._states = None
+        self._first = True
+
+    def reset(self, n):
+        th = _torch()
+        layers, _, hidden = self.policy.lstm_hidden_state_shape
+        z = th.zeros((layers, n, hidden), dtype=th.float32)
+        self._states = (z, z.clone())
+        self._first = True
+
+    def step(self, obs):
+        th = _torch()
+        n = obs.shape[0]
+        if self._states is None or self._states[0].shape[1] != n:
+            self.reset(n)
+        starts = th.full((n,), 1.0 if self._first else 0.0, dtype=th.float32)
+        with th.no_grad():
+            dist, self._states = self.policy.get_distribution(th.as_tensor(obs.astype(np.float32)), self._states, starts)
+            probs = dist.distribution.probs
+            act = th.argmax(probs, dim=1)
+        self._first = False
+        return act.numpy().astype(np.int64), probs.numpy().astype(np.float64)
+
+    def save(self, d):
+        th = _torch()
+        data = ctor_data(self.policy)
+        th.save({"state_dict": self.policy.state_dict(), "data": data}, d / "policy.pt")
+        return {"class": _class_path(self.policy)}
+
+    @classmethod
+    def load(cls, d, meta):
+        saved = _torch().load(d / "policy.pt", map_location="cpu", weights_only=False)
+        pol = _import(meta["class"])(**saved["data"])
+        pol.load_state_dict(saved["state_dict"])
+        return cls(pol)
+
+
+@register
+class SB3Q(FrozenPolicy):
+    """DQN / QR-DQN policy: scores = Q-values (QR-DQN: the mean over quantiles)."""
+    type = "sb3_q"
+    score_kind = "q"
+
+    def __init__(self, policy, quantile: bool = False):
+        self.policy = policy
+        self.policy.set_training_mode(False)
+        self.quantile = bool(quantile)
+
+    def step(self, obs):
+        th = _torch()
+        with th.no_grad():
+            x = th.as_tensor(obs.astype(np.float32))
+            q = self.policy.quantile_net(x).mean(dim=1) if self.quantile else self.policy.q_net(x)
+            act = q.argmax(dim=1)
+        return act.numpy().astype(np.int64), q.numpy().astype(np.float64)
+
+    def save(self, d):
+        self.policy.save(str(d / "policy.pt"))
+        return {"class": _class_path(self.policy), "quantile": self.quantile}
+
+    @classmethod
+    def load(cls, d, meta):
+        return cls(_import(meta["class"]).load(str(d / "policy.pt"), device="cpu"), meta["quantile"])
+
+
+@register
+class MLPStudent(FrozenPolicy):
+    """A small torch MLP (imitation student) on observations; scores = probabilities."""
+    type = "mlp_student"
+    score_kind = "prob"
+
+    def __init__(self, module, hidden):
+        self.module = module.eval()
+        self.hidden = list(hidden)
+
+    @staticmethod
+    def build(hidden):
+        th = _torch()
+        layers, w = [], 16
+        for h in hidden:
+            layers += [th.nn.Linear(w, h), th.nn.Tanh()]
+            w = h
+        layers.append(th.nn.Linear(w, 3))
+        return th.nn.Sequential(*layers)
+
+    def step(self, obs):
+        th = _torch()
+        with th.no_grad():
+            logits = self.module(th.as_tensor(obs.astype(np.float32)))
+            probs = th.softmax(logits, dim=1)
+            act = th.argmax(logits, dim=1)
+        return act.numpy().astype(np.int64), probs.numpy().astype(np.float64)
+
+    def save(self, d):
+        _torch().save(self.module.state_dict(), d / "student.pt")
+        return {"hidden": self.hidden}
+
+    @classmethod
+    def load(cls, d, meta):
+        m = cls.build(meta["hidden"])
+        m.load_state_dict(_torch().load(d / "student.pt", map_location="cpu", weights_only=True))
+        return cls(m, meta["hidden"])
+
+
+@register
+class LGBMThreshold(FrozenPolicy):
+    """Supervised baseline: LightGBM predicts the H-second mid change (ticks) from the 13 features;
+    long above +theta, short below -theta, else keep the position. Scores are votes."""
+    type = "lgbm"
+    score_kind = "vote"
+
+    def __init__(self, booster, theta: float, horizon: int):
+        self.booster = booster
+        self.theta = float(theta)
+        self.horizon = int(horizon)
+        self._last_pred = None
+
+    def predict(self, obs):
+        return self.booster.predict(np.ascontiguousarray(obs[:, :13]), num_threads=1)
+
+    def step(self, obs):
+        from .envs import keep_action
+        r = self.predict(obs)
+        self._last_pred = r
+        a = np.where(r > self.theta, 2, np.where(r < -self.theta, 0, keep_action(obs))).astype(np.int64)
+        s = np.zeros((obs.shape[0], 3))
+        s[np.arange(obs.shape[0]), a] = 1.0
+        return a, s
+
+    def display_scores(self, obs, scores):
+        r = self._last_pred if self._last_pred is not None else self.predict(obs)
+        return np.stack([-r - self.theta, np.zeros_like(r), r - self.theta], axis=1)
+
+    def save(self, d):
+        self.booster.save_model(str(d / "model.txt"))
+        return {"theta": self.theta, "horizon": self.horizon}
+
+    @classmethod
+    def load(cls, d, meta):
+        import lightgbm as lgb
+        return cls(lgb.Booster(model_file=str(d / "model.txt")), meta["theta"], meta["horizon"])
+
+
+@register
+class NeuralQ(FrozenPolicy):
+    """An of_train network (seedK.net + record), loaded through R.NeuralQNet (check_net enforced)."""
+    type = "neuralq"
+    score_kind = "q"
+
+    def __init__(self, net, market: str, warmup: float):
+        self.net = net
+        self.market = market
+        self.warmup = float(warmup)
+
+    @classmethod
+    def from_file(cls, path, market, warmup):
+        return cls(native.load().NeuralQNet.load(str(path), market, float(warmup)), market, warmup)
+
+    def step(self, obs):
+        obs = np.ascontiguousarray(obs, dtype=np.float64)
+        return self.net.act(obs), self.net.q(obs)
+
+    def save(self, d):
+        import shutil
+        src = Path(self.net.path)
+        if src.resolve() != (d / "seed.net").resolve():
+            shutil.copy2(src, d / "seed.net")
+            shutil.copy2(src.with_suffix(".txt"), d / "seed.txt")
+        return {"market": self.market, "warmup": self.warmup, "source": str(src)}
+
+    @classmethod
+    def load(cls, d, meta):
+        return cls.from_file(d / "seed.net", meta["market"], meta["warmup"])
+
+
+@register
+class Ensemble(FrozenPolicy):
+    """Mean of the members' scores (Q-values, probabilities or votes), first maximum."""
+    type = "ensemble"
+
+    def __init__(self, members):
+        kinds = {m.score_kind for m in members}
+        if len(kinds) != 1:
+            raise ValueError(f"an ensemble needs members of one score kind, got {kinds}")
+        self.members = list(members)
+        self.score_kind = kinds.pop()
+
+    def reset(self, n):
+        for m in self.members:
+            m.reset(n)
+
+    def step(self, obs):
+        s = None
+        for m in self.members:
+            _, sm = m.step(obs)
+            s = sm.copy() if s is None else s + sm
+        s /= len(self.members)
+        return first_max(s), s
+
+    def save(self, d):
+        metas = []
+        for i, m in enumerate(self.members):
+            sub = Path(d) / f"m{i}"
+            metas.append(save_policy(m, sub))
+        return {"members": len(metas)}
+
+    @classmethod
+    def load(cls, d, meta):
+        return cls([load_policy(Path(d) / f"m{i}") for i in range(meta["members"])])
+
+
+def freeze_module(module):
+    """A detached copy of a torch module (a frozen snapshot of a learner)."""
+    m = copy.deepcopy(module)
+    for p in m.parameters():
+        p.requires_grad_(False)
+    return m
+
+```
+
+
+---
+
+## FILE: python\ragrl\redflags.py  (9,157 bytes)
+
+```python
+"""Automatic red flags on a sealed run (redflags.json, STATUS, top of report.md).
+
+hard (STATUS=RED_FLAGS)
+  R1  annualized Sharpe > 5 for a non-oracle policy that trades >= 2 orders/episode (OF8); below
+      2 orders/episode (the oracles' R6 rule) it is reported as the warning R1v (vacuous)
+  R2  a learned policy above 0 AND above the validation-best oracle by 2 paired SE (OF9)
+  R2g a learned policy's GROSS (net + fees) above the highest-gross oracle threshold by 2 paired SE,
+      whatever the sign of its net (a leak that fees hide)
+  R5  a naive built-in rule (delta30, rules, hold) net > 0 by 2 SE: the simulator is too easy (OF4)
+  R8  nondeterminism: evaluation not bitwise repeatable, or a retrained seed differs (recheck.json)
+  R10 ledger audit: more than one sealed opening of the test block for this run, or a sealed
+      opening logged outside the canonical usage ledger ($RAGRL_LEDGER_FILE)
+claim (STATUS=CLAIM_PENDING_950M_CONFIRMATION unless a hard flag fired)
+  R3  a learned policy or the headline net > 0 by 2 SE on the sealed test: only the
+      orchestrator may run `ragrl confirm` (950M+, once per claim); the pipeline never does
+warnings
+  R2w a learned policy's paired mean above the best oracle's (any margin)
+  R4  validation -> test collapse (OF7): val_select net > 0 by 2 SE but test < 0.5 x val or test t < 1;
+      or a val lead over delta30 (2 SE) not reproduced on test
+  R1v R1's Sharpe > 5 on a near-flat policy (< 2 orders/episode): vacuous, not an edge
+  R6  the best oracle trades < 2 orders/episode: the oracle bound is uninformative (OF10)
+  R7  hidden-state leak probe: |corr(obs_k, gap)| > 0.5 on train episodes (diag.json)
+  R9  the headline's t below the multiplicity bar t_req = 2 + sqrt(2 ln M), M = the run's validation
+      choices x score.family_size (every run pre-registered on the range) x (1 + earlier outside views)
+  R11 days / stress not run by the pipeline (orchestrator only)
+  R12 the sealed range was viewed before (--reuse-ok): comparable only, not a fresh test
+dry runs (viz) never claim: STATUS is DRY_RUN_OK or DRY_RUN_RED_FLAGS, R3 becomes a warning.
+"""
+import math
+
+from . import ledger, registry, stats
+
+NAIVE = ("delta30", "hold")
+MIN_ORDERS = 2.0  # orders/episode below which a policy's Sharpe or an oracle's bound says nothing (R1v, R6)
+
+
+def vacuous(s: dict) -> bool:
+    """A summary row whose policy trades < MIN_ORDERS orders per episode (near-flat)."""
+    return s.get("orders") is not None and s["orders"] < MIN_ORDERS
+
+
+def _n(x, nd=2):
+    return "n/a" if x is None or (isinstance(x, float) and math.isnan(x)) else f"{x:.{nd}f}"
+
+
+def _gt(x, y):
+    return x is not None and y is not None and not (isinstance(x, float) and math.isnan(x)) and x > y
+
+
+def evaluate(run_dir) -> dict:
+    sealed = registry.read_json(run_dir / "sealed.json")
+    sel = registry.read_json(run_dir / "select.json")
+    S = sealed["summary"]
+    learned = sealed["learned"]
+    hard, claim, warn = [], [], []
+    for k, s in S.items():
+        if not k.startswith("oracle_") and _gt(s.get("sharpe_annual"), 5.0):
+            if vacuous(s):  # a (near-)flat policy: a tiny mean over a tinier SD, not an edge
+                warn.append({"id": "R1v", "policy": k, "detail": f"annualized Sharpe {s['sharpe_annual']:.2f} > 5 is vacuous: "
+                                                                 f"{s['orders']:.2f} orders/episode < {MIN_ORDERS:g}"})
+            else:
+                hard.append({"id": "R1", "policy": k, "detail": f"annualized Sharpe {s['sharpe_annual']:.2f} > 5"})
+    bo = sel.get("best_oracle")
+    if bo and bo in sealed["paired"]:
+        for k in learned:
+            d = sealed["paired"][bo][k]
+            if S[k]["mean"] > 0 and _gt(d["t"], 2.0):
+                hard.append({"id": "R2", "policy": k, "detail": f"beats the validation-best oracle {bo} by {d['mean']:+.2f} (t {d['t']:.1f})"})
+            elif d["mean"] > 0:
+                warn.append({"id": "R2w", "policy": k, "detail": f"paired mean above {bo} ({d['mean']:+.2f}); the oracle loses after costs here"})
+    G = sealed.get("gross") or {}
+    og = [o for o in sealed.get("paired_gross", {}) if o in G]
+    if og:
+        top = max(og, key=lambda o: G[o]["mean"])
+        for k in learned:
+            d = sealed["paired_gross"][top][k]
+            if _gt(d["t"], 2.0):
+                hard.append({"id": "R2g", "policy": k, "detail": f"gross {G[k]['mean']:+.2f} beats the highest-gross oracle {top} "
+                                                                  f"({G[top]['mean']:+.2f}) by {d['mean']:+.2f} (t {d['t']:.1f})"})
+    for k in [*learned]:
+        if S[k]["mean"] > 0 and _gt(S[k]["t"], 2.0):
+            claim.append({"id": "R3", "policy": k, "detail": f"net {S[k]['mean']:+.2f} ticks/episode, t {S[k]['t']:.1f} on {sealed['block']}"})
+    for k in S:
+        if (k in NAIVE or k.startswith("rule_")) and S[k]["mean"] > 0 and _gt(S[k]["t"], 2.0):
+            hard.append({"id": "R5", "policy": k, "detail": f"naive rule net {S[k]['mean']:+.2f} (t {S[k]['t']:.1f}): simulator too easy?"})
+    V = sel["summary"]
+    for k in learned:
+        if k in V and V[k]["mean"] > 0 and _gt(V[k]["t"], 2.0) and (S[k]["mean"] < 0.5 * V[k]["mean"] or not _gt(S[k]["t"], 1.0)):
+            warn.append({"id": "R4", "policy": k, "detail": f"validation {V[k]['mean']:+.2f} (t {V[k]['t']:.1f}) -> test {S[k]['mean']:+.2f}"})
+        vp = sel.get("paired", {}).get("delta30", {}).get(k)
+        tp = sealed["paired"].get("delta30", {}).get(k)
+        if vp and tp and vp["mean"] > 0 and _gt(vp["t"], 2.0) and tp["mean"] <= 0:
+            warn.append({"id": "R4", "policy": k, "detail": f"validation lead over delta30 {vp['mean']:+.2f} not reproduced on test ({tp['mean']:+.2f})"})
+    if bo and bo in S and vacuous(S[bo]):
+        warn.append({"id": "R6", "policy": bo, "detail": f"oracle trades {S[bo]['orders']:.1f} orders/episode: bound uninformative"})
+    diag = run_dir / "diag.json"
+    if diag.exists():
+        dj = registry.read_json(diag)
+        if dj["max_abs"] > 0.5:
+            k = max(range(len(dj["corr_obs_gap"])), key=lambda i: abs(dj["corr_obs_gap"][i]))
+            warn.append({"id": "R7", "policy": f"obs[{k}]", "detail": f"|corr(obs, hidden gap)| = {dj['max_abs']:.2f} > 0.5"})
+    det = sel.get("determinism", {})
+    if det and not (det.get("same_twice") and det.get("same_as_worker")):
+        hard.append({"id": "R8", "policy": f"seed{det.get('seed')}", "detail": f"evaluation not bitwise repeatable: {det}"})
+    rc = run_dir / "recheck.json"
+    if rc.exists():
+        r = registry.read_json(rc)
+        if not (r["same_actions"] and r["same_val"]):
+            hard.append({"id": "R8", "policy": f"seed{r['seed']}", "detail": "a retrained seed differs from the original (recheck.json)"})
+    reuse = sealed.get("range_reuse") or {}
+    outside = len(reuse.get("outside_family", [])) + len(reuse.get("previewed", [])) + int(reuse.get("family_over", 0))
+    M_run = sel.get("multiplicity", 1)
+    M = int(M_run * int(sealed.get("family_size", 1)) * (1 + outside))
+    t_req = stats.t_required(M)
+    h = S[sealed["headline"]]
+    if not _gt(h["t"], t_req):
+        warn.append({"id": "R9", "policy": sealed["headline"], "detail": f"headline t {_n(h['t'])} below t_req {t_req:.2f} (M = {M}): no edge claim"})
+    if not sealed.get("dry_run"):
+        opened = [u for u in ledger.read_usage() if u.get("run") == run_dir.name and u.get("block") == "test" and not u.get("dry_run")]
+        if len(opened) > 1:
+            hard.append({"id": "R10", "policy": "-", "detail": f"the test block was opened {len(opened)} times for this run"})
+        if sealed.get("ledger_canonical") is False:
+            hard.append({"id": "R10", "policy": "-", "detail": "the sealed opening was logged outside the canonical usage ledger"})
+    if reuse.get("reused"):
+        warn.append({"id": "R12", "policy": "-", "detail": f"the sealed range was viewed before ({len(reuse.get('previewed', []))} pre-viewed, "
+                                                           f"{len(reuse.get('outside_family', []))} outside the family, "
+                                                           f"{reuse.get('family_over', 0)} beyond family_size): comparable only"})
+    warn.append({"id": "R11", "policy": "-", "detail": "days / stress not run (orchestrator only)"})
+    if sealed.get("dry_run"):
+        warn += [dict(c, id="R3", detail="(dry run: not a claim) " + c["detail"]) for c in claim]
+        claim = []
+        status = "DRY_RUN_RED_FLAGS" if hard else "DRY_RUN_OK"
+    else:
+        status = "RED_FLAGS" if hard else "CLAIM_PENDING_950M_CONFIRMATION" if claim else "NO_EDGE"
+    out = {"status": status, "hard": hard, "claim": claim, "warnings": warn, "t_required": t_req, "multiplicity": M,
+           "multiplicity_run": M_run, "family_size": int(sealed.get("family_size", 1)),
+           "note": "R3 claims go to the orchestrator: `ragrl confirm RUN --i-am-the-orchestrator --claim ID` (950M+, once per claim)."}
+    registry.write_json(run_dir / "redflags.json", registry.finite(out))
+    (run_dir / "STATUS").write_text(status + "\n", encoding="utf-8")
+    return out
+
+```
+
+
+---
+
+## FILE: python\ragrl\registry.py  (7,380 bytes)
+
+```python
+"""Run registry: build-avx512/rl/runs/<name>-<utcstamp>-<sha7>/ (root: $RAGRL_ROOT).
+
+Each run directory holds:
+    config.json, config.sha256    the resolved config (write-once)
+    provenance.json               git sha, dirty-diff / status sha1, ragrl code sha256, venv freeze sha256,
+                                  module sha256, versions, argv, cpu (checked again at seal / confirm)
+    baselines/                    copies of the baseline of_train nets (sha256 in baselines.json)
+    bin/                          the _ragof module (and of_train.exe) the run imports / runs
+    metrics.jsonl                 typed records (train, val, select, timing, ...)
+    seeds/seedK/                  policy.json + artifacts, val.json, worker.log
+    select.json                   validation-only selection (val_select), the declared headline
+    live.jsonl                    the live-viewer stream (tools/of_train_live.py)
+    sealed.json, sealed_episodes.npz   write-once scoring
+    redflags.json, report.md, STATUS
+Global: runs/index.jsonl; the usage ledger is build-avx512/rl/ledger_usage.jsonl (ledger.py).
+"""
+import hashlib
+import json
+import os
+import platform
+import shutil
+import subprocess
+import sys
+import threading
+import time
+from importlib import metadata
+from pathlib import Path
+
+from . import native
+
+REPO = native.REPO
+
+
+def rl_root() -> Path:
+    return Path(os.environ.get("RAGRL_ROOT", REPO / "build-avx512" / "rl"))
+
+
+def runs_root() -> Path:
+    return rl_root() / "runs"
+
+
+def _git(*args) -> str:
+    try:
+        return subprocess.run(["git", *args], cwd=REPO, capture_output=True, text=True, timeout=60).stdout
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def freeze_sha256() -> tuple[str, list[str]]:
+    """sha256 of the venv's installed distributions (name==version, sorted): the 'pip freeze' hash."""
+    pins = sorted({f"{(d.metadata['Name'] or '').lower()}=={d.version}" for d in metadata.distributions()})
+    return hashlib.sha256("\n".join(pins).encode()).hexdigest(), pins
+
+
+PKG_DIR = Path(__file__).resolve().parent
+
+
+def code_sha256(pkg: Path = PKG_DIR) -> str:
+    """sha256 over the ragrl package's own *.py files (sorted relative paths + contents): the
+    pipeline code that trains, evaluates and scores. Checked again at seal / confirm."""
+    h = hashlib.sha256()
+    for f in sorted(pkg.rglob("*.py"), key=lambda p: p.relative_to(pkg).as_posix()):
+        h.update(f.relative_to(pkg).as_posix().encode() + b"\0")
+        h.update(f.read_bytes() + b"\0")
+    return h.hexdigest()
+
+
+def provenance(bin_dir: Path, source_dir: Path | None = None) -> dict:
+    sha = _git("rev-parse", "HEAD").strip()
+    diff = _git("diff", "HEAD")
+    status = _git("status", "--porcelain", "--untracked-files=all")
+    fz, pins = freeze_sha256()
+    mod = native.find_module(bin_dir)
+    versions = {}
+    for name in ["torch", "numpy", "gymnasium", "stable-baselines3", "sb3-contrib", "lightgbm", "optuna"]:
+        try:
+            versions[name] = metadata.version(name)
+        except metadata.PackageNotFoundError:
+            versions[name] = None
+    return {
+        "git_sha": sha,
+        "dirty": bool(status.strip()),
+        "dirty_diff_sha1": hashlib.sha1(diff.encode()).hexdigest() if diff else "",
+        "status_sha1": hashlib.sha1(status.encode()).hexdigest() if status else "",  # includes untracked files
+        "ragrl_sha256": code_sha256(),
+        "ragrl_dir": str(PKG_DIR),
+        "freeze_sha256": fz,
+        "module": mod.name,
+        "module_sha256": native.sha256_file(mod),
+        "module_build_info": dict(native.load().BUILD_INFO) if hasattr(native.load(), "BUILD_INFO") else {},
+        "source_module_dir": str(source_dir if source_dir is not None else _module_source(bin_dir)),
+        "versions": versions,
+        "python": sys.version.split()[0],
+        "platform": platform.platform(),
+        "cpu": platform.processor(),
+        "cpu_count": os.cpu_count(),
+        "argv": sys.argv,
+    }
+
+
+def _module_source(bin_dir: Path) -> str:
+    f = Path(bin_dir).parent / "module_source.txt"
+    return f.read_text(encoding="utf-8").strip() if f.exists() else str(native.ragof_dir())
+
+
+def new_run(cfg: dict, cfg_sha: str, root: Path | None = None) -> Path:
+    """Creates the run directory, copies the module (and of_train.exe if present) into bin/;
+    module_source.txt records where they came from (the snapshot)."""
+    root = root or runs_root()
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    sha7 = (_git("rev-parse", "--short=7", "HEAD").strip() or "nogit")
+    run = root / f"{cfg['name']}-{stamp}-{sha7}"
+    k = 1
+    while run.exists():
+        k += 1
+        run = root / f"{cfg['name']}-{stamp}-{sha7}-{k}"
+    (run / "bin").mkdir(parents=True)
+    (run / "seeds").mkdir()
+    src = native.ragof_dir()
+    shutil.copy2(native.find_module(src), run / "bin")
+    for exe in ["of_train.exe", "of_train"]:
+        if (src / exe).exists():
+            shutil.copy2(src / exe, run / "bin")
+    (run / "module_source.txt").write_text(str(src.resolve()) + "\n", encoding="utf-8")
+    return run
+
+
+def write_json(path: Path, obj, once: bool = False):
+    path = Path(path)
+    if once and path.exists():
+        raise FileExistsError(f"{path} exists (write-once)")
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(obj, indent=1, sort_keys=True, allow_nan=False, default=_default) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def read_json(path: Path):
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def _default(x):
+    import numpy as np
+    if isinstance(x, np.generic):
+        return x.item()
+    if isinstance(x, np.ndarray):
+        return x.tolist()
+    if isinstance(x, Path):
+        return str(x)
+    raise TypeError(f"not JSON: {type(x)}")
+
+
+def finite(x):
+    """NaN/inf -> None, recursively (JSON has no NaN)."""
+    import math
+    if isinstance(x, float):
+        return x if math.isfinite(x) else None
+    if isinstance(x, dict):
+        return {k: finite(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return [finite(v) for v in x]
+    return x
+
+
+class Metrics:
+    """Appends typed JSON records to metrics.jsonl (thread-safe, flushed)."""
+
+    def __init__(self, path: Path, **tags):
+        self.path = Path(path)
+        self.tags = tags
+        self._lock = threading.Lock()
+
+    def write(self, rtype: str, **fields):
+        rec = {"type": rtype, **self.tags, **fields}
+        line = json.dumps(finite(rec), sort_keys=True, default=_default, allow_nan=False)
+        with self._lock, open(self.path, "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+
+
+def read_metrics(run: Path, rtype: str | None = None) -> list[dict]:
+    out = []
+    files = [run / "metrics.jsonl"] + sorted((run / "seeds").glob("seed*/metrics.jsonl"))
+    for f in files:
+        if f.exists():
+            for line in f.read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    r = json.loads(line)
+                    if rtype is None or r.get("type") == rtype:
+                        out.append(r)
+    return out
+
+
+def append_index(run: Path, entry: dict):
+    idx = run.parent / "index.jsonl"
+    with open(idx, "a", encoding="utf-8") as f:
+        f.write(json.dumps({"run": run.name, **entry}, sort_keys=True, default=_default) + "\n")
+
+```
+
+
+---
+
+## FILE: python\ragrl\report.py  (7,667 bytes)
+
+```python
+"""report.md, regenerated from config.json, provenance.json, select.json, sealed.json,
+redflags.json and the seeds' val.json (no environment).
+
+report.md (in the run) has wall-clock timings and provenance (git, module and venv
+hashes); report_results.md leaves them out, so it is byte-identical when the same
+experiment is regenerated: that is the copy committed as experiments/of15_*.txt."""
+from pathlib import Path
+
+from . import registry, stats
+
+
+def _f(x, nd=2, sign=True):
+    if x is None:
+        return "-"
+    try:
+        return f"{x:+.{nd}f}" if sign else f"{x:.{nd}f}"
+    except (TypeError, ValueError):
+        return str(x)
+
+
+def _table(summary: dict, names) -> list[str]:
+    out = ["| policy | mean ticks/ep | SE | t | win % | orders/ep | fees/ep | Sharpe (ann.) |", "|---|---|---|---|---|---|---|---|"]
+    for k in names:
+        s = summary[k]
+        out.append(f"| {k} | {_f(s['mean'])} | {_f(s['se'], 2, False)} | {_f(s['t'], 1)} | {100 * s['win']:.0f} | {s['orders']:.1f} | "
+                   f"{s['fees']:.2f} | {_f(s['sharpe_annual'], 1)} |")
+    return out
+
+
+def render(run_dir: Path, deterministic: bool = False) -> str:
+    run_dir = Path(run_dir)
+    cfg = registry.read_json(run_dir / "config.json")
+    prov = registry.read_json(run_dir / "provenance.json")
+    sel = registry.read_json(run_dir / "select.json")
+    sealed = registry.read_json(run_dir / "sealed.json") if (run_dir / "sealed.json").exists() else None
+    flags = registry.read_json(run_dir / "redflags.json") if (run_dir / "redflags.json").exists() else None
+    L = [f"# {cfg['name']} ({cfg['agent']['kind']})", ""]
+    if flags:
+        L += [f"**STATUS: {flags['status']}**", ""]
+        for grp, title in (("hard", "Red flags"), ("claim", "Claims (orchestrator: 950M+ confirmation)"), ("warnings", "Warnings")):
+            if flags[grp]:
+                L.append(f"{title}:")
+                L += [f"- {x['id']} {x['policy']}: {x['detail']}" for x in flags[grp]]
+                L.append("")
+    if sealed and sealed.get("dry_run"):
+        L += ["**DRY RUN: scored on the visualization block (960M+), not the sealed test. Not a result.**", ""]
+    t, e = cfg["train"], cfg["env"]
+    L += [f"market {e['market']}, warm-up {e['warmup_seconds']:g} s, latency {e['latency_steps']}, fee ${e['fee_dollars']:g}, "
+          f"{e['contracts']} contract(s); seeds {t['seeds']}; {t['episodes']} episodes ({t['env_steps']} decisions) per seed"
+          + (" (budget rounded up to whole rounds)" if t["budget_rounded"] else "") + f", n_envs {t['n_envs']}.",
+          f"agent params: `{cfg['agent']['params']}`", "",
+          f"Selection: champions on validation [{cfg['select']['val_ckpt']['first']}, +{cfg['select']['val_ckpt']['count']}) "
+          f"every {cfg['select']['every_steps']} steps; comparisons on val_select [{cfg['val_select']['first']}, "
+          f"+{cfg['val_select']['count']}); headline declared before training: **{cfg['score']['headline']}**; "
+          f"multiplicity M = {sel['multiplicity']} per run"
+          + (f", x family_size {flags['family_size']} -> M = {flags['multiplicity']} (t_req {flags['t_required']:.2f})."
+             if flags and "family_size" in flags else f" (t_req {stats.t_required(sel['multiplicity']):.2f})."), ""]
+    if sealed:
+        names = [*sealed["learned"], *sealed["baselines"]]
+        reused = bool((sealed.get("range_reuse") or {}).get("reused"))
+        title = "Dry run (viz)" if sealed["dry_run"] else "REUSED test range (comparable only, not a fresh test)" if reused else "Sealed test"
+        L += [f"## {title}: {sealed['block']} [{sealed['first']}, +{sealed['count']}), paired (every policy plays the same episodes)", ""]
+        L += _table(sealed["summary"], names)
+        L += ["", f"Paired differences (row - reference), 95% bootstrap CI (B = {sealed['bootstrap']['B']}, seed {sealed['bootstrap']['seed']}):", "",
+              "| policy | reference | mean | SE | t | 95% CI |", "|---|---|---|---|---|---|"]
+        for ref, rows in sealed["paired"].items():
+            for k, d in rows.items():
+                ci = d.get("ci95") or [None, None]
+                L.append(f"| {k} | {ref} | {_f(d['mean'])} | {_f(d['se'], 2, False)} | {_f(d['t'], 1)} | [{_f(ci[0])}, {_f(ci[1])}] |")
+        L.append("")
+        if sealed.get("paired_gross"):
+            G = sealed["gross"]
+            L += ["Gross (before fees) per episode: " + ", ".join(f"{k} {_f(G[k]['mean'])}" for k in [*sealed["learned"], *sealed["paired_gross"]]),
+                  "", "Paired gross differences against every oracle threshold (row - oracle):", "",
+                  "| policy | oracle | mean | SE | t | 95% CI |", "|---|---|---|---|---|---|"]
+            for o, rows in sealed["paired_gross"].items():
+                for k, d in rows.items():
+                    ci = d.get("ci95") or [None, None]
+                    L.append(f"| {k} | {o} | {_f(d['mean'])} | {_f(d['se'], 2, False)} | {_f(d['t'], 1)} | [{_f(ci[0])}, {_f(ci[1])}] |")
+            L.append("")
+    L += [f"## Validation (val_select [{cfg['val_select']['first']}, +{cfg['val_select']['count']}))", ""]
+    vnames = [k for k in sel["summary"]]
+    L += _table(sel["summary"], vnames)
+    L += ["", f"Validation-best oracle: {sel['best_oracle']}", "", "## Seeds", "",
+          "| seed | val_ckpt (champion) | val_select | test | offers | champion step |" + ("" if deterministic else " train s | eval s |"),
+          "|---|---|---|---|---|---|" + ("" if deterministic else "---|---|")]
+    for s in t["seeds"]:
+        v = registry.read_json(run_dir / "seeds" / f"seed{s}" / "val.json")
+        k = f"seed{s}"
+        test = _f(sealed["summary"][k]["mean"]) if sealed else "-"
+        L.append(f"| {s} | {_f(v['val_ckpt_mean'])} | {_f(sel['summary'][k]['mean'])} | {test} | {v['offers']} | {v['champion_step']} |"
+                 + ("" if deterministic else f" {v['train_seconds']:.0f} | {v['eval_seconds']:.0f} |"))
+        if v.get("extra"):
+            extra = {a: b for a, b in v["extra"].items() if a not in ("record", "net")}
+            if extra:
+                L.append(f"|  | extra: `{extra}` | | | | |" + ("" if deterministic else " | |"))
+    det = sel.get("determinism", {})
+    L += ["", f"Evaluation determinism (seed {det.get('seed')} champion on val_ckpt, twice and vs its worker): "
+          f"{det.get('same_twice')} / {det.get('same_as_worker')}.", ""]
+    if deterministic:
+        L += [f"Config sha256 {(run_dir / 'config.sha256').read_text(encoding='utf-8').strip()}; versions {prov['versions']}; "
+              "timings and binary provenance are in the run's report.md.", ""]
+    else:
+        L += ["## Provenance", "", f"- git {prov['git_sha']}{' (dirty, diff sha1 ' + prov['dirty_diff_sha1'] + ')' if prov['dirty'] else ''}",
+              f"- ragrl code sha256 {prov.get('ragrl_sha256', '-')}",
+              f"- module {prov['module']} sha256 {prov['module_sha256']} (from {prov.get('source_module_dir', '-')})",
+              f"- venv freeze sha256 {prov['freeze_sha256']}",
+              f"- versions {prov['versions']}, python {prov['python']}",
+              f"- config sha256 {(run_dir / 'config.sha256').read_text(encoding='utf-8').strip()}", ""]
+    L += ["Simulator results only: an edge must survive the orchestrator's 950M+ confirmation and recorded-tick replay "
+          "(of_backtest / VecReplayEnv) before it is trusted."]
+    return "\n".join(L) + "\n"
+
+
+def write(run_dir: Path):
+    (Path(run_dir) / "report.md").write_text(render(run_dir), encoding="utf-8", newline="\n")
+    (Path(run_dir) / "report_results.md").write_text(render(run_dir, deterministic=True), encoding="utf-8", newline="\n")
+
+```
+
+
+---
+
+## FILE: python\ragrl\runner.py  (20,234 bytes)
+
+```python
+"""The experiment protocol: train (K worker processes) -> select (validation
+only) -> seal (a fresh scorer process, once) -> red flags -> report.
+
+    run      parent: forbid_sealed(); copies the module into RUN/bin; prepare;
+             workers; diag; select; then `ragrl seal RUN` as a subprocess.
+    select   val_select = validation[first, +count) (disjoint from val_ckpt):
+             every seed champion, the ensemble and the baselines, paired; the
+             validation-best oracle; evaluation determinism (bitwise); M.
+    seal     fresh process: refuses if sealed.json exists, checks the module
+             and venv against provenance, opens the test block (ledger.py),
+             paired evaluation of all policies, sealed.json (write-once).
+    confirm  950M+ (orchestrator only, once per claim id); the pipeline never runs it.
+"""
+import copy
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import numpy as np
+
+from . import config, ledger, native, redflags, registry, report, stats
+from .agents import ZOO
+from .envs import indexed_source
+from .evaluate import Builtin, baseline_policies, paired_eval, run_policy, stage_baselines
+from .policies import Ensemble, load_policy
+from .worker import setup_torch
+
+PYTHON_DIR = Path(__file__).resolve().parents[1]
+
+
+def use_run_module(run: Path):
+    """Imports _ragof from RUN/bin (must be called before the first native.load() in this process)."""
+    if native._R is not None and Path(native._R.__file__).parent.resolve() != (run / "bin").resolve():
+        raise RuntimeError("_ragof was already imported from elsewhere in this process")
+    os.environ["RAGOF_DIR"] = str(run / "bin")
+
+
+def child_env(run: Path, torch_threads: int = 1) -> dict:
+    env = os.environ.copy()
+    env["RAGOF_DIR"] = str(run / "bin")
+    env["PYTHONPATH"] = str(PYTHON_DIR) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+    for k in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
+        env[k] = str(torch_threads)
+    env["PYTHONHASHSEED"] = "0"
+    return env
+
+
+def spawn_workers(run: Path, cfg: dict, seeds, out_root: Path | None = None, on_poll=None) -> bool:
+    """Trains `seeds` in parallel worker processes (at most train.workers at a time). on_poll() -> False aborts."""
+    t = cfg["train"]
+    env = child_env(run, t["torch_threads"])
+    pending, running = list(seeds), {}
+    try:
+        while pending or running:
+            while pending and len(running) < t["workers"]:
+                k = pending.pop(0)
+                sd = (out_root or run / "seeds") / f"seed{k}"
+                sd.mkdir(parents=True, exist_ok=True)
+                log = open(sd / "worker.log", "w", encoding="utf-8")
+                cmd = [sys.executable, "-m", "ragrl", "train", str(run), "--seed", str(k)]
+                if out_root is not None:
+                    cmd += ["--out-dir", str(sd)]
+                running[k] = (subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, env=env, cwd=native.REPO), log, sd)
+            for k in list(running):
+                proc, log, sd = running[k]
+                rc = proc.poll()
+                if rc is None:
+                    continue
+                log.close()
+                del running[k]
+                if rc != 0:
+                    tail = (sd / "worker.log").read_text(encoding="utf-8", errors="replace")[-3000:]
+                    raise RuntimeError(f"worker seed {k} failed ({rc}):\n{tail}")
+            if on_poll is not None and on_poll() is False:
+                return False
+            time.sleep(0.3)
+        return True
+    finally:
+        for proc, log, _ in running.values():
+            proc.kill()
+            proc.wait()
+            log.close()
+
+
+def run(cfg_path, no_seal: bool = False, root: Path | None = None, reuse_ok: bool = False) -> Path:
+    cfg = config.load(cfg_path)
+    sha = config.sha256(cfg)
+    run_dir = registry.new_run(cfg, sha, root)
+    use_run_module(run_dir)
+    ledger.as_trainer()  # this process never opens a sealed block
+    setup_torch(cfg["train"]["torch_threads"])  # evaluation with the workers' torch threads
+    config.dump(cfg, run_dir / "config.json")
+    (run_dir / "config.sha256").write_text(sha + "\n", encoding="utf-8")
+    registry.write_json(run_dir / "provenance.json", registry.provenance(run_dir / "bin"))
+    stage_baselines(cfg, run_dir)
+    metrics = registry.Metrics(run_dir / "metrics.jsonl")
+    print(f"run {run_dir}", flush=True)
+    t0 = time.perf_counter()
+    spec = ZOO[cfg["agent"]["kind"]]
+    if spec.prepare:
+        spec.prepare(cfg, run_dir)
+    spawn_workers(run_dir, cfg, cfg["train"]["seeds"])
+    metrics.write("timing", phase="train", seconds=time.perf_counter() - t0)
+    t1 = time.perf_counter()
+    diag(run_dir, cfg)
+    select(run_dir)
+    metrics.write("timing", phase="select", seconds=time.perf_counter() - t1)
+    if cfg["train"]["recheck"]:
+        t2 = time.perf_counter()
+        rc = recheck(run_dir)
+        metrics.write("timing", phase="recheck", seconds=time.perf_counter() - t2)
+        print(f"recheck seed {rc['seed']}: same actions {rc['same_actions']}, same val {rc['same_val']}", flush=True)
+    registry.append_index(run_dir, {"config_sha256": sha, "agent": cfg["agent"]["kind"], "stage": "selected"})
+    if not no_seal:
+        cmd = [sys.executable, "-m", "ragrl", "seal", str(run_dir)] + (["--reuse-ok"] if reuse_ok else [])
+        p = subprocess.run(cmd, env=child_env(run_dir), cwd=native.REPO)
+        if p.returncode != 0:
+            raise RuntimeError(f"seal failed ({p.returncode})")
+    return run_dir
+
+
+def diag(run_dir: Path, cfg: dict, episodes: int = 20):
+    """R7 probe: |corr(obs_k, hidden gap)| per observation column on train-stream episodes (privileged, train block)."""
+    R = native.load()
+    params = config.make_params(cfg["env"])
+    n = min(episodes, 20)
+    env = R.VecScalpEnv(params, R.EpisodeSource.train(int(cfg["train"]["seeds"][0])), n_envs=n, threads=min(8, n), privileged=True)
+    obs = env.reset()
+    xs, gs = [], []
+    flat = np.ones(n, dtype=np.int64)
+    while True:
+        xs.append(obs)
+        gs.append(env.priv[:, 2])
+        obs, _, done = env.step(flat)
+        if done[0]:
+            break
+    X = np.concatenate(xs)
+    g = np.concatenate(gs)
+    corr = []
+    for k in range(X.shape[1]):
+        sx = X[:, k].std()
+        corr.append(float(np.corrcoef(X[:, k], g)[0, 1]) if sx > 0 and g.std() > 0 else 0.0)
+    out = {"episodes": n, "rows": int(len(g)), "corr_obs_gap": corr, "max_abs": float(np.max(np.abs(corr)))}
+    registry.write_json(run_dir / "diag.json", out)
+    return out
+
+
+def seed_dirs(run_dir: Path, cfg: dict):
+    return {int(s): run_dir / "seeds" / f"seed{s}" for s in cfg["train"]["seeds"]}
+
+
+def learned_policies(run_dir: Path, cfg: dict) -> dict:
+    pols = {f"seed{s}": load_policy(d) for s, d in seed_dirs(run_dir, cfg).items()}
+    members = list(pols.values())
+    if len(members) > 1:
+        # the ensemble needs its own member instances (memory agents keep per-episode state)
+        pols["ensemble"] = Ensemble([load_policy(d) for d in seed_dirs(run_dir, cfg).values()])
+    else:
+        pols["ensemble"] = load_policy(next(iter(seed_dirs(run_dir, cfg).values())))
+    return pols
+
+
+def multiplicity(run_dir: Path, cfg: dict) -> int:
+    vals = [registry.read_json(d / "val.json") for d in seed_dirs(run_dir, cfg).values()]
+    return int(max(v["offers"] for v in vals) * max(v["choices_per_seed"] for v in vals) * cfg["select"]["multiplicity_extra"])
+
+
+def _summaries(res: dict) -> dict:
+    return {k: stats.summary(v) for k, v in res.items()}
+
+
+def select(run_dir: Path) -> dict:
+    """Validation-only selection record (val_select); never touches sealed blocks."""
+    cfg = registry.read_json(run_dir / "config.json")
+    params = config.make_params(cfg["env"])
+    threads = cfg["select"]["select_threads"]
+    vs = cfg["val_select"]
+    src = indexed_source("validation", vs["first"], vs["count"])
+    pols = learned_policies(run_dir, cfg)
+    base = baseline_policies(cfg, run_dir)
+    res = paired_eval(params, src, {**pols, **base}, threads)
+    seeds = [k for k in pols if k.startswith("seed")]
+    res["mean_of_seeds"] = stats.mean_of_seeds([res[k] for k in seeds])
+    summ = _summaries(res)
+    oracles = [k for k in base if k.startswith("oracle_")]
+    best_oracle = max(oracles, key=lambda k: summ[k]["mean"]) if oracles else None
+    paired_vs = {}
+    for ref in ["flat", "delta30"]:
+        if ref in res:
+            paired_vs[ref] = {k: stats.paired(res[k], res[ref]) for k in [*seeds, "ensemble", "mean_of_seeds"]}
+    # evaluation determinism: the first seed's champion twice on val_ckpt, and against its worker's hash
+    s0 = int(cfg["train"]["seeds"][0])
+    d0 = seed_dirs(run_dir, cfg)[s0]
+    vc = cfg["select"]["val_ckpt"]
+    h = [run_policy(params, indexed_source("validation", vc["first"], vc["count"]), load_policy(d0), threads, actions_hash=True)
+         for _ in range(2)]
+    worker = registry.read_json(d0 / "val.json")
+    det = {"seed": s0, "same_twice": bool(h[0]["actions_sha256"] == h[1]["actions_sha256"]
+                                          and np.array_equal(h[0]["net_pnl_ticks"], h[1]["net_pnl_ticks"])),
+           "same_as_worker": bool(h[0]["actions_sha256"] == worker["actions_sha256"]
+                                  and float(np.mean(h[0]["net_pnl_ticks"])) == worker["val_ckpt_mean"]),
+           "actions_sha256": h[0]["actions_sha256"]}
+    out = {"val_select": vs, "headline": cfg["score"]["headline"], "summary": summ, "paired": paired_vs, "best_oracle": best_oracle,
+           "multiplicity": multiplicity(run_dir, cfg), "determinism": det,
+           "val_ckpt": {f"seed{s}": registry.read_json(d / "val.json")["val_ckpt_mean"] for s, d in seed_dirs(run_dir, cfg).items()}}
+    registry.write_json(run_dir / "select.json", registry.finite(out))
+    np.savez(run_dir / "val_select_episodes.npz", **{f"{k}__{f}": v[f] for k, v in res.items() for f in ("net_pnl_ticks", "orders", "fees_ticks")})
+    registry.Metrics(run_dir / "metrics.jsonl").write("select", headline=cfg["score"]["headline"],
+                                                       headline_mean=summ[cfg["score"]["headline"]]["mean"], best_oracle=best_oracle,
+                                                       multiplicity=out["multiplicity"])
+    return out
+
+
+def _check_provenance(run_dir: Path, allow_env_change: bool):
+    """The module, the venv and the ragrl code (the package this process imported) must be the training ones."""
+    prov = registry.read_json(run_dir / "provenance.json")
+    mod = native.find_module(run_dir / "bin")
+    problems = []
+    if native.sha256_file(mod) != prov["module_sha256"]:
+        problems.append("the module in RUN/bin changed since training")
+    if registry.freeze_sha256()[0] != prov["freeze_sha256"]:
+        problems.append("the venv's installed packages changed since training")
+    if registry.code_sha256() != prov.get("ragrl_sha256"):
+        problems.append(f"the ragrl code ({registry.PKG_DIR}) differs from the code that trained and selected")
+    if problems and not allow_env_change:
+        raise RuntimeError("; ".join(problems) + " (--allow-env-change to score anyway; recorded)")
+    return problems
+
+
+def experiment_id(run_dir: Path) -> str:
+    """config sha256 + ragrl code sha256: a regeneration of the same experiment plays the same policies."""
+    prov = registry.read_json(run_dir / "provenance.json")
+    return (run_dir / "config.sha256").read_text(encoding="utf-8").strip() + ":" + str(prov.get("ragrl_sha256"))
+
+
+def seal(run_dir: Path, allow_env_change: bool = False, reuse_ok: bool = False) -> dict:
+    run_dir = Path(run_dir)
+    if (run_dir / "sealed.json").exists():
+        raise FileExistsError(f"{run_dir}: already sealed (sealed.json is write-once)")
+    if not (run_dir / "select.json").exists():
+        raise FileNotFoundError("select.json missing: selection (validation) must finish before scoring")
+    use_run_module(run_dir)
+    problems = _check_provenance(run_dir, allow_env_change)
+    cfg = registry.read_json(run_dir / "config.json")
+    setup_torch(cfg["train"]["torch_threads"])
+    sel = registry.read_json(run_dir / "select.json")
+    sc = cfg["score"]
+    block = sc["block"]
+    # everything that can fail is loaded before the block is opened (a retry would be a second opening: R10)
+    params = config.make_params(cfg["env"])
+    pols = learned_policies(run_dir, cfg)
+    base = baseline_policies(cfg, run_dir)
+    meta = {"market": cfg["env"]["market"], "family": sc["family"], "experiment": experiment_id(run_dir)}
+    reuse = None
+    if block == "test":
+        reuse = ledger.range_reuse(block, sc["first"], sc["count"], cfg["env"]["market"], run_dir.name, meta["experiment"],
+                                   sc["family"], sc["family_size"])
+        if reuse["reused"] and not reuse_ok:
+            raise PermissionError(f"test [{sc['first']}, +{sc['count']}) on {cfg['env']['market']} was viewed before: {reuse} "
+                                  "(pre-register a fresh range in score.first, or --reuse-ok to score it as a comparable-only, "
+                                  "multiplicity-inflated result)")
+        ledger.as_scorer("test", f"ragrl seal {run_dir.name}", run_dir.name, sc["first"], sc["count"], **meta)
+    else:
+        ledger.log_dry_run(run_dir.name, sc["first"], sc["count"], **meta)
+    src = indexed_source(block, sc["first"], sc["count"])
+    res = paired_eval(params, src, {**pols, **base}, sc["threads"])
+    seeds = [k for k in pols if k.startswith("seed")]
+    res["mean_of_seeds"] = stats.mean_of_seeds([res[k] for k in seeds])
+    summ = _summaries(res)
+    idx = stats.bootstrap_indices(sc["count"], sc["bootstrap"], sc["bootstrap_seed"])
+    refs = [r for r in ["flat", "delta30", sel.get("best_oracle"), "neuralq_ref_ensemble"] if r and r in res]
+    learned = [*seeds, "ensemble", "mean_of_seeds"]
+    paired_d = {ref: {k: stats.paired(res[k], res[ref], idx) for k in learned} for ref in refs}
+    # gross (before fees) against EVERY oracle threshold: a leak shows up as more gross edge than the
+    # fair-value oracle even when fees keep the net negative (red flag R2g)
+    gross = {k: stats.gross(v) for k, v in res.items()}
+    oracles = [k for k in base if k.startswith("oracle_")]
+    paired_gross = {o: {k: stats.paired(gross[k], gross[o], idx) for k in learned} for o in oracles}
+    gross_summary = {k: {f: s[f] for f in ("mean", "se", "t")} for k, s in _summaries(gross).items()}
+    out = {"block": block, "dry_run": block != "test", "first": sc["first"], "count": sc["count"], "source": src.describe(),
+           "market": cfg["env"]["market"], "family": sc["family"], "family_size": sc["family_size"],
+           "headline": sc["headline"], "summary": summ, "paired": paired_d, "learned": learned, "baselines": list(base),
+           "gross": gross_summary, "paired_gross": paired_gross,
+           "bootstrap": {"B": sc["bootstrap"], "seed": sc["bootstrap_seed"]}, "env_problems": problems,
+           "range_reuse": reuse, "reuse_ok": bool(reuse_ok), "ledger_file": str(ledger.usage_file()),
+           "ledger_canonical": ledger.is_canonical(), "module_sha256": native.sha256_file(native.find_module(run_dir / "bin"))}
+    registry.write_json(run_dir / "sealed.json", registry.finite(out), once=True)
+    np.savez(run_dir / "sealed_episodes.npz", **{f"{k}__{f}": v[f] for k, v in res.items() for f in ("net_pnl_ticks", "orders", "fees_ticks")})
+    flags = redflags.evaluate(run_dir)
+    report.write(run_dir)
+    registry.append_index(run_dir, {"stage": "sealed", "block": block, "status": flags["status"],
+                                    "headline_mean": summ[sc["headline"]]["mean"]})
+    print(f"{run_dir.name}: {flags['status']}  headline {sc['headline']} {summ[sc['headline']]['mean']:+.2f} ticks/episode "
+          f"({'DRY RUN on viz' if block != 'test' else 'sealed test'})", flush=True)
+    return out
+
+
+def confirm(run_dir: Path, claim: str, orchestrator: bool, count: int = 300) -> dict:
+    """950M+ fresh confirmation of a run's headline (orchestrator only; once per claim id, on episodes
+    no earlier confirmation used; only for a sealed, non-dry run whose STATUS is a claim)."""
+    if not orchestrator:
+        raise PermissionError("confirm is for the orchestrator only (--i-am-the-orchestrator); the pipeline never runs it")
+    if not claim:
+        raise PermissionError("confirm needs --claim ID")
+    run_dir = Path(run_dir)
+    out_file = run_dir / f"confirm_{claim}.json"
+    if out_file.exists():
+        raise FileExistsError(f"{out_file} exists")
+    if not (run_dir / "sealed.json").exists():
+        raise FileNotFoundError("confirm follows a sealed scoring")
+    sealed = registry.read_json(run_dir / "sealed.json")
+    if sealed.get("dry_run") or sealed.get("block") != "test":
+        raise PermissionError("confirm: this run was a dry run (viz), not a sealed test scoring")
+    status = (run_dir / "STATUS").read_text(encoding="utf-8").strip() if (run_dir / "STATUS").exists() else ""
+    if not status.startswith("CLAIM_PENDING"):
+        raise PermissionError(f"confirm: STATUS is {status or 'missing'!r}, not CLAIM_PENDING_950M_CONFIRMATION")
+    use_run_module(run_dir)
+    _check_provenance(run_dir, False)
+    cfg = registry.read_json(run_dir / "config.json")
+    sel = registry.read_json(run_dir / "select.json")
+    params = config.make_params(cfg["env"])
+    pols = learned_policies(run_dir, cfg)
+    first = ledger.next_confirm_first()
+    ledger.as_scorer("confirm", f"ragrl confirm {run_dir.name}", run_dir.name, first, count, claim,
+                     market=cfg["env"]["market"], experiment=experiment_id(run_dir))
+    src = indexed_source("confirm", first, count, orchestrator=claim)
+    head = cfg["score"]["headline"]
+    cand = {"ensemble": pols["ensemble"], "flat": Builtin("flat"), "delta30": Builtin("delta30")}
+    if sel.get("best_oracle"):
+        cand[sel["best_oracle"]] = Builtin.oracle(float(sel["best_oracle"].split("_")[1]))
+    if head == "mean_of_seeds":
+        cand.update({k: v for k, v in pols.items() if k.startswith("seed")})
+    res = paired_eval(params, src, cand, 24)
+    if head == "mean_of_seeds":
+        res["mean_of_seeds"] = stats.mean_of_seeds([res[k] for k in pols if k.startswith("seed")])
+    out = {"claim": claim, "first": first, "count": count, "summary": _summaries(res),
+           "paired_vs_flat": stats.paired(res[head], res["flat"], stats.bootstrap_indices(count, 10_000, 0))}
+    registry.write_json(out_file, registry.finite(out), once=True)
+    return out
+
+
+def recheck(run_dir: Path, seed: int | None = None) -> dict:
+    """R8: retrains one seed from scratch in a fresh worker and compares the champion bit for bit."""
+    run_dir = Path(run_dir)
+    cfg = registry.read_json(run_dir / "config.json")
+    seed = int(seed or cfg["train"]["seeds"][0])
+    out_root = run_dir / "recheck"
+    spawn_workers(run_dir, dict(cfg, train=dict(cfg["train"], workers=1)), [seed], out_root=out_root)
+    a = registry.read_json(run_dir / "seeds" / f"seed{seed}" / "val.json")
+    b = registry.read_json(out_root / f"seed{seed}" / "val.json")
+    pa = registry.read_json(run_dir / "seeds" / f"seed{seed}" / "policy.json")["sha256"]
+    pb = registry.read_json(out_root / f"seed{seed}" / "policy.json")["sha256"]
+    out = {"seed": seed, "same_actions": a["actions_sha256"] == b["actions_sha256"], "same_val": a["val_ckpt_mean"] == b["val_ckpt_mean"],
+           "same_artifacts": pa == pb, "a": a["actions_sha256"], "b": b["actions_sha256"]}
+    registry.write_json(run_dir / "recheck.json", out)
+    if (run_dir / "sealed.json").exists():
+        redflags.evaluate(run_dir)
+        report.write(run_dir)
+    return out
+
+
+def trial_config(cfg: dict, params: dict, name: str) -> dict:
+    t = copy.deepcopy(cfg)
+    t["name"] = name
+    t["agent"]["params"].update(params)
+    t["hpo"] = None
+    t["live"]["enabled"] = False
+    return config.resolve(t)
+
+
+def dump_json_line(path: Path, rec: dict):
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(registry.finite(rec), sort_keys=True, default=registry._default) + "\n")
+
+```
+
+
+---
+
+## FILE: python\ragrl\stats.py  (2,584 bytes)
+
+```python
+"""Statistics for per-episode results: mean, SE, t, Sharpe, paired differences
+with a paired percentile bootstrap (fixed seed), and the multiplicity bar."""
+import math
+
+import numpy as np
+
+# 39 ten-minute windows per RTH day, 252 days a year.
+EPISODES_PER_YEAR = 39 * 252
+
+
+def summary(res: dict) -> dict:
+    x = np.asarray(res["net_pnl_ticks"], dtype=np.float64)
+    n = len(x)
+    mean = float(x.mean())
+    sd = float(x.std(ddof=1)) if n > 1 else 0.0
+    se = sd / math.sqrt(n) if n > 1 else float("nan")
+    sharpe = mean / sd if sd > 0 else float("nan")
+    return {
+        "n": n, "mean": mean, "sd": sd, "se": se, "t": mean / se if se and se > 0 else float("nan"),
+        "win": float((x > 0).mean()), "orders": float(np.mean(res["orders"])), "fees": float(np.mean(res["fees_ticks"])),
+        "sharpe_episode": sharpe, "sharpe_annual": sharpe * math.sqrt(EPISODES_PER_YEAR) if sd > 0 else float("nan"),
+    }
+
+
+def bootstrap_indices(n: int, b: int, seed: int) -> np.ndarray:
+    """B x n resampling indices from a fixed seed: the same draws for every comparison."""
+    return np.random.default_rng(seed).integers(0, n, size=(b, n))
+
+
+def paired(a: dict, b: dict, idx: np.ndarray | None = None) -> dict:
+    """a - b per episode (same episodes): mean, SE, t, and a 95% percentile bootstrap CI."""
+    d = np.asarray(a["net_pnl_ticks"], dtype=np.float64) - np.asarray(b["net_pnl_ticks"], dtype=np.float64)
+    n = len(d)
+    mean = float(d.mean())
+    se = float(d.std(ddof=1) / math.sqrt(n)) if n > 1 else float("nan")
+    out = {"mean": mean, "se": se, "t": mean / se if se and se > 0 else float("nan")}
+    if idx is not None:
+        boots = d[idx].mean(axis=1)
+        out["ci95"] = [float(np.percentile(boots, 2.5)), float(np.percentile(boots, 97.5))]
+    return out
+
+
+def gross(res: dict) -> dict:
+    """Per-episode P&L before fees (net + fees), in the per-episode result format (for paired())."""
+    net = np.asarray(res["net_pnl_ticks"], dtype=np.float64)
+    fees = np.asarray(res["fees_ticks"], dtype=np.float64)
+    return {"net_pnl_ticks": net + fees, "orders": res["orders"], "fees_ticks": np.zeros_like(fees)}
+
+
+def t_required(m: int) -> float:
+    """Multiplicity-adjusted bar t_req = 2 + sqrt(2 ln M) for M validation choices (M = 1 -> 2)."""
+    return 2.0 + math.sqrt(2.0 * math.log(max(1, m)))
+
+
+def mean_of_seeds(results: list[dict]) -> dict:
+    """Per-episode mean over seeds' results (the 'mean of seeds' headline, as of_train prints)."""
+    return {k: np.mean([r[k] for r in results], axis=0) for k in ("net_pnl_ticks", "orders", "fees_ticks")}
+
+```
+
+
+---
+
+## FILE: python\ragrl\worker.py  (6,608 bytes)
+
+```python
+"""One training worker = one run seed in its own process (role: trainer).
+
+    python -m ragrl train RUN_DIR --seed K
+
+forbid_sealed() first; trains the agent on EpisodeSource.train(K); the
+champion (val_ckpt) is saved to RUN/seeds/seedK/ and re-loaded from disk and
+re-scored, which must reproduce its validation score bit for bit."""
+import os
+import time
+from pathlib import Path
+
+import numpy as np
+
+from . import config, envs, ledger, native, registry
+from .agents import ZOO
+from .checkpoints import ValCheckpointer
+from .evaluate import run_policy
+from .policies import load_policy, save_policy
+
+
+def setup_torch(threads: int):
+    import torch
+    torch.set_num_threads(int(threads))
+    try:
+        torch.set_num_interop_threads(1)
+    except RuntimeError:
+        pass
+    torch.use_deterministic_algorithms(True)
+
+
+class Ctx:
+    def __init__(self, cfg, seed, run_dir: Path, seed_dir: Path, live_path=None):
+        self.R = native.load()
+        self.cfg = cfg
+        self.seed = int(seed)
+        self.run_dir = run_dir
+        self.seed_dir = seed_dir
+        t = cfg["train"]
+        self.params = config.make_params(cfg["env"])
+        self.p = cfg["agent"]["params"]
+        self.steps_per_episode = self.params.steps_per_episode
+        self.episodes = t["episodes"]
+        self.env_steps = t["env_steps"]
+        self.n_envs = t["n_envs"]
+        self.env_threads = t["env_threads"]
+        self.torch_threads = t["torch_threads"]
+        self.eval_threads = t["eval_threads"]
+        self.reward_scale = t["reward_scale"]
+        self.every_steps = cfg["select"]["every_steps"]
+        self.metrics = registry.Metrics(seed_dir / "metrics.jsonl", seed=self.seed)
+        self.ckpt = ValCheckpointer(self.params, cfg["select"]["val_ckpt"], self.eval_threads, self.metrics, self.seed)
+        self.extra = {}
+        self.t0 = time.perf_counter()
+        self.live = None
+        if live_path is not None:
+            from .live import LiveWriter
+            self.live = LiveWriter(live_path, self.params, cfg, self.seed, self.episodes,
+                                   header_extra=ZOO[cfg["agent"]["kind"]].live_header(self.p), threads=self.eval_threads)
+
+    def train_env(self, privileged=False, n_envs=None):
+        return envs.train_env(self.params, self.seed, n_envs or self.n_envs, self.env_threads, privileged)
+
+    def elapsed(self):
+        return time.perf_counter() - self.t0
+
+
+class Progress:
+    """Shared bookkeeping for step-driven trainers: val checkpoints every `every_steps`, live checkpoints every N episodes."""
+
+    def __init__(self, ctx: Ctx, freeze, epsilon=lambda: 0.0):
+        self.ctx = ctx
+        self.freeze = freeze
+        self.epsilon = epsilon
+        self.next_ckpt = ctx.every_steps
+        self.next_live = ctx.live.every if ctx.live else None
+        self.returns, self.all_returns = [], []
+        self.episodes = 0
+        self.last_offer = None
+        if ctx.live:
+            ctx.live.ckpt(freeze(), 0, [], [], epsilon())
+
+    def update(self, steps: int, finished_returns):
+        for r in finished_returns:
+            self.returns.append(float(r))
+            self.all_returns.append(float(r))
+            self.episodes += 1
+        ctx = self.ctx
+        if steps >= self.next_ckpt:
+            self.offer(steps)
+            while self.next_ckpt <= steps:
+                self.next_ckpt += ctx.every_steps
+        if ctx.live and self.episodes >= self.next_live:
+            ctx.live.ckpt(self.freeze(), self.episodes, self.returns, ctx.ckpt.pop_evals(), self.epsilon())
+            ctx.metrics.write("train", step=steps, episode=self.episodes, mean_return=float(np.mean(self.returns)) if self.returns else None,
+                              elapsed=ctx.elapsed())
+            self.returns = []
+            while self.next_live <= self.episodes:
+                self.next_live += ctx.live.every
+
+    def offer(self, steps):
+        self.ctx.ckpt.offer(self.freeze(), steps, self.episodes)
+        self.last_offer = steps
+
+    def finish(self, steps):
+        if self.last_offer != steps:
+            self.offer(steps)
+        ctx = self.ctx
+        if ctx.live:
+            if self.returns or ctx.ckpt.pending:
+                ctx.live.ckpt(self.freeze(), self.episodes, self.returns, ctx.ckpt.pop_evals(), self.epsilon())
+            ctx.live.done(ctx.ckpt.champion_score, "")
+        ctx.metrics.write("train", step=steps, episode=self.episodes,
+                          mean_return=float(np.mean(self.all_returns)) if self.all_returns else None, elapsed=ctx.elapsed(), final=True)
+
+
+def train_worker(run_dir, seed: int, out_dir=None, live_path=None):
+    ledger.as_trainer()
+    run_dir = Path(run_dir)
+    cfg = registry.read_json(run_dir / "config.json")
+    setup_torch(cfg["train"]["torch_threads"])
+    seed_dir = Path(out_dir) if out_dir else run_dir / "seeds" / f"seed{seed}"
+    seed_dir.mkdir(parents=True, exist_ok=True)
+    if live_path is None and cfg["live"]["enabled"] and int(seed) == int(cfg["live"]["seed"]) and out_dir is None:
+        live_path = run_dir / "live.jsonl"
+    ctx = Ctx(cfg, seed, run_dir, seed_dir, live_path)
+    spec = ZOO[cfg["agent"]["kind"]]
+    spec.train(ctx)
+    train_seconds = ctx.elapsed()
+    champ = ctx.ckpt.champion
+    if champ is None:
+        raise RuntimeError("the agent offered no policy")
+    save_policy(champ, seed_dir, {"seed": int(seed), "agent": cfg["agent"]["kind"]})
+    # Round trip: the saved champion, loaded back, must reproduce its validation score exactly.
+    loaded = load_policy(seed_dir)
+    res = run_policy(ctx.params, ctx.ckpt.source(), loaded, ctx.eval_threads, actions_hash=True)
+    again = float(np.mean(res["net_pnl_ticks"]))
+    if again != ctx.ckpt.champion_score:
+        raise RuntimeError(f"saved champion re-scores {again!r} on val_ckpt, in memory {ctx.ckpt.champion_score!r}")
+    val = {"seed": int(seed), "val_ckpt_mean": again, "champion_step": ctx.ckpt.champion_step, "offers": ctx.ckpt.offers,
+           "choices_per_seed": spec.choices_per_seed(ctx.p), "actions_sha256": res["actions_sha256"],
+           "train_seconds": train_seconds, "eval_seconds": ctx.ckpt.eval_seconds, "env_steps": ctx.env_steps,
+           "episodes": ctx.episodes, "extra": ctx.extra}
+    registry.write_json(seed_dir / "val.json", registry.finite(val))
+    ctx.metrics.write("timing", seconds=ctx.elapsed(), train_seconds=train_seconds, eval_seconds=ctx.ckpt.eval_seconds,
+                      env_steps=ctx.env_steps, steps_per_second=ctx.env_steps / max(1e-9, train_seconds - ctx.ckpt.eval_seconds),
+                      pid=os.getpid())
+    return val
+
+```
+
+
+---
+
+## FILE: python\tests\conftest.py  (3,164 bytes)
+
+```python
+"""Shared fixtures for the OF15 binding tests.
+
+The `_ragof` module is found through $RAGOF_DIR (default build-avx512/Release);
+everything is skipped when it is not importable (RAG_PYTHON=OFF builds), unless
+RAGOF_REQUIRED=1 (the ctests and the gate): then a module that does not import,
+or a missing of15_refdump, is an error, so the suite cannot pass with nothing tested.
+
+The usage ledger of sealed openings (ragrl.ledger) is redirected to a temporary
+file for the whole session (RAGRL_LEDGER_FILE, inherited by the fresh processes),
+so tests never write to the canonical build-avx512/rl/ledger_usage.jsonl.
+
+The seed ledger is process-wide: once a test builds a train, validation or
+pairing environment this pytest process is a "trainer" and can never open a
+sealed block. Tests that need a scorer (or call forbid_sealed) therefore run
+their code in a fresh interpreter through `fresh()`.
+"""
+import os
+import subprocess
+import sys
+import tempfile
+import textwrap
+from pathlib import Path
+
+import pytest
+
+REPO = Path(__file__).resolve().parents[2]
+RAGOF_DIR = Path(os.environ.get("RAGOF_DIR", REPO / "build-avx512" / "Release"))
+REQUIRED = os.environ.get("RAGOF_REQUIRED", "") not in ("", "0")
+if not os.environ.get("RAGRL_LEDGER_FILE"):
+    os.environ["RAGRL_LEDGER_FILE"] = str(Path(tempfile.mkdtemp(prefix="ragrl_ledger_")) / "ledger_usage.jsonl")
+if str(RAGOF_DIR) not in sys.path:
+    sys.path.insert(0, str(RAGOF_DIR))
+
+try:
+    import _ragof  # noqa: F401
+    HAVE_RAGOF = True
+    IMPORT_ERROR = ""
+except ImportError as e:
+    HAVE_RAGOF = False
+    IMPORT_ERROR = repr(e)
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "smoke: slower end-to-end runs (one ctest each)")
+
+
+def pytest_collection_modifyitems(config, items):
+    if HAVE_RAGOF:
+        return
+    if REQUIRED:
+        raise pytest.UsageError(f"RAGOF_REQUIRED=1 but _ragof does not import from {RAGOF_DIR}: {IMPORT_ERROR}")
+    skip = pytest.mark.skip(reason=f"_ragof not importable from {RAGOF_DIR} (build with -DRAG_PYTHON=ON)")
+    for item in items:
+        item.add_marker(skip)
+
+
+@pytest.fixture(scope="session")
+def R():
+    import _ragof
+    return _ragof
+
+
+@pytest.fixture(scope="session")
+def refdump():
+    exe = os.environ.get("RAGOF_REFDUMP") or str(RAGOF_DIR / ("of15_refdump.exe" if os.name == "nt" else "of15_refdump"))
+    if not Path(exe).exists():
+        if REQUIRED:
+            pytest.fail(f"RAGOF_REQUIRED=1 but of15_refdump is missing ({exe})")
+        pytest.skip(f"of15_refdump not built ({exe})")
+    return exe
+
+
+def fresh(code: str, *args: str, expect_ok: bool = True) -> str:
+    """Runs `code` in a fresh Python process (its own seed-ledger role); returns stdout."""
+    prelude = f"import sys; sys.path.insert(0, {str(RAGOF_DIR)!r}); import numpy as np; import _ragof as R\n"
+    p = subprocess.run([sys.executable, "-c", prelude + textwrap.dedent(code), *args], capture_output=True, text=True, timeout=600)
+    if expect_ok and p.returncode != 0:
+        raise AssertionError(f"fresh process failed ({p.returncode}):\n{p.stdout}\n{p.stderr}")
+    return p.stdout
+
+
+@pytest.fixture(scope="session")
+def run_fresh():
+    return fresh
+
+```
+
+
+---
+
+## FILE: python\tests\test_bit_identity.py  (9,409 bytes)
+
+```python
+"""The binding plays exactly ScalpEnv's episodes: observations, rewards,
+privileged columns and episode results equal, byte for byte, to serial C++
+loops (examples/of15_refdump.cpp), for of_train's train stream and for
+indexed blocks; the C++ built-in rules and of_train networks match."""
+import re
+import subprocess
+
+import numpy as np
+import pytest
+
+from conftest import REPO
+
+D, P = 16, 7
+
+
+def pattern(t, k):
+    return (t * 7 + k * 3 + t // 13) % 3
+
+
+def read_scalp(path, episodes, T):
+    raw = np.fromfile(path, dtype=np.float64)
+    pos, eps = 0, []
+    for _ in range(episodes):
+        obs, rew, priv = [raw[pos:pos + D]], [], [raw[pos + D:pos + D + P]]
+        pos += D + P
+        for _ in range(T):
+            obs.append(raw[pos:pos + D])
+            rew.append(raw[pos + D])
+            priv.append(raw[pos + D + 1:pos + D + 1 + P])
+            pos += D + 1 + P
+        pnl, orders, fees = raw[pos:pos + 3]
+        pos += 3
+        eps.append(dict(obs=np.array(obs), rew=np.array(rew), priv=np.array(priv), pnl=pnl, orders=orders, fees=fees))
+    assert pos == raw.size
+    return eps
+
+
+def dump(refdump, tmp_path, *args):
+    out = tmp_path / ("ref_" + "_".join(args) + ".bin")
+    subprocess.run([refdump, "scalp", *args, str(out)], check=True)
+    return out
+
+
+def same(a, b):
+    a, b = np.asarray(a, dtype=np.float64), np.asarray(b, dtype=np.float64)
+    return a.shape == b.shape and a.tobytes() == b.tobytes()  # bytes: NaN fill prices compare equal too
+
+
+def play_and_compare(env, ref, rounds, check_priv):
+    """Plays `rounds` rounds with the pattern (k = episode id) and compares every step with ref[k]."""
+    o = env.reset()
+    for _ in range(rounds):
+        ks = env.episode_ids.astype(np.int64)
+        for j, k in enumerate(ks):
+            assert same(o[j], ref[k]["obs"][0]), (k, "first obs")
+            if check_priv:
+                assert same(env.priv[j], ref[k]["priv"][0]), (k, "first priv")
+        T = len(ref[ks[0]]["rew"])
+        for t in range(T):
+            o, r, d = env.step(np.array([pattern(t, k) for k in ks], dtype=np.int64))
+            assert d.dtype == np.bool_ and bool(d.all()) == (t + 1 == T) and bool(d.any()) == (t + 1 == T)
+            obs_now = env.final_obs if d[0] else o
+            priv_now = (env.final_priv if d[0] else env.priv) if check_priv else None
+            for j, k in enumerate(ks):
+                assert same(r[j], ref[k]["rew"][t]), (k, t, "reward")
+                assert same(obs_now[j], ref[k]["obs"][t + 1]), (k, t, "obs")
+                if check_priv:
+                    assert same(priv_now[j], ref[k]["priv"][t + 1]), (k, t, "priv")
+        st = env.episode_stats
+        assert list(env.final_episode_ids) == list(ks)
+        for j, k in enumerate(ks):
+            assert same(st["net_pnl_ticks"][j], ref[k]["pnl"])
+            assert same(st["orders"][j], ref[k]["orders"])
+            assert same(st["fees_ticks"][j], ref[k]["fees"])
+            assert st["round_trips"][j] == ref[k]["orders"] // 2
+
+
+def test_train_stream_v4_matches_trainer_stream(R, refdump, tmp_path):
+    # of_train's Trainer stream for run seed 3 on discovery_v4 / 1050 s: 6 episodes as 3 envs x 2 rounds, 3 threads.
+    p = R.ScalpParams("discovery_v4", 1050.0)
+    ref = read_scalp(dump(refdump, tmp_path, "discovery_v4", "1050", "train", "3", "6"), 6, 600)
+    env = R.VecScalpEnv(p, R.EpisodeSource.train(3), n_envs=3, threads=3, privileged=True)
+    play_and_compare(env, ref, rounds=2, check_priv=True)
+    assert env.episodes_started == 9 and env.rounds_finished == 2
+
+
+@pytest.mark.parametrize("n_envs", [1, 4])
+def test_train_stream_default_any_n_envs(R, refdump, tmp_path, n_envs):
+    p = R.ScalpParams("default", 150.0)
+    ref = read_scalp(dump(refdump, tmp_path, "default", "150", "train", "7", "4"), 4, 600)
+    env = R.VecScalpEnv(p, R.EpisodeSource.train(7), n_envs=n_envs, threads=2, privileged=True)
+    play_and_compare(env, ref, rounds=4 // n_envs, check_priv=True)
+
+
+def test_validation_block_matches_evaluate(R, refdump, tmp_path):
+    p = R.ScalpParams("default", 150.0)
+    ref = read_scalp(dump(refdump, tmp_path, "default", "150", "seeds", "700000000", "4"), 4, 600)
+    env = R.VecScalpEnv(p, R.EpisodeSource.block("validation", 0, 4), threads=4)
+    assert env.n_envs == 4
+    play_and_compare(env, ref, rounds=1, check_priv=False)
+
+
+def test_viz_block_privileged_v4(R, refdump, tmp_path):
+    p = R.ScalpParams("discovery_v4", 1050.0)
+    ref = read_scalp(dump(refdump, tmp_path, "discovery_v4", "1050", "seeds", "960000002", "3"), 3, 600)
+    env = R.VecScalpEnv(p, R.EpisodeSource.block("viz", 2, 3), threads=3, privileged=True)
+    # viz episode i = Rng(960M + 2 + i); ids are block-relative, ref is indexed from 0
+    o = env.reset()
+    assert list(env.episode_ids) == [2, 3, 4]
+    for j in range(3):
+        assert same(o[j], ref[j]["obs"][0]) and same(env.priv[j], ref[j]["priv"][0])
+    for t in range(600):
+        o, r, d = env.step(np.array([pattern(t, j) for j in range(3)], dtype=np.int64))
+        on, pn = (env.final_obs, env.final_priv) if d[0] else (o, env.priv)
+        for j in range(3):
+            assert same(r[j], ref[j]["rew"][t]) and same(on[j], ref[j]["obs"][t + 1]) and same(pn[j], ref[j]["priv"][t + 1])
+    assert same(env.episode_stats["net_pnl_ticks"], [e["pnl"] for e in ref])
+
+
+def test_builtin_delta30_equals_rule_on_obs(R):
+    p = R.ScalpParams("default", 150.0, episode_seconds=300.0)
+    src = R.EpisodeSource.block("validation", 100, 8)
+    res = R.run_builtin(p, src, "delta30", threads=4)
+    env = R.VecScalpEnv(p, src, threads=4)
+    o = env.reset()
+    while True:
+        a = np.where(o[:, 1] > 1.5, 2, np.where(o[:, 1] < -1.5, 0, np.rint(o[:, 13]).astype(np.int64) + 1)).astype(np.int64)
+        o, r, d = env.step(a)
+        if d[0]:
+            break
+    assert same(res["net_pnl_ticks"], env.episode_stats["net_pnl_ticks"])
+    assert same(res["orders"], env.episode_stats["orders"])
+    assert same(res["fees_ticks"], env.episode_stats["fees_ticks"])
+    # the rule as a tuple, and threads don't matter
+    assert same(R.run_builtin(p, src, ("rule", 1, 1.5, False), threads=1)["net_pnl_ticks"], res["net_pnl_ticks"])
+
+
+OF14 = REPO / "build-avx512" / "rl" / "of14"
+
+
+@pytest.mark.skipif(not (OF14 / "seed1.net").exists(), reason="of14 networks not present (experiments/of14_regen.sh)")
+def test_of14_networks_reproduce_validation_column(R):
+    """of_train's champion validation scores (700M+0..39) in experiments/of14_train.txt, from the binding."""
+    txt = (REPO / "experiments" / "of14_train.txt").read_text()
+    want = {int(s): float(v) for s, v in re.findall(r"seed\s+(\d+): validation ([+-][\d.]+)", txt)}
+    p = R.ScalpParams("discovery_v4", 1050.0)
+    src = R.EpisodeSource.block("validation", 0, 40)
+    for seed in (1, 5):
+        net = R.NeuralQNet.load(str(OF14 / f"seed{seed}.net"), "discovery_v4", 1050.0)
+        assert net.record["market"] == "discovery_v4"
+        m = R.run_builtin(p, src, ("neuralq", net), threads=24)["net_pnl_ticks"].mean()
+        assert f"{m:+.2f}" == f"{want[seed]:+.2f}", (seed, m, want[seed])
+        if seed == 1:  # the Python loop (net.act on VecScalpEnv obs) plays the same episodes
+            env = R.VecScalpEnv(p, src, threads=24)
+            o = env.reset()
+            while True:
+                o, r, d = env.step(net.act(o))
+                if d[0]:
+                    break
+            assert env.episode_stats["net_pnl_ticks"].mean() == m
+    with pytest.raises(RuntimeError, match="market"):
+        R.NeuralQNet.load(str(OF14 / "seed1.net"), "discovery", 1050.0)
+    with pytest.raises(RuntimeError, match="warm-up"):
+        R.NeuralQNet.load(str(OF14 / "seed1.net"), "discovery_v4", 150.0)
+
+
+REPLAY_CHECK = """
+csv, ref = sys.argv[1], sys.argv[2]
+try:
+    R.TickTape.from_csv(csv, time_unit="s")
+    print("NOT REFUSED")
+except RuntimeError:
+    pass
+R.open_sealed("real", "pytest replay identity")
+tape = R.TickTape.from_csv(csv, time_unit="s")
+rp = R.ReplayParams(window_seconds=60.0, warmup_seconds=30.0)
+env = R.VecReplayEnv(tape, rp, [2, 3, 4], threads=3)
+raw = np.fromfile(ref, dtype=np.float64)
+T = 60
+per = 16 + T * 17 + 3
+assert raw.size == 3 * per
+eps = [raw[i * per:(i + 1) * per] for i in range(3)]
+o = env.reset()
+ok = all(o[j].tobytes() == eps[j][:16].tobytes() for j in range(3))
+for t in range(T):
+    a = np.array([(t * 7 + k * 3 + t // 13) % 3 for k in range(3)], dtype=np.int64)
+    o, r, d = env.step(a)
+    on = env.final_obs if d[0] else o
+    for j in range(3):
+        base = 16 + t * 17
+        ok &= on[j].tobytes() == eps[j][base:base + 16].tobytes()
+        ok &= bool(r[j] == eps[j][base + 16])
+    ok &= bool(d.all()) == (t + 1 == T)
+st = env.episode_stats
+ok &= all(st["net_pnl_ticks"][j] == eps[j][-3] and st["orders"][j] == eps[j][-2] for j in range(3))
+print("REPLAY_OK" if ok else "REPLAY_MISMATCH", R.process_role())
+"""
+
+
+def test_replay_matches_replay_scalp_env(refdump, tmp_path, run_fresh):
+    """VecReplayEnv (scorer process, open_sealed('real')) = serial ReplayScalpEnv::seek(k)."""
+    csv = tmp_path / "ticks.csv"
+    subprocess.run([refdump, "tape", "500", "9", str(csv)], check=True)
+    ref = tmp_path / "replay.bin"
+    subprocess.run([refdump, "replay", str(csv), "s", "60", "30", "2", "3", str(ref)], check=True)
+    out = run_fresh(REPLAY_CHECK, str(csv), str(ref))
+    assert "NOT REFUSED" not in out
+    assert "REPLAY_OK scorer" in out
+
+```
+
+
+---
+
+## FILE: python\tests\test_ledger.py  (7,973 bytes)
+
+```python
+"""The seed ledger as the binding enforces it: block names and ranges, sealed
+blocks, the confirm claim, and the process roles (a trainer never opens a
+sealed block; a scorer never trains or selects; forbid_sealed is final).
+Role tests run in fresh processes (conftest.fresh)."""
+import pytest
+
+from conftest import REPO
+
+
+def test_blocks_table(R):
+    b = {x["name"]: x for x in R.BLOCKS}
+    assert list(b) == ["train", "validation", "test", "stress", "days", "pairing", "confirm", "viz", "real"]
+    assert (b["validation"]["base"], b["test"]["base"], b["stress"]["base"], b["days"]["base"]) == (700_000_000, 900_000_000, 920_000_000, 930_000_000)
+    assert (b["pairing"]["base"], b["confirm"]["base"], b["viz"]["base"]) == (940_000_000, 950_000_000, 960_000_000)
+    assert b["test"]["base"] + b["test"]["size"] == 910_000_000  # the tick test (910M+) is not exposed
+    assert {n for n, x in b.items() if x["sealed"]} == {"test", "stress", "days", "confirm", "real"}
+    assert {n for n, x in b.items() if x["privileged_ok"]} == {"train", "viz"}
+    assert b["confirm"]["needs_claim"] and not b["test"]["needs_claim"]
+
+
+def test_source_refusals(R):
+    with pytest.raises(ValueError):
+        R.EpisodeSource.train(0)
+    with pytest.raises(ValueError):
+        R.EpisodeSource.train(700_000_000)
+    with pytest.raises(TypeError):
+        R.EpisodeSource.train(-1)
+    R.EpisodeSource.train(699_999_999)
+    for name, first, count in [("validation", 199_999_999, 2), ("validation", 0, 0), ("test", 9_999_999, 2), ("pairing", 10_000_000, 1)]:
+        with pytest.raises(ValueError):
+            R.EpisodeSource.block(name, first, count)
+    for name in ["train", "stress", "days", "real", "tick_test", "confirm"]:
+        with pytest.raises(ValueError):  # not indexed, unknown, or confirm without a claim id
+            R.EpisodeSource.block(name, 0, 1)
+    with pytest.raises(ValueError):
+        R.EpisodeSource.block("validation", 0, 1, orchestrator="claim")
+    for f in [lambda: R.EpisodeSource.block("test", 0, 1), lambda: R.EpisodeSource.block("confirm", 0, 1, orchestrator="c1"),
+              lambda: R.EpisodeSource.days(0, 1), lambda: R.EpisodeSource.stress("nominal", 0, 1)]:
+        with pytest.raises(RuntimeError, match="sealed"):
+            f()
+    with pytest.raises(ValueError):
+        R.open_sealed("validation", "not sealed")
+    with pytest.raises(ValueError):
+        R.open_sealed("nope", "unknown")
+    s = R.EpisodeSource.block("validation", 5, 3)
+    assert s.describe() == {"kind": "indexed", "block": "validation", "first": 5, "count": 3}
+    assert R.EpisodeSource.train(4).describe() == {"kind": "train", "block": "train", "run_seed": 4}
+
+
+def test_trainer_cannot_open_sealed(run_fresh):
+    out = run_fresh("""
+        p = R.ScalpParams("default", 150.0, episode_seconds=10.0)
+        assert R.process_role() == "none"
+        R.VecScalpEnv(p, R.EpisodeSource.block("viz", 0, 1))
+        assert R.process_role() == "none"          # viz is neutral
+        R.VecScalpEnv(p, R.EpisodeSource.train(1), n_envs=2)
+        assert R.process_role() == "trainer"
+        for b in ["test", "stress", "days", "confirm", "real"]:
+            try:
+                R.open_sealed(b, "should fail"); print("OPENED", b)
+            except RuntimeError as e:
+                assert "fresh process" in str(e)
+        print("TRAINER_OK", R.sealed_openings())
+    """)
+    assert "OPENED" not in out and "TRAINER_OK []" in out
+
+
+def test_selection_also_makes_a_trainer(run_fresh):
+    out = run_fresh("""
+        p = R.ScalpParams("default", 150.0, episode_seconds=10.0)
+        R.run_builtin(p, R.EpisodeSource.block("pairing", 0, 2), "flat", threads=2)
+        assert R.process_role() == "trainer"
+        try:
+            R.open_sealed("test", "x"); print("OPENED")
+        except RuntimeError:
+            print("REFUSED")
+    """)
+    assert out.strip() == "REFUSED"
+
+
+def test_scorer_cannot_train_or_select(run_fresh):
+    out = run_fresh("""
+        p = R.ScalpParams("default", 150.0, episode_seconds=10.0)
+        R.open_sealed("test", "pytest scorer")
+        assert R.process_role() == "scorer"
+        test = R.EpisodeSource.block("test", 0, 3)
+        r = R.run_builtin(p, test, ("oracle", 0.5), threads=3)
+        env = R.VecScalpEnv(p, test, threads=3)
+        env.reset()
+        R.VecScalpEnv(p, R.EpisodeSource.block("viz", 0, 1))
+        refused = []
+        for name, f in [("train", lambda: R.VecScalpEnv(p, R.EpisodeSource.train(1))),
+                        ("validation", lambda: R.VecScalpEnv(p, R.EpisodeSource.block("validation", 0, 1))),
+                        ("pairing", lambda: R.run_builtin(p, R.EpisodeSource.block("pairing", 0, 1), "flat")),
+                        ("privileged test", lambda: R.VecScalpEnv(p, test, privileged=True))]:
+            try:
+                f(); print("ALLOWED", name)
+            except RuntimeError:
+                refused.append(name)
+        print("SCORER_OK", len(refused), R.sealed_openings())
+    """)
+    assert "ALLOWED" not in out
+    assert "SCORER_OK 4 [('test', 'pytest scorer')]" in out
+
+
+def test_forbid_sealed_is_final(run_fresh):
+    out = run_fresh("""
+        R.open_sealed("test", "opened first")
+        src = R.EpisodeSource.block("test", 0, 1)
+        R.forbid_sealed()
+        assert R.sealed_forbidden() and not R.is_open("test")
+        p = R.ScalpParams("default", 150.0, episode_seconds=10.0)
+        n = 0
+        for f in [lambda: R.open_sealed("test", "again"), lambda: R.open_sealed("real", "x"),
+                  lambda: R.VecScalpEnv(p, src), lambda: R.run_builtin(p, src, "flat")]:
+            try:
+                f(); print("ALLOWED")
+            except RuntimeError:
+                n += 1
+        print("FORBID_OK", n)
+    """)
+    assert "ALLOWED" not in out and "FORBID_OK 4" in out
+
+
+def test_confirm_needs_open_and_claim(run_fresh):
+    out = run_fresh("""
+        p = R.ScalpParams("default", 150.0, episode_seconds=10.0)
+        R.open_sealed("confirm", "orchestrator claim c-1")
+        try:
+            R.EpisodeSource.block("confirm", 0, 2); print("NO CLAIM ALLOWED")
+        except ValueError:
+            pass
+        s = R.EpisodeSource.block("confirm", 0, 2, orchestrator="c-1")
+        assert s.describe()["orchestrator"] == "c-1"
+        print("CONFIRM_OK", R.run_builtin(p, s, "flat")["net_pnl_ticks"].tolist())
+    """)
+    assert "NO CLAIM" not in out and "CONFIRM_OK [0.0, 0.0]" in out
+
+
+def test_days_and_stress_sources(run_fresh):
+    out = run_fresh("""
+        R.open_sealed("days", "pytest"); R.open_sealed("stress", "pytest")
+        p = R.ScalpParams("default", 150.0, episode_seconds=10.0)
+        d = R.EpisodeSource.days(3, 2, sessions_per_day=4)
+        env = R.VecScalpEnv(p, d, threads=4)
+        env.reset()
+        print("DAYS", env.n_envs, env.episode_ids.tolist())
+        s = R.EpisodeSource.stress("fees $3/side", 0, 2)
+        print("STRESS", R.run_builtin(p, s, "flat")["net_pnl_ticks"].tolist())
+        v4 = R.ScalpParams("discovery_v4", 1050.0, episode_seconds=10.0)
+        try:
+            R.run_builtin(v4, s, "flat"); print("V4 NO LIST ALLOWED")
+        except ValueError as e:
+            print("V4 refused")
+        R.run_builtin(v4, R.EpisodeSource.stress("nominal", 0, 1, list="discovery"), "flat")
+        try:
+            R.EpisodeSource.days(0, 1, sessions_per_day=40); print("40 ALLOWED")
+        except ValueError:
+            pass
+    """)
+    assert "DAYS 8 [300, 301, 302, 303, 400, 401, 402, 403]" in out
+    assert "STRESS [0.0, 0.0]" in out and "V4 refused" in out and "ALLOWED" not in out
+
+
+def test_open_sealed_only_in_ledger_module():
+    """Only ragrl/ledger.py may call open_sealed (the scoring entry points import it)."""
+    pkg = REPO / "python" / "ragrl"
+    if not pkg.exists():
+        pytest.skip("python/ragrl not present yet")
+    bad = [str(f) for f in pkg.rglob("*.py") if f.name != "ledger.py" and "open_sealed" in f.read_text(encoding="utf-8")]
+    assert not bad, bad
+
+```
+
+
+---
+
+## FILE: python\tests\test_pipeline.py  (22,228 bytes)
+
+```python
+"""The ragrl pipeline (fast): configs, stats, frozen policies vs SB3's own predict,
+the teacher vs the C++ oracle, the live-viewer schema vs of_train_live.exe,
+red flags, write-once scoring and the confirm refusals."""
+import copy
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+import numpy as np
+import pytest
+
+from conftest import RAGOF_DIR, REPO
+
+sys.path.insert(0, str(REPO / "python"))
+CONFIGS = REPO / "experiments" / "configs"
+
+
+def _raw(name):
+    return json.loads((CONFIGS / name).read_text(encoding="utf-8"))
+
+
+def test_configs_resolve_and_round_trip():
+    from ragrl import config
+    files = sorted(CONFIGS.glob("*.json")) + sorted((CONFIGS / "smoke").glob("*.json"))
+    assert len(files) >= 16
+    for f in files:
+        c = config.load(f)
+        again = config.resolve(json.loads(json.dumps(c)))
+        assert again == c and config.sha256(again) == config.sha256(c), f
+        assert c["train"]["env_steps"] >= c["train"]["budget_steps"]
+        assert c["train"]["episodes"] % c["train"]["n_envs"] == 0
+    # of_train-sized defaults use exactly of_train's 2000 episodes (whole rounds)
+    for f in CONFIGS.glob("of15_*_v4.json"):
+        c = config.load(f)
+        if c["agent"]["kind"] != "recurrent_ppo" or c["train"]["budget_steps"] == 1_200_000:
+            assert c["train"]["episodes"] == c["train"]["budget_steps"] // 600, f
+
+
+def test_config_refusals():
+    from ragrl import config
+    base = _raw("smoke/ppo.json")
+    bad = []
+    c = copy.deepcopy(base); c["train"]["typo"] = 1; bad.append(c)
+    c = copy.deepcopy(base); c["agent"]["params"]["nope"] = 1; bad.append(c)
+    c = copy.deepcopy(base); c["train"]["seeds"] = [700_000_000]; bad.append(c)
+    c = copy.deepcopy(base); c["train"]["seeds"] = [1, 1]; bad.append(c)
+    c = copy.deepcopy(base); c["train"]["workers"] = 99; bad.append(c)
+    c = copy.deepcopy(base); c["val_select"] = {"first": 0, "count": 5}; bad.append(c)          # overlaps val_ckpt
+    c = copy.deepcopy(base); c["score"]["block"] = "confirm"; bad.append(c)
+    c = copy.deepcopy(base); c["score"]["headline"] = "best_seed"; bad.append(c)
+    c = copy.deepcopy(base); c["agent"]["kind"] = "a3c"; bad.append(c)
+    c = copy.deepcopy(base); c["schema"] = "ragrl/0"; bad.append(c)
+    c = copy.deepcopy(base); c["hpo"] = {"space": {"not_a_param": ["log", 1e-5, 1e-3]}}; bad.append(c)
+    c = copy.deepcopy(base); c["hpo"] = {"select": dict(base["val_select"])}; bad.append(c)     # hpo.select overlaps val_select
+    c = copy.deepcopy(base); c["train"]["budget_steps"] = 1_200_000; bad.append(c)            # viz scoring beyond a smoke budget
+    c = copy.deepcopy(base); c["score"]["block"] = "test"; del c["score"]["first"]; bad.append(c)  # sealed range not pre-registered
+    c = copy.deepcopy(base); c["env"] = {"decide_seconds": 0.0}; bad.append(c)
+    c = copy.deepcopy(base); c["env"] = {"fee_dollars": 2.0}
+    c["score"]["baselines"] = [{"neuralq_dir": "build-avx512/rl/of14"}]; bad.append(c)        # of_train nets off their conditions
+    c = _raw("smoke/neuralq_ref.json"); c["select"]["val_ckpt"]["first"] = 0; bad.append(c)   # inside of_train's [0, 40)
+    for c in bad:
+        with pytest.raises(config.ConfigError):
+            config.resolve(c)
+
+
+def test_stats():
+    from ragrl import stats
+    a = {"net_pnl_ticks": np.array([1.0, 2.0, 3.0, 4.0]), "orders": np.ones(4), "fees_ticks": np.zeros(4)}
+    b = {"net_pnl_ticks": np.array([0.0, 2.0, 2.0, 4.0]), "orders": np.ones(4), "fees_ticks": np.zeros(4)}
+    s = stats.summary(a)
+    assert s["mean"] == 2.5 and abs(s["se"] - np.std([1, 2, 3, 4], ddof=1) / 2) < 1e-15 and s["win"] == 1.0
+    assert abs(s["sharpe_annual"] - s["sharpe_episode"] * np.sqrt(39 * 252)) < 1e-9
+    idx = stats.bootstrap_indices(4, 500, 0)
+    assert np.array_equal(idx, stats.bootstrap_indices(4, 500, 0))
+    d = stats.paired(a, b, idx)
+    assert d["mean"] == 0.5 and d["ci95"][0] <= 0.5 <= d["ci95"][1]
+    assert stats.t_required(1) == 2.0 and stats.t_required(100) > 4.9
+
+
+@pytest.fixture(scope="module")
+def P(R):
+    from ragrl import config
+    return config.make_params(config.DEFAULTS["env"])
+
+
+LAST_OBS64 = [None]
+
+
+class Spy:
+    """Wraps a VecScalpEnv and remembers the float64 observations it returned."""
+
+    def __init__(self, env):
+        self.env = env
+
+    def __getattr__(self, k):
+        return getattr(self.env, k)
+
+    def reset(self):
+        o = self.env.reset()
+        LAST_OBS64[0] = o
+        return o
+
+    def step(self, a):
+        o, r, d = self.env.step(a)
+        LAST_OBS64[0] = o
+        return o, r, d
+
+
+@pytest.mark.parametrize("kind", ["ppo", "ppo_framestack", "recurrent_ppo", "dqn", "qrdqn"])
+def test_frozen_policy_matches_sb3_predict(R, P, kind, tmp_path):
+    """The frozen copy (and its save/load round trip) acts exactly like SB3's deterministic predict, including
+    the frame stack and the LSTM state; DQN with polyak_eval=0 (the averaged copy is checked separately)."""
+    from stable_baselines3.common.vec_env import VecFrameStack
+
+    from ragrl import envs, policies
+    from ragrl.agents import ZOO, sb3_agents
+    p = dict(ZOO[kind].defaults)
+    venv = envs.RagVecEnv(Spy(envs.train_env(P, 3, 4)))
+    n_stack = p.get("n_stack", 1)
+    env = VecFrameStack(venv, n_stack) if n_stack > 1 else venv
+    if kind in ("ppo", "ppo_framestack"):
+        from stable_baselines3 import PPO
+        kw, pk = sb3_agents._ppo_kwargs(dict(p, n_steps=50, batch_size=100))
+        model = PPO("MlpPolicy", env, policy_kwargs=pk, seed=1, device="cpu", **kw)
+        model.learn(400)
+        frozen = policies.SB3ActorCritic(sb3_agents._frozen_copy(model.policy), n_stack)
+    elif kind == "recurrent_ppo":
+        from sb3_contrib import RecurrentPPO
+        kw, pk = sb3_agents._ppo_kwargs(dict(p, n_steps=50, batch_size=100))
+        pk.update(lstm_hidden_size=16, n_lstm_layers=1)
+        model = RecurrentPPO("MlpLstmPolicy", env, policy_kwargs=pk, seed=1, device="cpu", **kw)
+        model.learn(400)
+        frozen = policies.SB3Recurrent(sb3_agents._frozen_copy(model.policy))
+    else:
+        DQNc, QRc = sb3_agents._dqn_classes()
+        kw = sb3_agents._dqn_kwargs(dict(p, learning_starts=100, buffer_size=5000, exploration_fraction=0.1))
+        if kind == "dqn":
+            model = DQNc("MlpPolicy", env, double_q=True, polyak_eval=0.0, policy_kwargs={"net_arch": [32, 32]}, seed=1, device="cpu", **kw)
+        else:
+            model = QRc("MlpPolicy", env, polyak_eval=0.0, policy_kwargs={"net_arch": [32, 32], "n_quantiles": 8}, seed=1, device="cpu", **kw)
+        model.learn(800)
+        frozen = model.frozen()
+    policies.save_policy(frozen, tmp_path)
+    loaded = policies.load_policy(tmp_path)
+    for pol in (frozen, loaded):
+        # a fresh stream for each comparison (the model's env is consumed): run seed 4
+        venv2 = envs.RagVecEnv(Spy(envs.train_env(P, 4, 4)))
+        env2 = VecFrameStack(venv2, n_stack) if n_stack > 1 else venv2
+        obs = env2.reset()
+        pol.reset(4)
+        state, start = None, np.ones(4, dtype=bool)
+        for _ in range(120):
+            a, state = model.predict(obs, state=state, episode_start=start, deterministic=True)
+            b, s = pol.step(LAST_OBS64[0])
+            assert np.array_equal(a, b)
+            assert s.shape == (4, 3)
+            obs, _, done, _ = env2.step(a)
+            start = done
+
+
+def test_dqn_polyak_average(R, P):
+    """polyak_eval > 0: the frozen DQN uses the averaged weights, avg += tau (net - avg) after every update."""
+    from ragrl import envs
+    from ragrl.agents import ZOO, sb3_agents
+    DQNc, _ = sb3_agents._dqn_classes()
+    p = dict(ZOO["dqn"].defaults)
+    env = envs.RagVecEnv(envs.train_env(P, 5, 2))
+    kw = sb3_agents._dqn_kwargs(dict(p, learning_starts=50, buffer_size=2000, gradient_steps=1))
+    m = DQNc("MlpPolicy", env, double_q=True, polyak_eval=0.5, policy_kwargs={"net_arch": [8]}, seed=1, device="cpu", **kw)
+    import torch
+    w0 = [x.clone() for x in m.q_net_avg.parameters()]
+    m.learn(52)  # 26 vec steps x 2 envs: exactly one update after learning_starts
+    net = list(m.q_net.parameters())
+    for a, b, c in zip(m.q_net_avg.parameters(), w0, net):
+        assert torch.allclose(a, 0.5 * b + 0.5 * c)
+    fz = m.frozen()
+    for a, b in zip(fz.policy.q_net.parameters(), m.q_net_avg.parameters()):
+        assert torch.equal(a, b)
+
+
+def test_teacher_is_the_cpp_oracle(R, P):
+    """The imitation teacher (privileged gap column) plays exactly like the C++ oracle (viz block, privileged allowed)."""
+    from ragrl import envs
+    for th in (0.5, 1.0):
+        env = R.VecScalpEnv(P, envs.indexed_source("viz", 10, 6), threads=2, privileged=True)
+        obs = env.reset()
+        while True:
+            obs, _, done = env.step(envs.oracle_actions(obs, env.priv, th))
+            if done[0]:
+                break
+        ref = R.run_builtin(P, envs.indexed_source("viz", 10, 6), ("oracle", th), threads=2)
+        assert np.array_equal(env.episode_stats["net_pnl_ticks"], ref["net_pnl_ticks"])
+
+
+def test_delta_rule_is_the_cpp_rule(R, P):
+    from ragrl import envs
+    from ragrl.evaluate import Builtin, run_policy
+    from ragrl.policies import FrozenPolicy
+
+    class D(FrozenPolicy):
+        def step(self, obs):
+            return envs.delta_rule_actions(obs), np.zeros((len(obs), 3))
+
+    src = envs.indexed_source("viz", 20, 5)
+    assert np.array_equal(run_policy(P, src, D())["net_pnl_ticks"], run_policy(P, src, Builtin("delta30"))["net_pnl_ticks"])
+
+
+def test_live_header_matches_of_train_live(R, P, tmp_path):
+    """Probe states, policy-map bins (obs[6] / 2), the rule's probe track: identical to of_train_live.exe's header."""
+    exe = RAGOF_DIR / "of_train_live.exe"
+    if not exe.exists():
+        pytest.skip("of_train_live.exe not next to the module")
+    subprocess.run([str(exe), "--episodes", "1", "--probe", "3", "--out", str(tmp_path / "ref.jsonl")], check=True, capture_output=True)
+    ref = json.loads((tmp_path / "ref.jsonl").read_text().splitlines()[0])
+    from ragrl.live import LiveWriter
+    LiveWriter(tmp_path / "mine.jsonl", P, {"live": {"probe": 3, "every_episodes": 1}, "agent": {"kind": "x"}}, 1, 1)
+    mine = json.loads((tmp_path / "mine.jsonl").read_text().splitlines()[0])
+    assert set(ref) <= set(mine)
+    assert mine["cell_states"] == ref["cell_states"] and mine["rule_pnl"] == ref["rule_pnl"]
+    for k in ["tod", "mid", "fv", "pos", "pnl", "fill"]:
+        assert mine["rule"][k] == ref["rule"][k], k
+
+
+def test_registry_redflags_and_report(tmp_path, monkeypatch):
+    """Synthetic sealed/selection records -> the expected flags and STATUS; report renders without an environment."""
+    monkeypatch.setenv("RAGRL_ROOT", str(tmp_path))
+    monkeypatch.setenv("RAGRL_LEDGER_FILE", str(tmp_path / "ledger_usage.jsonl"))
+    from ragrl import redflags, registry, report
+
+    def S(mean, se, orders=4.0, sh=0.1):
+        return {"n": 300, "mean": mean, "sd": se * 17.3, "se": se, "t": mean / se, "win": 0.5, "orders": orders, "fees": 0.5,
+                "sharpe_episode": sh, "sharpe_annual": sh * 99.1}
+
+    run = tmp_path / "runs" / "x-1"
+    (run / "seeds" / "seed1").mkdir(parents=True)
+    registry.write_json(run / "config.json", {"name": "x", "agent": {"kind": "ppo", "params": {}}, "train": {
+        "seeds": [1], "episodes": 8, "env_steps": 4800, "budget_rounded": False, "n_envs": 4},
+        "env": {"market": "m", "warmup_seconds": 1, "latency_steps": 1, "fee_dollars": 1.5, "contracts": 1},
+        "select": {"val_ckpt": {"first": 0, "count": 2}, "every_steps": 1}, "val_select": {"first": 9, "count": 2},
+        "score": {"headline": "ensemble"}})
+    registry.write_json(run / "provenance.json", {"git_sha": "g", "dirty": False, "dirty_diff_sha1": "", "module": "m",
+                                                  "module_sha256": "s", "freeze_sha256": "f", "versions": {}, "python": "3"})
+    (run / "config.sha256").write_text("c")
+    registry.write_json(run / "seeds" / "seed1" / "val.json", {"val_ckpt_mean": 1.0, "offers": 3, "champion_step": 2,
+                                                               "train_seconds": 1, "eval_seconds": 1, "extra": {}})
+    good = {"seed1": S(1.5, 0.5, sh=0.06), "ensemble": S(1.2, 0.5), "mean_of_seeds": S(1.5, 0.5),
+            "flat": S(0.0, 1e-9), "delta30": S(-4.7, 1.4), "oracle_0.5": S(-1.0, 0.3, orders=1.0)}
+    paired = {"flat": {k: {"mean": good[k]["mean"], "se": 0.5, "t": good[k]["mean"] / 0.5, "ci95": [0, 1]} for k in ["seed1", "ensemble", "mean_of_seeds"]},
+              "oracle_0.5": {k: {"mean": 2.5, "se": 0.5, "t": 5.0, "ci95": [1, 3]} for k in ["seed1", "ensemble", "mean_of_seeds"]}}
+    sel = {"summary": {**good, "seed1": S(5.0, 1.0)}, "paired": {}, "best_oracle": "oracle_0.5", "multiplicity": 10,
+           "determinism": {"seed": 1, "same_twice": True, "same_as_worker": True}, "val_ckpt": {}}
+    registry.write_json(run / "select.json", sel)
+    registry.write_json(run / "sealed.json", {"block": "test", "dry_run": False, "first": 0, "count": 300, "headline": "ensemble",
+                                              "summary": good, "paired": paired, "learned": ["seed1", "ensemble", "mean_of_seeds"],
+                                              "baselines": ["flat", "delta30", "oracle_0.5"], "bootstrap": {"B": 10, "seed": 0}})
+    f = redflags.evaluate(run)
+    ids = {x["id"] for x in f["hard"]}
+    assert ids == {"R1", "R2"}, f   # seed1 Sharpe 0.06 * 99 > 5; beats the val-best oracle by 2 SE while > 0
+    assert {x["id"] for x in f["claim"]} == {"R3"} and f["status"] == "RED_FLAGS"
+    w = {x["id"] for x in f["warnings"]}
+    assert {"R4", "R6", "R9", "R11"} <= w      # val 5.0 (t 5) -> test 1.5; oracle 1 order/episode; t 2.4 < t_req(10)
+    assert "R1v" not in w
+    # R1 on a near-flat row (< 2 orders/episode, the oracles' R6 rule) is vacuous: warning R1v, never hard;
+    # a row trading >= 2 orders/episode still raises R1
+    sealed = registry.read_json(run / "sealed.json")
+    for seed1_orders, want_hard in ((0.1, []), (1.99, []), (2.0, ["seed1"])):
+        lo = {k: dict(v, orders=0.1) for k, v in sealed["summary"].items()}
+        lo["seed1"]["orders"] = seed1_orders
+        (run / "sealed.json").unlink()
+        registry.write_json(run / "sealed.json", dict(sealed, summary=lo))
+        g = redflags.evaluate(run)
+        assert [x["policy"] for x in g["hard"] if x["id"] == "R1"] == want_hard, g["hard"]
+        vac = {x["policy"] for x in g["warnings"] if x["id"] == "R1v"}
+        assert vac == {"ensemble", "mean_of_seeds", "flat", "delta30"} | ({"seed1"} if not want_hard else set()), g["warnings"]
+    (run / "sealed.json").unlink()
+    registry.write_json(run / "sealed.json", sealed)
+    # a second test opening of the same run in the usage ledger: R10
+    from ragrl import ledger
+    for _ in range(2):
+        ledger.log_usage({"run": "x-1", "block": "test", "dry_run": False})
+    assert "R10" in {x["id"] for x in redflags.evaluate(run)["hard"]}
+    report.write(run)
+    txt = (run / "report.md").read_text(encoding="utf-8")
+    assert "STATUS: RED_FLAGS" in txt and "| ensemble | flat |" in txt and "train s" in txt and "## Provenance" in txt
+    det = (run / "report_results.md").read_text(encoding="utf-8")
+    assert "train s" not in det and "## Provenance" not in det and "| ensemble | flat |" in det
+    with pytest.raises(FileExistsError):
+        registry.write_json(run / "sealed.json", {}, once=True)
+
+    # R2g: gross above the highest-gross oracle by 2 SE fires even with a negative net; family size raises M;
+    # a dry run never claims; a sealed opening outside the canonical ledger is R10
+    sealed = registry.read_json(run / "sealed.json")
+    G = {k: {"mean": -0.5, "se": 0.5, "t": -1.0} for k in sealed["summary"]}
+    G.update({"oracle_0.5": {"mean": 3.0, "se": 0.5, "t": 6.0}, "oracle_1": {"mean": 1.0, "se": 0.5, "t": 2.0}})
+    pg = {o: {k: {"mean": 0.1, "se": 1.0, "t": 0.1} for k in sealed["learned"]} for o in ("oracle_0.5", "oracle_1")}
+    pg["oracle_0.5"]["seed1"] = {"mean": 2.5, "se": 1.0, "t": 2.5}
+    pg["oracle_1"]["ensemble"] = {"mean": 9.0, "se": 1.0, "t": 9.0}   # beats a lower-gross oracle only: no flag
+    neg = {k: dict(v, mean=-abs(v["mean"]), t=-abs(v["t"])) for k, v in good.items()}
+    (run / "sealed.json").unlink()
+    registry.write_json(run / "sealed.json", dict(sealed, summary=neg, gross=G, paired_gross=pg, family_size=9,
+                                                  ledger_canonical=False))
+    f = redflags.evaluate(run)
+    r2g = [x for x in f["hard"] if x["id"] == "R2g"]
+    assert [x["policy"] for x in r2g] == ["seed1"], f["hard"]
+    assert f["multiplicity"] == 90 and any(x["id"] == "R10" and "canonical" in x["detail"] for x in f["hard"])
+    (run / "sealed.json").unlink()
+    registry.write_json(run / "sealed.json", dict(sealed, dry_run=True, block="viz"))
+    f = redflags.evaluate(run)
+    assert f["status"] == "DRY_RUN_RED_FLAGS" and not f["claim"] and any(x["id"] == "R3" for x in f["warnings"])
+
+
+def test_ledger_range_reuse_and_confirm_offsets(tmp_path, monkeypatch):
+    """Pre-viewed ranges, other experiments and family members beyond family_size are reuse; a regeneration
+    (same experiment id) is not; confirmations never share 950M+ episodes."""
+    monkeypatch.setenv("RAGRL_LEDGER_FILE", str(tmp_path / "u.jsonl"))
+    from ragrl import ledger
+    assert not ledger.is_canonical()
+    r = ledger.range_reuse("test", 0, 300, "discovery_v4", "me", "e0", "fam", 3)
+    assert r["reused"] and r["previewed"]
+    assert not ledger.range_reuse("test", 1_000_000, 300, "discovery_v4", "me", "e0", "fam", 3)["reused"]
+    log = lambda run, exp, fam, first=1_000_000, market="discovery_v4", dry=False: ledger.log_usage(
+        {"run": run, "block": "test", "first": first, "count": 300, "market": market, "experiment": exp, "family": fam, "dry_run": dry})
+    log("a", "e1", "fam")
+    log("b", "e2", "fam")
+    log("c", "e0", "fam")                         # an earlier regeneration of this experiment
+    log("d", "x", "other", market="default")      # another market
+    log("e", "y", None, dry=True)                 # a dry run
+    r = ledger.range_reuse("test", 1_000_100, 300, "discovery_v4", "me", "e0", "fam", 3)
+    assert not r["reused"] and r["family_experiments"] == 2
+    r = ledger.range_reuse("test", 1_000_100, 300, "discovery_v4", "me", "e0", "fam", 2)
+    assert r["reused"] and r["family_over"] == 1
+    log("f", "z", "other")
+    r = ledger.range_reuse("test", 1_000_000, 300, "discovery_v4", "me", "e0", "fam", 3)
+    assert r["reused"] and [u["run"] for u in r["outside_family"]] == ["f"]
+    assert ledger.next_confirm_first() == 0
+    ledger.log_usage({"run": "a", "block": "confirm", "first": 0, "count": 300, "claim": "c1", "dry_run": False})
+    with open(ledger.usage_file(), "a", encoding="utf-8") as f:
+        f.write('{"run": "partial", "block": "co')    # a line still being appended is ignored
+    assert ledger.read_usage()[-1]["claim"] == "c1"
+    assert ledger.next_confirm_first() == 300
+
+
+def test_confirm_refuses_dry_runs_and_non_claims(tmp_path):
+    from ragrl import registry, runner
+    run = tmp_path / "r"
+    run.mkdir()
+    registry.write_json(run / "sealed.json", {"block": "viz", "dry_run": True})
+    with pytest.raises(PermissionError, match="dry run"):
+        runner.confirm(run, "c1", True)
+    (run / "sealed.json").unlink()
+    registry.write_json(run / "sealed.json", {"block": "test", "dry_run": False})
+    (run / "STATUS").write_text("NO_EDGE\n")
+    with pytest.raises(PermissionError, match="CLAIM_PENDING"):
+        runner.confirm(run, "c1", True)
+
+
+def test_steps_per_episode_matches_cpp(R):
+    from ragrl import config
+    for decide, episode in [(1.0, 600.0), (3.0, 10.0), (0.1, 1.0), (0.3, 0.9), (7.0, 600.0), (0.25, 600.0)]:
+        env = dict(config.DEFAULTS["env"], decide_seconds=decide, episode_seconds=episode)
+        assert config.steps_per_episode(env) == config.make_params(env).steps_per_episode, (decide, episode)
+
+
+def test_scorer_ledger_entry_and_refusals(run_fresh, tmp_path):
+    """as_scorer opens and logs; confirm without a claim / with a used claim is refused before anything opens."""
+    out = run_fresh(f"""
+        import os, json
+        os.environ["RAGRL_ROOT"] = {str(tmp_path)!r}
+        os.environ["RAGRL_LEDGER_FILE"] = {str(tmp_path / "ledger_usage.jsonl")!r}
+        sys.path.insert(0, {str(REPO / 'python')!r})
+        from ragrl import ledger
+        try:
+            ledger.as_scorer("confirm", "r", "run", 0, 1)
+        except PermissionError as e:
+            print("NOCLAIM")
+        ledger.log_usage({{"run": "old", "block": "confirm", "claim": "c7"}})
+        try:
+            ledger.as_scorer("confirm", "r", "run", 0, 1, claim="c7")
+        except PermissionError as e:
+            print("REUSED")
+        print("ROLE", R.process_role(), R.is_open("confirm"))
+        ledger.as_scorer("test", "unit test (opens, plays nothing)", "run", 0, 1)
+        print("ROLE", R.process_role(), R.is_open("test"))
+        u = ledger.read_usage()
+        print("LOGGED", u[-1]["block"], u[-1]["run"], u[-1]["dry_run"])
+    """)
+    assert "NOCLAIM" in out and "REUSED" in out and "ROLE none False" in out
+    assert "ROLE scorer True" in out and "LOGGED test run False" in out
+
+
+def test_trainer_process_cannot_seal(run_fresh):
+    out = run_fresh(f"""
+        sys.path.insert(0, {str(REPO / 'python')!r})
+        from ragrl import ledger
+        ledger.as_trainer()
+        try:
+            ledger.as_scorer("test", "x", "run", 0, 1)
+            print("OPENED")
+        except Exception as e:
+            print("REFUSED", type(e).__name__)
+    """)
+    assert "REFUSED" in out and "OPENED" not in out
+
+
+def test_confirm_cli_refusal(tmp_path):
+    env = dict(os.environ, PYTHONPATH=str(REPO / "python"), RAGOF_DIR=str(RAGOF_DIR), RAGRL_ROOT=str(tmp_path),
+               RAGRL_LEDGER_FILE=str(tmp_path / "ledger_usage.jsonl"))
+    p = subprocess.run([sys.executable, "-m", "ragrl", "confirm", str(tmp_path / "nope"), "--claim", "x"], env=env,
+                       capture_output=True, text=True)
+    assert p.returncode != 0 and "orchestrator only" in p.stderr
+    assert not (tmp_path / "ledger_usage.jsonl").exists()
+
+```
+
+
+---
+
+## FILE: python\tests\test_privileged.py  (3,265 bytes)
+
+```python
+"""The privileged channel: hidden state only in a separate array, only when
+asked for, only on train and viz; never in the observation."""
+import numpy as np
+import pytest
+
+
+def test_priv_columns(R):
+    assert R.PRIV_COLUMNS == ("fair_value", "mid", "gap", "session_s", "fill_price", "orders", "cash_ticks")
+    assert R.OBS_DIM == 16 and R.N_ACTIONS == 3 and R.N_FEATURES == 13
+
+
+@pytest.mark.parametrize("block", ["validation", "pairing"])
+def test_refused_on_selection_blocks(R, block):
+    p = R.ScalpParams("default", 150.0, episode_seconds=10.0)
+    with pytest.raises(RuntimeError, match="privileged"):
+        R.VecScalpEnv(p, R.EpisodeSource.block(block, 0, 2), privileged=True)
+
+
+def test_refused_on_sealed_blocks(run_fresh):
+    out = run_fresh("""
+        p = R.ScalpParams("default", 150.0, episode_seconds=10.0)
+        for b in ["test", "stress", "days", "confirm"]:
+            R.open_sealed(b, "pytest")
+        srcs = [R.EpisodeSource.block("test", 0, 1), R.EpisodeSource.stress("nominal", 0, 1), R.EpisodeSource.days(0, 1, 1),
+                R.EpisodeSource.block("confirm", 0, 1, orchestrator="c")]
+        n = 0
+        for s in srcs:
+            try:
+                R.VecScalpEnv(p, s, privileged=True); print("ALLOWED", s)
+            except RuntimeError:
+                n += 1
+        print("REFUSED", n)
+    """)
+    assert "ALLOWED" not in out and "REFUSED 4" in out
+
+
+def test_priv_needs_the_flag_and_obs_do_not_depend_on_it(R):
+    p = R.ScalpParams("discovery_v4", 1050.0, episode_seconds=30.0)
+    plain = R.VecScalpEnv(p, R.EpisodeSource.block("viz", 10, 2), threads=2)
+    priv = R.VecScalpEnv(p, R.EpisodeSource.block("viz", 10, 2), threads=2, privileged=True)
+    assert not plain.privileged and priv.privileged
+    o1, o2 = plain.reset(), priv.reset()
+    with pytest.raises(RuntimeError):
+        plain.priv
+    with pytest.raises(RuntimeError):
+        plain.final_priv
+    assert o1.tobytes() == o2.tobytes()
+    rng = np.random.default_rng(0)
+    while True:
+        a = rng.integers(0, 3, size=2).astype(np.int64)
+        (o1, r1, d1), (o2, r2, d2) = plain.step(a), priv.step(a)
+        assert o1.tobytes() == o2.tobytes() and r1.tobytes() == r2.tobytes()
+        pv = priv.final_priv if d2[0] else priv.priv
+        assert pv.shape == (2, 7)
+        assert np.array_equal(pv[:, 2], pv[:, 0] - pv[:, 1])
+        if d1[0]:
+            break
+    # gap is not a column of obs (no feature equals it)
+    assert not any(np.array_equal(o2[:, k], pv[:, 2]) for k in range(16))
+
+
+def test_train_priv_fill_and_orders(R):
+    p = R.ScalpParams("default", 150.0, episode_seconds=60.0)
+    env = R.VecScalpEnv(p, R.EpisodeSource.train(9), n_envs=4, threads=2, privileged=True)
+    env.reset()
+    pv = env.priv
+    assert np.all(pv[:, 5] == 0) and np.all(pv[:, 6] == 0) and np.all(np.isnan(pv[:, 4]))
+    fills = 0
+    for t in range(60):
+        a = np.full(4, 2 if t % 10 < 5 else 0, dtype=np.int64)  # long, then short: one order each switch
+        o, r, d = env.step(a)
+        pv = env.final_priv if d[0] else env.priv
+        fills += int(np.isfinite(pv[:, 4]).sum())
+        assert np.all(pv[:, 3] >= 150.0)  # session second, after the warm-up
+    assert fills >= 4 * 11
+    assert np.all(env.episode_stats["orders"] >= 12)
+
+```
+
+
+---
+
+## FILE: python\tests\test_smoke.py  (4,612 bytes)
+
+```python
+"""End-to-end smoke per agent (marked `smoke`; one ctest each: ragrl_smoke_<agent>).
+
+Default market, warm-up 150, tiny budgets (experiments/configs/smoke/): train 2
+seeds in worker processes, select on validation, 'seal' as a DRY RUN on the
+visualization block (smoke runs never open the sealed test), red flags, report;
+then retrain seed 1 and require a bit-identical champion (R8), and bake the
+live-viewer JSONL with tools/of_train_live.py."""
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import pytest
+
+from conftest import RAGOF_DIR, REPO
+
+SMOKE = REPO / "experiments" / "configs" / "smoke"
+AGENTS = ["ppo", "ppo_framestack", "recurrent_ppo", "dqn", "qrdqn", "lgbm_threshold", "bc_dagger", "neuralq_ref"]
+
+
+def _ragrl(tmp, *args, timeout=600):
+    env = dict(os.environ, PYTHONPATH=str(REPO / "python"), RAGOF_DIR=str(RAGOF_DIR), RAGRL_ROOT=str(tmp),
+               RAGRL_LEDGER_FILE=str(tmp / "ledger_usage.jsonl"))
+    p = subprocess.run([sys.executable, "-m", "ragrl", *args], env=env, capture_output=True, text=True, timeout=timeout, cwd=REPO)
+    assert p.returncode == 0, f"ragrl {args} failed:\n{p.stdout[-3000:]}\n{p.stderr[-5000:]}"
+    return p.stdout
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize("agent", AGENTS)
+def test_smoke(agent, tmp_path):
+    t0 = time.perf_counter()
+    _ragrl(tmp_path, "run", str(SMOKE / f"{agent}.json"))
+    runs = list((tmp_path / "runs").iterdir())
+    runs = [r for r in runs if r.is_dir()]
+    assert len(runs) == 1
+    run = runs[0]
+    status = (run / "STATUS").read_text().strip()
+    assert status in ("DRY_RUN_OK", "DRY_RUN_RED_FLAGS"), status  # a dry run never claims
+    sealed = json.loads((run / "sealed.json").read_text())
+    assert sealed["dry_run"] and sealed["block"] == "viz" and sealed["source"]["block"] == "viz"
+    assert all(len(v) for v in sealed["summary"].values())
+    usage = [json.loads(l) for l in (tmp_path / "ledger_usage.jsonl").read_text().splitlines()]
+    assert [u["block"] for u in usage] == ["viz"] and usage[0]["dry_run"]
+    sel = json.loads((run / "select.json").read_text())
+    assert sel["determinism"]["same_twice"] and sel["determinism"]["same_as_worker"]
+    assert "report" in _ragrl(tmp_path, "report", str(run)).lower() or (run / "report.md").exists()
+    det = (run / "report_results.md").read_text(encoding="utf-8")
+    assert "train s" not in det and "## Provenance" not in det and str(run.name) not in det
+    # a second seal is refused (write-once)
+    env = dict(os.environ, PYTHONPATH=str(REPO / "python"), RAGOF_DIR=str(RAGOF_DIR), RAGRL_ROOT=str(tmp_path),
+               RAGRL_LEDGER_FILE=str(tmp_path / "ledger_usage.jsonl"))
+    p = subprocess.run([sys.executable, "-m", "ragrl", "seal", str(run)], env=env, capture_output=True, text=True, cwd=REPO)
+    assert p.returncode != 0 and "already sealed" in p.stderr
+    t_run = time.perf_counter() - t0
+    rc = json.loads(_ragrl(tmp_path, "recheck", str(run), "--seed", "1"))
+    assert rc["same_actions"] and rc["same_val"], rc
+    if agent != "neuralq_ref":
+        assert rc["same_artifacts"], rc
+    if (run / "live.jsonl").exists():
+        out = subprocess.run([sys.executable, str(REPO / "tools" / "of_train_live.py"), "bake", str(run / "live.jsonl"), str(tmp_path / "live.html")],
+                             capture_output=True, text=True, check=True).stdout
+        assert "checkpoints" in out and (tmp_path / "live.html").stat().st_size > 10_000
+        lines = [json.loads(l) for l in (run / "live.jsonl").read_text().splitlines()]
+        assert lines[0]["type"] == "header" and lines[-1]["type"] == "done"
+        ck = [l for l in lines if l["type"] == "ckpt"]
+        assert len(ck) >= (1 if agent == "neuralq_ref" else 2) and all(len(c["policy"]) == 3 * 10 * 8 * 3 and len(c["track"]["mid"]) == 600 for c in ck)
+    print(f"\nSMOKE {agent}: run+seal {t_run:.1f} s, total {time.perf_counter() - t0:.1f} s")
+
+
+@pytest.mark.smoke
+def test_smoke_hpo(tmp_path):
+    t0 = time.perf_counter()
+    _ragrl(tmp_path, "hpo", str(SMOKE / "ppo_hpo.json"))
+    run = next(r for r in (tmp_path / "runs").iterdir() if r.is_dir())
+    trials = [json.loads(l) for l in (run / "hpo.jsonl").read_text().splitlines()]
+    assert len(trials) == 3 and any(t["state"] == "complete" for t in trials)
+    best = json.loads((run / "best_config.json").read_text())
+    assert best["train"]["seeds"] == [101, 102] and best["select"]["multiplicity_extra"] == 3 and best["hpo"] is None
+    assert not (tmp_path / "ledger_usage.jsonl").exists()  # HPO never seals
+    print(f"\nSMOKE hpo: {time.perf_counter() - t0:.1f} s")
+
+```
+
+
+---
+
+## FILE: python\tests\test_vec_env.py  (5,131 bytes)
+
+```python
+"""VecScalpEnv's contract: parameters, determinism (threads, n_envs), the
+train stream's auto-reset, indexed sources played once, input checks, and
+arrays that never alias the environment's buffers."""
+import threading
+
+import numpy as np
+import pytest
+
+
+def short(R, market="default", warmup=150.0, seconds=20.0, **kw):
+    return R.ScalpParams(market, warmup, episode_seconds=seconds, **kw)
+
+
+def test_params_round_trip(R):
+    p = R.ScalpParams("discovery_v4", 1050.0, latency_steps=2, fee_dollars=2.0, sim_overrides={"value_vol": 0.4})
+    d = p.to_dict()
+    assert d == {"market": "discovery_v4", "warmup_seconds": 1050.0, "decide_seconds": 1.0, "episode_seconds": 600.0, "start_second": -1.0,
+                 "latency_steps": 2, "contracts": 1, "fee_dollars": 2.0, "sim_overrides": {"value_vol": 0.4}}
+    assert R.ScalpParams(**d) == p and R.ScalpParams(**{**d, "fee_dollars": 1.5}) != p
+    assert p.steps_per_episode == 600 and R.steps_per_episode(short(R)) == 20
+    assert "value_vol" in R.SIM_OVERRIDE_KEYS and "dt" not in R.SIM_OVERRIDE_KEYS
+    for bad in [dict(market="nope"), dict(warmup_seconds=30_000.0), dict(warmup_seconds=-1.0), dict(sim_overrides={"dt": 0.2}),
+                dict(market="discovery_v4", contracts=2), dict(decide_seconds=0.0), dict(contracts=0)]:
+        with pytest.raises(ValueError):
+            R.ScalpParams(**bad)
+    assert R.BUILD_INFO["avx512"] in (True, False) and "nanobind" in R.BUILD_INFO
+
+
+def run_stream(R, n_envs, threads, rounds, seed=11):
+    """First obs and per-step rewards of stream episodes 0 .. n_envs * rounds - 1."""
+    env = R.VecScalpEnv(short(R), R.EpisodeSource.train(seed), n_envs=n_envs, threads=threads)
+    o = env.reset()
+    first, rew = {}, {}
+    for _ in range(rounds):
+        ks = env.episode_ids.tolist()
+        for j, k in enumerate(ks):
+            first[k] = o[j].tobytes()
+            rew[k] = []
+        for t in range(20):
+            o, r, d = env.step(np.array([(t + k) % 3 for k in ks], dtype=np.int64))
+            for j, k in enumerate(ks):
+                rew[k].append(r[j])
+    return first, rew
+
+
+def test_stream_invariant_to_threads_and_n_envs(R):
+    a = run_stream(R, 4, 1, 2)
+    assert a == run_stream(R, 4, 4, 2)
+    assert a == run_stream(R, 2, 2, 4)
+    assert a == run_stream(R, 8, 3, 1)
+    assert run_stream(R, 4, 1, 2, seed=12) != a
+
+
+def test_auto_reset_and_final_obs(R):
+    env = R.VecScalpEnv(short(R, seconds=5.0), R.EpisodeSource.train(2), n_envs=3, threads=1)
+    o = env.reset()
+    assert env.episode_ids.tolist() == [0, 1, 2]
+    for t in range(5):
+        o, r, d = env.step(np.ones(3, dtype=np.int64))
+    assert d.all() and env.final_episode_ids.tolist() == [0, 1, 2] and env.episode_ids.tolist() == [3, 4, 5]
+    fo = env.final_obs
+    assert np.all(fo[:, 15] == 0) and np.all(o[:, 15] == 1)  # time_left: terminal vs the next episode's first obs
+    assert set(env.episode_stats) == {"net_pnl_ticks", "orders", "round_trips", "fees_ticks"}
+    assert env.rounds_finished == 1 and env.episodes_started == 6
+
+
+def test_indexed_played_once(R):
+    env = R.VecScalpEnv(short(R, seconds=3.0), R.EpisodeSource.block("validation", 0, 2), n_envs=50)
+    assert env.n_envs == 2
+    with pytest.raises(RuntimeError):
+        env.step(np.ones(2, dtype=np.int64))  # before reset
+    env.reset()
+    for _ in range(3):
+        env.step(np.ones(2, dtype=np.int64))
+    with pytest.raises(RuntimeError):
+        env.step(np.ones(2, dtype=np.int64))
+    with pytest.raises(RuntimeError):
+        env.reset()
+
+
+def test_action_checks_and_dtypes(R):
+    env = R.VecScalpEnv(short(R), R.EpisodeSource.train(3), n_envs=2)
+    env.reset()
+    with pytest.raises(ValueError):
+        env.step(np.array([0, 3], dtype=np.int64))
+    with pytest.raises(ValueError):
+        env.step(np.array([1, 1, 1], dtype=np.int64))
+    o, r, d = env.step(np.array([2, 0], dtype=np.int32))  # converted
+    o, r, d = env.step(np.array([2.0, 0.0])[::1].astype(np.int64))
+    assert o.shape == (2, 16) and o.dtype == np.float64 and r.shape == (2,) and d.dtype == np.bool_
+
+
+def test_arrays_are_copies(R):
+    env = R.VecScalpEnv(short(R), R.EpisodeSource.train(4), n_envs=2)
+    o = env.reset()
+    o[:] = 99.0  # writable, owned by Python
+    assert np.array_equal(env.final_obs, np.zeros((2, 16)))
+    o2, _, _ = env.step(np.ones(2, dtype=np.int64))
+    assert not (o2 == 99.0).any()
+    ids = env.episode_ids
+    ids[:] = 7
+    assert env.episode_ids.tolist() == [0, 1]
+
+
+def test_concurrent_use_is_refused_or_serialized(R):
+    """Two Python threads stepping one env (GIL released inside) never corrupt it: one is refused."""
+    env = R.VecScalpEnv(R.ScalpParams("default", 150.0), R.EpisodeSource.train(5), n_envs=64, threads=1)
+    env.reset()
+    errors = []
+
+    def work():
+        for _ in range(50):
+            try:
+                env.step(np.ones(64, dtype=np.int64))
+            except RuntimeError as e:
+                errors.append(str(e))
+
+    ts = [threading.Thread(target=work) for _ in range(2)]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join()
+    assert all("already in use" in e for e in errors)
 
 ```

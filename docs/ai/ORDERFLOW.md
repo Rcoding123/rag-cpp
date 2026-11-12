@@ -94,7 +94,15 @@ python tools\of_viz.py trace.csv trace.html                                     
 .\build-avx512\Release\of_train_live.exe --market discovery_v4 --warmup 1050 --episodes 2000 --every 50 --out DIR\live.jsonl --net DIR\seed1.net
 python tools\of_train_live.py serve DIR                                                        # live viewer on http://127.0.0.1:8770/
 python tools\of_train_live.py bake DIR\live.jsonl out.html                                     # one self-contained page afterwards
+bash experiments/of15_regen.sh [agent ...]                                                    # OF15 zoo on v4 (Git Bash; OF15_MARKET=v3 for v3)
+$env:PYTHONPATH="python"; $env:RAGOF_DIR="<snapshot dir>"; .venv\Scripts\python.exe -m ragrl --help   # run/train/select/report/diag/seal/recheck/hpo/live/zoo/confirm
+.venv\Scripts\python.exe tools\of_zoo_trace.py RUN [RUN ...] --out build-avx512\zoo --episodes 5    # replay ragrl runs on viz episodes (of_viz pages)
 ```
+`_ragof` needs `cmake --preset windows-msvc-avx512 -DRAG_PYTHON=ON` and
+the project venv `.venv` (A72). Serve `build-avx512\zoo` with a plain
+static server (the `of-zoo` launch entry: `python -m http.server 8772
+--directory build-avx512\zoo`), not with `of_train_live.py serve`, which
+writes its own `index.html` into the directory (LESSONS 54).
 Run the live viewer alongside every RL run (A70). `serve` writes the page
 and serves DIR on port 8770 (`--port`); if you write the page with `page`
 instead and serve it yourself, open `index.html?src=live.jsonl`.
@@ -424,6 +432,21 @@ trade more and lose more); the ensemble stops trading; OF8 days: every
 strategy loses (ensemble −50 ticks/day). No sign that RL exploits v4's
 known quirks (EXPERIMENTS.md OF14).
 
+**OF15 (the agent zoo through the `ragrl` pipeline, v4 and v3): no
+edge.** A leak-proof pipeline (C++ seed ledger with process roles,
+`VecScalpEnv` bound as `_ragof`, Python `ragrl`; A71–A73) trained 8
+agent families (NeuralQ reference, PPO, frame-stack PPO, recurrent PPO,
+DQN, QR-DQN, LightGBM threshold, BC/DAgger), 12 seeds × 2,000 episodes
+each, and scored each config once, paired, on fresh sealed ranges (v4
+901M+[0,300), v3 901M+[300,600)). All 16 configs NO_EDGE, no hard red
+flag. The declared headline, the 12-seed ensemble, is flat for 5 of 8 v4
+and 4 of 8 v3 agents (0 orders on test); the seeds that trade lose (mean
+of seeds −0.10 … −3.80 on v4, +0.02 … −1.09 on v3), and on 600 fresh viz
+episodes plus latency/fee stresses nothing is positive. PPO v4 holds one
+~597 s position per episode (a coin flip); agents timing entries on I1
+gain +0.1 … +0.3 ticks gross at 1 s but pay ~0.55 ticks slippage; fading
+30 s returns loses (EXPERIMENTS.md OF15).
+
 **Calibration** (`of_calibrate`): recorded-tick CSV round trip exact;
 in a recovery test (target = informed flow ×0.4) the fit matched
 predictability, R² and clustering but not activity or markout, and
@@ -496,6 +519,32 @@ leaked book imbalance (`stale_binomial`).
 
 ## 7. Plan for the next AI (ranked)
 
+**Where OF15 leaves it (2026-11-12).** OF15 closed the "maybe a better
+learner would find it" question on the simulators: through a leak-proof
+pipeline (seed ledger enforced in C++, one sealed opening per config,
+paired CIs, red flags), 8 agent families × 2 markets give 16 NO_EDGE
+results; what they learn is to stay flat (§4, EXPERIMENTS.md OF15). On
+both simulators no RL agent finds an edge after costs with 1-lot market
+orders at 1 s. More agents or HPO on the same markets is not the next
+step. What remains, in order:
+
+* **Real-tick replay through the pipeline:** `VecReplayEnv` (bound in
+   `_ragof`) exists but is unused; feed it the user's recorded ES ticks
+   (Sierra) and run the zoo walk-forward by day (item 2 below), with the replay
+   block sealed in the ledger. In parallel, simulator realism where the
+   skeptic found gaps (spread that widens, I1 persistence after latency,
+   100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
+   new real sessions (LESSONS 49).
+* **Red-flag calibration:** replace R1 (annualized Sharpe > 5 ≈ t > 0.87
+   at 300 episodes) with a t-based rule, with the minimum-activity guard
+   (R1v, A74) kept, pre-registered before the next sealed run.
+* **The 0xc0000374 heap crash**, once WMI is repaired (the user's
+   call): ~150 lgbm seed-runs with the WMI bypass off and on. Keep
+   per-attempt logs (LESSONS 53).
+* **Throughput (no GPU, A75):** fewer gradient steps per env step for
+   DQN/QR-DQN (`train_freq` 4), more torch threads and workers (24
+   hardware threads, OF15 used 12), a faster v4 step.
+
 1. **Fix slow price discovery, then calibrate to the user's ES ticks.**
    Iterations 1 (rigid quote jumps, rejected) and 2 (stale-side depletion:
    (a), (b) met, (c) marginal, (d), (e) fail) are done (OF10).
@@ -517,7 +566,7 @@ leaked book imbalance (`stale_binomial`).
    impact first; record RTH depth and tick-by-tick trades for a few weeks
    before fitting. **Done (OF13, `31f51c4`): v4 (`discovery_v4`)** passes
    the 25 real-ES gate rows and the efficiency gates on three seed blocks
-   (§4; A67–A69); OF14 (RL on v4, warm-up 1,050 s) is next. Before
+   (§4; A67–A69). **Done (OF14, OF15): no RL edge on v4 or v3.** Before
    tightening any gate, record more RTH depth and tick-by-tick trades
    (Sierra settings): the real reference is one calm morning. Fix the
    spread-never-widens and I1-persistence caveats in a v5 if RL shows it
@@ -528,7 +577,8 @@ leaked book imbalance (`stale_binomial`).
    OF2/OF3/OF6/OF8 on the calibrated market.
 2. **Backtest on real ticks:** `of_backtest` with the saved agents and the
    delta rule; walk-forward by day; train on recorded windows
-   (`ReplayScalpEnv::reset`) and test on later days only.
+   (`ReplayScalpEnv::reset`) and test on later days only. With OF15 the
+   same can run through `ragrl` on `VecReplayEnv` (the first bullet above).
 3. **Paired evaluation on the same market path:** `SimParams::separate_streams`
    (opt-in; one RNG stream per exogenous process) exists, but measured it
    barely helps: rule vs the rule with one forced deviation, 200 episodes,
@@ -544,13 +594,18 @@ leaked book imbalance (`stale_binomial`).
    0.61: paired comparisons have ~40% less variance. Use
    `separate_streams = true` for paired validation; the rest of the noise
    is the market's genuine reaction to our orders. Next: fewer
-   state-dependent draw counts inside a step.
+   state-dependent draw counts inside a step. OF15 measured the cost
+   between agents: PPO v4 at 100 vs 300 ms latency on the same episodes
+   correlates 0.56, the delta rule 0.19 (LESSONS 52).
 4. **Tick scalper:** action latency in `TickScalpEnv` (opt-in), tick
    diagnostics (no-trade share, spread capture vs carry, own-fill
    markouts), learn the advantage over the rule; success = match or beat
    the rule at 100 ms latency on fresh seeds (e.g. 940M+).
-5. **Validation hygiene:** a seed-block ledger, fresh-seed confirmation of
-   every claimed edge, CVaR in stress tests, domain randomization of
-   simulator parameters during training.
+5. **Validation hygiene:** the seed-block ledger is done and enforced in
+   C++ (`seed_ledger.hpp`, OF15, A71), with fresh-seed (950M+)
+   confirmation of any claim behind an orchestrator flag. Remaining: a
+   pre-registered stress list for v4 (none exists; OF15 ran no stress or
+   days on either market, R11), CVaR in stress tests, domain
+   randomization of simulator parameters during training.
 6. Market-structure features (session high/low, volume-profile POC/value
    area) and the remaining items of `experiments/research_synthesis.md`.

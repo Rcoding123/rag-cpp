@@ -1,0 +1,140 @@
+{
+ "schema": "ragrl/1",
+ "name": "of15_ppo_hpo_v4",
+ "description": "Optuna on validation only (val_ckpt intermediates for pruning, hpo.select objective (validation 702M+[0,400), disjoint from val_ckpt and val_select)): 20 trials x 300k steps x run seeds 1,2; the best config is written as best_config.json, retrained on fresh run seeds 101..112 (python -m ragrl hpo CFG, then python -m ragrl run RUN/best_config.json).",
+ "env": {
+  "market": "discovery_v4",
+  "warmup_seconds": 1050
+ },
+ "agent": {
+  "kind": "ppo",
+  "params": {}
+ },
+ "train": {
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12
+  ],
+  "budget_steps": 1200000,
+  "workers": 12,
+  "env_threads": 1,
+  "torch_threads": 1,
+  "eval_threads": 2,
+  "recheck": true
+ },
+ "select": {
+  "val_ckpt": {
+   "first": 0,
+   "count": 200
+  },
+  "every_steps": 60000,
+  "select_threads": 24
+ },
+ "val_select": {
+  "first": 1000000,
+  "count": 400
+ },
+ "score": {
+  "block": "test",
+  "first": 1000000,
+  "count": 300,
+  "headline": "ensemble",
+  "family": "of15_v4",
+  "family_size": 9,
+  "baselines": [
+   "flat",
+   "delta30",
+   {
+    "oracle": [
+     0.5,
+     0.55,
+     0.75,
+     1.0,
+     2.0
+    ]
+   },
+   {
+    "neuralq_dir": "build-avx512/rl/of14",
+    "seeds": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12
+    ]
+   }
+  ],
+  "bootstrap": 10000,
+  "bootstrap_seed": 0,
+  "threads": 24
+ },
+ "live": {
+  "enabled": false,
+  "seed": 1,
+  "every_episodes": 50,
+  "probe": 5
+ },
+ "hpo": {
+  "n_trials": 20,
+  "trial_budget_steps": 300000,
+  "trial_seeds": [
+   1,
+   2
+  ],
+  "sampler_seed": 1,
+  "space": {
+   "learning_rate": [
+    "log",
+    3e-05,
+    0.001
+   ],
+   "ent_coef": [
+    "log",
+    0.0001,
+    0.03
+   ],
+   "gamma": [
+    "float",
+    0.9,
+    0.995
+   ],
+   "n_epochs": [
+    "int",
+    2,
+    8
+   ],
+   "net_arch": [
+    "cat",
+    [
+     64,
+     64
+    ],
+    [
+     128,
+     128
+    ],
+    [
+     32,
+     32
+    ]
+   ]
+  }
+ }
+}

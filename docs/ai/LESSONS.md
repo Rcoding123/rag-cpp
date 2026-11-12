@@ -240,3 +240,37 @@ building learning systems in general, not just this task.
     for G2 and G4 was one calm RTH morning; a second, busy morning fell
     outside G4 and G2 itself. Record more real sessions before tightening
     gates around one of them (OF13).
+50. **A flat ensemble makes "no edge" vacuous; report the mean of seeds
+    and orders per episode.** OF15 declared the 12-seed ensemble as the
+    headline before training, as it should, but 5 of 8 v4 and 4 of 8 v3
+    ensembles placed 0 orders on the sealed test: their NO_EDGE was true
+    by construction. The mean of the seeds' per-episode P&L (≤ 0
+    everywhere on fresh episodes) carried the information. Put the mean
+    of seeds and orders/episode next to every ensemble number (OF15).
+51. **A Sharpe threshold needs a minimum-activity guard, and a t
+    calibration.** R1 (annualized Sharpe > 5) fired hard on rows trading
+    0.0-0.26 orders/episode, where a few trades make any Sharpe; and
+    annualizing a per-episode Sharpe (x sqrt(9828) ~ 99) makes "> 5" the
+    same as t > 0.87 at 300 episodes, so it would also fire on noise from
+    policies that do trade. Fix both before the sealed run: the guard was
+    added afterwards (R1v, A74), which is a post-hoc rule change even
+    when it only relaxes flags (OF15).
+52. **Pairing tightens less when the simulator reacts to our orders.**
+    Same seeds give the same market only until the first fill: PPO v4's
+    P&L on the same episodes at 100 ms vs 300 ms latency correlates 0.56,
+    the delta rule's 0.19, so a "paired" latency effect of -1.51 had an SE
+    of 0.99. The paired CIs stay valid; just don't expect the variance
+    reduction of a fixed path (LESSONS 35, OF15).
+53. **An intermittent native crash needs a log that retries can't
+    overwrite.** Five 0xc0000374 worker crashes and one unexplained stop
+    hit ~0.15% of evaluations; the stop's cause was lost because the
+    retry overwrote the runner's stdout log, and Windows kept no WER or
+    event-log entry. Write each attempt's logs under a unique name and
+    record the exit code of every process before retrying; a crash that
+    no longer reproduces (0 in ~1,450 evaluations) can't be fixed or
+    ruled out after the fact (OF15).
+54. **Know what a serve command writes before pointing it at a
+    directory.** `of_train_live.py serve DIR` writes its live page to
+    DIR/index.html, so serving the zoo replays (`build-avx512/zoo`) with
+    it replaces their index page; serve static output with a plain static
+    server (`python -m http.server`, the `of-zoo` launch entry) (OF15).

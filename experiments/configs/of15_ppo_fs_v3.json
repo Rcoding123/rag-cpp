@@ -1,0 +1,94 @@
+{
+ "schema": "ragrl/1",
+ "name": "of15_ppo_fs_v3",
+ "description": "OF15 acceptance: discovery (v3), warm-up 1050, 12 run seeds x 2000 episodes (of_train's budget), champion on validation 700M+[0,200), paired on the sealed test 901M+[300,600) (pre-registered for OF15: 900M+[0,100000) was viewed by OF2-OF14; family of15_v3 = the 8 agents, no HPO, all in the multiplicity bar; 901M+[0,300) belongs to of15_v4) vs flat, delta30, oracles and the OF11 NeuralQ nets (v3).",
+ "env": {
+  "market": "discovery",
+  "warmup_seconds": 1050
+ },
+ "agent": {
+  "kind": "ppo_framestack",
+  "params": {}
+ },
+ "train": {
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12
+  ],
+  "budget_steps": 1200000,
+  "workers": 12,
+  "env_threads": 1,
+  "torch_threads": 1,
+  "eval_threads": 2,
+  "recheck": true
+ },
+ "select": {
+  "val_ckpt": {
+   "first": 0,
+   "count": 200
+  },
+  "every_steps": 60000,
+  "select_threads": 24
+ },
+ "val_select": {
+  "first": 1000000,
+  "count": 400
+ },
+ "score": {
+  "block": "test",
+  "first": 1000300,
+  "count": 300,
+  "headline": "ensemble",
+  "family": "of15_v3",
+  "family_size": 8,
+  "baselines": [
+   "flat",
+   "delta30",
+   {
+    "oracle": [
+     0.5,
+     0.55,
+     0.75,
+     1.0,
+     2.0
+    ]
+   },
+   {
+    "neuralq_dir": "build-avx512/rl/of11",
+    "seeds": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12
+    ]
+   }
+  ],
+  "bootstrap": 10000,
+  "bootstrap_seed": 0,
+  "threads": 24
+ },
+ "live": {
+  "enabled": true,
+  "seed": 1,
+  "every_episodes": 50,
+  "probe": 5
+ }
+}

@@ -1,0 +1,238 @@
+OF15 results: the agent zoo on simulator v4 (discovery_v4) and v3 (discovery), through the ragrl pipeline
+=========================================================================================================
+
+Pipeline: python/ragrl on the _ragof nanobind module (VecScalpEnv), configs experiments/configs/of15_<agent>_<v4|v3>.json,
+regenerate with experiments/of15_regen.sh (OF15_MARKET=v3 for v3). Per-agent reports: experiments/of15_<agent>[_v3].txt
+(copies of each run's report_results.md). Runs: build-avx512/rl/runs/ (index.jsonl; ledger_usage.jsonl one level up).
+
+Setup common to every row
+- ES, 1 contract, market orders, fee $1.5, latency 1 step, 1 s decisions, 600 decisions/episode, warm-up 1050 s.
+- 12 run seeds (1..12) per agent, 2000 episodes x 600 decisions = 1.2M decisions per seed (of_train's budget).
+  neuralq_ref = the C++ NeuralQ nets from of_train (OF14 nets for v4, OF11 nets for v3), loaded, not retrained.
+- Champion per seed on validation 700M+[0,200) every 60k decisions (neuralq_ref: of_train's own champion on
+  700M+[0,40), re-scored on [40,240)); comparisons on validation 701M+[0,400) ("val" column).
+- Headline declared before training: the 12-seed ensemble ("ens"). "mos" = mean of the 12 seeds' per-episode P&L.
+- Sealed test, scored once per config in a fresh process, every policy on the same 300 episodes (paired):
+  v4: test 901M+[0,300), family of15_v4 (size 9: 8 agents + 1 HPO slot, unused);
+  v3: test 901M+[300,600), family of15_v3 (size 8: the 8 agents; the family is now full).
+- CIs: 95% bootstrap over episodes (B = 10000, seed 0). Paired diffs are row minus reference on the same episodes.
+  "ens-flat" equals the ensemble's own mean (flat scores 0). "NeuralQ ens" = the 12-net of_train mean-Q ensemble.
+- Module _ragof 9e3731fb (snapshot build-avx512/runs/of15-e85dfe7), git e85dfe7 + the OF15 working tree, venv
+  freeze b6df5bd0, for every row.
+
+1. Comparison tables (ticks per episode, net of fees)
+
+### discovery_v4
+
+| agent | seeds | budget/seed | val ens / mos | sealed ens [95% CI] | sealed mos [95% CI] | orders/ep ens / mos | ens-flat [CI] | ens-delta30 [CI] | ens-NeuralQ ens [CI] | status | hard flags | warnings |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| neuralq_ref | 12 | 2000ep/1200k | -0.12 / -3.50 | -0.29 [-0.65,-0.04] | -3.80 [-4.29,-3.33] | 0.17 / 6.90 | -0.29 [-0.65,-0.04] | +5.46 [+2.61,+8.26] | - | NO_EDGE | - | R11,R6,R9 |
+| ppo | 12 | 2000ep/1200k | -1.23 / -1.27 | -1.10 [-3.72,+1.51] | -0.29 [-1.90,+1.34] | 2.00 / 2.17 | -1.10 [-3.72,+1.51] | +4.64 [+0.78,+8.61] | -0.82 [-3.45,+1.82] | NO_EDGE | - | R11,R2w,R6,R9 |
+| ppo_fs | 12 | 2000ep/1200k | -0.14 / -2.34 | -0.13 [-0.32,+0.05] | -2.66 [-3.17,-2.16] | 0.26 / 4.41 | -0.13 [-0.32,+0.05] | +5.62 [+2.85,+8.41] | +0.16 [-0.16,+0.55] | NO_EDGE | - | R11,R6,R9 |
+| rppo | 12 | 2000ep/1200k | +0.00 / -0.00 | +0.00 [+0.00,+0.00] | -0.00 [-0.00,+0.00] | 0.00 / 0.00 | +0.00 [+0.00,+0.00] | +5.75 [+2.95,+8.56] | +0.29 [+0.04,+0.65] | NO_EDGE | - | R11,R6,R9 |
+| dqn | 12 | 2000ep/1200k | +0.00 / -0.20 | +0.00 [+0.00,+0.00] | -0.10 [-0.19,-0.02] | 0.00 / 0.29 | +0.00 [+0.00,+0.00] | +5.75 [+2.95,+8.56] | +0.29 [+0.04,+0.65] | NO_EDGE | - | R11,R6,R9 |
+| qrdqn | 12 | 2000ep/1200k | +0.00 / -0.32 | +0.00 [+0.00,+0.00] | -0.21 [-0.46,+0.02] | 0.00 / 0.45 | +0.00 [+0.00,+0.00] | +5.75 [+2.95,+8.56] | +0.29 [+0.04,+0.65] | NO_EDGE | - | R11,R2w,R6,R9 |
+| lgbm | 12 | 2000ep/1200k | +0.09 / -0.43 | +0.00 [+0.00,+0.00] | -0.25 [-0.55,+0.02] | 0.00 / 0.34 | +0.00 [+0.00,+0.00] | +5.75 [+2.95,+8.56] | +0.29 [+0.04,+0.65] | NO_EDGE | - | R11,R1v,R2w,R6,R9 |
+| dagger | 12 | 2000ep/1200k | +0.00 / +0.01 | +0.00 [+0.00,+0.00] | +0.01 [+0.00,+0.04] | 0.00 / 0.00 | +0.00 [+0.00,+0.00] | +5.75 [+2.95,+8.56] | +0.29 [+0.04,+0.65] | NO_EDGE | - | R11,R1v,R2w,R6,R9 |
+
+### discovery
+
+| agent | seeds | budget/seed | val ens / mos | sealed ens [95% CI] | sealed mos [95% CI] | orders/ep ens / mos | ens-flat [CI] | ens-delta30 [CI] | ens-NeuralQ ens [CI] | status | hard flags | warnings |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| neuralq_ref | 12 | 2000ep/1200k | +0.01 / -0.49 | +0.00 [+0.00,+0.01] | -0.60 [-0.72,-0.47] | 0.01 / 1.22 | +0.00 [+0.00,+0.01] | +1.88 [+0.39,+3.35] | - | NO_EDGE | - | R11,R1v,R6,R9 |
+| ppo | 12 | 2000ep/1200k | -1.17 / -1.27 | -0.60 [-2.04,+0.84] | -1.09 [-2.08,-0.15] | 2.38 / 2.69 | -0.60 [-2.04,+0.84] | +1.28 [-0.81,+3.39] | -0.60 [-2.04,+0.84] | NO_EDGE | - | R11,R1v,R2w,R6,R9 |
+| ppo_fs | 12 | 2000ep/1200k | -0.19 / -1.03 | -0.34 [-0.65,-0.06] | -0.83 [-1.05,-0.60] | 0.64 / 2.36 | -0.34 [-0.65,-0.06] | +1.53 [+0.06,+3.01] | -0.35 [-0.65,-0.07] | NO_EDGE | - | R11,R1v,R6,R9 |
+| rppo | 12 | 2000ep/1200k | +0.00 / -0.00 | +0.00 [+0.00,+0.00] | -0.00 [-0.01,-0.00] | 0.00 / 0.00 | +0.00 [+0.00,+0.00] | +1.88 [+0.39,+3.35] | -0.00 [-0.01,+0.00] | NO_EDGE | - | R11,R1v,R6,R9 |
+| dqn | 12 | 2000ep/1200k | +0.00 / -0.04 | +0.00 [+0.00,+0.00] | +0.02 [-0.04,+0.08] | 0.00 / 0.12 | +0.00 [+0.00,+0.00] | +1.88 [+0.39,+3.35] | -0.00 [-0.01,+0.00] | NO_EDGE | - | R11,R1v,R2w,R6,R9 |
+| qrdqn | 12 | 2000ep/1200k | +0.00 / -0.04 | +0.00 [+0.00,+0.00] | -0.07 [-0.16,+0.01] | 0.00 / 0.30 | +0.00 [+0.00,+0.00] | +1.88 [+0.39,+3.35] | -0.00 [-0.01,+0.00] | NO_EDGE | - | R11,R1v,R2w,R4,R6,R9 |
+| lgbm | 12 | 2000ep/1200k | -0.02 / -0.12 | +0.10 [+0.00,+0.29] | -0.15 [-0.33,+0.04] | 0.01 / 0.27 | +0.10 [+0.00,+0.29] | +1.98 [+0.48,+3.45] | +0.10 [-0.01,+0.29] | NO_EDGE | - | R11,R1v,R6,R9 |
+| dagger | 12 | 2000ep/1200k | +0.14 / +0.13 | -0.15 [-0.38,+0.05] | -0.23 [-0.48,-0.00] | 0.10 / 0.12 | -0.15 [-0.38,+0.05] | +1.72 [+0.24,+3.22] | -0.15 [-0.38,+0.04] | NO_EDGE | - | R11,R1v,R6,R9 |
+
+Status: all 16 configs NO_EDGE. No hard red flag in any run. Warnings: R11 (days/stress not run: orchestrator only) and
+R9 (headline t far below t_req: no claim) everywhere; R6 (the fair-value oracle trades 0.0-0.2 orders/episode after
+costs, so the oracle bound is uninformative); R2w (some seed's paired mean above that weak oracle); R1v (annualized
+Sharpe > 5 from a policy trading < 2 orders/episode: vacuous, the R1 amendment of this session); R4 on qrdqn v3 seed1
+only (validation +0.12, t 2.4 -> test -0.19: validation-to-test collapse). Nothing needs a 950M confirmation.
+
+What the table says
+- Every learned agent's 12-seed ensemble ends up flat or nearly flat. On v4 the rppo, dqn, qrdqn, lgbm and dagger
+  ensembles place 0 orders on the sealed test; neuralq_ref (0.17 orders/ep, -0.29 [-0.65,-0.04]) and ppo_fs (0.26,
+  -0.13) trade a little and lose a little. PPO is the only agent that trades every episode (2.0 orders/ep): -1.10
+  [-3.72,+1.51] on v4, -0.60 [-2.04,+0.84] on v3. The individual seeds that trade (mos column) lose: v4 mos from -0.10
+  (dqn) to -3.80 (neuralq_ref, 6.9 orders/ep); v3 mos from +0.02 (dqn, CI [-0.04,+0.08]) to -1.09 (ppo).
+- Paired vs the 30 s delta rule every agent is "better" (+4.6 to +5.8 ticks/ep on v4, +1.3 to +2.0 on v3) only because
+  the delta rule pays fees on about 6 orders/episode and loses -5.75 (v4) / -1.88 (v3). That is not an edge.
+- Paired vs the NeuralQ ensemble: +0.29 [+0.04,+0.65] on v4 for every agent that stays flat (the NeuralQ ensemble
+  loses 0.29/ep), about 0 on v3. No agent beats the C++ NeuralQ reference by trading better on either market.
+- The best positive point estimates, lgbm v3 ensemble +0.10 [+0.00,+0.29] at 0.01 orders/ep and dagger v4 mos +0.01,
+  are a handful of trades in 300 episodes; t is far below t_req (about 5.1-5.2). dagger v3 looked positive on
+  validation (+0.14 ens, +0.13 mos) and went negative on test (-0.15, -0.23): validation noise, as in OF7.
+- Consistent with OF11-OF14: with fees and 1 s market orders neither simulator offers an edge that RL, supervised
+  learning or imitation of the privileged teacher can take; what the agents learn is to stay flat.
+
+2. Runtime per agent (wall seconds; 12 workers in parallel, 1 env thread + 1 torch thread each; the v4 rows and the
+   first five v3 rows ran on 2026-11-05, dqn/rppo/qrdqn v3 and the qrdqn v4 recheck on 2026-11-12)
+
+| agent | market | n_envs | workers | train phase s | select s | recheck s | worker mean s | of which val-ckpt eval s | env steps/s per worker (excl. eval) |
+|---|---|---|---|---|---|---|---|---|---|
+| dagger | discovery_v4 | 20 | 12 | 310 | 65 | 237 | 301 | 48 | 4909 |
+| dqn | discovery_v4 | 16 | 12 | 622 | 62 | 471 | 602 | 194 | 2996 |
+| lgbm | discovery_v4 | 20 | 12 | 579 | 133 | 348 | 565 | 229 | 3674 |
+| neuralq_ref | discovery_v4 | 1 | 12 | 21 | 42 | 17 | 16 | 8 | 573703356 |
+| ppo | discovery_v4 | 16 | 12 | 358 | 63 | 274 | 340 | 157 | 6848 |
+| ppo_fs | discovery_v4 | 16 | 12 | 353 | 64 | 281 | 336 | 151 | 6772 |
+| qrdqn | discovery_v4 | 16 | 12 | 1318 | 64 | 668 | 1300 | 149 | 1049 |
+| rppo | discovery_v4 | 50 | 12 | 417 | 70 | 318 | 399 | 155 | 5065 |
+| dagger | discovery | 20 | 12 | 212 | 56 | 210 | 204 | 30 | 7194 |
+| dqn | discovery | 16 | 12 | 369 | 34 | 260 | 361 | 80 | 4334 |
+| lgbm | discovery | 20 | 12 | 502 | 156 | 267 | 482 | 136 | 3551 |
+| neuralq_ref | discovery | 1 | 12 | 24 | 39 | 13 | 13 | 6 | 331754247 |
+| ppo | discovery | 16 | 12 | 304 | 60 | 246 | 288 | 129 | 7941 |
+| ppo_fs | discovery | 16 | 12 | 374 | 65 | 261 | 352 | 152 | 6235 |
+| qrdqn | discovery | 16 | 12 | 1309 | 34 | 543 | 1296 | 82 | 991 |
+| rppo | discovery | 50 | 12 | 271 | 41 | 180 | 260 | 85 | 7017 |
+
+"train phase" = the whole parallel training (12 seeds, including each worker's 20 validation checkpoints); "select" =
+validation selection plus the diag probe; "recheck" = seed 1 retrained alone and compared bit for bit (R8). Sealed
+scoring takes about a minute per config (not logged). neuralq_ref only loads the nets; of_train itself took 382 s for
+one seed (2000 episodes, 1 thread, v4; measured today from the same snapshot, --test on 2 viz episodes), about the
+same as an SB3 PPO worker (about 340 s on v4). A full 8-config market takes about 2.0 h (v4) or 1.6 h (v3) of wall time; qrdqn alone
+about 35 min.
+
+3. Where training time goes (simulator vs network), for the GPU question
+
+Measured today on an otherwise idle machine under the acceptance-run load: per agent, 12 workers in parallel, each
+training 120k decisions (10% of the budget; scratch runs, never selected or scored) with every call of the training
+env's VecScalpEnv.step/reset timed (C++ simulator + binding). The remainder of train time minus validation evaluation
+is network updates, inference and SB3/Python overhead. Profile, per worker, 120k decisions:
+
+    ppo discovery_v4 n=12 train 41.6s eval 23.3s env 14.7s other 3.7s env_share_excl_eval 0.80
+    ppo_framestack discovery_v4 n=12 train 42.4s eval 23.3s env 14.8s other 4.3s env_share_excl_eval 0.77
+    recurrent_ppo discovery_v4 n=12 train 41.8s eval 15.7s env 16.0s other 10.1s env_share_excl_eval 0.61
+    dqn discovery_v4 n=12 train 58.1s eval 22.9s env 14.8s other 20.4s env_share_excl_eval 0.42
+    qrdqn discovery_v4 n=12 train 153.4s eval 22.8s env 15.7s other 115.0s env_share_excl_eval 0.12
+    lgbm_threshold discovery_v4 n=12 train 171.7s eval 144.7s env 14.2s other 12.8s env_share_excl_eval 0.52
+    bc_dagger discovery_v4 n=12 train 109.8s eval 45.6s env 14.4s other 49.8s env_share_excl_eval 0.22
+    ppo discovery n=12 train 24.1s eval 12.8s env 7.5s other 3.8s env_share_excl_eval 0.67
+    ppo_framestack discovery n=12 train 24.9s eval 12.9s env 7.6s other 4.4s env_share_excl_eval 0.63
+    recurrent_ppo discovery n=12 train 28.0s eval 8.9s env 8.3s other 10.8s env_share_excl_eval 0.44
+    dqn discovery n=12 train 41.0s eval 12.6s env 7.7s other 20.6s env_share_excl_eval 0.27
+    qrdqn discovery n=12 train 142.0s eval 12.4s env 8.5s other 121.1s env_share_excl_eval 0.07
+    lgbm_threshold discovery n=12 train 118.0s eval 96.6s env 7.2s other 14.3s env_share_excl_eval 0.33
+    bc_dagger discovery n=12 train 62.5s eval 25.4s env 7.4s other 29.7s env_share_excl_eval 0.20
+
+(lgbm and dagger have fixed costs, such as model fits and theta sweeps, so their 10% profile overstates the
+non-simulator share.)
+
+Scaled to the full runs (simulator = the profile's simulator seconds per decision x 1.2M; the rest from each run's
+own worker timings; validation-checkpoint evaluation is simulator plus a small batched forward, counted as simulator
+in the last column):
+
+| agent | market | worker train s (full run) | val-ckpt eval s | simulator s (train env) | network + Python s | simulator share excl. eval | simulator share incl. eval (eval ~ all simulator) |
+|---|---|---|---|---|---|---|---|
+| neuralq_ref | discovery_v4 | 8 | 8 | (of_train, C++) | - | - | - |
+| ppo | discovery_v4 | 333 | 157 | 141 | 34 | 80% | 90% |
+| ppo_fs | discovery_v4 | 329 | 151 | 142 | 35 | 80% | 89% |
+| rppo | discovery_v4 | 392 | 155 | 160 | 77 | 67% | 80% |
+| dqn | discovery_v4 | 595 | 194 | 142 | 259 | 35% | 57% |
+| qrdqn | discovery_v4 | 1293 | 149 | 151 | 993 | 13% | 23% |
+| lgbm | discovery_v4 | 557 | 229 | 142 | 186 | 43% | 67% |
+| dagger | discovery_v4 | 293 | 48 | 144 | 100 | 59% | 66% |
+| neuralq_ref | discovery | 6 | 6 | (of_train, C++) | - | - | - |
+| ppo | discovery | 280 | 129 | 72 | 79 | 48% | 72% |
+| ppo_fs | discovery | 345 | 152 | 73 | 120 | 38% | 65% |
+| rppo | discovery | 256 | 85 | 83 | 88 | 49% | 66% |
+| dqn | discovery | 357 | 80 | 74 | 202 | 27% | 43% |
+| qrdqn | discovery | 1293 | 82 | 82 | 1129 | 7% | 13% |
+| lgbm | discovery | 474 | 136 | 72 | 267 | 21% | 44% |
+| dagger | discovery | 197 | 30 | 74 | 93 | 44% | 53% |
+
+Simulator throughput (raw VecScalpEnv, random actions, 1 thread, same snapshot, train stream run seed 1): v4 11,200
+decisions/s alone and 9,000/s with 12 in parallel; v3 24,700/s alone. So 1.2M decisions cost about 130 s (v4) or
+50-60 s (v3) per worker, warm-up included. The SB3 adapter (RagVecEnv) adds < 1%; a 64x64 MLP forward over the batch
+costs < 2 s per 1.2M decisions.
+
+Is training model-bound? Mostly not.
+- PPO, PPO frame-stack, recurrent PPO and all evaluation are simulator-bound on v4: 61-80% of training time in the
+  C++ simulator, about 90% counting validation checkpoints. A GPU could save at most the remaining 10-20%.
+- DQN (about 60% network) and QR-DQN (88-93% network: 2 gradient steps of batch 256 x 32 quantiles per env step) are
+  update-bound. But the networks are 64x64 MLPs on 16 inputs, a few kFLOP per sample. At that size the time goes to
+  per-update Python/SB3/launch overhead, not arithmetic, so a GPU is unlikely to help much (not measured: no GPU
+  here). Cheaper levers: fewer gradient steps per env step (train_freq 4), more torch threads, more workers (24
+  hardware threads, the runs used 12).
+- lgbm: the non-simulator part is LightGBM fitting and labelling (CPU). dagger: behaviour-cloning fits and the
+  privileged teacher (CPU, small).
+Verdict: a rented GPU would not change OF15's turnaround. The levers are the simulator (v4 is about 2x slower than v3)
+and the DQN-family update schedule.
+
+4. Crashes and retries (0xc0000374 heap corruption in worker processes)
+
+On 2026-11-05 the acceptance script was rerun after crashes. Configs that needed retries (each crashed run abandoned
+whole, nothing reused, directory kept under build-avx512/rl/runs/):
+- ppo_v3: 20261105T203018Z (worker seed5, 0xc0000374) -> sealed run 20261105T204533Z.
+- qrdqn_v4: 20261105T204757Z (worker seed5, 0xc0000374) -> 20261105T222006Z, which finished train + select on 11-05;
+  its recheck was cut off by the session restart (recheck/ moved to recheck_interrupted_20261105/). Finished today
+  from that stage with no retraining: recheck (seed 1 bit-identical: actions, validation, artifacts), the index
+  "selected" entry, one seal.
+- lgbm_v4: 20261105T211716Z (worker seed2) and 20261105T212914Z (worker seed4), both 0xc0000374 -> 20261105T213508Z.
+- dqn_v3: 20261105T213531Z (worker seed12, 0xc0000374) -> sealed today as 20261112T125427Z (first attempt today).
+- rppo_v4: 20261105T201511Z stopped after about 5 minutes, all 12 workers at the same moment, with no crash in any
+  worker log. Cause not recorded (the runner's stdout log was overwritten by the retry); consistent with the parent
+  runner dying. -> 20261105T220540Z.
+These are the 5 worker crashes of the heap report, plus the unexplained rppo stop. Today, with no retry wrapper, the 4
+pipeline jobs (qrdqn v4 recheck + seal; dqn, rppo, qrdqn v3: 37 worker and 4 seal processes) and all audit/profile
+jobs (about 200 processes) ran without a crash.
+
+5. Did the heap bug touch the sealed results?
+
+All 16 sealed results came from the binary in use when the crashes happened: _ragof 9e3731fb is the only module OF15
+ever used, and it was loaded in all 5 crashed processes. The root cause is not found and no fix shipped. "The fixed
+module" is the same unchanged 9e3731fb binary. The only changes since 11-05 are on the Python side: the WMI bypass in
+ragrl/__init__.py, which takes the leading suspect (Python's _wmi worker thread) out of the processes, and the R1v
+edit. Why the numbers are not affected:
+- 0xc0000374 is fail-fast: the heap manager detects the damage and kills the process. The crashed runs produced no
+  selection or sealed output, and none of their files was reused.
+- The determinism checks that would expose silent damage all pass. (a) R8: seed 1 of every run retrained from scratch
+  in a fresh process, bit-identical. (b) Selection: the seed-1 champion evaluated twice and against its worker's hash,
+  identical. (c) Today's audit (validation only, stored files): every sealed run's 12 champions + ensemble replayed
+  in a fresh process on validation 701M+[0,400); all 16 runs x 13 policies x 3 per-episode arrays are bit-identical
+  to the original select process's val_select_episodes.npz (kitlog of15_revalidate.log). (d) The sealed baselines
+  (flat, delta30, 5 oracles: 21 per-episode arrays) are bit-identical across the 8 independent seal processes of each
+  market. (e) The heap session: 12/12 lgbm_v4 seeds reproduced under per-step HeapValidate and 6 under ASan, with
+  no report.
+- Residual risk: a seal process could in principle hold damage that changed a learned policy's sealed numbers without
+  crashing. Only those numbers cannot be rechecked without opening the test block again, which was never done. Heap
+  damage depends on layout and timing, and every replay above is bit-exact, so this is unlikely. And every result is
+  "no edge": one corrupted number could not turn that into a claim without tripping R1/R2/R3.
+
+6. Seed-ledger audit (build-avx512/rl/ledger_usage.jsonl)
+
+16 entries, all block test, none dry-run, no confirm/950M entry: exactly one sealed opening per config (16 distinct
+config sha256s, each run once). v4: 8 x 901M+[0,300) (family of15_v4, 8 experiments of 9); v3: 8 x 901M+[300,600)
+(family of15_v3, 8 of 8). No range reuse; previewed ranges untouched. Audits and profiles used only train seeds 1-12,
+validation 700M/701M and viz 960M.
+
+7. Live viewer
+
+Every training run writes RUN/live.jsonl for seed 1 in the of_train_live schema (header; 41 checkpoints with
+returns, validation evaluations, probe episodes from the viz block 960M+, policy map; done), so
+tools/of_train_live.py works for any agent. Baked replays (self-contained HTML, 41 checkpoints each):
+  build-avx512/live/of15_ppo_live_replay.html       ppo v4 (11-05)
+  build-avx512/live/of15_qrdqn_v4_live_replay.html  qrdqn v4 (baked today)
+  build-avx512/live/of15_rppo_v3_live_replay.html   recurrent PPO v3 (trained and baked today)
+  serve: python tools/of_train_live.py serve DIR --file live.jsonl    bake: python tools/of_train_live.py bake IN OUT
+
+8. Caveats
+
+- qrdqn v4 was sealed with --allow-env-change. The ragrl code hash changed between its training (3aa6572a) and its
+  seal (6aa7b15a): the WMI bypass, needed now that WMI queries crash processes on this server, and the R1v edit.
+  This is recorded in its sealed.json env_problems. Module and venv are unchanged. The seed-1 retrain under the new
+  code matched bit for bit, and so did the validation replays of all 13 runs trained under the old code.
+- dqn/rppo/qrdqn v3 trained under ragrl 6aa7b15a and the other 13 configs under 3aa6572a; the training code is the same.
+- index.jsonl is an append-only log: it still shows RED_FLAGS for the 7 runs re-rendered with R1v. Their STATUS
+  files, reports and experiments/of15_*.txt copies now say NO_EDGE.
+- The full-run timings come from two days with different background load: the 11-05 v3 PPO rows are slower than
+  today's profile predicts. Use the section 3 profile for the shares.
+- The oracles lose after costs on v4 (as in OF14), so the "learned vs oracle" bounds are weak (R6). With 300 sealed
+  episodes per market, the CIs for trading agents are about +-1.5-2.6 ticks/episode.
+- Everything here is on the simulator. Nothing has been replayed on real ES ticks (ReplayScalpEnv is bound but unused).

@@ -75,7 +75,7 @@ enable_testing()
 # a binary built for a newer ISA than the build machine's (e.g. the AVX-512
 # preset on an AVX2 CI runner) then still builds.
 set(CMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
-add_executable(rag_tests tests/rag_tests.cpp tests/forgery_tests.cpp tests/reference_tests.cpp tests/text_clean_tests.cpp tests/agent_tests.cpp tests/api_examples_tests.cpp tests/model_based_tests.cpp tests/market_making_tests.cpp tests/mlp_tests.cpp tests/agent_edge_case_tests.cpp tests/agent_coverage_tests.cpp tests/rag_property_tests.cpp tests/policy_table_tests.cpp tests/orderflow_tests.cpp tests/stylized_tests.cpp)
+add_executable(rag_tests tests/rag_tests.cpp tests/forgery_tests.cpp tests/reference_tests.cpp tests/text_clean_tests.cpp tests/agent_tests.cpp tests/api_examples_tests.cpp tests/model_based_tests.cpp tests/market_making_tests.cpp tests/mlp_tests.cpp tests/agent_edge_case_tests.cpp tests/agent_coverage_tests.cpp tests/rag_property_tests.cpp tests/policy_table_tests.cpp tests/orderflow_tests.cpp tests/stylized_tests.cpp tests/vec_scalp_env_tests.cpp)
 target_link_libraries(rag_tests PRIVATE rag GTest::gtest_main Threads::Threads)
 include(GoogleTest)
 gtest_discover_tests(rag_tests DISCOVERY_TIMEOUT 120)
@@ -250,4 +250,56 @@ if(RAG_PDF)
   else()
     message(STATUS "rag-cpp: poppler-cpp not found; PDF support disabled")
   endif()
+endif()
+
+# OF15 (opt-in, OFF by default): the `_ragof` Python module (nanobind) — a
+# batched ScalpEnv with the seed-ledger API (rag/orderflow/vec_scalp_env.hpp,
+# seed_ledger.hpp) — the serial reference dumper its bit-identity tests use,
+# and the pytest suite (python/tests). Python and nanobind come from the
+# project venv (.venv, Python 3.12) unless Python_EXECUTABLE is given. The
+# module links `rag`, so it compiles with the same flags as the programs.
+#   cmake --preset windows-msvc-avx512 -DRAG_PYTHON=ON
+#   cmake --build --preset windows-avx512-release --target _ragof of15_refdump
+option(RAG_PYTHON "Build the _ragof Python module (nanobind, from .venv) and its tests" OFF)
+if(RAG_PYTHON)
+  if(NOT Python_EXECUTABLE)
+    if(WIN32)
+      set(Python_EXECUTABLE ${CMAKE_CURRENT_SOURCE_DIR}/.venv/Scripts/python.exe CACHE FILEPATH "Python for the _ragof module")
+    else()
+      set(Python_EXECUTABLE ${CMAKE_CURRENT_SOURCE_DIR}/.venv/bin/python CACHE FILEPATH "Python for the _ragof module")
+    endif()
+  endif()
+  find_package(Python 3.10 REQUIRED COMPONENTS Interpreter Development.Module)
+  execute_process(COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir OUTPUT_VARIABLE nanobind_ROOT
+                  OUTPUT_STRIP_TRAILING_WHITESPACE RESULT_VARIABLE rag_nanobind_rc)
+  if(NOT rag_nanobind_rc EQUAL 0)
+    message(FATAL_ERROR "RAG_PYTHON: nanobind not found for ${Python_EXECUTABLE} (pip install nanobind in that environment)")
+  endif()
+  find_package(nanobind CONFIG REQUIRED)
+  nanobind_add_module(_ragof NB_STATIC python/ragof_module.cpp)
+  target_link_libraries(_ragof PRIVATE rag)
+  add_executable(of15_refdump examples/of15_refdump.cpp)
+  target_link_libraries(of15_refdump PRIVATE rag)
+  # The pytest suite (fast; `smoke`-marked tests are separate ctests). RAGOF_REQUIRED=1: a module that
+  # does not import, or a missing of15_refdump, fails the suite instead of skipping it; -rs lists skips.
+  add_test(NAME ragrl_pytest COMMAND ${Python_EXECUTABLE} -m pytest -q -rs -p no:cacheprovider -m "not smoke" ${CMAKE_CURRENT_SOURCE_DIR}/python/tests
+           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+  set_tests_properties(ragrl_pytest PROPERTIES TIMEOUT 900
+    ENVIRONMENT "RAGOF_REQUIRED=1;RAGOF_DIR=$<TARGET_FILE_DIR:_ragof>;RAGOF_REFDUMP=$<TARGET_FILE:of15_refdump>;PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/python")
+  # One end-to-end smoke per agent of the ragrl zoo (python/tests/test_smoke.py; experiments/configs/smoke/),
+  # separate tests so `ctest -j` runs them in parallel. Each trains 2 seeds (2 worker processes) and never
+  # opens the sealed test (dry-run scoring on the visualization block); run files go to the pytest tmp dir.
+  foreach(agent ppo ppo_framestack recurrent_ppo dqn qrdqn lgbm_threshold bc_dagger neuralq_ref hpo)
+    if(agent STREQUAL "hpo")
+      set(rag_smoke_k "test_smoke_hpo")
+    else()
+      set(rag_smoke_k "test_smoke[${agent}]")
+    endif()
+    add_test(NAME ragrl_smoke_${agent}
+             COMMAND ${Python_EXECUTABLE} -m pytest -q -rs -p no:cacheprovider -m smoke
+                     "${CMAKE_CURRENT_SOURCE_DIR}/python/tests/test_smoke.py::${rag_smoke_k}"
+             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_tests_properties(ragrl_smoke_${agent} PROPERTIES TIMEOUT 600 PROCESSORS 4
+      ENVIRONMENT "RAGOF_REQUIRED=1;RAGOF_DIR=$<TARGET_FILE_DIR:_ragof>;PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/python")
+  endforeach()
 endif()

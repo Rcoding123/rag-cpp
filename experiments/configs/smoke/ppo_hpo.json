@@ -1,0 +1,74 @@
+{
+ "schema": "ragrl/1",
+ "name": "smoke_ppo_hpo",
+ "description": "1-minute smoke: default market, tiny budget, scored as a dry run on the viz block (never the sealed test).",
+ "agent": {
+  "kind": "ppo",
+  "params": {
+   "n_steps": 60,
+   "batch_size": 120
+  }
+ },
+ "train": {
+  "seeds": [
+   1,
+   2
+  ],
+  "budget_steps": 2400,
+  "n_envs": 4,
+  "workers": 2,
+  "eval_threads": 2
+ },
+ "select": {
+  "val_ckpt": {
+   "first": 0,
+   "count": 16
+  },
+  "every_steps": 1200,
+  "select_threads": 4
+ },
+ "val_select": {
+  "first": 1000000,
+  "count": 24
+ },
+ "score": {
+  "block": "viz",
+  "first": 1000,
+  "count": 24,
+  "bootstrap": 200,
+  "threads": 4
+ },
+ "live": {
+  "enabled": false,
+  "seed": 1,
+  "every_episodes": 4,
+  "probe": 2
+ },
+ "hpo": {
+  "n_trials": 3,
+  "trial_budget_steps": 2400,
+  "trial_seeds": [
+   1,
+   2
+  ],
+  "sampler_seed": 1,
+  "pruner_startup_trials": 1,
+  "space": {
+   "learning_rate": [
+    "log",
+    0.0001,
+    0.001
+   ],
+   "net_arch": [
+    "cat",
+    [
+     16,
+     16
+    ],
+    [
+     32
+    ]
+   ]
+  }
+ }
+}

@@ -1,0 +1,46 @@
+{
+ "schema": "ragrl/1",
+ "name": "smoke_neuralq_ref",
+ "description": "1-minute smoke: default market, tiny budget, scored as a dry run on the viz block (never the sealed test).",
+ "agent": {
+  "kind": "neuralq_ref",
+  "params": {
+   "run_of_train": true
+  }
+ },
+ "train": {
+  "seeds": [
+   1,
+   2
+  ],
+  "budget_steps": 2400,
+  "n_envs": 1,
+  "workers": 2,
+  "eval_threads": 2
+ },
+ "select": {
+  "val_ckpt": {
+   "first": 40,
+   "count": 16
+  },
+  "every_steps": 1200,
+  "select_threads": 4
+ },
+ "val_select": {
+  "first": 1000000,
+  "count": 24
+ },
+ "score": {
+  "block": "viz",
+  "first": 1000,
+  "count": 24,
+  "bootstrap": 200,
+  "threads": 4
+ },
+ "live": {
+  "enabled": true,
+  "seed": 1,
+  "every_episodes": 4,
+  "probe": 2
+ }
+}

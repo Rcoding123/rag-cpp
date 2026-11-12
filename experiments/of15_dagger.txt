@@ -1,0 +1,271 @@
+# of15_dagger_v4 (bc_dagger)
+
+**STATUS: NO_EDGE**
+
+Warnings:
+- R1v mean_of_seeds: annualized Sharpe 6.06 > 5 is vacuous: 0.00 orders/episode < 2
+- R1v seed1: annualized Sharpe 5.72 > 5 is vacuous: 0.01 orders/episode < 2
+- R1v seed11: annualized Sharpe 6.37 > 5 is vacuous: 0.01 orders/episode < 2
+- R2w seed1: paired mean above oracle_1 (+0.01); the oracle loses after costs here
+- R2w seed11: paired mean above oracle_1 (+0.02); the oracle loses after costs here
+- R6 oracle_1: oracle trades 0.2 orders/episode: bound uninformative
+- R9 ensemble: headline t n/a below t_req 5.35 (M = 270): no edge claim
+- R11 -: days / stress not run (orchestrator only)
+
+market discovery_v4, warm-up 1050 s, latency 1, fee $1.5, 1 contract(s); seeds [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; 2000 episodes (1200000 decisions) per seed, n_envs 20.
+agent params: `{'batch_size': 4096, 'bc_fraction': 0.25, 'beta0': 0.5, 'dagger_iterations': 5, 'epochs': 10, 'hidden': [64, 64], 'learning_rate': 0.001, 'teacher_thresholds': [0.5, 0.55, 0.75, 1.0, 2.0]}`
+
+Selection: champions on validation [0, +200) every 60000 steps; comparisons on val_select [1000000, +400); headline declared before training: **ensemble**; multiplicity M = 30 per run, x family_size 9 -> M = 270 (t_req 5.35).
+
+## Sealed test: test [1000000, +300), paired (every policy plays the same episodes)
+
+| policy | mean ticks/ep | SE | t | win % | orders/ep | fees/ep | Sharpe (ann.) |
+|---|---|---|---|---|---|---|---|
+| seed1 | +0.08 | 0.08 | +1.0 | 0 | 0.0 | 0.00 | +5.7 |
+| seed2 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| seed3 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| seed4 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| seed5 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| seed6 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| seed7 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| seed8 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| seed9 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| seed10 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| seed11 | +0.09 | 0.08 | +1.1 | 1 | 0.0 | 0.00 | +6.4 |
+| seed12 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| ensemble | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| mean_of_seeds | +0.01 | 0.01 | +1.1 | 1 | 0.0 | 0.00 | +6.1 |
+| flat | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| delta30 | -5.75 | 1.44 | -4.0 | 41 | 6.0 | 1.20 | -22.8 |
+| oracle_0.5 | -5.08 | 1.34 | -3.8 | 42 | 5.1 | 0.99 | -21.7 |
+| oracle_0.55 | -5.71 | 1.28 | -4.5 | 34 | 3.8 | 0.68 | -25.5 |
+| oracle_0.75 | -0.05 | 0.86 | -0.1 | 22 | 1.0 | 0.13 | -0.3 |
+| oracle_1 | +0.07 | 0.47 | +0.1 | 5 | 0.2 | 0.02 | +0.8 |
+| oracle_2 | +0.03 | 0.34 | +0.1 | 3 | 0.1 | 0.01 | +0.5 |
+| neuralq_ref_seed1 | -4.30 | 0.80 | -5.4 | 27 | 6.5 | 0.81 | -30.8 |
+| neuralq_ref_seed2 | -4.58 | 0.81 | -5.6 | 29 | 6.4 | 0.80 | -32.3 |
+| neuralq_ref_seed3 | -2.88 | 0.69 | -4.1 | 33 | 7.5 | 0.93 | -23.7 |
+| neuralq_ref_seed4 | -3.84 | 0.62 | -6.2 | 32 | 6.3 | 0.78 | -35.4 |
+| neuralq_ref_seed5 | -2.31 | 0.63 | -3.6 | 30 | 4.9 | 0.60 | -20.9 |
+| neuralq_ref_seed6 | -4.88 | 0.69 | -7.1 | 31 | 8.8 | 1.08 | -40.4 |
+| neuralq_ref_seed7 | -4.06 | 0.63 | -6.4 | 26 | 6.4 | 0.79 | -36.8 |
+| neuralq_ref_seed8 | -2.27 | 0.57 | -4.0 | 29 | 4.5 | 0.56 | -22.8 |
+| neuralq_ref_seed9 | -3.24 | 0.57 | -5.7 | 26 | 5.8 | 0.71 | -32.8 |
+| neuralq_ref_seed10 | -1.88 | 0.62 | -3.0 | 28 | 5.4 | 0.65 | -17.4 |
+| neuralq_ref_seed11 | -4.22 | 0.68 | -6.2 | 33 | 8.6 | 1.05 | -35.7 |
+| neuralq_ref_seed12 | -7.16 | 0.79 | -9.0 | 31 | 11.7 | 1.46 | -51.7 |
+| neuralq_ref_ensemble | -0.29 | 0.16 | -1.8 | 2 | 0.2 | 0.02 | -10.4 |
+
+Paired differences (row - reference), 95% bootstrap CI (B = 10000, seed 0):
+
+| policy | reference | mean | SE | t | 95% CI |
+|---|---|---|---|---|---|
+| ensemble | delta30 | +5.75 | 1.44 | +4.0 | [+2.95, +8.56] |
+| mean_of_seeds | delta30 | +5.76 | 1.44 | +4.0 | [+2.97, +8.57] |
+| seed1 | delta30 | +5.82 | 1.44 | +4.0 | [+3.00, +8.62] |
+| seed10 | delta30 | +5.75 | 1.44 | +4.0 | [+2.95, +8.56] |
+| seed11 | delta30 | +5.83 | 1.44 | +4.0 | [+3.01, +8.62] |
+| seed12 | delta30 | +5.75 | 1.44 | +4.0 | [+2.95, +8.56] |
+| seed2 | delta30 | +5.75 | 1.44 | +4.0 | [+2.95, +8.56] |
+| seed3 | delta30 | +5.75 | 1.44 | +4.0 | [+2.95, +8.56] |
+| seed4 | delta30 | +5.75 | 1.44 | +4.0 | [+2.95, +8.56] |
+| seed5 | delta30 | +5.75 | 1.44 | +4.0 | [+2.95, +8.56] |
+| seed6 | delta30 | +5.75 | 1.44 | +4.0 | [+2.95, +8.56] |
+| seed7 | delta30 | +5.75 | 1.44 | +4.0 | [+2.95, +8.56] |
+| seed8 | delta30 | +5.75 | 1.44 | +4.0 | [+2.95, +8.56] |
+| seed9 | delta30 | +5.75 | 1.44 | +4.0 | [+2.95, +8.56] |
+| ensemble | flat | +0.00 | 0.00 | - | [+0.00, +0.00] |
+| mean_of_seeds | flat | +0.01 | 0.01 | +1.1 | [+0.00, +0.04] |
+| seed1 | flat | +0.08 | 0.08 | +1.0 | [+0.00, +0.23] |
+| seed10 | flat | +0.00 | 0.00 | - | [+0.00, +0.00] |
+| seed11 | flat | +0.09 | 0.08 | +1.1 | [+0.00, +0.25] |
+| seed12 | flat | +0.00 | 0.00 | - | [+0.00, +0.00] |
+| seed2 | flat | +0.00 | 0.00 | - | [+0.00, +0.00] |
+| seed3 | flat | +0.00 | 0.00 | - | [+0.00, +0.00] |
+| seed4 | flat | +0.00 | 0.00 | - | [+0.00, +0.00] |
+| seed5 | flat | +0.00 | 0.00 | - | [+0.00, +0.00] |
+| seed6 | flat | +0.00 | 0.00 | - | [+0.00, +0.00] |
+| seed7 | flat | +0.00 | 0.00 | - | [+0.00, +0.00] |
+| seed8 | flat | +0.00 | 0.00 | - | [+0.00, +0.00] |
+| seed9 | flat | +0.00 | 0.00 | - | [+0.00, +0.00] |
+| ensemble | neuralq_ref_ensemble | +0.29 | 0.16 | +1.8 | [+0.04, +0.65] |
+| mean_of_seeds | neuralq_ref_ensemble | +0.30 | 0.16 | +1.9 | [+0.05, +0.66] |
+| seed1 | neuralq_ref_ensemble | +0.36 | 0.17 | +2.1 | [+0.08, +0.75] |
+| seed10 | neuralq_ref_ensemble | +0.29 | 0.16 | +1.8 | [+0.04, +0.65] |
+| seed11 | neuralq_ref_ensemble | +0.37 | 0.18 | +2.1 | [+0.08, +0.76] |
+| seed12 | neuralq_ref_ensemble | +0.29 | 0.16 | +1.8 | [+0.04, +0.65] |
+| seed2 | neuralq_ref_ensemble | +0.29 | 0.16 | +1.8 | [+0.04, +0.65] |
+| seed3 | neuralq_ref_ensemble | +0.29 | 0.16 | +1.8 | [+0.04, +0.65] |
+| seed4 | neuralq_ref_ensemble | +0.29 | 0.16 | +1.8 | [+0.04, +0.65] |
+| seed5 | neuralq_ref_ensemble | +0.29 | 0.16 | +1.8 | [+0.04, +0.65] |
+| seed6 | neuralq_ref_ensemble | +0.29 | 0.16 | +1.8 | [+0.04, +0.65] |
+| seed7 | neuralq_ref_ensemble | +0.29 | 0.16 | +1.8 | [+0.04, +0.65] |
+| seed8 | neuralq_ref_ensemble | +0.29 | 0.16 | +1.8 | [+0.04, +0.65] |
+| seed9 | neuralq_ref_ensemble | +0.29 | 0.16 | +1.8 | [+0.04, +0.65] |
+| ensemble | oracle_1 | -0.07 | 0.47 | -0.1 | [-0.96, +0.86] |
+| mean_of_seeds | oracle_1 | -0.05 | 0.47 | -0.1 | [-0.95, +0.87] |
+| seed1 | oracle_1 | +0.01 | 0.47 | +0.0 | [-0.91, +0.95] |
+| seed10 | oracle_1 | -0.07 | 0.47 | -0.1 | [-0.96, +0.86] |
+| seed11 | oracle_1 | +0.02 | 0.47 | +0.0 | [-0.90, +0.96] |
+| seed12 | oracle_1 | -0.07 | 0.47 | -0.1 | [-0.96, +0.86] |
+| seed2 | oracle_1 | -0.07 | 0.47 | -0.1 | [-0.96, +0.86] |
+| seed3 | oracle_1 | -0.07 | 0.47 | -0.1 | [-0.96, +0.86] |
+| seed4 | oracle_1 | -0.07 | 0.47 | -0.1 | [-0.96, +0.86] |
+| seed5 | oracle_1 | -0.07 | 0.47 | -0.1 | [-0.96, +0.86] |
+| seed6 | oracle_1 | -0.07 | 0.47 | -0.1 | [-0.96, +0.86] |
+| seed7 | oracle_1 | -0.07 | 0.47 | -0.1 | [-0.96, +0.86] |
+| seed8 | oracle_1 | -0.07 | 0.47 | -0.1 | [-0.96, +0.86] |
+| seed9 | oracle_1 | -0.07 | 0.47 | -0.1 | [-0.96, +0.86] |
+
+Gross (before fees) per episode: seed1 +0.08, seed2 +0.00, seed3 +0.00, seed4 +0.00, seed5 +0.00, seed6 +0.00, seed7 +0.00, seed8 +0.00, seed9 +0.00, seed10 +0.00, seed11 +0.09, seed12 +0.00, ensemble +0.00, mean_of_seeds +0.01, oracle_0.5 -4.09, oracle_0.55 -5.03, oracle_0.75 +0.08, oracle_1 +0.09, oracle_2 +0.04
+
+Paired gross differences against every oracle threshold (row - oracle):
+
+| policy | oracle | mean | SE | t | 95% CI |
+|---|---|---|---|---|---|
+| ensemble | oracle_0.5 | +4.09 | 1.34 | +3.1 | [+1.49, +6.69] |
+| mean_of_seeds | oracle_0.5 | +4.10 | 1.34 | +3.1 | [+1.49, +6.70] |
+| seed1 | oracle_0.5 | +4.17 | 1.34 | +3.1 | [+1.56, +6.75] |
+| seed10 | oracle_0.5 | +4.09 | 1.34 | +3.1 | [+1.49, +6.69] |
+| seed11 | oracle_0.5 | +4.18 | 1.34 | +3.1 | [+1.57, +6.77] |
+| seed12 | oracle_0.5 | +4.09 | 1.34 | +3.1 | [+1.49, +6.69] |
+| seed2 | oracle_0.5 | +4.09 | 1.34 | +3.1 | [+1.49, +6.69] |
+| seed3 | oracle_0.5 | +4.09 | 1.34 | +3.1 | [+1.49, +6.69] |
+| seed4 | oracle_0.5 | +4.09 | 1.34 | +3.1 | [+1.49, +6.69] |
+| seed5 | oracle_0.5 | +4.09 | 1.34 | +3.1 | [+1.49, +6.69] |
+| seed6 | oracle_0.5 | +4.09 | 1.34 | +3.1 | [+1.49, +6.69] |
+| seed7 | oracle_0.5 | +4.09 | 1.34 | +3.1 | [+1.49, +6.69] |
+| seed8 | oracle_0.5 | +4.09 | 1.34 | +3.1 | [+1.49, +6.69] |
+| seed9 | oracle_0.5 | +4.09 | 1.34 | +3.1 | [+1.49, +6.69] |
+| ensemble | oracle_0.55 | +5.03 | 1.28 | +3.9 | [+2.56, +7.53] |
+| mean_of_seeds | oracle_0.55 | +5.04 | 1.28 | +3.9 | [+2.57, +7.54] |
+| seed1 | oracle_0.55 | +5.11 | 1.28 | +4.0 | [+2.62, +7.61] |
+| seed10 | oracle_0.55 | +5.03 | 1.28 | +3.9 | [+2.56, +7.53] |
+| seed11 | oracle_0.55 | +5.12 | 1.28 | +4.0 | [+2.63, +7.62] |
+| seed12 | oracle_0.55 | +5.03 | 1.28 | +3.9 | [+2.56, +7.53] |
+| seed2 | oracle_0.55 | +5.03 | 1.28 | +3.9 | [+2.56, +7.53] |
+| seed3 | oracle_0.55 | +5.03 | 1.28 | +3.9 | [+2.56, +7.53] |
+| seed4 | oracle_0.55 | +5.03 | 1.28 | +3.9 | [+2.56, +7.53] |
+| seed5 | oracle_0.55 | +5.03 | 1.28 | +3.9 | [+2.56, +7.53] |
+| seed6 | oracle_0.55 | +5.03 | 1.28 | +3.9 | [+2.56, +7.53] |
+| seed7 | oracle_0.55 | +5.03 | 1.28 | +3.9 | [+2.56, +7.53] |
+| seed8 | oracle_0.55 | +5.03 | 1.28 | +3.9 | [+2.56, +7.53] |
+| seed9 | oracle_0.55 | +5.03 | 1.28 | +3.9 | [+2.56, +7.53] |
+| ensemble | oracle_0.75 | -0.08 | 0.86 | -0.1 | [-1.78, +1.61] |
+| mean_of_seeds | oracle_0.75 | -0.07 | 0.86 | -0.1 | [-1.77, +1.62] |
+| seed1 | oracle_0.75 | -0.00 | 0.87 | -0.0 | [-1.72, +1.70] |
+| seed10 | oracle_0.75 | -0.08 | 0.86 | -0.1 | [-1.78, +1.61] |
+| seed11 | oracle_0.75 | +0.01 | 0.87 | +0.0 | [-1.71, +1.70] |
+| seed12 | oracle_0.75 | -0.08 | 0.86 | -0.1 | [-1.78, +1.61] |
+| seed2 | oracle_0.75 | -0.08 | 0.86 | -0.1 | [-1.78, +1.61] |
+| seed3 | oracle_0.75 | -0.08 | 0.86 | -0.1 | [-1.78, +1.61] |
+| seed4 | oracle_0.75 | -0.08 | 0.86 | -0.1 | [-1.78, +1.61] |
+| seed5 | oracle_0.75 | -0.08 | 0.86 | -0.1 | [-1.78, +1.61] |
+| seed6 | oracle_0.75 | -0.08 | 0.86 | -0.1 | [-1.78, +1.61] |
+| seed7 | oracle_0.75 | -0.08 | 0.86 | -0.1 | [-1.78, +1.61] |
+| seed8 | oracle_0.75 | -0.08 | 0.86 | -0.1 | [-1.78, +1.61] |
+| seed9 | oracle_0.75 | -0.08 | 0.86 | -0.1 | [-1.78, +1.61] |
+| ensemble | oracle_1 | -0.09 | 0.47 | -0.2 | [-0.99, +0.84] |
+| mean_of_seeds | oracle_1 | -0.08 | 0.47 | -0.2 | [-0.98, +0.85] |
+| seed1 | oracle_1 | -0.01 | 0.47 | -0.0 | [-0.94, +0.93] |
+| seed10 | oracle_1 | -0.09 | 0.47 | -0.2 | [-0.99, +0.84] |
+| seed11 | oracle_1 | -0.00 | 0.47 | -0.0 | [-0.92, +0.94] |
+| seed12 | oracle_1 | -0.09 | 0.47 | -0.2 | [-0.99, +0.84] |
+| seed2 | oracle_1 | -0.09 | 0.47 | -0.2 | [-0.99, +0.84] |
+| seed3 | oracle_1 | -0.09 | 0.47 | -0.2 | [-0.99, +0.84] |
+| seed4 | oracle_1 | -0.09 | 0.47 | -0.2 | [-0.99, +0.84] |
+| seed5 | oracle_1 | -0.09 | 0.47 | -0.2 | [-0.99, +0.84] |
+| seed6 | oracle_1 | -0.09 | 0.47 | -0.2 | [-0.99, +0.84] |
+| seed7 | oracle_1 | -0.09 | 0.47 | -0.2 | [-0.99, +0.84] |
+| seed8 | oracle_1 | -0.09 | 0.47 | -0.2 | [-0.99, +0.84] |
+| seed9 | oracle_1 | -0.09 | 0.47 | -0.2 | [-0.99, +0.84] |
+| ensemble | oracle_2 | -0.04 | 0.34 | -0.1 | [-0.69, +0.64] |
+| mean_of_seeds | oracle_2 | -0.03 | 0.34 | -0.1 | [-0.68, +0.66] |
+| seed1 | oracle_2 | +0.04 | 0.35 | +0.1 | [-0.63, +0.73] |
+| seed10 | oracle_2 | -0.04 | 0.34 | -0.1 | [-0.69, +0.64] |
+| seed11 | oracle_2 | +0.05 | 0.35 | +0.1 | [-0.62, +0.74] |
+| seed12 | oracle_2 | -0.04 | 0.34 | -0.1 | [-0.69, +0.64] |
+| seed2 | oracle_2 | -0.04 | 0.34 | -0.1 | [-0.69, +0.64] |
+| seed3 | oracle_2 | -0.04 | 0.34 | -0.1 | [-0.69, +0.64] |
+| seed4 | oracle_2 | -0.04 | 0.34 | -0.1 | [-0.69, +0.64] |
+| seed5 | oracle_2 | -0.04 | 0.34 | -0.1 | [-0.69, +0.64] |
+| seed6 | oracle_2 | -0.04 | 0.34 | -0.1 | [-0.69, +0.64] |
+| seed7 | oracle_2 | -0.04 | 0.34 | -0.1 | [-0.69, +0.64] |
+| seed8 | oracle_2 | -0.04 | 0.34 | -0.1 | [-0.69, +0.64] |
+| seed9 | oracle_2 | -0.04 | 0.34 | -0.1 | [-0.69, +0.64] |
+
+## Validation (val_select [1000000, +400))
+
+| policy | mean ticks/ep | SE | t | win % | orders/ep | fees/ep | Sharpe (ann.) |
+|---|---|---|---|---|---|---|---|
+| delta30 | -6.82 | 1.27 | -5.4 | 37 | 5.9 | 1.18 | -26.6 |
+| ensemble | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| flat | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| mean_of_seeds | +0.01 | 0.01 | +0.8 | 1 | 0.0 | 0.00 | +4.0 |
+| neuralq_ref_ensemble | -0.12 | 0.14 | -0.9 | 2 | 0.1 | 0.02 | -4.4 |
+| neuralq_ref_seed1 | -2.94 | 0.59 | -5.0 | 31 | 6.3 | 0.78 | -24.8 |
+| neuralq_ref_seed10 | -3.47 | 0.51 | -6.8 | 24 | 5.8 | 0.71 | -33.8 |
+| neuralq_ref_seed11 | -4.77 | 0.68 | -7.0 | 32 | 9.5 | 1.17 | -34.6 |
+| neuralq_ref_seed12 | -5.61 | 0.67 | -8.3 | 36 | 11.0 | 1.37 | -41.3 |
+| neuralq_ref_seed2 | -3.48 | 0.53 | -6.6 | 30 | 5.8 | 0.73 | -32.6 |
+| neuralq_ref_seed3 | -3.98 | 0.57 | -6.9 | 33 | 7.4 | 0.91 | -34.4 |
+| neuralq_ref_seed4 | -3.64 | 0.55 | -6.6 | 32 | 6.2 | 0.78 | -32.8 |
+| neuralq_ref_seed5 | -1.62 | 0.51 | -3.2 | 29 | 4.8 | 0.58 | -15.8 |
+| neuralq_ref_seed6 | -4.08 | 0.47 | -8.8 | 29 | 7.8 | 0.95 | -43.4 |
+| neuralq_ref_seed7 | -3.33 | 0.52 | -6.3 | 28 | 6.2 | 0.76 | -31.5 |
+| neuralq_ref_seed8 | -2.73 | 0.42 | -6.5 | 24 | 4.2 | 0.52 | -32.2 |
+| neuralq_ref_seed9 | -2.42 | 0.49 | -5.0 | 30 | 5.3 | 0.65 | -24.6 |
+| oracle_0.5 | -6.67 | 1.09 | -6.1 | 36 | 5.1 | 0.99 | -30.3 |
+| oracle_0.55 | -4.08 | 1.11 | -3.7 | 42 | 3.6 | 0.64 | -18.3 |
+| oracle_0.75 | -1.65 | 0.69 | -2.4 | 21 | 1.1 | 0.14 | -11.8 |
+| oracle_1 | +0.03 | 0.29 | +0.1 | 5 | 0.2 | 0.02 | +0.4 |
+| oracle_2 | -0.06 | 0.22 | -0.3 | 2 | 0.1 | 0.01 | -1.3 |
+| seed1 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| seed10 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| seed11 | +0.06 | 0.08 | +0.8 | 1 | 0.0 | 0.00 | +4.0 |
+| seed12 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| seed2 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| seed3 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| seed4 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| seed5 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| seed6 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| seed7 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| seed8 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+| seed9 | +0.00 | 0.00 | - | 0 | 0.0 | 0.00 | - |
+
+Validation-best oracle: oracle_1
+
+## Seeds
+
+| seed | val_ckpt (champion) | val_select | test | offers | champion step |
+|---|---|---|---|---|---|
+| 1 | +0.25 | +0.00 | +0.08 | 6 | 1200000 |
+|  | extra: `{'dataset_rows': 1200000, 'gross_share': 0.5434782608695652, 'net_share': 0.5598559855985599, 'student_gross': 0.25, 'student_net': 0.2488, 'teacher_gross': 0.46, 'teacher_net': 0.44439999999999996, 'teacher_threshold': 2.0, 'teacher_val_ckpt': {'0.5': -4.310999999999999, '0.55': -4.5568, '0.75': -1.9212, '1.0': 0.00980000000000004, '2.0': 0.44439999999999996}}` | | | | |
+| 2 | +0.00 | +0.00 | +0.00 | 6 | 300000 |
+|  | extra: `{'dataset_rows': 1200000, 'gross_share': 0.0, 'net_share': 0.0, 'student_gross': 0.0, 'student_net': 0.0, 'teacher_gross': 0.46, 'teacher_net': 0.44439999999999996, 'teacher_threshold': 2.0, 'teacher_val_ckpt': {'0.5': -4.310999999999999, '0.55': -4.5568, '0.75': -1.9212, '1.0': 0.00980000000000004, '2.0': 0.44439999999999996}}` | | | | |
+| 3 | +0.00 | +0.00 | +0.00 | 6 | 300000 |
+|  | extra: `{'dataset_rows': 1200000, 'gross_share': 0.0, 'net_share': 0.0, 'student_gross': 0.0, 'student_net': 0.0, 'teacher_gross': 0.46, 'teacher_net': 0.44439999999999996, 'teacher_threshold': 2.0, 'teacher_val_ckpt': {'0.5': -4.310999999999999, '0.55': -4.5568, '0.75': -1.9212, '1.0': 0.00980000000000004, '2.0': 0.44439999999999996}}` | | | | |
+| 4 | +0.00 | +0.00 | +0.00 | 6 | 300000 |
+|  | extra: `{'dataset_rows': 1200000, 'gross_share': 0.0, 'net_share': 0.0, 'student_gross': 0.0, 'student_net': 0.0, 'teacher_gross': 0.46, 'teacher_net': 0.44439999999999996, 'teacher_threshold': 2.0, 'teacher_val_ckpt': {'0.5': -4.310999999999999, '0.55': -4.5568, '0.75': -1.9212, '1.0': 0.00980000000000004, '2.0': 0.44439999999999996}}` | | | | |
+| 5 | +0.00 | +0.00 | +0.00 | 6 | 300000 |
+|  | extra: `{'dataset_rows': 1200000, 'gross_share': 0.0, 'net_share': 0.0, 'student_gross': 0.0, 'student_net': 0.0, 'teacher_gross': 0.46, 'teacher_net': 0.44439999999999996, 'teacher_threshold': 2.0, 'teacher_val_ckpt': {'0.5': -4.310999999999999, '0.55': -4.5568, '0.75': -1.9212, '1.0': 0.00980000000000004, '2.0': 0.44439999999999996}}` | | | | |
+| 6 | +0.00 | +0.00 | +0.00 | 6 | 300000 |
+|  | extra: `{'dataset_rows': 1200000, 'gross_share': 0.0, 'net_share': 0.0, 'student_gross': 0.0, 'student_net': 0.0, 'teacher_gross': 0.46, 'teacher_net': 0.44439999999999996, 'teacher_threshold': 2.0, 'teacher_val_ckpt': {'0.5': -4.310999999999999, '0.55': -4.5568, '0.75': -1.9212, '1.0': 0.00980000000000004, '2.0': 0.44439999999999996}}` | | | | |
+| 7 | +0.00 | +0.00 | +0.00 | 6 | 300000 |
+|  | extra: `{'dataset_rows': 1200000, 'gross_share': 0.0, 'net_share': 0.0, 'student_gross': 0.0, 'student_net': 0.0, 'teacher_gross': 0.46, 'teacher_net': 0.44439999999999996, 'teacher_threshold': 2.0, 'teacher_val_ckpt': {'0.5': -4.310999999999999, '0.55': -4.5568, '0.75': -1.9212, '1.0': 0.00980000000000004, '2.0': 0.44439999999999996}}` | | | | |
+| 8 | +0.00 | +0.00 | +0.00 | 6 | 300000 |
+|  | extra: `{'dataset_rows': 1200000, 'gross_share': 0.0, 'net_share': 0.0, 'student_gross': 0.0, 'student_net': 0.0, 'teacher_gross': 0.46, 'teacher_net': 0.44439999999999996, 'teacher_threshold': 2.0, 'teacher_val_ckpt': {'0.5': -4.310999999999999, '0.55': -4.5568, '0.75': -1.9212, '1.0': 0.00980000000000004, '2.0': 0.44439999999999996}}` | | | | |
+| 9 | +0.00 | +0.00 | +0.00 | 6 | 300000 |
+|  | extra: `{'dataset_rows': 1200000, 'gross_share': 0.0, 'net_share': 0.0, 'student_gross': 0.0, 'student_net': 0.0, 'teacher_gross': 0.46, 'teacher_net': 0.44439999999999996, 'teacher_threshold': 2.0, 'teacher_val_ckpt': {'0.5': -4.310999999999999, '0.55': -4.5568, '0.75': -1.9212, '1.0': 0.00980000000000004, '2.0': 0.44439999999999996}}` | | | | |
+| 10 | +0.00 | +0.00 | +0.00 | 6 | 300000 |
+|  | extra: `{'dataset_rows': 1200000, 'gross_share': 0.0, 'net_share': 0.0, 'student_gross': 0.0, 'student_net': 0.0, 'teacher_gross': 0.46, 'teacher_net': 0.44439999999999996, 'teacher_threshold': 2.0, 'teacher_val_ckpt': {'0.5': -4.310999999999999, '0.55': -4.5568, '0.75': -1.9212, '1.0': 0.00980000000000004, '2.0': 0.44439999999999996}}` | | | | |
+| 11 | +0.39 | +0.06 | +0.09 | 6 | 840000 |
+|  | extra: `{'dataset_rows': 1200000, 'gross_share': 0.8586956521739131, 'net_share': 0.8699369936993702, 'student_gross': 0.395, 'student_net': 0.38660000000000005, 'teacher_gross': 0.46, 'teacher_net': 0.44439999999999996, 'teacher_threshold': 2.0, 'teacher_val_ckpt': {'0.5': -4.310999999999999, '0.55': -4.5568, '0.75': -1.9212, '1.0': 0.00980000000000004, '2.0': 0.44439999999999996}}` | | | | |
+| 12 | +0.00 | +0.00 | +0.00 | 6 | 300000 |
+|  | extra: `{'dataset_rows': 1200000, 'gross_share': 0.0, 'net_share': 0.0, 'student_gross': 0.0, 'student_net': 0.0, 'teacher_gross': 0.46, 'teacher_net': 0.44439999999999996, 'teacher_threshold': 2.0, 'teacher_val_ckpt': {'0.5': -4.310999999999999, '0.55': -4.5568, '0.75': -1.9212, '1.0': 0.00980000000000004, '2.0': 0.44439999999999996}}` | | | | |
+
+Evaluation determinism (seed 1 champion on val_ckpt, twice and vs its worker): True / True.
+
+Config sha256 93fbf2e6de7c60ad27d7c3e53a9cb5f65bdb82a0ef1ca2537a9803a7efab8f80; versions {'gymnasium': '1.4.0', 'lightgbm': '4.7.0', 'numpy': '2.5.4', 'optuna': '5.0.0', 'sb3-contrib': '2.9.2', 'stable-baselines3': '2.9.2', 'torch': '2.15.0+cpu'}; timings and binary provenance are in the run's report.md.
+
+Simulator results only: an edge must survive the orchestrator's 950M+ confirmation and recorded-tick replay (of_backtest / VecReplayEnv) before it is trusted.
