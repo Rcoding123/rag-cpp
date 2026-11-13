@@ -9,7 +9,8 @@ Static levels of day D (known at 08:30 CT, except the initial balance, active fr
   ibh, ibl     initial balance: RTH 08:30-09:30 CT high / low, counted only for setups formed at or after 09:30 CT
 Running levels (at a formation time t >= 09:30 CT, from RTH trades strictly before t, rounded to the tick): vwap,
 vwap +- 1 and 2 sigma (volume-weighted SD around it). Levels are judged at a setup's formation time (OF20 plan 2).
-Prices in ticks (0.25). Nothing on or after 2026-11-12 is read.
+Prices in ticks (0.25). Nothing on or after 2026-11-12 is read, except a day this process opened as an OF21 forward-test
+look (ragrl.ledger.open_forward).
 """
 import sys
 from datetime import date, timedelta
@@ -21,7 +22,7 @@ REPO = Path(__file__).resolve().parents[1]
 for p in (str(REPO / "python"), str(REPO / "tools")):
     if p not in sys.path:
         sys.path.insert(0, p)
-from ragrl import real  # noqa: E402
+from ragrl import ledger, real  # noqa: E402
 from scid_to_bars import PRICE_SCALE, TICK, Scid  # noqa: E402
 
 CUTOFF = "2026-11-12"
@@ -52,8 +53,8 @@ def value_area(px, size, share=0.70):
 
 
 def overnight(day: str, contract: str, scid_dir="C:/SierraChart/Data"):
-    if day >= CUTOFF:
-        raise RuntimeError("the confirm block is never read")
+    if day >= CUTOFF and not ledger.forward_day_allowed(day):
+        raise RuntimeError("the confirm block is never read (except a day this process opened as a forward-test look)")
     prev = (date.fromisoformat(day) - timedelta(days=1)).isoformat()
     t0, t1 = real.sierra_us(real.ct_wall(prev, "17:00")), real.sierra_us(real.ct_wall(day, "08:30"))
     s = Scid(Path(scid_dir) / f"{contract}_FUT_CME.scid")

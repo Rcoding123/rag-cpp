@@ -552,7 +552,9 @@ step. What remains, in order:
    Sierra study defaults: no edge, no footprint condition beats its shell,
    unfinished and finished extremes revisited at indistinguishable rates.
    **OF20** (A86): absorption and exhaustion at key levels: no edge, no
-   better than a plain touch of the level.
+   better than a plain touch of the level. **OF21** (A87): a forward test
+   of exhaustion at those levels is pre-registered on days from
+   2026-11-12 (looks at 60 / 125 / 250 full days).
    In parallel, simulator realism where the
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on

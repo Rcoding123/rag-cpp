@@ -162,7 +162,76 @@ def real_openings(kind: str, run: str | None = None) -> list:
 
 
 def used_real_confirm_days() -> set:
-    return {d for u in real_openings("confirm") for d in u.get("days", [])}
+    """Days no new confirmation may use: those of real_confirm openings and of forward-test looks (OF21)."""
+    return {d for u in real_openings("confirm") + forward_openings() for d in u.get("days", [])}
+
+
+# ---------------------------------------------------------------- forward tests (OF21)
+_forward_days = set()  # days this process opened through open_forward (of20_levels.overnight reads only these)
+
+
+def forward_openings(claim: str | None = None) -> list:
+    """Ledger entries of real_forward looks (optionally of one claim)."""
+    return [u for u in read_usage() if u.get("block") == "real_forward" and not u.get("dry_run") and (claim is None or u.get("claim") == claim)]
+
+
+def forward_day_allowed(day: str) -> bool:
+    return str(day) in _forward_days
+
+
+def open_forward(claim: str, look: int, days, *, manifest_sha256: str, runner_sha256: str, fingerprint: str,
+                 orchestrator: bool = False, **meta):
+    """Logs look `look` of forward test `claim` on `days` (block real_forward) before any of their prices is read.
+    Refused (nothing logged): no orchestrator flag or claim; look k without look k-1; days that do not extend look
+    k-1's; a day a real_confirm opening used; a look already logged, unless this is a retry after a crash with the
+    same fingerprint (the days, their record hashes and the code hashes: a deterministic rerun reveals nothing new),
+    logged with retry true. Looks are cumulative. Pure Python (no C++ block): a forward test reads Sierra records."""
+    if not orchestrator:
+        raise PermissionError("forward-test looks are for the orchestrator only")
+    if not claim:
+        raise PermissionError("a forward-test look needs its claim id")
+    if not manifest_sha256 or not runner_sha256 or not fingerprint:
+        raise ValueError("open_forward needs the manifest and runner sha256 and the look's fingerprint")
+    look, days = int(look), [str(d) for d in days]
+    if look < 1 or not days or len(set(days)) != len(days) or days != sorted(days):
+        raise ValueError("a look needs a number >= 1 and distinct days in date order")
+    before = {}
+    for u in forward_openings(claim):
+        before.setdefault(int(u.get("look", 0)), u)
+    retry = False
+    if look in before:
+        if before[look].get("fingerprint") != fingerprint or list(before[look].get("days", [])) != days:
+            raise PermissionError(f"look {look} of {claim} was already taken ({before[look].get('time')}): a look is never repeated "
+                                  "(only rerun after a crash with identical days, records and code)")
+        retry = True
+    elif look > 1:
+        prev = before.get(look - 1)
+        if prev is None:
+            raise PermissionError(f"look {look} of {claim} needs look {look - 1} first")
+        if days[:len(prev["days"])] != list(prev["days"]) or len(days) <= len(prev["days"]):
+            raise PermissionError(f"look {look} of {claim} must extend look {look - 1}'s days")
+    elif before:
+        raise PermissionError(f"{claim} already has looks {sorted(before)}")
+    taken = sorted(set(days) & {d for u in real_openings("confirm") for d in u.get("days", [])})
+    if taken:
+        raise PermissionError(f"days {taken} were used by a real_confirm opening")
+    _forward_days.update(days)
+    log_usage({"time": _now(), "run": claim, "block": "real_forward", "claim": claim, "look": look, "days": days, "retry": retry,
+               "fingerprint": fingerprint, "manifest_sha256": manifest_sha256, "runner_sha256": runner_sha256, "pid": os.getpid(),
+               "dry_run": False, **meta})
+
+
+def forward_scans(claim: str) -> list:
+    return [u for u in read_usage() if u.get("block") == "real_forward_scan" and u.get("claim") == claim and not u.get("dry_run")]
+
+
+def log_forward_scan(claim: str, entries: dict, *, orchestrator: bool = False, **meta):
+    """A scan of forward days, block real_forward_scan: {day: {"contract", "status" ('' = full, else the reason),
+    "sha256" of the front month's RTH records}}; no prices or outcomes. A day's status is fixed by its first scan."""
+    if not orchestrator:
+        raise PermissionError("forward-day scans are for the orchestrator only")
+    log_usage({"time": _now(), "run": claim, "block": "real_forward_scan", "claim": claim, "days": dict(entries),
+               "pid": os.getpid(), "dry_run": False, **meta})
 
 
 def open_real(kind: str, reason: str, *, manifest_sha256: str, days, run: str = "", config_sha256: str = "", claim: str = "",

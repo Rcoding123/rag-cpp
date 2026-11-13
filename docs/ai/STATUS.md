@@ -192,7 +192,10 @@
    absorption, exhaustion, unfinished auctions, trapped traders) found no
    edge either (A85). OF20 tested absorption and exhaustion only at
    key levels (prior session, overnight, initial balance, VWAP bands): no
-   edge, and no better than a plain level touch (A86).
+   edge, and no better than a plain level touch (A86). OF21 pre-registers
+   a forward test of exhaustion at those levels on days from 2026-11-12
+   (looks at 60 / 125 / 250 full days, about Feb 2027 to late 2027; low
+   power, A87); Sierra must record ESH27 tick by tick by 2026-12-04.
    Next (the user's choice): passive execution, which needs queue data
    (MBO) to replay honestly, or other information; the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper

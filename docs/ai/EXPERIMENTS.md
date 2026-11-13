@@ -2254,3 +2254,36 @@ setup without its footprint condition at the same levels.
   claim is not supported. The only loose thread is exhaustion at levels,
   carried by a handful of trades; it would need many more days (tick
   records accumulate ~20 a month) and its own pre-registration.
+
+## OF21. Forward test of exhaustion at key levels: pre-registered, not run
+
+OF20's one positive descriptive row (exhaustion, OF19 P3 N 1 e 5, within 2
+ticks of any OF20 level: +1.44 per trade on 119 trades, −0.96 without its
+top 3) gets a forward test on days recorded from 2026-11-12 on, at the
+user's request. Plan `OF21_FORWARD_PLAN.md`, revised after a design review
+before any forward day was read; runner `experiments/of21_forward.py`,
+frozen with OF19/OF20's code by sha256 (plan section 8, checked by
+`python/tests/test_of21.py` and before every look).
+
+* **Design:** looks at 60, 125 and 250 full front-month RTH days
+  (Lan-DeMets O'Brien-Fleming, one-sided α 1 − Φ(2); boundaries t ≥ 4.504,
+  3.022, 2.007), non-binding futility at net ≤ 0, deadline 2028-03-31.
+  An edge needs net > 0, t ≥ the boundary, setup − shell > 0 and stress
+  net > 0.
+* **Power (the red flag):** the in-sample SE is about 13.2 / sqrt(days);
+  the final look has power 0.39 if the true edge is +1.44 and 0.94 at +3.
+  Confirming +1.44 at 80% power would take about 680 days.
+* **Guards:** ledger blocks `real_forward` (one per look; cumulative, in
+  order, never repeated except a crash rerun with the same fingerprint)
+  and `real_forward_scan` (dates, front month, full or not and a records
+  hash; no prices). A day's status is fixed by its first scan; a full day
+  whose records later change refuses every later look. The converters
+  still refuse days from 2026-11-12; OF20's `overnight()` reads one only
+  for a day opened as a forward look. Roll windows need the next contract
+  recorded tick by tick (ESH27 by 2026-12-04).
+* **Rehearsal** (`experiments/of21_rehearsal.txt`, `kit.ps1 run
+  of21_rehearsal`): the runner, reading the .scid files itself, reproduces
+  OF20's row exactly on its 37 days (119 trades, +1.44, SE 2.17, shell
+  925, setup − shell +2.61 ± 2.23); all 37 pass the full-day rule. OF20's
+  results file still reproduces byte for byte after the `overnight()`
+  guard change.

@@ -63,7 +63,11 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > footprint condition beats the same price action without it.
 > **OF20** (`OF20_LEVELS_PLAN.md`, done, A86): the same setups only at key
 > levels: no edge (primary t 0.08, bound 2.47 ticks per trade), no better
-> than a plain level touch. Without the data,
+> than a plain level touch.
+> **OF21** (`OF21_FORWARD_PLAN.md`, pre-registered, A87): forward test of
+> exhaustion at the OF20 levels on days from 2026-11-12. Run `--count`
+> any time; a look only when the count reaches 60 / 125 / 250 full days
+> (`experiments/of21_forward.py --look K --i-am-the-orchestrator`). Without the data,
 > do the opt-in simulator realism items
 > (v5) of §7. Done when every config is scored once on later days,
 > paired against flat and the 30 s delta rule, with orders/episode and
@@ -214,7 +218,7 @@ records what each block has been used for.
 | 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it; OF12 exported sessions 960,012,001–012 for the real-vs-sim comparison, which OF13 then used as v4's tuning sessions; OF13 final sessions 960,013,001–012 (used once, with `of2_baselines` episodes 960,013,000,000 + i) and skeptic sessions 960,014,001–012 (episodes 960,014,000,000 + i): spent for gating v4; the live training viewer (`of_train_live`, A70) probes the net on this block; OF15: the ragrl live hook's probe episodes, the skeptic's fresh-episode rerun 960,015,000,000+[0,600) (both markets, four conditions) and quirk probe 960,015,001,000+[0,400) (viewed: no longer fresh), and `tools/of_zoo_trace.py` replays on 960M+[0,5) (look only); OF16: the dev-day diagnostics' simulator reference 960,016,000,000+[0,200) (`experiments/of16_dev_diag.py`, discovery_v4, look only) |
 | real ES dev days (2026-09-14..17, 11-03) | OF16 dev diagnostics and score-real rehearsals: look as often as needed, never a score |
 | real ES seen days (2026-09-08..11, 11-05, 09, 10, 11; were test) | OF16 phase 2 scored them once per OF15 config sha256 (16 openings, 2026-11-12); manifest role `seen` since (A81): explore and train freely (logged `real_seen`), never score or claim on them |
-| **real ES confirm days (front-month RTH from 2026-11-12)** | **unused: once per claimed edge, orchestrator only (`real.py` takes the next due days)** |
+| **real ES confirm days (front-month RTH from 2026-11-12)** | **unused: once per claimed edge, orchestrator only (`real.py` takes the next due days). OF21 (A87) reads them in its forward looks (ledger block `real_forward`, the first 60 / 125 / 250 full days); days a look read count as used for any other confirmation** |
 | **950,000,000+** | **fresh confirmation: unused (OF15 too); use once per claimed edge, then record it here. ragrl: `confirm --i-am-the-orchestrator --claim ID` only, taking the next free index after any earlier confirmation** |
 
 ## 5. Red flags (stop and diagnose before reporting a win)

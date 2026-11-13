@@ -1,0 +1,11 @@
+OF21 rehearsal: experiments/of21_forward.py on OF20's 37 scored days (2026-09-22 .. 2026-11-11), from the .scid files
+expected (OF20 'exh any tol 2'): {'trades': 119, 'net': '+1.44', 'se': '2.17', 'shell_trades': 925, 'diff': '+2.61', 'diff_se': '2.23'}
+got: {'trades': 119, 'net': '+1.44', 'se': '2.17', 'shell_trades': 925, 'diff': '+2.61', 'diff_se': '2.23'}
+days 37; front months {'ESZ26': 37}
+  trades 119  win 0.34  gross +1.68  net +1.44  se 2.17  t +0.66  stress +0.94
+  shell trades 925  shell net -1.17  setup - shell +2.61 (se 2.23)
+  median -9.24  sd 26.81  without the top 3 trades -0.96  without the best 2 days -0.68
+  halves -2.15 / +4.63  long / short -3.60 / +6.74
+  by nearest level type (trades, net per trade): VWAP bands: 58, +4.62; initial balance: 17, +0.29; overnight: 8, -1.86; prior POC/VA: 18, +4.43; prior close: 6, +1.43; prior high/low: 12, -14.57
+red flags: none
+REHEARSAL OK: the runner reproduces OF20 exactly.

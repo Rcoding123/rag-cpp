@@ -27,6 +27,7 @@ docs/ai/OF17_SIGNAL_CENSUS_PLAN.md
 docs/ai/OF18_REGIME_PLAN.md
 docs/ai/OF19_FOOTPRINT_PLAN.md
 docs/ai/OF20_LEVELS_PLAN.md
+docs/ai/OF22_REAL_LEARNING_PLAN.md
 docs/ai/ORDERFLOW.md
 docs/ai/PROJECT_MAP.md
 docs/ai/RAG_ENGINE.md
@@ -401,144 +402,146 @@ tools/test_research_crawler.py
 21. docs/ai/OF18_REGIME_PLAN.md
 22. docs/ai/OF19_FOOTPRINT_PLAN.md
 23. docs/ai/OF20_LEVELS_PLAN.md
-24. experiments/research_synthesis.md
-25. README.md
-26. CMakeLists.txt
-27. .github\workflows\ci.yml
-28. include\rag\agent\agent.hpp
-29. include\rag\agent\analysis.hpp
-30. include\rag\agent\drift.hpp
-31. include\rag\agent\env.hpp
-32. include\rag\agent\evaluate.hpp
-33. include\rag\agent\execution_dp.hpp
-34. include\rag\agent\features.hpp
-35. include\rag\agent\learners.hpp
-36. include\rag\agent\market_making.hpp
-37. include\rag\agent\mlp.hpp
-38. include\rag\agent\model_based.hpp
-39. include\rag\agent\ope.hpp
-40. include\rag\agent\policy_table.hpp
-41. include\rag\agent\rng.hpp
-42. include\rag\agent\trainer.hpp
-43. include\rag\agent\tuning.hpp
-44. include\rag\agent\validation.hpp
-45. include\rag\agent\variance_reduction.hpp
-46. include\rag\arena.hpp
-47. include\rag\bm25.hpp
-48. include\rag\chunker.hpp
-49. include\rag\common.hpp
-50. include\rag\embedder.hpp
-51. include\rag\engine.hpp
-52. include\rag\epoch.hpp
-53. include\rag\fusion.hpp
-54. include\rag\io.hpp
-55. include\rag\ivf_index.hpp
-56. include\rag\orderflow\features.hpp
-57. include\rag\orderflow\replay_env.hpp
-58. include\rag\orderflow\scalp_env.hpp
-59. include\rag\orderflow\scalp_run.hpp
-60. include\rag\orderflow\seed_ledger.hpp
-61. include\rag\orderflow\simulator.hpp
-62. include\rag\orderflow\stylized.hpp
-63. include\rag\orderflow\tick_csv.hpp
-64. include\rag\orderflow\tick_env.hpp
-65. include\rag\orderflow\vec_scalp_env.hpp
-66. include\rag\pdf.hpp
-67. include\rag\prompt.hpp
-68. include\rag\simd.hpp
-69. include\rag\text_clean.hpp
-70. include\rag\tokenizer.hpp
-71. include\rag\topk.hpp
-72. include\rag\vector_store.hpp
-73. include\rag.hpp
-74. examples\agent_demo.cpp
-75. examples\demo.cpp
-76. examples\of15_refdump.cpp
-77. examples\of_backtest.cpp
-78. examples\of_calibrate.cpp
-79. examples\of_trace.cpp
-80. examples\of_train.cpp
-81. examples\of_train_live.cpp
-82. examples\rag_pdf.cpp
-83. examples\train_ensemble.cpp
-84. examples\tune_agent.cpp
-85. bench\latency.cpp
-86. bench\rag_bench.cpp
-87. bench\fixtures.hpp
-88. tests\agent_coverage_tests.cpp
-89. tests\agent_edge_case_tests.cpp
-90. tests\agent_tests.cpp
-91. tests\api_examples_tests.cpp
-92. tests\forgery_tests.cpp
-93. tests\market_making_tests.cpp
-94. tests\mlp_tests.cpp
-95. tests\model_based_tests.cpp
-96. tests\optional_libs_tests.cpp
-97. tests\orderflow_tests.cpp
-98. tests\pdf_tests.cpp
-99. tests\policy_table_tests.cpp
-100. tests\rag_property_tests.cpp
-101. tests\rag_tests.cpp
-102. tests\reference_tests.cpp
-103. tests\stress.cpp
-104. tests\stylized_tests.cpp
-105. tests\text_clean_tests.cpp
-106. tests\vec_scalp_env_tests.cpp
-107. tests\pdf_writer.hpp
-108. tests\pid.hpp
-109. tests\synthetic.hpp
-110. tests\test_util.hpp
-111. tests\fuzz\fuzz_common.hpp
-112. tests\fuzz\fuzz_load.cpp
-113. tests\fuzz\fuzz_policy_table.cpp
-114. tests\fuzz\fuzz_text.cpp
-115. tests\fuzz\make_seeds.cpp
-116. tools\make_context_pack.py
-117. tools\of_train_live.py
-118. tools\of_viz.py
-119. tools\of_zoo_trace.py
-120. tools\real_vs_sim.py
-121. tools\research_crawler.py
-122. tools\scid_to_bars.py
-123. tools\scid_to_trades.py
-124. tools\sierra_to_ticks.py
-125. tools\test_research_crawler.py
-126. python\ragof_module.cpp
-127. python\ragrl\__init__.py
-128. python\ragrl\__main__.py
-129. python\ragrl\agents\__init__.py
-130. python\ragrl\agents\imitation.py
-131. python\ragrl\agents\neuralq.py
-132. python\ragrl\agents\sb3_agents.py
-133. python\ragrl\agents\supervised.py
-134. python\ragrl\checkpoints.py
-135. python\ragrl\cli.py
-136. python\ragrl\config.py
-137. python\ragrl\envs.py
-138. python\ragrl\evaluate.py
-139. python\ragrl\hpo.py
-140. python\ragrl\ledger.py
-141. python\ragrl\live.py
-142. python\ragrl\native.py
-143. python\ragrl\policies.py
-144. python\ragrl\real.py
-145. python\ragrl\redflags.py
-146. python\ragrl\registry.py
-147. python\ragrl\report.py
-148. python\ragrl\runner.py
-149. python\ragrl\score_real.py
-150. python\ragrl\stats.py
-151. python\ragrl\worker.py
-152. python\tests\conftest.py
-153. python\tests\test_bars.py
-154. python\tests\test_bit_identity.py
-155. python\tests\test_ledger.py
-156. python\tests\test_of19.py
-157. python\tests\test_pipeline.py
-158. python\tests\test_privileged.py
-159. python\tests\test_real.py
-160. python\tests\test_smoke.py
-161. python\tests\test_vec_env.py
+24. docs/ai/OF21_FORWARD_PLAN.md
+25. experiments/research_synthesis.md
+26. README.md
+27. CMakeLists.txt
+28. .github\workflows\ci.yml
+29. include\rag\agent\agent.hpp
+30. include\rag\agent\analysis.hpp
+31. include\rag\agent\drift.hpp
+32. include\rag\agent\env.hpp
+33. include\rag\agent\evaluate.hpp
+34. include\rag\agent\execution_dp.hpp
+35. include\rag\agent\features.hpp
+36. include\rag\agent\learners.hpp
+37. include\rag\agent\market_making.hpp
+38. include\rag\agent\mlp.hpp
+39. include\rag\agent\model_based.hpp
+40. include\rag\agent\ope.hpp
+41. include\rag\agent\policy_table.hpp
+42. include\rag\agent\rng.hpp
+43. include\rag\agent\trainer.hpp
+44. include\rag\agent\tuning.hpp
+45. include\rag\agent\validation.hpp
+46. include\rag\agent\variance_reduction.hpp
+47. include\rag\arena.hpp
+48. include\rag\bm25.hpp
+49. include\rag\chunker.hpp
+50. include\rag\common.hpp
+51. include\rag\embedder.hpp
+52. include\rag\engine.hpp
+53. include\rag\epoch.hpp
+54. include\rag\fusion.hpp
+55. include\rag\io.hpp
+56. include\rag\ivf_index.hpp
+57. include\rag\orderflow\features.hpp
+58. include\rag\orderflow\replay_env.hpp
+59. include\rag\orderflow\scalp_env.hpp
+60. include\rag\orderflow\scalp_run.hpp
+61. include\rag\orderflow\seed_ledger.hpp
+62. include\rag\orderflow\simulator.hpp
+63. include\rag\orderflow\stylized.hpp
+64. include\rag\orderflow\tick_csv.hpp
+65. include\rag\orderflow\tick_env.hpp
+66. include\rag\orderflow\vec_scalp_env.hpp
+67. include\rag\pdf.hpp
+68. include\rag\prompt.hpp
+69. include\rag\simd.hpp
+70. include\rag\text_clean.hpp
+71. include\rag\tokenizer.hpp
+72. include\rag\topk.hpp
+73. include\rag\vector_store.hpp
+74. include\rag.hpp
+75. examples\agent_demo.cpp
+76. examples\demo.cpp
+77. examples\of15_refdump.cpp
+78. examples\of_backtest.cpp
+79. examples\of_calibrate.cpp
+80. examples\of_trace.cpp
+81. examples\of_train.cpp
+82. examples\of_train_live.cpp
+83. examples\rag_pdf.cpp
+84. examples\train_ensemble.cpp
+85. examples\tune_agent.cpp
+86. bench\latency.cpp
+87. bench\rag_bench.cpp
+88. bench\fixtures.hpp
+89. tests\agent_coverage_tests.cpp
+90. tests\agent_edge_case_tests.cpp
+91. tests\agent_tests.cpp
+92. tests\api_examples_tests.cpp
+93. tests\forgery_tests.cpp
+94. tests\market_making_tests.cpp
+95. tests\mlp_tests.cpp
+96. tests\model_based_tests.cpp
+97. tests\optional_libs_tests.cpp
+98. tests\orderflow_tests.cpp
+99. tests\pdf_tests.cpp
+100. tests\policy_table_tests.cpp
+101. tests\rag_property_tests.cpp
+102. tests\rag_tests.cpp
+103. tests\reference_tests.cpp
+104. tests\stress.cpp
+105. tests\stylized_tests.cpp
+106. tests\text_clean_tests.cpp
+107. tests\vec_scalp_env_tests.cpp
+108. tests\pdf_writer.hpp
+109. tests\pid.hpp
+110. tests\synthetic.hpp
+111. tests\test_util.hpp
+112. tests\fuzz\fuzz_common.hpp
+113. tests\fuzz\fuzz_load.cpp
+114. tests\fuzz\fuzz_policy_table.cpp
+115. tests\fuzz\fuzz_text.cpp
+116. tests\fuzz\make_seeds.cpp
+117. tools\make_context_pack.py
+118. tools\of_train_live.py
+119. tools\of_viz.py
+120. tools\of_zoo_trace.py
+121. tools\real_vs_sim.py
+122. tools\research_crawler.py
+123. tools\scid_to_bars.py
+124. tools\scid_to_trades.py
+125. tools\sierra_to_ticks.py
+126. tools\test_research_crawler.py
+127. python\ragof_module.cpp
+128. python\ragrl\__init__.py
+129. python\ragrl\__main__.py
+130. python\ragrl\agents\__init__.py
+131. python\ragrl\agents\imitation.py
+132. python\ragrl\agents\neuralq.py
+133. python\ragrl\agents\sb3_agents.py
+134. python\ragrl\agents\supervised.py
+135. python\ragrl\checkpoints.py
+136. python\ragrl\cli.py
+137. python\ragrl\config.py
+138. python\ragrl\envs.py
+139. python\ragrl\evaluate.py
+140. python\ragrl\hpo.py
+141. python\ragrl\ledger.py
+142. python\ragrl\live.py
+143. python\ragrl\native.py
+144. python\ragrl\policies.py
+145. python\ragrl\real.py
+146. python\ragrl\redflags.py
+147. python\ragrl\registry.py
+148. python\ragrl\report.py
+149. python\ragrl\runner.py
+150. python\ragrl\score_real.py
+151. python\ragrl\stats.py
+152. python\ragrl\worker.py
+153. python\tests\conftest.py
+154. python\tests\test_bars.py
+155. python\tests\test_bit_identity.py
+156. python\tests\test_ledger.py
+157. python\tests\test_of19.py
+158. python\tests\test_of21.py
+159. python\tests\test_pipeline.py
+160. python\tests\test_privileged.py
+161. python\tests\test_real.py
+162. python\tests\test_smoke.py
+163. python\tests\test_vec_env.py
 
 
 ---
@@ -2509,7 +2512,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (21,053 bytes)
+## FILE: docs/ai/LESSONS.md  (21,349 bytes)
 
 # Lessons, distilled
 
@@ -2846,6 +2849,10 @@ building learning systems in general, not just this task.
     With stops of a few ticks and 15-min caps, a few trend days decide
     the mean. Report the median, the result without the top few trades
     and without the best days before reading any descriptive positive.
+62. **Hash code with line endings normalized.** OF21 freezes its code by
+    sha256, and this checkout has `core.autocrlf true`: files written with
+    LF become CRLF on the next checkout, which would break every frozen
+    hash and refuse the forward looks. Hash the bytes with CRLF read as LF.
 
 
 
@@ -3258,7 +3265,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (135,967 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (137,956 bytes)
 
 # RL experiment log
 
@@ -5517,11 +5524,44 @@ setup without its footprint condition at the same levels.
   carried by a handful of trades; it would need many more days (tick
   records accumulate ~20 a month) and its own pre-registration.
 
+## OF21. Forward test of exhaustion at key levels: pre-registered, not run
+
+OF20's one positive descriptive row (exhaustion, OF19 P3 N 1 e 5, within 2
+ticks of any OF20 level: +1.44 per trade on 119 trades, −0.96 without its
+top 3) gets a forward test on days recorded from 2026-11-12 on, at the
+user's request. Plan `OF21_FORWARD_PLAN.md`, revised after a design review
+before any forward day was read; runner `experiments/of21_forward.py`,
+frozen with OF19/OF20's code by sha256 (plan section 8, checked by
+`python/tests/test_of21.py` and before every look).
+
+* **Design:** looks at 60, 125 and 250 full front-month RTH days
+  (Lan-DeMets O'Brien-Fleming, one-sided α 1 − Φ(2); boundaries t ≥ 4.504,
+  3.022, 2.007), non-binding futility at net ≤ 0, deadline 2028-03-31.
+  An edge needs net > 0, t ≥ the boundary, setup − shell > 0 and stress
+  net > 0.
+* **Power (the red flag):** the in-sample SE is about 13.2 / sqrt(days);
+  the final look has power 0.39 if the true edge is +1.44 and 0.94 at +3.
+  Confirming +1.44 at 80% power would take about 680 days.
+* **Guards:** ledger blocks `real_forward` (one per look; cumulative, in
+  order, never repeated except a crash rerun with the same fingerprint)
+  and `real_forward_scan` (dates, front month, full or not and a records
+  hash; no prices). A day's status is fixed by its first scan; a full day
+  whose records later change refuses every later look. The converters
+  still refuse days from 2026-11-12; OF20's `overnight()` reads one only
+  for a day opened as a forward look. Roll windows need the next contract
+  recorded tick by tick (ESH27 by 2026-12-04).
+* **Rehearsal** (`experiments/of21_rehearsal.txt`, `kit.ps1 run
+  of21_rehearsal`): the runner, reading the .scid files itself, reproduces
+  OF20's row exactly on its 37 days (119 trades, +1.44, SE 2.17, shell
+  925, setup − shell +2.61 ± 2.23); all 37 pass the full-day rule. OF20's
+  results file still reproduces byte for byte after the `overnight()`
+  guard change.
+
 
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (36,810 bytes)
+## FILE: docs/ai/DECISIONS.md  (37,394 bytes)
 
 # Decision log
 
@@ -5652,6 +5692,7 @@ the code looks the way it does.
 | A84 | `ragrl train` workers end with `os._exit(0)` after their last write instead of interpreter finalization | Two gate failures (0xC0000005, empty worker.log) were crashes after the worker's last record, in native-library teardown under the gate's load; the worker has nothing to finalize. A crash during the work still fails (LESSONS 58) |
 | A85 | OF19 closes the per-price footprint rules (stacked imbalance, absorption, exhaustion, unfinished auction, trapped traders) traded with market orders at the user's study defaults: no primary edge, no candidate of 20, and no footprint condition beats its shell. Sweeps are 1-µs chains of Sierra records | Pre-registered (d659252, revised after design review); the sweep grouping was corrected after the run review in the conservative direction (it lowers every rule and control), the rules were not |
 | A86 | OF20: absorption and exhaustion at the standard auction-market levels (prior high, low, close, POC, value area; overnight; initial balance; VWAP bands) have no edge (primary net +0.10, t 0.08, bound 2.47 ticks per trade) and do not beat a plain level touch. Exhaustion-at-levels' positive mean is carried by 3 trades and is not a lead to act on without fresh days | Pre-registered (0898c06, revised after design review); the run review only corrected descriptive wording |
+| A87 | OF21 pre-registers a forward test of exhaustion at the OF20 levels on days from 2026-11-12: group-sequential looks at 60 / 125 / 250 full days (boundaries 4.504 / 3.022 / 2.007), deadline 2028-03-31, code frozen by sha256. Its looks use confirm-block days through a new ledger kind real_forward; those days count as used for other confirmations | The user asked for it; the power is low (0.39 at the in-sample +1.44), stated before any data; the design review's fixes (fixed day status, roll-window rule, crash retry, frozen modules, deadline, null wording) are in the plan |
 
 
 
@@ -5742,7 +5783,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (13,179 bytes)
+## FILE: docs/ai/STATUS.md  (13,411 bytes)
 
 # Status, limitations and next steps
 
@@ -5938,7 +5979,10 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
    absorption, exhaustion, unfinished auctions, trapped traders) found no
    edge either (A85). OF20 tested absorption and exhaustion only at
    key levels (prior session, overnight, initial balance, VWAP bands): no
-   edge, and no better than a plain level touch (A86).
+   edge, and no better than a plain level touch (A86). OF21 pre-registers
+   a forward test of exhaustion at those levels on days from 2026-11-12
+   (looks at 60 / 125 / 250 full days, about Feb 2027 to late 2027; low
+   power, A87); Sierra must record ESH27 tick by tick by 2026-12-04.
    Next (the user's choice): passive execution, which needs queue data
    (MBO) to replay honestly, or other information; the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
@@ -5963,7 +6007,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/ORDERFLOW.md  (45,645 bytes)
+## FILE: docs/ai/ORDERFLOW.md  (45,791 bytes)
 
 # ES order-flow trading: simulator, agents, validation, plan
 
@@ -6519,7 +6563,9 @@ step. What remains, in order:
    Sierra study defaults: no edge, no footprint condition beats its shell,
    unfinished and finished extremes revisited at indistinguishable rates.
    **OF20** (A86): absorption and exhaustion at key levels: no edge, no
-   better than a plain touch of the level.
+   better than a plain touch of the level. **OF21** (A87): a forward test
+   of exhaustion at those levels is pre-registered on days from
+   2026-11-12 (looks at 60 / 125 / 250 full days).
    In parallel, simulator realism where the
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
@@ -6603,7 +6649,7 @@ step. What remains, in order:
 
 ---
 
-## FILE: docs/ai/NEXT_SESSION.md  (19,592 bytes)
+## FILE: docs/ai/NEXT_SESSION.md  (20,046 bytes)
 
 # Continuing the work: the prompt and the Claude Code agent architecture
 
@@ -6670,7 +6716,11 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > footprint condition beats the same price action without it.
 > **OF20** (`OF20_LEVELS_PLAN.md`, done, A86): the same setups only at key
 > levels: no edge (primary t 0.08, bound 2.47 ticks per trade), no better
-> than a plain level touch. Without the data,
+> than a plain level touch.
+> **OF21** (`OF21_FORWARD_PLAN.md`, pre-registered, A87): forward test of
+> exhaustion at the OF20 levels on days from 2026-11-12. Run `--count`
+> any time; a look only when the count reaches 60 / 125 / 250 full days
+> (`experiments/of21_forward.py --look K --i-am-the-orchestrator`). Without the data,
 > do the opt-in simulator realism items
 > (v5) of §7. Done when every config is scored once on later days,
 > paired against flat and the 30 s delta rule, with orders/episode and
@@ -6821,7 +6871,7 @@ records what each block has been used for.
 | 960,000,000+ | visualization only (`of_trace` → `tools/of_viz.py` episode viewer): look as often as you like, never select or score on it; OF12 exported sessions 960,012,001–012 for the real-vs-sim comparison, which OF13 then used as v4's tuning sessions; OF13 final sessions 960,013,001–012 (used once, with `of2_baselines` episodes 960,013,000,000 + i) and skeptic sessions 960,014,001–012 (episodes 960,014,000,000 + i): spent for gating v4; the live training viewer (`of_train_live`, A70) probes the net on this block; OF15: the ragrl live hook's probe episodes, the skeptic's fresh-episode rerun 960,015,000,000+[0,600) (both markets, four conditions) and quirk probe 960,015,001,000+[0,400) (viewed: no longer fresh), and `tools/of_zoo_trace.py` replays on 960M+[0,5) (look only); OF16: the dev-day diagnostics' simulator reference 960,016,000,000+[0,200) (`experiments/of16_dev_diag.py`, discovery_v4, look only) |
 | real ES dev days (2026-09-14..17, 11-03) | OF16 dev diagnostics and score-real rehearsals: look as often as needed, never a score |
 | real ES seen days (2026-09-08..11, 11-05, 09, 10, 11; were test) | OF16 phase 2 scored them once per OF15 config sha256 (16 openings, 2026-11-12); manifest role `seen` since (A81): explore and train freely (logged `real_seen`), never score or claim on them |
-| **real ES confirm days (front-month RTH from 2026-11-12)** | **unused: once per claimed edge, orchestrator only (`real.py` takes the next due days)** |
+| **real ES confirm days (front-month RTH from 2026-11-12)** | **unused: once per claimed edge, orchestrator only (`real.py` takes the next due days). OF21 (A87) reads them in its forward looks (ledger block `real_forward`, the first 60 / 125 / 250 full days); days a look read count as used for any other confirmation** |
 | **950,000,000+** | **fresh confirmation: unused (OF15 too); use once per claimed edge, then record it here. ragrl: `confirm --i-am-the-orchestrator --claim ID` only, taking the next free index after any earlier confirmation** |
 
 ## 5. Red flags (stop and diagnose before reporting a win)
@@ -7730,6 +7780,236 @@ VWAP from trades before the signal time).
 
 Light: OF19's pass over the 47 days plus the levels (one overnight byte
 range per day); minutes. Implementation, review: about 1.5-2 hours.
+
+
+
+---
+
+## FILE: docs/ai/OF21_FORWARD_PLAN.md  (12,640 bytes)
+
+# OF21 plan: forward test of exhaustion at key levels
+
+Status: **plan only, nothing run, no day on or after 2026-11-12 read.**
+Written 2026-11-12 after OF20 (A86), at the user's request ("Yes,
+pre-register it"); revised the same day after an independent design
+review, before any forward day was read. Committing this file with the
+frozen code (§8) is the pre-registration: the rule, the days, the looks,
+the statistics and the decision rule are fixed here.
+
+## 1. Question and the power warning
+
+OF20 found no edge, but one descriptive line was positive: exhaustion
+(OF19 P3, N 1, e 5) within 2 ticks of any OF20 level ("exh any tol 2"):
+119 trades on 37 days, net +1.44 ticks per trade, block SE 2.17, median
+−9.24, −0.96 without its top 3 trades, −0.68 without its best 2 days. It
+was not a pre-registered test, it was the best-looking of the descriptive
+rows, and it rests on a handful of trades: the in-sample +1.44 is very
+probably inflated. The expected forward answer is **no**.
+
+**Question:** on days nobody has seen, does exhaustion at the OF20 levels
+make money after costs?
+
+**Power (stated before any data, the main weakness).** The in-sample
+per-day dispersion gives a net-per-trade SE of about 13.2 / sqrt(days):
+2.1 at 40 days, 1.7 at 60, 1.2 at 125, 0.83 at 250. A fixed test at
+t ≥ 2 with 80% power for the in-sample +1.44 would need about **680 full
+days (2.7 years)**. Under the design below (final look at 250 days) the
+power is 0.39 if the true edge is +1.44, 0.65 at +2, 0.94 at +3 and
+≥ 0.99 at +4 ticks per trade (Monte Carlo, §4; the design review
+recomputed these). So this test is likely to find only an edge about
+twice the in-sample estimate or larger. A null at the final look is
+reported as an upper bound (net + 2.007 × SE); 2.007 × SE (about 1.7 ticks
+at 250 days) is the edge this test detects only about half the time.
+
+## 2. Data and days
+
+- **Source:** Sierra Chart tick-by-tick .scid records (`<q4f4I`, as
+  OF19), read on or after 2026-11-12 only by `experiments/of21_forward.py`
+  in `--count` or `--look` mode with the orchestrator flag. The converters
+  `tools/scid_to_bars.py` and `tools/scid_to_trades.py` keep refusing those
+  days, and `experiments/of20_levels.py`'s `overnight()` reads one only for
+  a day this process opened as a real_forward look.
+- **The scan** (`--count`, and the first step of a look) reads each
+  forward day's RTH records for timestamps and volumes only (front month,
+  full or not, a sha256 of the front month's overnight and RTH records), logs that per
+  day in the ledger (block `real_forward_scan`) and prints only dates,
+  front months and reasons: no prices, levels or outcomes.
+- **Contracts:** ESZ26, ESH27, ESM27, ESU27, ESZ27, ESH28 (whichever files
+  exist). Front month: the file with the larger RTH volume that day (OF13
+  rule, `scid_to_bars.build_day`). **Sierra must record each new
+  contract tick by tick before its roll window** (ESH27 by 2026-12-04: no
+  ESH27 file exists today).
+- **Calendar:** weekdays from 2026-11-12 on, in date order, only after
+  their session is over. RTH 08:30-15:00 CT (the OF16 clock).
+- **A full day** (scored), all of:
+  - the front month's records are tick style (OF18 rule);
+  - its RTH records cover the session: the first within 60 s of 08:30,
+    the last within 60 s of 15:00, no gap between records over 60 s;
+  - **roll window:** within 14 calendar days before the front month's
+    expiry (the third Friday of its month), the next contract also has
+    tick-style RTH records that day (so a missing file can never make an
+    expiring contract the "front month");
+  - the day's contract has a recorded prior session (below).
+  Half days (2026-11-27, 2026-12-24, ...), recording outages and trading
+  halts over 60 s are not scored; they are counted and reported with the
+  reason. Dropping halt days drops some of the most extreme days: stated
+  here as a weakness (§7), not corrected.
+- **A day's status is fixed by its first scan** after its session ended
+  (the earliest `real_forward_scan` entry). A later backfill cannot turn
+  a not-full day into a full one. If the records of a full day change
+  after its first scan (a different sha256), that is a red flag and every
+  later look is refused until an amendment, committed before the look,
+  says how to proceed.
+- **Prior session:** the most recent earlier weekday (up to 7 calendar
+  days back) on which the **day's own contract** has RTH records, full or
+  not (a half day counts). On a roll day this is the new front month's
+  own, thinner, prior session (as written in OF20 §5 for OF20b). The first
+  forward day's prior session (2026-11-11) is before the cutoff and is read
+  as a prior session only.
+- **Overnight:** the same contract, 17:00 CT of the previous calendar day
+  to 08:30 CT (OF20's `overnight()`, unchanged).
+
+## 3. Rule (OF20, unchanged)
+
+Exhaustion = OF19 P3 with N = 1, e = 5 (`sig_P3`), at a level: the bar's
+extreme (the new low for a long, the new high for a short) within 2 ticks
+of any level known at the setup's formation time (the start of its extreme
+bar): the ten static levels (prior high, low, close, POC, 70% value area,
+overnight high and low, initial balance from 09:30 CT) or the VWAP set
+(VWAP ± 1 and 2 SD from 09:30 CT). Fills, exits, stops, the 15-min cap,
+100 ms latency, $1.50 per side (0.24 ticks round trip on top of the
+spread), sweep grouping: OF19 §3 unchanged. **Shell:** the same setup
+without its footprint (Bv/A) conditions at the same levels (OF20 §5).
+The trade simulation is the OF19/OF20 code, frozen (§8).
+
+## 4. Looks
+
+Three looks, each on the first N_k full scored days from 2026-11-12, in
+date order, minus any day a `real_confirm` opening used (cumulative: look
+2 contains look 1's days):
+
+| look | full days N_k | about when | boundary (t ≥) | cumulative α spent (one-sided) |
+| --- | --- | --- | --- | --- |
+| 1 | 60 | Feb 2027 | 4.504 | 0.0000033 |
+| 2 | 125 | May 2027 | 3.022 | 0.0013 |
+| 3 (final) | 250 | late 2027 | 2.007 | 0.0228 |
+
+Lan-DeMets O'Brien-Fleming spending, α(τ) = 2 − 2Φ(z_{1−α/2}/sqrt(τ)) with
+α = 1 − Φ(2) = 0.0228 (one-sided t ≥ 2) and τ = N_k / 250. Look 1's
+boundary is exact (computed with erfc). Looks 2-3 come from 4,000,000
+Monte Carlo Brownian paths (numpy, seed 0; correlations sqrt(N_j / N_k)),
+Monte Carlo error about ±0.005 (the design review got 3.026 and 2.009).
+The boundaries are constants in the runner. The bootstrap t is compared
+with these normal boundaries, as OF19 and OF20 compared it with 2.
+
+**Deadline.** If look 3's 250 days are not reached by **2028-03-31**,
+look 3 is taken on that date or later on every full day so far (more than
+look 2's days); its boundary then spends all α left (the runner's
+`final_boundary`, the same Monte Carlo with the actual day counts). A
+look not reached by the deadline is skipped.
+
+Before a look, only the scan may run (§2). A look runs once the count
+reaches N_k, on exactly the first N_k full days; it cannot be moved or
+taken early. **Crash retry:** a look whose process died may be rerun only
+with an identical fingerprint (the same days, the same per-day record
+sha256 and the same code sha256); the output is deterministic (seed 0),
+so a rerun reveals nothing new. It is logged as a retry.
+
+## 5. Statistics and the decision rule (fixed now)
+
+As OF20: per-trade net at the recorded touch; SE = the largest
+moving-block bootstrap SE over blocks of 2, 5 and 10 scored days (10000
+resamples, seed 0; statistic total net / total trades); stress = net −
+0.5 ticks; setup − shell = setup gross per trade − shell gross per trade,
+its SE by resampling days jointly; halves split at the look's middle
+scored day.
+
+At look k:
+- **Edge (stop, then claim):** net > 0, t = net / SE ≥ the look's
+  boundary, setup − shell > 0, and stress net > 0. A claim is only "the
+  rule passed its pre-registered forward test"; trading it is a separate
+  decision with its own costs and risk. Deliberate differences from
+  OF20's in-sample rule: halves are not required, and setup − shell only
+  needs to be positive, not 2 SE, because a forward test at this power
+  cannot afford them. So a pass does **not** show that the footprint
+  condition beats a plain touch of the level. The stress condition rarely
+  binds once t clears the boundary; it stays for continuity.
+- **Futility (looks 1-2, non-binding):** net ≤ 0. The result reads "no
+  edge so far" and stopping is recommended; continuing is allowed because
+  futility does not spend α (the boundaries assume no futility stop).
+- **Otherwise:** continue to the next look. At the final look without an
+  edge: "net N per trade, upper bound N + 2.007 × SE on fresh days; edges
+  below 2.007 × SE are detected less than half the time".
+
+**Reported at every look, not tested:** trades, win rate, median, net
+without the top 3 trades and without the best 2 days (lesson 61), long
+and short, halves, the shell's trades and net, trades per level type,
+not-scored days with reasons, the front month per day, the code sha256.
+
+**Red flags:** t > 6 at any look; a win rate above 75% on 30+ trades; any
+level from data after its use (the OF20 checks); a look's days not the
+first N_k full days; a full day whose records changed after its first
+scan (§2); a frozen file whose sha256 differs from §8; the rehearsal not
+reproducing OF20.
+
+## 6. Ledger and guards
+
+`ragrl.ledger.open_forward(claim, look, days, ...)` logs block
+`real_forward` (claim `OF21`, look, days, fingerprint, the code and
+manifest sha256) before any price of those days is read, and refuses: no
+orchestrator flag; look k without look k−1; days that do not extend look
+k−1's; any day an earlier `real_confirm` opening used; a look already
+logged, except a crash retry with the same fingerprint (§4). Days read by
+OF21 looks count as used for other confirmations
+(`used_real_confirm_days`), so a later claim's confirmation takes other
+days. `log_forward_scan` logs block `real_forward_scan` (§2).
+
+Before every look, the runner (1) refuses unless every file in §8 has its
+frozen sha256, (2) reruns the rehearsal (below) and refuses unless it
+reproduces OF20 exactly, (3) scans and refuses on a changed full day. The
+ledger and clock modules (`python/ragrl/ledger.py`, `python/ragrl/real.py`)
+are not frozen (other work changes them); their sha256 is logged with
+each look and the rehearsal checks the clock.
+
+Usage (orchestrator only, through the kit):
+
+    python experiments/of21_forward.py --count --i-am-the-orchestrator
+    python experiments/of21_forward.py --look 1 --i-am-the-orchestrator --out experiments/of21_look1.txt
+
+`--rehearse` reruns the same code path on OF20's 37 scored days
+(2026-09-22 .. 2026-11-11, from the .scid files, no ledger) and must
+reproduce OF20's "exh any tol 2" row exactly: 119 trades, net +1.44, SE
+2.17, shell 925, setup − shell +2.61 ± 2.23. It did at the freeze
+(`experiments/of21_rehearsal.txt`); all 37 days pass the full-day rule.
+
+## 7. Known weaknesses
+
+- **Power** (§1): only an edge of about 3 ticks per trade or more is
+  likely to be found; the in-sample estimate is half that and inflated.
+- **Selection:** the rule was the best-looking descriptive row of OF20;
+  the forward days are what makes the test fair, nothing else.
+- **Regime:** a year of new days is one market period; a pass would still
+  need a check that it is not carried by a few trend days (reported).
+- **Dropped days:** recording outages, missing contract files in a roll
+  window and halt days are not scored (counted). Halt days are among the
+  most extreme; excluding them can bias the result either way.
+- **Costs:** market orders as in OF19; no queue position, no book.
+- **The confirm block:** OF21 uses its days for about a year; another
+  claim's confirmation in that time takes days OF21 has not yet read, and
+  those days then leave OF21's sequence, so OF21's looks come later.
+
+## 8. Frozen code
+
+Every look refuses unless these files have exactly these sha256 (of the
+file with CRLF read as LF; `python/tests/test_of21.py` fails on any
+change):
+
+- `experiments/of21_forward.py` sha256: `0adb0f61083aff1a38150b69e4d642b624fa26917d7a72be6268a07be80da0c7`
+- `experiments/of20_atlevels.py` sha256: `075e691c368ec2002ff22b16b75792257aa068ace3e4ba0af23b9ab13572fcfc`
+- `experiments/of20_levels.py` sha256: `7ec71ba08c38940226f898842219a6eb3f66648158d46374ec00d78bcc36690b`
+- `experiments/of19_footprint.py` sha256: `47ca7794afedf6f81d99c634d216403a77a666c12c9a3b5b1ce95f2d0fe17470`
+- `tools/scid_to_bars.py` sha256: `fd0f8118fc875b10bc0eddfa50596e58467fbc002f79516288a0079bf5b9eef3`
+- `tools/scid_to_trades.py` sha256: `50b8c070043cc843a03d968254336159f1b19340896883b5c3792626bb4ba2e5`
 
 
 
@@ -34170,7 +34450,7 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: tools\make_context_pack.py  (4,133 bytes)
+## FILE: tools\make_context_pack.py  (4,169 bytes)
 
 ````python
 #!/usr/bin/env python3
@@ -34216,6 +34496,7 @@ DOCS = [
     "docs/ai/OF18_REGIME_PLAN.md",
     "docs/ai/OF19_FOOTPRINT_PLAN.md",
     "docs/ai/OF20_LEVELS_PLAN.md",
+    "docs/ai/OF21_FORWARD_PLAN.md",
     "experiments/research_synthesis.md",
     "README.md",
 ]
@@ -39850,7 +40131,7 @@ def hpo(cfg_path, root: Path | None = None) -> Path:
 
 ---
 
-## FILE: python\ragrl\ledger.py  (10,912 bytes)
+## FILE: python\ragrl\ledger.py  (15,205 bytes)
 
 ```python
 """The only module that opens sealed blocks (a pytest greps for open_sealed).
@@ -40017,7 +40298,76 @@ def real_openings(kind: str, run: str | None = None) -> list:
 
 
 def used_real_confirm_days() -> set:
-    return {d for u in real_openings("confirm") for d in u.get("days", [])}
+    """Days no new confirmation may use: those of real_confirm openings and of forward-test looks (OF21)."""
+    return {d for u in real_openings("confirm") + forward_openings() for d in u.get("days", [])}
+
+
+# ---------------------------------------------------------------- forward tests (OF21)
+_forward_days = set()  # days this process opened through open_forward (of20_levels.overnight reads only these)
+
+
+def forward_openings(claim: str | None = None) -> list:
+    """Ledger entries of real_forward looks (optionally of one claim)."""
+    return [u for u in read_usage() if u.get("block") == "real_forward" and not u.get("dry_run") and (claim is None or u.get("claim") == claim)]
+
+
+def forward_day_allowed(day: str) -> bool:
+    return str(day) in _forward_days
+
+
+def open_forward(claim: str, look: int, days, *, manifest_sha256: str, runner_sha256: str, fingerprint: str,
+                 orchestrator: bool = False, **meta):
+    """Logs look `look` of forward test `claim` on `days` (block real_forward) before any of their prices is read.
+    Refused (nothing logged): no orchestrator flag or claim; look k without look k-1; days that do not extend look
+    k-1's; a day a real_confirm opening used; a look already logged, unless this is a retry after a crash with the
+    same fingerprint (the days, their record hashes and the code hashes: a deterministic rerun reveals nothing new),
+    logged with retry true. Looks are cumulative. Pure Python (no C++ block): a forward test reads Sierra records."""
+    if not orchestrator:
+        raise PermissionError("forward-test looks are for the orchestrator only")
+    if not claim:
+        raise PermissionError("a forward-test look needs its claim id")
+    if not manifest_sha256 or not runner_sha256 or not fingerprint:
+        raise ValueError("open_forward needs the manifest and runner sha256 and the look's fingerprint")
+    look, days = int(look), [str(d) for d in days]
+    if look < 1 or not days or len(set(days)) != len(days) or days != sorted(days):
+        raise ValueError("a look needs a number >= 1 and distinct days in date order")
+    before = {}
+    for u in forward_openings(claim):
+        before.setdefault(int(u.get("look", 0)), u)
+    retry = False
+    if look in before:
+        if before[look].get("fingerprint") != fingerprint or list(before[look].get("days", [])) != days:
+            raise PermissionError(f"look {look} of {claim} was already taken ({before[look].get('time')}): a look is never repeated "
+                                  "(only rerun after a crash with identical days, records and code)")
+        retry = True
+    elif look > 1:
+        prev = before.get(look - 1)
+        if prev is None:
+            raise PermissionError(f"look {look} of {claim} needs look {look - 1} first")
+        if days[:len(prev["days"])] != list(prev["days"]) or len(days) <= len(prev["days"]):
+            raise PermissionError(f"look {look} of {claim} must extend look {look - 1}'s days")
+    elif before:
+        raise PermissionError(f"{claim} already has looks {sorted(before)}")
+    taken = sorted(set(days) & {d for u in real_openings("confirm") for d in u.get("days", [])})
+    if taken:
+        raise PermissionError(f"days {taken} were used by a real_confirm opening")
+    _forward_days.update(days)
+    log_usage({"time": _now(), "run": claim, "block": "real_forward", "claim": claim, "look": look, "days": days, "retry": retry,
+               "fingerprint": fingerprint, "manifest_sha256": manifest_sha256, "runner_sha256": runner_sha256, "pid": os.getpid(),
+               "dry_run": False, **meta})
+
+
+def forward_scans(claim: str) -> list:
+    return [u for u in read_usage() if u.get("block") == "real_forward_scan" and u.get("claim") == claim and not u.get("dry_run")]
+
+
+def log_forward_scan(claim: str, entries: dict, *, orchestrator: bool = False, **meta):
+    """A scan of forward days, block real_forward_scan: {day: {"contract", "status" ('' = full, else the reason),
+    "sha256" of the front month's RTH records}}; no prices or outcomes. A day's status is fixed by its first scan."""
+    if not orchestrator:
+        raise PermissionError("forward-day scans are for the orchestrator only")
+    log_usage({"time": _now(), "run": claim, "block": "real_forward_scan", "claim": claim, "days": dict(entries),
+               "pid": os.getpid(), "dry_run": False, **meta})
 
 
 def open_real(kind: str, reason: str, *, manifest_sha256: str, days, run: str = "", config_sha256: str = "", claim: str = "",
@@ -43185,6 +43535,204 @@ def test_sweep_is_one_event():
     rows = [(10.0, 100, 99, 100), (10.000001, 101, 100, 101), (10.000002, 102, 101, 102), (11.0, 102, 101, 102)]
     E = of19.Events(_T(rows))
     assert E.n == 2 and E.long_fill[0] == 102 and E.short_fill[0] == 99 and E.px_min[0] == 100
+
+```
+
+
+---
+
+## FILE: python\tests\test_of21.py  (9,271 bytes)
+
+```python
+"""OF21 forward test plumbing on synthetic data only (no Sierra file is read): the ledger's forward looks, the
+overnight guard, the full-day rule, day selection around a roll, the sequential boundaries and the frozen runner."""
+import importlib.util
+import math
+from datetime import date
+
+import numpy as np
+import pytest
+
+from conftest import REPO
+
+spec = importlib.util.spec_from_file_location("of21_forward", REPO / "experiments" / "of21_forward.py")
+F21 = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(F21)
+ledger, real, SB, LV = F21.ledger, F21.real, F21.SB, F21.LV
+SHA = "0" * 64
+
+
+@pytest.fixture
+def fresh_ledger(tmp_path, monkeypatch):
+    monkeypatch.setenv("RAGRL_LEDGER_FILE", str(tmp_path / "ledger.jsonl"))
+    monkeypatch.setattr(ledger, "_forward_days", set())
+    return tmp_path / "ledger.jsonl"
+
+
+def _open(look, days, fp="f", **kw):
+    ledger.open_forward("OF21", look, days, manifest_sha256=SHA, runner_sha256=SHA, fingerprint=fp, orchestrator=kw.pop("orchestrator", True),
+                        **kw)
+
+
+def test_open_forward_rules(fresh_ledger):
+    d = ["2026-11-12", "2026-11-13", "2026-11-16"]
+    with pytest.raises(PermissionError, match="orchestrator"):
+        _open(1, d, orchestrator=False)
+    with pytest.raises(PermissionError, match="needs look 1"):
+        _open(2, d)
+    with pytest.raises(ValueError):
+        _open(1, d[::-1])
+    assert not fresh_ledger.exists()  # refusals log nothing
+    _open(1, d[:2])
+    with pytest.raises(PermissionError, match="never repeated"):
+        _open(1, d[:2], fp="other")  # a rerun is allowed only with the same fingerprint (a crash retry)
+    _open(1, d[:2])
+    assert [u["retry"] for u in ledger.forward_openings("OF21")] == [False, True]
+    with pytest.raises(PermissionError, match="extend"):
+        _open(2, ["2026-11-13", "2026-11-16", "2026-11-17"])
+    with pytest.raises(PermissionError, match="extend"):
+        _open(2, d[:2])
+    _open(2, d)
+    looks = ledger.forward_openings("OF21")
+    assert [u["look"] for u in looks] == [1, 1, 2] and looks[2]["days"] == d
+    assert all(ledger.forward_day_allowed(x) for x in d) and not ledger.forward_day_allowed("2026-11-17")
+    # forward days count as used for any later confirmation
+    assert set(d) <= ledger.used_real_confirm_days()
+
+
+def test_open_forward_refuses_confirm_days(fresh_ledger):
+    ledger.log_usage({"time": "t", "block": "real_confirm", "days": ["2026-11-13"], "claim": "X", "dry_run": False})
+    with pytest.raises(PermissionError, match="real_confirm"):
+        _open(1, ["2026-11-12", "2026-11-13"])
+    _open(1, ["2026-11-12", "2026-11-16"])
+
+
+def test_overnight_reads_past_the_cutoff_only_for_opened_days(fresh_ledger, tmp_path):
+    with pytest.raises(RuntimeError, match="never read"):
+        LV.overnight("2026-11-12", "ESZ26", scid_dir=tmp_path)
+    _open(1, ["2026-11-12"])
+    with pytest.raises(FileNotFoundError):  # past the guard; the synthetic folder has no file
+        LV.overnight("2026-11-12", "ESZ26", scid_dir=tmp_path)
+    with pytest.raises(RuntimeError, match="never read"):
+        LV.overnight("2026-11-13", "ESZ26", scid_dir=tmp_path)
+
+
+M = {"rth": {"open": "08:30", "close": "15:00"}}
+
+
+def _records(day, end="15:00", gap=None, vol=1):
+    """Tick-style records: a pair of trades (same second) every 20 s of RTH, optionally a hole [gap[0], gap[1]) s."""
+    t0 = real.sierra_us(real.ct_wall(day, "08:30"))
+    t1 = real.sierra_us(real.ct_wall(day, end))
+    secs = np.arange(1, (t1 - t0) // 1_000_000, 20)
+    if gap:
+        secs = secs[(secs < gap[0]) | (secs >= gap[1])]
+    t = np.repeat(t0 + secs * 1_000_000, 2) + np.tile([0, 1], len(secs))
+    r = np.zeros(len(t), SB.REC)
+    r["t"], r["c"], r["l"], r["h"] = t, 600_000, 600_000, 600_025
+    r["n"], r["v"], r["av"] = 1, vol, vol
+    return r
+
+
+def _scid(path, recs):
+    r = np.concatenate(recs)
+    head = bytearray(56)
+    head[4:8] = (56).to_bytes(4, "little")
+    path.write_bytes(bytes(head) + r.tobytes())
+
+
+def test_full_day_rule():
+    day = "2026-12-07"
+    t0, t1 = F21.rth_us(day, M)
+    assert F21.full_day(_records(day), t0, t1, "tick") == ""
+    assert "gap" in F21.full_day(_records(day, gap=(3600, 3700)), t0, t1, "tick")
+    assert "half day" in F21.full_day(_records(day, end="12:15"), t0, t1, "tick")
+    assert "bundle" in F21.full_day(_records(day), t0, t1, "bundle")
+    late = _records(day)
+    assert "late" in F21.full_day(late[late["t"] > t0 + 90_000_000], t0, t1, "tick")
+
+
+def test_scan_roll_prior_session_and_half_day(tmp_path):
+    # ESZ26 (expiry 2026-12-18) front Fri-Wed (Mon has a 2-min hole, Wed is a half day); ESH27 recorded from Mon (thin, none
+    # on Fri: a roll-window day without the next contract is not scored), front Thu-Fri
+    z = [_records("2026-12-04", vol=5), _records("2026-12-07", gap=(7200, 7330), vol=5), _records("2026-12-08", vol=5),
+         _records("2026-12-09", end="12:15", vol=5), _records("2026-12-10", vol=1), _records("2026-12-11", vol=1)]
+    h = [_records("2026-12-07", vol=1), _records("2026-12-08", vol=1), _records("2026-12-09", end="12:15", vol=1),
+         _records("2026-12-10", vol=9), _records("2026-12-11", vol=9)]
+    _scid(tmp_path / "ESZ26_FUT_CME.scid", z)
+    _scid(tmp_path / "ESH27_FUT_CME.scid", h)
+    files = F21.open_files(tmp_path)
+    try:
+        sc = F21.scan(F21.weekdays("2026-12-03", "2026-12-11"), files, M)
+        assert F21.prior_session("2026-12-10", "ESH27", files, M)[0] == "2026-12-09"  # a half day is a prior session
+        assert F21.prior_session("2026-12-07", "ESH27", files, M)[0] is None
+    finally:
+        for s in files.values():
+            s.close()
+    got = {d: (c, w) for d, c, w, _h in sc}
+    assert list(got) == ["2026-12-03", "2026-12-04", "2026-12-07", "2026-12-08", "2026-12-09", "2026-12-10", "2026-12-11"]
+    assert got["2026-12-03"] == (None, "no RTH trades")
+    assert got["2026-12-04"] == ("ESZ26", "roll window: ESH27 not recorded tick by tick")
+    assert got["2026-12-07"] == ("ESZ26", "a gap over 60 s")
+    assert got["2026-12-08"] == ("ESZ26", "")
+    assert got["2026-12-09"][0] == "ESZ26" and "half day" in got["2026-12-09"][1]
+    assert got["2026-12-10"] == ("ESH27", "") and got["2026-12-11"] == ("ESH27", "")
+    assert F21.expiry("ESZ26") == date(2026, 12, 18) and F21.expiry("ESH27") == date(2027, 3, 19)
+
+
+def test_status_is_fixed_by_the_first_scan():
+    sc = [("d1", "ESZ26", "", "h1"), ("d2", "ESZ26", "", "h2"), ("d3", "ESZ26", "", "h3")]
+    scans = [{"days": {"d1": {"contract": "ESZ26", "status": "", "sha256": "old"},
+                       "d2": {"contract": "ESZ26", "status": "a gap over 60 s", "sha256": "x"}}},
+             {"days": {"d2": {"contract": "ESZ26", "status": "", "sha256": "h2"}}}]
+    rows, changed = F21.fix_status(sc, scans)
+    assert [w for _d, _c, w, _h in rows] == ["", "a gap over 60 s", ""]  # a backfilled day stays not full
+    assert changed == ["d1"]  # a full day whose records changed is a red flag
+
+
+def _phi(x):
+    return 0.5 * (1 + math.erf(x / math.sqrt(2)))
+
+
+def test_sequential_boundaries():
+    a = F21.ALPHA
+    assert abs(a - (1 - _phi(2.0))) < 1e-12
+    t = np.array([F21.LOOKS[k] for k in (1, 2, 3)]) / F21.LOOKS[3]
+    lo, hi = 0.0, 10.0
+    for _ in range(100):
+        z = (lo + hi) / 2
+        lo, hi = (z, hi) if _phi(z) < 1 - a / 2 else (lo, z)
+    spend = [2 - 2 * _phi(z / math.sqrt(x)) for x in t]
+    lo, hi = 0.0, 10.0
+    for _ in range(100):  # look 1 is exact
+        b = (lo + hi) / 2
+        lo, hi = (b, hi) if 1 - _phi(b) > spend[0] else (lo, b)
+    assert abs(b - F21.BOUNDS[1]) < 0.001
+    rng = np.random.default_rng(7)
+    n = 400_000
+    S = np.cumsum(rng.standard_normal((n, 3)) * np.sqrt(np.diff(np.r_[0, t])), 1)
+    Z = S / np.sqrt(t)
+    hit = (Z >= np.array([F21.BOUNDS[k] for k in (1, 2, 3)])).cumsum(1) > 0
+    # each look spends what Lan-DeMets O'Brien-Fleming allows (Monte Carlo tolerance)
+    assert abs(hit[:, 1].mean() - spend[1]) < 0.0004
+    assert abs(hit[:, 2].mean() - spend[2]) < 0.0015
+    # the deadline look's boundary spends what is left; at the planned 250 days it is the planned final boundary
+    assert abs(F21.final_boundary([60, 125], [F21.BOUNDS[1], F21.BOUNDS[2]], 250, paths=400_000, seed=3) - F21.BOUNDS[3]) < 0.02
+    assert F21.final_boundary([60, 125], [F21.BOUNDS[1], F21.BOUNDS[2]], 180, paths=400_000, seed=3) < F21.BOUNDS[3] + 0.05
+
+
+def test_runner_refusals_and_freeze(tmp_path, capsys):
+    assert F21.main(["--count"]) == 2
+    assert F21.main(["--look", "1"]) == 2
+    tomorrow = date.fromordinal(date.today().toordinal() + 1).isoformat()  # a session not over is never scanned
+    assert F21.main(["--count", "--i-am-the-orchestrator", "--until", tomorrow, "--scid-dir", str(tmp_path)]) == 2
+    assert F21.main(["--count", "--i-am-the-orchestrator", "--until", "2026-11-11", "--scid-dir", str(tmp_path)]) == 2
+    p = tmp_path / "plan.md"
+    p.write_text("`experiments/of21_forward.py` sha256: `" + "a" * 64 + "`\n", encoding="utf-8")
+    assert F21.frozen_sha256(p) == {"experiments/of21_forward.py": "a" * 64}
+    assert set(F21.freeze_problems(p)) == set(F21.FROZEN)
+    # the committed code is the code frozen in the plan (an edit to any of these files fails here and refuses every look)
+    assert F21.freeze_problems() == []
 
 ```
 

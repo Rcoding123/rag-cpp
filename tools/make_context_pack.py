@@ -41,6 +41,7 @@ DOCS = [
     "docs/ai/OF18_REGIME_PLAN.md",
     "docs/ai/OF19_FOOTPRINT_PLAN.md",
     "docs/ai/OF20_LEVELS_PLAN.md",
+    "docs/ai/OF21_FORWARD_PLAN.md",
     "experiments/research_synthesis.md",
     "README.md",
 ]

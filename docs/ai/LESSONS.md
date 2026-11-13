@@ -333,3 +333,7 @@ building learning systems in general, not just this task.
     With stops of a few ticks and 15-min caps, a few trend days decide
     the mean. Report the median, the result without the top few trades
     and without the best days before reading any descriptive positive.
+62. **Hash code with line endings normalized.** OF21 freezes its code by
+    sha256, and this checkout has `core.autocrlf true`: files written with
+    LF become CRLF on the next checkout, which would break every frozen
+    hash and refuse the forward looks. Hash the bytes with CRLF read as LF.
