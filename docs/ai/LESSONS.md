@@ -321,3 +321,9 @@ building learning systems in general, not just this task.
     clustering then produced r ≈ −0.3 with no regime at all. Check a
     descriptive statistic against a no-signal simulation with the real
     volatility before reading it.
+60. **Sierra stamps the records of one exchange message 1 µs apart.**
+    Grouping "records sharing a timestamp" into sweeps grouped nothing
+    (45,765,398 records, 45,765,213 distinct timestamps; ~80% of gaps
+    exactly 1 µs). A sweep is a chain of records each 1 µs after the
+    previous one (OF19). Check what "simultaneous" means in a data
+    source before modelling fills on it.

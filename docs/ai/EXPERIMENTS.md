@@ -2148,3 +2148,61 @@ next bar's open, 1.28 ticks per round trip.
   for this data is a different way of trading (passive orders, which the
   replay cannot fill honestly without queue data) or different
   information.
+
+## OF19. Footprint patterns on true tick data: no edge
+
+The user asked for order-flow trends, exhaustion and absorption. Their
+knowledge base (`SierraChart-KB`, outside the repo) had already tested the
+bar-total rules (delta divergence, exhaustion fade, effort-vs-result
+absorption: all lost, t down to −8.8) and asked for "one clean run" of the
+per-price rules on true tick data. OF19 is that run. Plan pre-registered
+in `OF19_FOOTPRINT_PLAN.md` (d659252, revised after a design review
+before any number). Data: `tools/scid_to_trades.py` (`kit.ps1 run
+of19_trades`): every RTH trade of the front month with its aggressor side
+and the record's bid and ask, 47 days (2026-09-08 .. 2026-11-11), ~1M
+trades a day, volume equal to the OF18 bars, 0 dropped or zero-side
+records, 96.8% of trades at the recorded touch. Study:
+`experiments/of19_footprint.py --out experiments/of19_footprint.txt`
+(`kit.ps1 run of19_footprint`); 10 warm-up days for trailing thresholds,
+37 scored; 1-lot market entries and stops at the recorded touch,
+sweep-aware, 100 ms latency, $1.50 per side; targets only on a trade one
+tick through.
+
+* **No primary edge, no secondary candidate** (5 primaries at the user's
+  Sierra study defaults, t_req 3.79; 20 rules, t_req 4.45). Primaries,
+  net per trade: stacked imbalance (r 3, k 3) −0.85 (353 trades, t −0.7);
+  absorption (30 s, target 4) −2.10 (169, t −6.4); exhaustion (N 1,
+  e 5) −2.19 (788, t −3.2); unfinished auction (d 4) −1.36 (6,169, t
+  −9.0); trapped traders (stack trigger) −10.49 (8 trades). The only
+  positive nets are P1 variants with 22-148 trades and SEs of 3-11 ticks
+  (noise; one +105-tick trade checked as real).
+* **Does the footprint condition add anything?** Against the same price
+  action without it ("shell", block SE): absorption −0.28 to −1.39,
+  exhaustion −0.49 ± 0.65, unfinished auction +0.11 ± 0.17, trapped
+  traders (delta) −0.08 to −0.75: nothing distinguishable from zero. The
+  KB's own benchmark for unfinished auctions: unfinished and finished
+  extremes are revisited at indistinguishable rates (d = 4: 78.3% vs
+  78.3% within 15 min, 83.8% vs 84.1% within 30 min, ~17,000 extremes).
+* **Mechanics:** exhaustion with e = 0 never fires: on all 37 days, none
+  of 6,405 new-low and 6,428 new-high 1-min bars has zero same-side
+  aggressor volume at the extreme (a new low prints because someone sells
+  into the bid). Absorption grosses 0.70 ± 0.34 below a random-time
+  control: about 2 SE and uncorrected, not a finding.
+* **Review** (independent): every pattern matches the plan with no
+  lookahead; an independent per-record simulator matched 198 trades
+  exactly; thresholds use only the 10 days before. It found that Sierra
+  stamps the records of one exchange message 1 µs apart, so the first run
+  grouped no sweeps; grouping 1-µs chains (the plan's intent) cost every
+  rule and control 0.06-0.18 ticks per trade, so it could only make the
+  result worse, and the run was redone with it. It also added the shell
+  SEs, the short-hold red flag and the zero-side count, and corrected the
+  wording ("indistinguishable", not "identical"; the absorption vs random
+  difference is not a finding; "vs ctrl" for wide-stop rules measures the
+  day's trend).
+* **Reading.** With OF17 and OF18 and the KB's bar-level tests: in ES,
+  2025-12 .. 2026-11, no order-flow pattern traded with market orders
+  (features, regimes, delta divergence, exhaustion, absorption, stacked
+  imbalances, unfinished auctions, trapped traders) pays its costs, within
+  the stated power. What these tests do not cover: discretionary levels
+  ("at a key level"), passive execution, and the book (depth recorded on
+  ~13 days only).

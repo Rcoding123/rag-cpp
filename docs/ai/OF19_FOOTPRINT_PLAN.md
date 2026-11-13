@@ -1,6 +1,6 @@
 # OF19 plan: footprint order-flow patterns on true tick data
 
-Status: **plan only, nothing run.** Written 2026-11-12 (revised the same day after an
+Status: **done 2026-11-12: no primary edge, no secondary candidate** (EXPERIMENTS.md OF19, `experiments/of19_footprint.txt`). Originally: plan only, nothing run. Written 2026-11-12 (revised the same day after an
 independent design review, before any OF19 number) at the user's
 request ("work on orderflow trends, exhaustion, absorptions") after OF18.
 Committing this file is the pre-registration: data, pattern definitions,

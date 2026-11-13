@@ -188,6 +188,9 @@
    with a sign that flips (A82). OF18 tested that regime question on 228
    days of `.scid` trades: no walk-forward regime rule pays (A83). Market
    orders on order-flow and trend features are closed from 1 s to 15 min.
+   OF19 (footprint patterns on 47 days of true tick data: stacks,
+   absorption, exhaustion, unfinished auctions, trapped traders) found no
+   edge either (A85).
    Next (the user's choice): passive execution, which needs queue data
    (MBO) to replay honestly, or other information; the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper

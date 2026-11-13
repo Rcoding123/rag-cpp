@@ -55,7 +55,7 @@ def trades_of(r: np.ndarray, t0_us: int) -> tuple:
     o = np.lexsort((-side, idx))
     idx, side, size = idx[o], side[o], size[o]
     out = {"t": t[idx], "price": px[idx], "bid": bid[idx], "ask": ask[idx], "size": size, "side": side}
-    return out, dropped, dropped_vol
+    return out, dropped, dropped_vol, int(neither.sum())
 
 
 def main(argv=None):
@@ -93,7 +93,7 @@ def main(argv=None):
             o_unix, c_unix = real.rth_span(day, m)
             t0, t1 = real.sierra_us(o_unix), real.sierra_us(c_unix)
             r = files[c].records(t0, t1)
-            tr, dropped, dropped_vol = trades_of(r, t0)
+            tr, dropped, dropped_vol, inferred = trades_of(r, t0)
             vol = int(tr["size"].sum()) + dropped_vol
             if vol != bside["volume"]:
                 raise ValueError(f"{day}: trade volume {vol} (+ dropped) != the OF18 bar volume {bside['volume']}")
@@ -102,7 +102,7 @@ def main(argv=None):
             np.savez(tmp, **tr)
             tmp.replace(npz)
             side = {"schema": "of19_trades/1", "tool": "tools/scid_to_trades.py", "date": day, "contract": c, "records": int(len(r)),
-                    "trades": int(len(tr["t"])), "volume": int(tr["size"].sum()), "dropped_records": dropped,
+                    "trades": int(len(tr["t"])), "volume": int(tr["size"].sum()), "dropped_records": dropped, "inferred_side_records": inferred,
                     "dropped_volume": dropped_vol, "bars_volume": bside["volume"],
                     "outside_quote": int(((tr["price"] > tr["ask"]) | (tr["price"] < tr["bid"])).sum()),
                     "npz_sha256": hashlib.sha256(npz.read_bytes()).hexdigest()}

@@ -56,7 +56,11 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > on 7 trend features pays at 5-15 min on 228 days of `.scid` trades
 > (upper bounds 1.55 / 2.53 / 3.46 ticks per trade). Market-order trading
 > on order-flow and trend features is closed from 1 s to 15 min; the next
-> question (passive execution, or other information) is the user's call. Without the data,
+> question (passive execution, or other information) is the user's call.
+> **OF19** (`OF19_FOOTPRINT_PLAN.md`, done, A85): the per-price footprint
+> rules (stacked imbalance, absorption, exhaustion, unfinished auction,
+> trapped traders) on 47 days of true tick data: no edge, and no
+> footprint condition beats the same price action without it. Without the data,
 > do the opt-in simulator realism items
 > (v5) of §7. Done when every config is scored once on later days,
 > paired against flat and the 30 s delta rule, with orders/episode and

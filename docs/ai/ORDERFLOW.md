@@ -547,7 +547,11 @@ step. What remains, in order:
    between Sep and Nov: a regime question for the ~224 days of `.scid`
    trades. **OF18** (A83): on 228 days, no walk-forward regime rule on 7
    trend features pays at 5-15 min (primary net −0.78, t −1.83; upper
-   bounds 1.55 / 2.53 / 3.46 ticks per trade). In parallel, simulator realism where the
+   bounds 1.55 / 2.53 / 3.46 ticks per trade). **OF19** (A85): the
+   per-price footprint rules on 47 days of true tick data, at the user's
+   Sierra study defaults: no edge, no footprint condition beats its shell,
+   unfinished and finished extremes revisited at indistinguishable rates.
+   In parallel, simulator realism where the
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
    new real sessions (LESSONS 49).

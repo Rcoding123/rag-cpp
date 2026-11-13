@@ -25,6 +25,7 @@ docs/ai/OBJECTIVES.md
 docs/ai/OF16_REAL_ES_PLAN.md
 docs/ai/OF17_SIGNAL_CENSUS_PLAN.md
 docs/ai/OF18_REGIME_PLAN.md
+docs/ai/OF19_FOOTPRINT_PLAN.md
 docs/ai/ORDERFLOW.md
 docs/ai/PROJECT_MAP.md
 docs/ai/RAG_ENGINE.md
@@ -216,6 +217,8 @@ experiments/of17_signal_census.py
 experiments/of17_signal_census.txt
 experiments/of18_regimes.py
 experiments/of18_regimes.txt
+experiments/of19_footprint.py
+experiments/of19_footprint.txt
 experiments/of1_stylized_facts.cpp
 experiments/of2_baselines.cpp
 experiments/of2_results.txt
@@ -323,6 +326,7 @@ python/tests/conftest.py
 python/tests/test_bars.py
 python/tests/test_bit_identity.py
 python/tests/test_ledger.py
+python/tests/test_of19.py
 python/tests/test_pipeline.py
 python/tests/test_privileged.py
 python/tests/test_real.py
@@ -363,6 +367,7 @@ tools/of_zoo_trace.py
 tools/real_vs_sim.py
 tools/research_crawler.py
 tools/scid_to_bars.py
+tools/scid_to_trades.py
 tools/sierra_to_ticks.py
 tools/test_research_crawler.py
 ```
@@ -390,142 +395,145 @@ tools/test_research_crawler.py
 19. docs/ai/OF16_REAL_ES_PLAN.md
 20. docs/ai/OF17_SIGNAL_CENSUS_PLAN.md
 21. docs/ai/OF18_REGIME_PLAN.md
-22. experiments/research_synthesis.md
-23. README.md
-24. CMakeLists.txt
-25. .github\workflows\ci.yml
-26. include\rag\agent\agent.hpp
-27. include\rag\agent\analysis.hpp
-28. include\rag\agent\drift.hpp
-29. include\rag\agent\env.hpp
-30. include\rag\agent\evaluate.hpp
-31. include\rag\agent\execution_dp.hpp
-32. include\rag\agent\features.hpp
-33. include\rag\agent\learners.hpp
-34. include\rag\agent\market_making.hpp
-35. include\rag\agent\mlp.hpp
-36. include\rag\agent\model_based.hpp
-37. include\rag\agent\ope.hpp
-38. include\rag\agent\policy_table.hpp
-39. include\rag\agent\rng.hpp
-40. include\rag\agent\trainer.hpp
-41. include\rag\agent\tuning.hpp
-42. include\rag\agent\validation.hpp
-43. include\rag\agent\variance_reduction.hpp
-44. include\rag\arena.hpp
-45. include\rag\bm25.hpp
-46. include\rag\chunker.hpp
-47. include\rag\common.hpp
-48. include\rag\embedder.hpp
-49. include\rag\engine.hpp
-50. include\rag\epoch.hpp
-51. include\rag\fusion.hpp
-52. include\rag\io.hpp
-53. include\rag\ivf_index.hpp
-54. include\rag\orderflow\features.hpp
-55. include\rag\orderflow\replay_env.hpp
-56. include\rag\orderflow\scalp_env.hpp
-57. include\rag\orderflow\scalp_run.hpp
-58. include\rag\orderflow\seed_ledger.hpp
-59. include\rag\orderflow\simulator.hpp
-60. include\rag\orderflow\stylized.hpp
-61. include\rag\orderflow\tick_csv.hpp
-62. include\rag\orderflow\tick_env.hpp
-63. include\rag\orderflow\vec_scalp_env.hpp
-64. include\rag\pdf.hpp
-65. include\rag\prompt.hpp
-66. include\rag\simd.hpp
-67. include\rag\text_clean.hpp
-68. include\rag\tokenizer.hpp
-69. include\rag\topk.hpp
-70. include\rag\vector_store.hpp
-71. include\rag.hpp
-72. examples\agent_demo.cpp
-73. examples\demo.cpp
-74. examples\of15_refdump.cpp
-75. examples\of_backtest.cpp
-76. examples\of_calibrate.cpp
-77. examples\of_trace.cpp
-78. examples\of_train.cpp
-79. examples\of_train_live.cpp
-80. examples\rag_pdf.cpp
-81. examples\train_ensemble.cpp
-82. examples\tune_agent.cpp
-83. bench\latency.cpp
-84. bench\rag_bench.cpp
-85. bench\fixtures.hpp
-86. tests\agent_coverage_tests.cpp
-87. tests\agent_edge_case_tests.cpp
-88. tests\agent_tests.cpp
-89. tests\api_examples_tests.cpp
-90. tests\forgery_tests.cpp
-91. tests\market_making_tests.cpp
-92. tests\mlp_tests.cpp
-93. tests\model_based_tests.cpp
-94. tests\optional_libs_tests.cpp
-95. tests\orderflow_tests.cpp
-96. tests\pdf_tests.cpp
-97. tests\policy_table_tests.cpp
-98. tests\rag_property_tests.cpp
-99. tests\rag_tests.cpp
-100. tests\reference_tests.cpp
-101. tests\stress.cpp
-102. tests\stylized_tests.cpp
-103. tests\text_clean_tests.cpp
-104. tests\vec_scalp_env_tests.cpp
-105. tests\pdf_writer.hpp
-106. tests\pid.hpp
-107. tests\synthetic.hpp
-108. tests\test_util.hpp
-109. tests\fuzz\fuzz_common.hpp
-110. tests\fuzz\fuzz_load.cpp
-111. tests\fuzz\fuzz_policy_table.cpp
-112. tests\fuzz\fuzz_text.cpp
-113. tests\fuzz\make_seeds.cpp
-114. tools\make_context_pack.py
-115. tools\of_train_live.py
-116. tools\of_viz.py
-117. tools\of_zoo_trace.py
-118. tools\real_vs_sim.py
-119. tools\research_crawler.py
-120. tools\scid_to_bars.py
-121. tools\sierra_to_ticks.py
-122. tools\test_research_crawler.py
-123. python\ragof_module.cpp
-124. python\ragrl\__init__.py
-125. python\ragrl\__main__.py
-126. python\ragrl\agents\__init__.py
-127. python\ragrl\agents\imitation.py
-128. python\ragrl\agents\neuralq.py
-129. python\ragrl\agents\sb3_agents.py
-130. python\ragrl\agents\supervised.py
-131. python\ragrl\checkpoints.py
-132. python\ragrl\cli.py
-133. python\ragrl\config.py
-134. python\ragrl\envs.py
-135. python\ragrl\evaluate.py
-136. python\ragrl\hpo.py
-137. python\ragrl\ledger.py
-138. python\ragrl\live.py
-139. python\ragrl\native.py
-140. python\ragrl\policies.py
-141. python\ragrl\real.py
-142. python\ragrl\redflags.py
-143. python\ragrl\registry.py
-144. python\ragrl\report.py
-145. python\ragrl\runner.py
-146. python\ragrl\score_real.py
-147. python\ragrl\stats.py
-148. python\ragrl\worker.py
-149. python\tests\conftest.py
-150. python\tests\test_bars.py
-151. python\tests\test_bit_identity.py
-152. python\tests\test_ledger.py
-153. python\tests\test_pipeline.py
-154. python\tests\test_privileged.py
-155. python\tests\test_real.py
-156. python\tests\test_smoke.py
-157. python\tests\test_vec_env.py
+22. docs/ai/OF19_FOOTPRINT_PLAN.md
+23. experiments/research_synthesis.md
+24. README.md
+25. CMakeLists.txt
+26. .github\workflows\ci.yml
+27. include\rag\agent\agent.hpp
+28. include\rag\agent\analysis.hpp
+29. include\rag\agent\drift.hpp
+30. include\rag\agent\env.hpp
+31. include\rag\agent\evaluate.hpp
+32. include\rag\agent\execution_dp.hpp
+33. include\rag\agent\features.hpp
+34. include\rag\agent\learners.hpp
+35. include\rag\agent\market_making.hpp
+36. include\rag\agent\mlp.hpp
+37. include\rag\agent\model_based.hpp
+38. include\rag\agent\ope.hpp
+39. include\rag\agent\policy_table.hpp
+40. include\rag\agent\rng.hpp
+41. include\rag\agent\trainer.hpp
+42. include\rag\agent\tuning.hpp
+43. include\rag\agent\validation.hpp
+44. include\rag\agent\variance_reduction.hpp
+45. include\rag\arena.hpp
+46. include\rag\bm25.hpp
+47. include\rag\chunker.hpp
+48. include\rag\common.hpp
+49. include\rag\embedder.hpp
+50. include\rag\engine.hpp
+51. include\rag\epoch.hpp
+52. include\rag\fusion.hpp
+53. include\rag\io.hpp
+54. include\rag\ivf_index.hpp
+55. include\rag\orderflow\features.hpp
+56. include\rag\orderflow\replay_env.hpp
+57. include\rag\orderflow\scalp_env.hpp
+58. include\rag\orderflow\scalp_run.hpp
+59. include\rag\orderflow\seed_ledger.hpp
+60. include\rag\orderflow\simulator.hpp
+61. include\rag\orderflow\stylized.hpp
+62. include\rag\orderflow\tick_csv.hpp
+63. include\rag\orderflow\tick_env.hpp
+64. include\rag\orderflow\vec_scalp_env.hpp
+65. include\rag\pdf.hpp
+66. include\rag\prompt.hpp
+67. include\rag\simd.hpp
+68. include\rag\text_clean.hpp
+69. include\rag\tokenizer.hpp
+70. include\rag\topk.hpp
+71. include\rag\vector_store.hpp
+72. include\rag.hpp
+73. examples\agent_demo.cpp
+74. examples\demo.cpp
+75. examples\of15_refdump.cpp
+76. examples\of_backtest.cpp
+77. examples\of_calibrate.cpp
+78. examples\of_trace.cpp
+79. examples\of_train.cpp
+80. examples\of_train_live.cpp
+81. examples\rag_pdf.cpp
+82. examples\train_ensemble.cpp
+83. examples\tune_agent.cpp
+84. bench\latency.cpp
+85. bench\rag_bench.cpp
+86. bench\fixtures.hpp
+87. tests\agent_coverage_tests.cpp
+88. tests\agent_edge_case_tests.cpp
+89. tests\agent_tests.cpp
+90. tests\api_examples_tests.cpp
+91. tests\forgery_tests.cpp
+92. tests\market_making_tests.cpp
+93. tests\mlp_tests.cpp
+94. tests\model_based_tests.cpp
+95. tests\optional_libs_tests.cpp
+96. tests\orderflow_tests.cpp
+97. tests\pdf_tests.cpp
+98. tests\policy_table_tests.cpp
+99. tests\rag_property_tests.cpp
+100. tests\rag_tests.cpp
+101. tests\reference_tests.cpp
+102. tests\stress.cpp
+103. tests\stylized_tests.cpp
+104. tests\text_clean_tests.cpp
+105. tests\vec_scalp_env_tests.cpp
+106. tests\pdf_writer.hpp
+107. tests\pid.hpp
+108. tests\synthetic.hpp
+109. tests\test_util.hpp
+110. tests\fuzz\fuzz_common.hpp
+111. tests\fuzz\fuzz_load.cpp
+112. tests\fuzz\fuzz_policy_table.cpp
+113. tests\fuzz\fuzz_text.cpp
+114. tests\fuzz\make_seeds.cpp
+115. tools\make_context_pack.py
+116. tools\of_train_live.py
+117. tools\of_viz.py
+118. tools\of_zoo_trace.py
+119. tools\real_vs_sim.py
+120. tools\research_crawler.py
+121. tools\scid_to_bars.py
+122. tools\scid_to_trades.py
+123. tools\sierra_to_ticks.py
+124. tools\test_research_crawler.py
+125. python\ragof_module.cpp
+126. python\ragrl\__init__.py
+127. python\ragrl\__main__.py
+128. python\ragrl\agents\__init__.py
+129. python\ragrl\agents\imitation.py
+130. python\ragrl\agents\neuralq.py
+131. python\ragrl\agents\sb3_agents.py
+132. python\ragrl\agents\supervised.py
+133. python\ragrl\checkpoints.py
+134. python\ragrl\cli.py
+135. python\ragrl\config.py
+136. python\ragrl\envs.py
+137. python\ragrl\evaluate.py
+138. python\ragrl\hpo.py
+139. python\ragrl\ledger.py
+140. python\ragrl\live.py
+141. python\ragrl\native.py
+142. python\ragrl\policies.py
+143. python\ragrl\real.py
+144. python\ragrl\redflags.py
+145. python\ragrl\registry.py
+146. python\ragrl\report.py
+147. python\ragrl\runner.py
+148. python\ragrl\score_real.py
+149. python\ragrl\stats.py
+150. python\ragrl\worker.py
+151. python\tests\conftest.py
+152. python\tests\test_bars.py
+153. python\tests\test_bit_identity.py
+154. python\tests\test_ledger.py
+155. python\tests\test_of19.py
+156. python\tests\test_pipeline.py
+157. python\tests\test_privileged.py
+158. python\tests\test_real.py
+159. python\tests\test_smoke.py
+160. python\tests\test_vec_env.py
 
 
 ---
@@ -2496,7 +2504,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (20,241 bytes)
+## FILE: docs/ai/LESSONS.md  (20,629 bytes)
 
 # Lessons, distilled
 
@@ -2821,6 +2829,12 @@ building learning systems in general, not just this task.
     clustering then produced r ≈ −0.3 with no regime at all. Check a
     descriptive statistic against a no-signal simulation with the real
     volatility before reading it.
+60. **Sierra stamps the records of one exchange message 1 µs apart.**
+    Grouping "records sharing a timestamp" into sweeps grouped nothing
+    (45,765,398 records, 45,765,213 distinct timestamps; ~80% of gaps
+    exactly 1 µs). A sweep is a chain of records each 1 µs after the
+    previous one (OF19). Check what "simultaneous" means in a data
+    source before modelling fills on it.
 
 
 
@@ -3233,7 +3247,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (129,221 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (132,898 bytes)
 
 # RL experiment log
 
@@ -5386,11 +5400,69 @@ next bar's open, 1.28 ticks per round trip.
   replay cannot fill honestly without queue data) or different
   information.
 
+## OF19. Footprint patterns on true tick data: no edge
+
+The user asked for order-flow trends, exhaustion and absorption. Their
+knowledge base (`SierraChart-KB`, outside the repo) had already tested the
+bar-total rules (delta divergence, exhaustion fade, effort-vs-result
+absorption: all lost, t down to −8.8) and asked for "one clean run" of the
+per-price rules on true tick data. OF19 is that run. Plan pre-registered
+in `OF19_FOOTPRINT_PLAN.md` (d659252, revised after a design review
+before any number). Data: `tools/scid_to_trades.py` (`kit.ps1 run
+of19_trades`): every RTH trade of the front month with its aggressor side
+and the record's bid and ask, 47 days (2026-09-08 .. 2026-11-11), ~1M
+trades a day, volume equal to the OF18 bars, 0 dropped or zero-side
+records, 96.8% of trades at the recorded touch. Study:
+`experiments/of19_footprint.py --out experiments/of19_footprint.txt`
+(`kit.ps1 run of19_footprint`); 10 warm-up days for trailing thresholds,
+37 scored; 1-lot market entries and stops at the recorded touch,
+sweep-aware, 100 ms latency, $1.50 per side; targets only on a trade one
+tick through.
+
+* **No primary edge, no secondary candidate** (5 primaries at the user's
+  Sierra study defaults, t_req 3.79; 20 rules, t_req 4.45). Primaries,
+  net per trade: stacked imbalance (r 3, k 3) −0.85 (353 trades, t −0.7);
+  absorption (30 s, target 4) −2.10 (169, t −6.4); exhaustion (N 1,
+  e 5) −2.19 (788, t −3.2); unfinished auction (d 4) −1.36 (6,169, t
+  −9.0); trapped traders (stack trigger) −10.49 (8 trades). The only
+  positive nets are P1 variants with 22-148 trades and SEs of 3-11 ticks
+  (noise; one +105-tick trade checked as real).
+* **Does the footprint condition add anything?** Against the same price
+  action without it ("shell", block SE): absorption −0.28 to −1.39,
+  exhaustion −0.49 ± 0.65, unfinished auction +0.11 ± 0.17, trapped
+  traders (delta) −0.08 to −0.75: nothing distinguishable from zero. The
+  KB's own benchmark for unfinished auctions: unfinished and finished
+  extremes are revisited at indistinguishable rates (d = 4: 78.3% vs
+  78.3% within 15 min, 83.8% vs 84.1% within 30 min, ~17,000 extremes).
+* **Mechanics:** exhaustion with e = 0 never fires: on all 37 days, none
+  of 6,405 new-low and 6,428 new-high 1-min bars has zero same-side
+  aggressor volume at the extreme (a new low prints because someone sells
+  into the bid). Absorption grosses 0.70 ± 0.34 below a random-time
+  control: about 2 SE and uncorrected, not a finding.
+* **Review** (independent): every pattern matches the plan with no
+  lookahead; an independent per-record simulator matched 198 trades
+  exactly; thresholds use only the 10 days before. It found that Sierra
+  stamps the records of one exchange message 1 µs apart, so the first run
+  grouped no sweeps; grouping 1-µs chains (the plan's intent) cost every
+  rule and control 0.06-0.18 ticks per trade, so it could only make the
+  result worse, and the run was redone with it. It also added the shell
+  SEs, the short-hold red flag and the zero-side count, and corrected the
+  wording ("indistinguishable", not "identical"; the absorption vs random
+  difference is not a finding; "vs ctrl" for wide-stop rules measures the
+  day's trend).
+* **Reading.** With OF17 and OF18 and the KB's bar-level tests: in ES,
+  2025-12 .. 2026-11, no order-flow pattern traded with market orders
+  (features, regimes, delta divergence, exhaustion, absorption, stacked
+  imbalances, unfinished auctions, trapped traders) pays its costs, within
+  the stated power. What these tests do not cover: discretionary levels
+  ("at a key level"), passive execution, and the book (depth recorded on
+  ~13 days only).
+
 
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (35,822 bytes)
+## FILE: docs/ai/DECISIONS.md  (36,329 bytes)
 
 # Decision log
 
@@ -5519,6 +5591,7 @@ the code looks the way it does.
 | A82 | OF17 closes market-order trading on the agents' 13 features at 1 s to 1 min on real ES (no candidate of 128; the best gross at <= 60 s is at most a sixth of the 1.28-tick round trip). Its 120-600 s result is reported as 'none detected', not 'absent' (power), and the long-horizon features' within-month predictability with a sign that flips between months is recorded as the one lead | Pre-registered plan and rule (dea264c); the wording was corrected after the independent review, the rule and the numbers were not |
 | A83 | OF18 closes walk-forward momentum / reversal regime rules on 7 trade-based trend features at 5-15 min (no primary edge: vwap_dist 10 min W20 net −0.78, t −1.83; no secondary candidate of 63), reported as upper bounds (1.55 / 2.53 / 3.46 ticks per trade). Market-order trading on order-flow and trend features in ES is closed from 1 s to 15 min within those bounds | Pre-registered (e9485da, amended baf2a7b before any statistic); the persistence column was re-worded after the review, the rule and the numbers were not |
 | A84 | `ragrl train` workers end with `os._exit(0)` after their last write instead of interpreter finalization | Two gate failures (0xC0000005, empty worker.log) were crashes after the worker's last record, in native-library teardown under the gate's load; the worker has nothing to finalize. A crash during the work still fails (LESSONS 58) |
+| A85 | OF19 closes the per-price footprint rules (stacked imbalance, absorption, exhaustion, unfinished auction, trapped traders) traded with market orders at the user's study defaults: no primary edge, no candidate of 20, and no footprint condition beats its shell. Sweeps are 1-µs chains of Sierra records | Pre-registered (d659252, revised after design review); the sweep grouping was corrected after the run review in the conservative direction (it lowers every rule and control), the rules were not |
 
 
 
@@ -5609,7 +5682,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (12,842 bytes)
+## FILE: docs/ai/STATUS.md  (13,004 bytes)
 
 # Status, limitations and next steps
 
@@ -5801,6 +5874,9 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
    with a sign that flips (A82). OF18 tested that regime question on 228
    days of `.scid` trades: no walk-forward regime rule pays (A83). Market
    orders on order-flow and trend features are closed from 1 s to 15 min.
+   OF19 (footprint patterns on 47 days of true tick data: stacks,
+   absorption, exhaustion, unfinished auctions, trapped traders) found no
+   edge either (A85).
    Next (the user's choice): passive execution, which needs queue data
    (MBO) to replay honestly, or other information; the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
@@ -5825,7 +5901,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/ORDERFLOW.md  (45,285 bytes)
+## FILE: docs/ai/ORDERFLOW.md  (45,530 bytes)
 
 # ES order-flow trading: simulator, agents, validation, plan
 
@@ -6376,7 +6452,11 @@ step. What remains, in order:
    between Sep and Nov: a regime question for the ~224 days of `.scid`
    trades. **OF18** (A83): on 228 days, no walk-forward regime rule on 7
    trend features pays at 5-15 min (primary net −0.78, t −1.83; upper
-   bounds 1.55 / 2.53 / 3.46 ticks per trade). In parallel, simulator realism where the
+   bounds 1.55 / 2.53 / 3.46 ticks per trade). **OF19** (A85): the
+   per-price footprint rules on 47 days of true tick data, at the user's
+   Sierra study defaults: no edge, no footprint condition beats its shell,
+   unfinished and finished extremes revisited at indistinguishable rates.
+   In parallel, simulator realism where the
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
    new real sessions (LESSONS 49).
@@ -6459,7 +6539,7 @@ step. What remains, in order:
 
 ---
 
-## FILE: docs/ai/NEXT_SESSION.md  (19,142 bytes)
+## FILE: docs/ai/NEXT_SESSION.md  (19,415 bytes)
 
 # Continuing the work: the prompt and the Claude Code agent architecture
 
@@ -6519,7 +6599,11 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > on 7 trend features pays at 5-15 min on 228 days of `.scid` trades
 > (upper bounds 1.55 / 2.53 / 3.46 ticks per trade). Market-order trading
 > on order-flow and trend features is closed from 1 s to 15 min; the next
-> question (passive execution, or other information) is the user's call. Without the data,
+> question (passive execution, or other information) is the user's call.
+> **OF19** (`OF19_FOOTPRINT_PLAN.md`, done, A85): the per-price footprint
+> rules (stacked imbalance, absorption, exhaustion, unfinished auction,
+> trapped traders) on 47 days of true tick data: no edge, and no
+> footprint condition beats the same price action without it. Without the data,
 > do the opt-in simulator realism items
 > (v5) of §7. Done when every config is scored once on later days,
 > paired against flat and the 30 s delta rule, with orders/episode and
@@ -7207,6 +7291,218 @@ Light. The bar builder reads each day's byte range of the `.scid` files
 once (about 3 GB, the tick-by-tick months most of it) and caches small bar
 files; the statistics are seconds of numpy (the bootstraps a few
 minutes). Implementation and review: about 1.5-2 hours.
+
+
+
+---
+
+## FILE: docs/ai/OF19_FOOTPRINT_PLAN.md  (11,469 bytes)
+
+# OF19 plan: footprint order-flow patterns on true tick data
+
+Status: **done 2026-11-12: no primary edge, no secondary candidate** (EXPERIMENTS.md OF19, `experiments/of19_footprint.txt`). Originally: plan only, nothing run. Written 2026-11-12 (revised the same day after an
+independent design review, before any OF19 number) at the user's
+request ("work on orderflow trends, exhaustion, absorptions") after OF18.
+Committing this file is the pre-registration: data, pattern definitions,
+directions, exits, statistics and the decision rule are fixed here before
+any OF19 number is computed.
+
+## 1. Question and what is already known
+
+Do the classic footprint patterns (stacked imbalances, absorption,
+exhaustion, unfinished auctions, trapped traders) make money on ES after
+the real costs, when they are measured on true tick data with the
+aggressor side and the bid and ask of every trade?
+
+Already known (the user's knowledge base, `SierraChart-KB/reports/ES
+order flow strategies.md`, `performance/orderflow-models/evidence/
+strategies.txt`): the bar-level rules were tested out of sample on ESU26 /
+ESZ26 at 1.4 ticks per round trip and all lost (delta divergence DD1-DD3
+−2.2 to −2.7 ticks per trade, t down to −8.8; exhaustion fade S2 −1.8 to
+−3.0; effort-vs-result absorption VA2 −1.68). Those bar-total rules are
+exact on 1-s records and are **not retested** here. The per-price rules
+(stacks, exhaustion at the extreme, unfinished auction, absorption at a
+price) were only approximated there, from 1-s records in which most
+volume spans several prices, and the KB's own verdict was to give them
+"one clean run on true tick data". OF19 is that run. OF17 and OF18 (A82,
+A83) found nothing in order-flow and trend features from 1 s to 15 min.
+
+Expected answer: no.
+
+## 2. Data
+
+The user's Sierra `.scid` tick records (one record per trade, with the
+trade price, size, aggressor side and the bid and ask at the trade) on the
+front month by RTH volume: the **47** RTH days 2026-09-08 .. 2026-11-11
+(ESU26 to 09-11, ESZ26 from 09-14; the OF18 bars' tick days, none with a
+gap). **Nothing from 2026-11-12 on is read** (the confirm block). A new
+tool writes per-day arrays of the RTH trades (time, price, size, side,
+bid, ask) to `build-avx512/real/trades/` (gitignored, sha256 in a
+sidecar), checking that the day's volume equals the OF18 bar file's.
+A record with both bid and ask volume is split into two trades. The 8
+seen OF16 days are inside the span; this study makes no claim on any day
+of it (a candidate goes to fresh days, §5).
+
+**Warm-up:** the first 10 days (to 2026-09-21) only feed the trailing
+thresholds; **scored days are the other 37** (2026-09-22 .. 2026-11-11).
+Every threshold that is a quantile comes from the 10 used days before the
+day it is applied to.
+
+Footprint bars: 1-min RTH bars (bar 1 = 08:30-08:31 CT). A(p) = buy-aggressor
+volume traded at price p in the bar, Bv(p) = sell-aggressor volume. Lookbacks
+use only bars of the same RTH session: a pattern needing N prior bars cannot
+fire on bars 1..N.
+
+**Quote check (before any statistic).** The share of buy-aggressor trades
+priced at the record's ask and of sell-aggressor trades at its bid
+(expected >= 95%; the OF18 review found ~2-3% of trades outside the quote,
+stale quotes), and the count of records with bid >= ask or a zero side;
+those use the last valid quote. Reported with the results; a share below
+90% stops the study.
+
+## 3. Patterns (direction fixed by the practitioner rule; long side shown, short is the mirror)
+
+Primary settings are the user's Sierra study defaults where they exist
+(`orderflow-footprint/footprint_core.hpp`: ratio 3, min volume 10,
+stack 3, exhaustion threshold 5), else the KB's rule F1-F7
+(`practitioner_methods.md`). Two stated deviations: Bv(p − 1) = 0 breaks a
+stack (the study's rule; F1's vmin2 branch is not used), and P3's monotone
+condition is from F3 (a), not the study.
+
+**Signal time.** For bar-close patterns (P1, P4, P5) it is the bar's end
+boundary (e.g. 08:31:00.000 CT), not its last trade. For P2 and P3 it is
+the trigger trade's time.
+
+- **P1 stacked imbalance (F1 a).** Diagonal buy imbalance at p:
+  A(p) ≥ r · Bv(p − 1 tick), A(p) ≥ 10 and Bv(p − 1 tick) > 0. A buy stack is
+  k consecutive prices with a buy imbalance. A bar with a buy stack and no
+  sell stack: **long** at its close. Stop 2 ticks below the stack's lowest
+  imbalance price. No target. Primary r = 3, k = 3.
+- **P2 absorption (F2).** Seconds t are scanned in order; P = the bid of
+  the last trade at or before t; S = sell-aggressor volume traded at P in
+  (t − W, t]. A candidate when S ≥ the q95 of the same statistic (sampled
+  every second, same 30-min time-of-day bucket, trailing 10 days) and no
+  trade at or below P − 1 tick in (t − W, t]. It is confirmed if no trade
+  at or below P − 1 prints in the next 10 s (the signal time is t + 10 s);
+  a candidate that fails confirmation does not use up the slot. After a
+  confirmed signal at t, the next t considered on that side is t + W.
+  Trigger: **long** at the first trade at or above P + 1 tick within 60 s
+  after the signal time; the pending entry is cancelled if a trade prints
+  at or below the stop (P − 2 ticks) first. Target 4 ticks above the entry
+  fill. Primary W = 30 s, target 4.
+- **P3 exhaustion, sense (a) (F3 a, the footprint study's sense).** A bar
+  makes a new low against the previous N bars, Bv(low) ≤ e and
+  Bv(low) < Bv(low + 1 tick) < Bv(low + 2 ticks) (sellers dry up into the
+  low). Trigger: **long** at the first trade above the bar's high within
+  the next 5 bars, cancelled if a trade prints at or below the stop (1
+  tick below the bar's low) first. No target. Primary N = 1, e = 5.
+- **P4 unfinished auction (F4, PR3 trade).** The bar's high has A(H) > 0
+  and Bv(H) > 0 and the bar closes at least d ticks below H: **long** at
+  its close, target H (the revisit), stop 8 ticks below the entry fill. A
+  bar unfinished at both extremes, each at least d from the close, is
+  skipped. Primary d = 4.
+- **P5 trapped traders (F7).** Bar t breaks below the 20-bar low L with
+  the trigger, and one of bars t+1..t+M closes back above L: **long** at
+  that close; stop 1 tick below bar t's low. No target. Triggers: *stack*
+  = a sell stack (P1's rule, r = 3, k = 3) whose lowest price is in bar
+  t's bottom 3 ticks; *delta* = bar t's delta ≤ the q10 of bar delta
+  (trailing 10 days, same 30-min bucket; a bar-total rule like those §1
+  does not retest, kept as a variant). Primary M = 2, trigger stack.
+
+**Fills and exits (all patterns).** Records sharing one timestamp form
+one event (a sweep). Entry: the first event at or after the signal time
++ 100 ms (for P2 and P3, the trigger trade's event + 100 ms); a long
+fills at the worst (highest) of the event's asks and trade prices, a
+short at the lowest of its bids and trade prices. A signal whose entry
+fill is at or beyond its stop is skipped and counted. Stops, targets and
+the time cap are checked on events after the entry event. Stop: the first
+event with a trade at or through the stop; a long exits at the lowest of
+that event's bids and trade prices. Target: a resting limit, filled only
+when a trade prints one tick through it, at the target price. Otherwise
+exit at the bid of the first event after the time cap: **15 min** (P2:
+5 min), or at the bid of the last RTH trade before 15:00:00 CT. Fees $1.50
+per side (0.24 ticks per round trip). Positions of a rule may overlap
+(per-trade expectancy, not a strategy with position limits).
+
+## 4. Tests
+
+- **Primary:** the 5 patterns at their primary settings, M = 5,
+  t_req = 2 + sqrt(2 ln 5) = 3.79.
+- **Secondary** (the primaries included), 20 rules, t_req = 2 +
+  sqrt(2 ln 20) = 4.45: P1 r ∈ {3, 4} × k ∈ {3, 4}; P2 W ∈ {15, 30, 60} s
+  × target ∈ {4, 8}; P3 N ∈ {1, 20} × e ∈ {0, 5}; P4 d ∈ {4, 8}; P5
+  M ∈ {1, 2} × trigger ∈ {stack, delta}.
+
+Long and short signals of a rule are pooled. Nothing is tuned.
+
+## 5. Statistics and the decision rule (fixed now)
+
+Per rule over the 37 scored days: trades, skipped signals, win rate, mean
+gross and mean net per trade (ticks, at the recorded touch, net of fees),
+the first- and second-half net (split at the middle scored day), and the
+SE: the largest moving-block bootstrap SE over blocks of 2, 5 and 10
+scored days (10000 resamples, seed 0; statistic total net / total
+trades). t = net / SE. Stress: net − 0.5 ticks (half a tick more slippage
+per round trip).
+
+- **Primary edge:** net > 0, t ≥ 3.79, positive in both halves and at
+  stress. **Secondary candidate:** the same with t ≥ 4.45.
+- Either goes to **OF19b**: one confirmation on the next 20 full
+  front-month RTH days from 2026-11-12 (about four weeks of recording),
+  rule frozen, thresholds still trailing; claimed only if net > 0 with
+  t ≥ 2.
+- **Otherwise:** "No footprint pattern at these settings nets more than
+  X ticks per trade" (X = t_req × SE per rule, reported), "smaller edges
+  are not excluded."
+
+**Reported, not tested:**
+- **Shell control** (does the footprint condition add anything?): each
+  rule without its footprint condition, same entries and exits: P2
+  without S ≥ q95; P3 a new N-bar low, then a break above the bar's high,
+  without the Bv conditions; P4 finished highs (A(H) = 0 or Bv(H) = 0) at
+  the same d; P5 break and reclaim without the trigger. P1 has no shell
+  (its condition is the whole pattern) and is compared with the random
+  control only. Rule gross minus shell gross, with the block SE of the
+  difference.
+- **Random control:** K = 10 random seconds per signal trade, same day,
+  30-min bucket and side (seed 0); each uses the signal trade's stop and
+  target as tick distances from its own entry fill and the same cap.
+  Rule gross minus control gross, with its block SE.
+- **Touch fills:** P2 and P4 with targets filled on touch (an optimistic
+  bound).
+- **Revisit rates** (F4's benchmark): the share of unfinished and of
+  finished highs and lows revisited within 15 and 30 min, at the same
+  distance d from the close.
+- Trades by time of day; long and short separately.
+- **Power:** X per rule.
+
+**Red flags** (stop and check before believing): t > 6; a win rate above
+75% on 50+ trades; gross above 3 ticks on trades held under a minute;
+check that no record after the signal time (plus 100 ms) is used for the
+entry decision, and that the day's trade volume equals the OF18 bars'.
+
+## 6. Known weaknesses (stated before the results)
+
+- **Few days.** 37 scored days, two months, two contracts. P5 is expected
+  to fire a few times a day; its X will be several ticks and a null on it
+  says little. Rough expectation (the review's, before any data): P4 tens
+  to 100+ trades a day, P1 and P3 tens.
+- **No targets for P1, P3, P5** (the practitioner rules give none): they
+  exit on the stop or the time cap only.
+- **Queue position.** Targets fill only on a trade-through, which is
+  conservative and penalises P4's revisit thesis (the touch-fill bound is
+  reported); stops and entries are market orders at the recorded touch,
+  sweep-aware. 1 lot, no impact.
+- **Levels.** Practitioners trade these patterns "at key levels" with
+  discretion; this tests them everywhere they occur.
+- **No book.** Absorption without the displayed bid size (the optional
+  refill condition needs depth, recorded on only ~13 days).
+
+## 7. Cost
+
+Light: one pass over ~47 days of tick records (the ESU26 / ESZ26 byte
+ranges, ~1.5 GB), per-day arrays, then numpy. Implementation, tests and
+review: about 2-3 hours.
 
 
 
@@ -33647,7 +33943,7 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: tools\make_context_pack.py  (4,060 bytes)
+## FILE: tools\make_context_pack.py  (4,098 bytes)
 
 ````python
 #!/usr/bin/env python3
@@ -33691,6 +33987,7 @@ DOCS = [
     "docs/ai/OF16_REAL_ES_PLAN.md",
     "docs/ai/OF17_SIGNAL_CENSUS_PLAN.md",
     "docs/ai/OF18_REGIME_PLAN.md",
+    "docs/ai/OF19_FOOTPRINT_PLAN.md",
     "experiments/research_synthesis.md",
     "README.md",
 ]
@@ -36627,6 +36924,135 @@ def main(argv=None):
         for s in files.values():
             s.close()
     print(f"{made} days written to {out}, {skipped} weekdays without RTH trades")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+```
+
+
+---
+
+## FILE: tools\scid_to_trades.py  (5,938 bytes)
+
+```python
+#!/usr/bin/env python3
+"""scid_to_trades.py -- OF19: the RTH trades of the ES front month from Sierra Chart tick records.
+
+usage:
+  python tools/scid_to_trades.py --start 2026-09-08 --end 2026-11-11
+         [--scid-dir C:/SierraChart/Data] [--bars build-avx512/real/bars] [--out-dir build-avx512/real/trades]
+
+For each day with an OF18 bar file whose style is "tick" (records carry the bid and ask), the front month is the
+bar sidecar's contract. Days on or after the manifest's confirm_rule.from (2026-11-12) are refused (exit 2, before
+any data file is opened). Output: OUT/<date>.npz with one row per trade, in record order:
+  t      seconds since 08:30 CT (float64, microseconds exact)
+  price  ticks (0.25);  bid, ask  ticks: the quote in the trade's record (high = ask, low = bid)
+  size   lots;  side  +1 buy aggressor (the record's ask volume), -1 sell aggressor (bid volume)
+A record with both volumes gives two trades (buy first); one with neither takes its side from the quote (at or
+above the ask: buy; at or below the bid: sell; else dropped and counted). OUT/<date>.json: counts, the volume
+check against the OF18 bar file (must be equal) and the npz's sha256.
+"""
+import argparse
+import hashlib
+import json
+import sys
+from datetime import date, timedelta
+from pathlib import Path
+
+import numpy as np
+
+HERE = Path(__file__).resolve().parent
+REPO = HERE.parent
+for p in (str(HERE), str(REPO / "python")):
+    if p not in sys.path:
+        sys.path.insert(0, p)
+from ragrl import real  # noqa: E402
+from scid_to_bars import PRICE_SCALE, TICK, Scid  # noqa: E402
+
+
+def trades_of(r: np.ndarray, t0_us: int) -> tuple:
+    px = np.round(r["c"].astype(np.float64) / PRICE_SCALE / TICK)
+    bid = np.round(r["l"].astype(np.float64) / PRICE_SCALE / TICK)
+    ask = np.round(r["h"].astype(np.float64) / PRICE_SCALE / TICK)
+    av, bv, v = r["av"].astype(np.int64), r["bv"].astype(np.int64), r["v"].astype(np.int64)
+    t = (r["t"] - t0_us) / 1e6
+    rows = []
+    neither = (av == 0) & (bv == 0) & (v > 0)
+    inferred_buy = neither & (px >= ask)
+    inferred_sell = neither & (px <= bid) & ~inferred_buy
+    drop = neither & ~inferred_buy & ~inferred_sell
+    dropped, dropped_vol = int(drop.sum()), int(v[drop].sum())
+    for mask, size, side in ((av > 0, av, 1), (bv > 0, bv, -1), (inferred_buy, v, 1), (inferred_sell, v, -1)):
+        i = np.flatnonzero(mask)
+        rows.append((i, side, size[i]))
+    idx = np.concatenate([x[0] for x in rows])
+    side = np.concatenate([np.full(len(x[0]), x[1], np.int8) for x in rows])
+    size = np.concatenate([x[2] for x in rows])
+    # record order, buy before sell within a record (stable sort on the record index, buy rows come first)
+    o = np.lexsort((-side, idx))
+    idx, side, size = idx[o], side[o], size[o]
+    out = {"t": t[idx], "price": px[idx], "bid": bid[idx], "ask": ask[idx], "size": size, "side": side}
+    return out, dropped, dropped_vol, int(neither.sum())
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--start", required=True)
+    ap.add_argument("--end", required=True)
+    ap.add_argument("--scid-dir", default="C:/SierraChart/Data")
+    ap.add_argument("--bars", default=str(REPO / "build-avx512" / "real" / "bars"))
+    ap.add_argument("--out-dir", default=str(REPO / "build-avx512" / "real" / "trades"))
+    ap.add_argument("--manifest", default=None)
+    a = ap.parse_args(argv)
+    m = real.load_manifest(a.manifest)
+    cutoff = date.fromisoformat(m["confirm_rule"]["from"])
+    d0, d1 = date.fromisoformat(a.start), date.fromisoformat(a.end)
+    if d1 >= cutoff or d0 > d1:
+        print(f"scid_to_trades: refused: days on or after {cutoff} are the real-data confirm block (or start > end)", file=sys.stderr)
+        return 2
+    out = Path(a.out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    files, made = {}, 0
+    try:
+        d = d0
+        while d <= d1:
+            day = d.isoformat()
+            d += timedelta(days=1)
+            sp = Path(a.bars) / f"{day}.json"
+            if not sp.exists():
+                continue
+            bside = json.loads(sp.read_text(encoding="utf-8"))
+            if bside["style"] != "tick":
+                continue
+            c = bside["contract"]
+            if c not in files:
+                files[c] = Scid(Path(a.scid_dir) / f"{c}_FUT_CME.scid")
+            o_unix, c_unix = real.rth_span(day, m)
+            t0, t1 = real.sierra_us(o_unix), real.sierra_us(c_unix)
+            r = files[c].records(t0, t1)
+            tr, dropped, dropped_vol, inferred = trades_of(r, t0)
+            vol = int(tr["size"].sum()) + dropped_vol
+            if vol != bside["volume"]:
+                raise ValueError(f"{day}: trade volume {vol} (+ dropped) != the OF18 bar volume {bside['volume']}")
+            npz = out / f"{day}.npz"
+            tmp = out / f"{day}.tmp.npz"
+            np.savez(tmp, **tr)
+            tmp.replace(npz)
+            side = {"schema": "of19_trades/1", "tool": "tools/scid_to_trades.py", "date": day, "contract": c, "records": int(len(r)),
+                    "trades": int(len(tr["t"])), "volume": int(tr["size"].sum()), "dropped_records": dropped, "inferred_side_records": inferred,
+                    "dropped_volume": dropped_vol, "bars_volume": bside["volume"],
+                    "outside_quote": int(((tr["price"] > tr["ask"]) | (tr["price"] < tr["bid"])).sum()),
+                    "npz_sha256": hashlib.sha256(npz.read_bytes()).hexdigest()}
+            (out / f"{day}.json").write_text(json.dumps(side, indent=1), encoding="utf-8")
+            made += 1
+            print(f"{day} {c}: {side['trades']} trades, volume {side['volume']}, dropped {dropped}, outside quote {side['outside_quote']}")
+    finally:
+        for s in files.values():
+            s.close()
+    print(f"{made} days written to {out}")
     return 0
 
 
@@ -41953,7 +42379,7 @@ def run_fresh():
 
 ---
 
-## FILE: python\tests\test_bars.py  (4,930 bytes)
+## FILE: python\tests\test_bars.py  (7,290 bytes)
 
 ```python
 """OF18: tools/scid_to_bars.py on synthetic Sierra .scid files (never the user's data).
@@ -42035,6 +42461,34 @@ def test_bars_from_bundles_and_ticks(tmp_path):
     # the confirm block is refused before anything is read
     p = subprocess.run([sys.executable, str(TOOL), "--start", "2026-11-10", "--end", "2026-11-12", "--scid-dir", str(tmp_path),
                         "--out-dir", str(tmp_path / "no")], capture_output=True, text=True, timeout=120)
+    assert p.returncode == 2 and "refused" in p.stderr and not (tmp_path / "no").exists()
+
+
+def test_trades_from_tick_records(tmp_path):
+    """tools/scid_to_trades.py: one row per trade on a tick day (time from 08:30 CT, ticks, aggressor side, the
+    record's bid / ask), a record with both volumes split (buy first), one with neither sided by the quote."""
+    s = "2026-09-15 13:30:00"
+    recs = [(_us(s, 1_000_000), 0.0, _p(6500.25), _p(6500.00), _p(6500.25), 1, 2, 0, 2),     # buy 2 at the ask
+            (_us(s, 1_000_500), 0.0, _p(6500.25), _p(6500.00), _p(6500.00), 1, 1, 1, 0),     # sell 1 at the bid
+            (_us(s, 2_000_000), 0.0, _p(6500.50), _p(6500.25), _p(6500.50), 2, 5, 2, 3),     # both: buy 3, sell 2
+            (_us(s, 2_000_500), 0.0, _p(6500.50), _p(6500.25), _p(6500.50), 1, 4, 0, 0)]     # neither, at the ask: buy 4
+    _write(tmp_path / "ESZ26_FUT_CME.scid", recs)
+    env_bars = [sys.executable, str(TOOL), "--start", "2026-09-15", "--end", "2026-09-15", "--scid-dir", str(tmp_path),
+                "--out-dir", str(tmp_path / "bars"), "--contracts", "ESZ26"]
+    assert subprocess.run(env_bars, capture_output=True, text=True, timeout=120).returncode == 0
+    p = subprocess.run([sys.executable, str(REPO / "tools" / "scid_to_trades.py"), "--start", "2026-09-15", "--end", "2026-09-15",
+                        "--scid-dir", str(tmp_path), "--bars", str(tmp_path / "bars"), "--out-dir", str(tmp_path / "trades")],
+                       capture_output=True, text=True, timeout=120)
+    assert p.returncode == 0, p.stderr
+    z = np.load(tmp_path / "trades" / "2026-09-15.npz")
+    assert z["side"].tolist() == [1, -1, 1, -1, 1] and z["size"].tolist() == [2, 1, 3, 2, 4]
+    assert z["price"].tolist() == [26001.0, 26000.0, 26002.0, 26002.0, 26002.0]
+    assert (z["bid"][0], z["ask"][0]) == (26000.0, 26001.0)
+    assert np.allclose(z["t"], [1.0, 1.0005, 2.0, 2.0, 2.0005])
+    side = json.loads((tmp_path / "trades" / "2026-09-15.json").read_text(encoding="utf-8"))
+    assert side["volume"] == side["bars_volume"] == 12 and side["dropped_records"] == 0
+    p = subprocess.run([sys.executable, str(REPO / "tools" / "scid_to_trades.py"), "--start", "2026-11-11", "--end", "2026-11-12",
+                        "--scid-dir", str(tmp_path), "--out-dir", str(tmp_path / "no")], capture_output=True, text=True, timeout=120)
     assert p.returncode == 2 and "refused" in p.stderr and not (tmp_path / "no").exists()
 
 ```
@@ -42433,6 +42887,76 @@ def test_open_sealed_only_in_ledger_module():
         pytest.skip("python/ragrl not present yet")
     bad = [str(f) for f in pkg.rglob("*.py") if f.name != "ledger.py" and "open_sealed" in f.read_text(encoding="utf-8")]
     assert not bad, bad
+
+```
+
+
+---
+
+## FILE: python\tests\test_of19.py  (3,136 bytes)
+
+```python
+"""OF19 simulator pieces on synthetic data: the sparse-table first-hit search against brute force, and the exits
+(stop at the worst of the event's bids and trades, target only on a trade one tick through, time cap)."""
+import importlib.util
+
+import numpy as np
+
+from conftest import REPO
+
+spec = importlib.util.spec_from_file_location("of19", REPO / "experiments" / "of19_footprint.py")
+of19 = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(of19)
+
+
+def _T(rows):
+    t, px, bid, ask = (np.array(c, dtype=float if i == 0 else np.int64) for i, c in enumerate(zip(*rows)))
+    return {"t": t, "px": px, "bid": bid, "ask": ask, "size": np.ones(len(t), np.int64), "side": np.ones(len(t), np.int64)}
+
+
+def test_first_hit_matches_brute_force():
+    rng = np.random.default_rng(1)
+    n = 3000
+    px = 1000 + np.cumsum(rng.integers(-1, 2, n))
+    T = {"t": np.arange(n, dtype=float) * 0.5, "px": px, "bid": px - 1, "ask": px + 1, "size": np.ones(n, np.int64),
+         "side": np.ones(n, np.int64)}
+    E = of19.Events(T)
+    starts = rng.integers(0, n, 400)
+    xs = px[starts] + rng.integers(-15, 16, 400)
+    for below in (True, False):
+        got = E.first(starts, xs, below)
+        for s, x, g in zip(starts, xs, got):
+            hit = np.flatnonzero(px[s:] <= x if below else px[s:] >= x)
+            assert g == (s + hit[0] if len(hit) else n)
+
+
+def test_exits_stop_target_cap():
+    # events at t = 0, 1, 2, ... ; a long filled at event 0's ask (101)
+    rows = [(0.0, 100, 100, 101), (1.0, 102, 101, 102), (2.0, 104, 103, 104), (3.0, 105, 104, 105), (4.0, 99, 98, 99)]
+    E = of19.Events(_T(rows))
+    e0 = np.array([0])
+    one = np.array([1])
+    # target 104: a trade at 104 is a touch, not through; the 105 trade at event 3 fills it
+    g, _ = of19._exits(E, e0, one, np.array([101.0]), np.array([95.0]), np.array([104.0]), 100.0, False)
+    assert g[0] == 3.0
+    g, _ = of19._exits(E, e0, one, np.array([101.0]), np.array([95.0]), np.array([104.0]), 100.0, True)   # on touch: event 2
+    assert g[0] == 3.0
+    # stop 99: hit at event 4 (trade 99), exit at the worst of its bid (98) and trade (99) = 98
+    g, _ = of19._exits(E, e0, one, np.array([101.0]), np.array([99.0]), np.array([np.nan]), 100.0, False)
+    assert g[0] == 98 - 101
+    # time cap 2.5 s: exit at event 3 (first at or after 2.5 s), at its worst bid / trade = 104
+    g, _ = of19._exits(E, e0, one, np.array([101.0]), np.array([90.0]), np.array([np.nan]), 2.5, False)
+    assert g[0] == 104 - 101
+    # a short: fill 100 (event 0's bid), stop 103 hit at event 2 (trade 104 >= 103): buy back at the worst ask / trade = 104
+    g, _ = of19._exits(E, e0, -one, np.array([100.0]), np.array([103.0]), np.array([np.nan]), 100.0, False)
+    assert g[0] == 100 - 104
+
+
+def test_sweep_is_one_event():
+    # Sierra stamps one exchange message's records 1 us apart: they are one event, filled at its worst price
+    rows = [(10.0, 100, 99, 100), (10.000001, 101, 100, 101), (10.000002, 102, 101, 102), (11.0, 102, 101, 102)]
+    E = of19.Events(_T(rows))
+    assert E.n == 2 and E.long_fill[0] == 102 and E.short_fill[0] == 99 and E.px_min[0] == 100
 
 ```
 

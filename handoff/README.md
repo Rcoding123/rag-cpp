@@ -5,8 +5,8 @@ repository by `tools/make_context_pack.py`:
 
 | File | Contents | Size |
 |---|---|---|
-| `context_pack_docs.md` | every document in `docs/ai/`, `docs/agent.md`, the README, and the list of repository files | ~129k tokens |
-| `context_pack_full.md` | the same, plus every header, test, example, benchmark and build file, and the Python pipeline (`python/`) | ~542k tokens |
+| `context_pack_docs.md` | every document in `docs/ai/`, `docs/agent.md`, the README, and the list of repository files | ~134k tokens |
+| `context_pack_full.md` | the same, plus every header, test, example, benchmark and build file, and the Python pipeline (`python/`) | ~550k tokens |
 
 Start with the docs bundle; it contains the reading order (`docs/ai/README.md`)
 and is enough to understand, use and extend the project. Use the full bundle
