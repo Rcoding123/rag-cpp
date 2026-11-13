@@ -43,6 +43,7 @@ DOCS = [
     "docs/ai/OF20_LEVELS_PLAN.md",
     "docs/ai/OF21_FORWARD_PLAN.md",
     "docs/ai/OF23_SWING_MINING_PLAN.md",
+    "docs/ai/OF24_LIVE_SIM_PLAN.md",
     "experiments/research_synthesis.md",
     "README.md",
 ]
@@ -51,6 +52,7 @@ SOURCE_GLOBS = [
     ".github/workflows/ci.yml",
     "include/**/*.hpp",
     "examples/*.cpp",
+    "sierra/*.cpp",
     "bench/*.cpp",
     "bench/*.hpp",
     "tests/*.cpp",

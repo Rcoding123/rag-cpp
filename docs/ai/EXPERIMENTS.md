@@ -2356,3 +2356,29 @@ Plan `OF23_SWING_MINING_PLAN.md`, revised after a design review (needs-work,
 * **Build Alpha (descriptive, after the commit):** the three agents' test
   trades exported by `experiments/of23_ba_export.py` (outside the repo,
   Build Alpha's external trade-list format) for its robustness tests.
+
+## OF24. The OF23 agent live in Sierra Chart, simulated orders: built, not yet run
+
+At the user's request (a separate Sierra sub-instance; the agent in C++
+and Python; live ticks, depth and MBO; sim trading). Design
+`OF24_LIVE_SIM_PLAN.md`. An observation, not a test of an edge: the
+starting policy is OF23's RL-free arm, which lost on unseen months (A92).
+
+* **Kernel** `include/rag/live/of24_kernel.hpp`: OF23's candidates and 37
+  features, the 2 x 64 policy and value networks, 6 live book inputs
+  (depth imbalance, MBO large-order share, spread; zero weights at the
+  start), and one actor-critic step per closed sim trade. Parity with
+  `of23_mine.py` and with torch autograd on synthetic days
+  (`python/tests/test_of24.py` through `examples/of24_parity.cpp`).
+* **Weights** `experiments/of24_export.py`: the RL-free arm trained on all
+  228 days (seed 0), written outside the repo. Greedy: skip 52%, 48/16 to
+  the close 29%.
+* **Study** `sierra/RagAgent.cpp` (ACSIL, built with the SierraChart-KB
+  script, a new DLL name per build): 1-min chart, market entry with an
+  attached target and stop, time cap, OF23's trailing rule, daily stop;
+  sim guards on every call, Arm input off by default, a dedicated Sim
+  account. Reviewed; compiles without warnings. Live data stays inside
+  Sierra (its data license); Python only trains offline on the OF23 cache.
+* **Not done:** the sub-instance, the replay test and the live run
+  (plan section 7). Nothing is verified at runtime yet.
+

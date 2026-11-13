@@ -30,6 +30,7 @@ docs/ai/OF20_LEVELS_PLAN.md
 docs/ai/OF21_FORWARD_PLAN.md
 docs/ai/OF22_REAL_LEARNING_PLAN.md
 docs/ai/OF23_SWING_MINING_PLAN.md
+docs/ai/OF24_LIVE_SIM_PLAN.md
 docs/ai/ORDERFLOW.md
 docs/ai/PROJECT_MAP.md
 docs/ai/RAG_ENGINE.md
@@ -42,6 +43,7 @@ docs/ai/TASK_SPECS.md
 examples/agent_demo.cpp
 examples/demo.cpp
 examples/of15_refdump.cpp
+examples/of24_parity.cpp
 examples/of_backtest.cpp
 examples/of_calibrate.cpp
 examples/of_trace.cpp
@@ -232,6 +234,7 @@ experiments/of21_rehearsal.txt
 experiments/of23_ba_export.py
 experiments/of23_mine.py
 experiments/of23_results.txt
+experiments/of24_export.py
 experiments/of2_baselines.cpp
 experiments/of2_results.txt
 experiments/of3_rl.cpp
@@ -289,6 +292,7 @@ include/rag/epoch.hpp
 include/rag/fusion.hpp
 include/rag/io.hpp
 include/rag/ivf_index.hpp
+include/rag/live/of24_kernel.hpp
 include/rag/orderflow/features.hpp
 include/rag/orderflow/replay_env.hpp
 include/rag/orderflow/scalp_env.hpp
@@ -341,11 +345,13 @@ python/tests/test_ledger.py
 python/tests/test_of19.py
 python/tests/test_of21.py
 python/tests/test_of23.py
+python/tests/test_of24.py
 python/tests/test_pipeline.py
 python/tests/test_privileged.py
 python/tests/test_real.py
 python/tests/test_smoke.py
 python/tests/test_vec_env.py
+sierra/RagAgent.cpp
 tests/agent_coverage_tests.cpp
 tests/agent_edge_case_tests.cpp
 tests/agent_tests.cpp
@@ -413,8 +419,9 @@ tools/test_research_crawler.py
 23. docs/ai/OF20_LEVELS_PLAN.md
 24. docs/ai/OF21_FORWARD_PLAN.md
 25. docs/ai/OF23_SWING_MINING_PLAN.md
-26. experiments/research_synthesis.md
-27. README.md
+26. docs/ai/OF24_LIVE_SIM_PLAN.md
+27. experiments/research_synthesis.md
+28. README.md
 
 
 ---
@@ -3168,7 +3175,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (142,382 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (143,874 bytes)
 
 # RL experiment log
 
@@ -5529,11 +5536,37 @@ Plan `OF23_SWING_MINING_PLAN.md`, revised after a design review (needs-work,
   trades exported by `experiments/of23_ba_export.py` (outside the repo,
   Build Alpha's external trade-list format) for its robustness tests.
 
+## OF24. The OF23 agent live in Sierra Chart, simulated orders: built, not yet run
+
+At the user's request (a separate Sierra sub-instance; the agent in C++
+and Python; live ticks, depth and MBO; sim trading). Design
+`OF24_LIVE_SIM_PLAN.md`. An observation, not a test of an edge: the
+starting policy is OF23's RL-free arm, which lost on unseen months (A92).
+
+* **Kernel** `include/rag/live/of24_kernel.hpp`: OF23's candidates and 37
+  features, the 2 x 64 policy and value networks, 6 live book inputs
+  (depth imbalance, MBO large-order share, spread; zero weights at the
+  start), and one actor-critic step per closed sim trade. Parity with
+  `of23_mine.py` and with torch autograd on synthetic days
+  (`python/tests/test_of24.py` through `examples/of24_parity.cpp`).
+* **Weights** `experiments/of24_export.py`: the RL-free arm trained on all
+  228 days (seed 0), written outside the repo. Greedy: skip 52%, 48/16 to
+  the close 29%.
+* **Study** `sierra/RagAgent.cpp` (ACSIL, built with the SierraChart-KB
+  script, a new DLL name per build): 1-min chart, market entry with an
+  attached target and stop, time cap, OF23's trailing rule, daily stop;
+  sim guards on every call, Arm input off by default, a dedicated Sim
+  account. Reviewed; compiles without warnings. Live data stays inside
+  Sierra (its data license); Python only trains offline on the OF23 cache.
+* **Not done:** the sub-instance, the replay test and the live run
+  (plan section 7). Nothing is verified at runtime yet.
+
+
 
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (39,652 bytes)
+## FILE: docs/ai/DECISIONS.md  (40,174 bytes)
 
 # Decision log
 
@@ -5670,6 +5703,7 @@ the code looks the way it does.
 | A90 | OF23 pre-registered: nested walk-forward mining of six turning-point candidate families with a 240-exit grid on the 228 days of bars, choices inside training only (primary M = 1), Build Alpha descriptive only and after scoring | The user asked for held trades, tops and bottoms, wide targets and data mining; the plan keeps all selection inside training, resolves the path inside bars from the records, and sends any pass to OF23b on fresh days |
 | A91 | OF23 adds two RL arms (PPO over each day's candidates: one must trade and picks one of 12 exits, one may skip) and is built and frozen before any label or outcome was computed (plan 6b, 9b) | The user asked to let the agent trade and learn rather than gate on edge at each step; the arms report behaviour first and still count as secondaries (M = 15, t >= 4.33). Code review fixes (day denominators, empty families, gap entries) went in before the freeze |
 | A92 | OF23 result: no edge. The primary miner lost −1.99 ticks per trade (t −2.52, bound +1.58), between the random-time control's mean and 95th percentile; no secondary or RL arm is positive at stress cost; the naive best of 8,400 trials has deflated Sharpe 0 | Pre-registered rule (plan section 7). Turning-point entries on 1-min bars carry no information that wide exits could keep; Build Alpha is used only as a descriptive check of the exported trade lists |
+| A93 | OF24: the live agent is a C++ Sierra study with a pure kernel; no Python reads live data; bars come from the chart, depth and MBO only at decisions; learning is one actor-critic step per closed sim trade inside the study; orders are simulated only | The user chose inside-Sierra (Sierra's data license; its DTC server refuses CME data), MBO is live-only so it can be learned only online, and SierraChart-KB's rules (new DLL name per build, sim guard every call, Arm off by default, own Sim account) are followed |
 
 
 
@@ -5760,7 +5794,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (13,990 bytes)
+## FILE: docs/ai/STATUS.md  (14,156 bytes)
 
 # Status, limitations and next steps
 
@@ -5968,7 +6002,9 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
    −1.99 ticks per trade (t −2.52), no better than random entries with
    its exits; the must-trade RL agent learned to take the widest exit
    (48 / 16 to the close) and lost −2.33 per trade, the random-walk
-   rate for that exit after costs.
+   rate for that exit after costs. OF24 (A93) puts that agent into
+   Sierra Chart as a sim-only study with live depth and MBO inputs and
+   online learning: built and reviewed, not yet loaded or run.
    Next (the user's choice): passive execution, which needs queue data
    (MBO) to replay honestly, or other information; the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
@@ -6639,7 +6675,7 @@ step. What remains, in order:
 
 ---
 
-## FILE: docs/ai/NEXT_SESSION.md  (20,459 bytes)
+## FILE: docs/ai/NEXT_SESSION.md  (20,720 bytes)
 
 # Continuing the work: the prompt and the Claude Code agent architecture
 
@@ -6713,6 +6749,10 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > **no edge** (A92; primary −1.99 ticks per trade, t −2.52, no better
 > than random entries; RL agents −2.33 and −3.22). Build Alpha checks of
 > the agents' trade lists are descriptive (plan section 8).
+> **OF24** (`OF24_LIVE_SIM_PLAN.md`, A93): the OF23 agent as a Sierra
+> study, sim orders only (`sierra/RagAgent.cpp`, kernel
+> `include/rag/live/of24_kernel.hpp`); built, not yet run: next are the
+> sub-instance, a replay test, then live sim (plan section 7).
 > **OF21** (`OF21_FORWARD_PLAN.md`, pre-registered, A87): forward test of
 > exhaustion at the OF20 levels on days from 2026-11-12. Run `--count`
 > any time; a look only when the count reaches 60 / 125 / 250 full days
@@ -8410,6 +8450,137 @@ about 25,000 candidates on 228 days, C1 the large majority, C6 85 in all
   tick days). Expected wall time on the server: about 1.5-2.5 hours.
 - **Freeze:** `experiments/of23_mine.py` sha256 `2680114ab00f905162e03b08c05ce7d59f7ae474cce634fb0e6b18ac192e7896`
   (CRLF read as LF), checked by `python/tests/test_of23.py`.
+
+
+
+---
+
+## FILE: docs/ai/OF24_LIVE_SIM_PLAN.md  (6,532 bytes)
+
+# OF24 plan: the OF23 agent live in Sierra Chart, simulated orders only
+
+Status: **design, 2026-11-13.** At the user's request ("run a separate
+Sierra Chart sub-instance, build out the agents in C++ and Python, let it
+observe the live tick data, order-flow data (MBO) and let it trade in
+sim. I want to see if this can work"). Decisions below were left to this
+session ("do whatever you see fit, learn from the KB then make your
+decision") after the user's four answers: the live agent stays inside
+Sierra; MBO is on; this session drives Sierra; keep learning in sim.
+
+**This is an observation, not a test of an edge.** OF23 found no edge
+(A92): the agent starts from a policy that lost 2-3 ticks per trade on
+unseen months. Nothing here is a claim; a claim would need its own
+pre-registration on forward days. Orders are **simulated only**.
+
+## 1. Constraints that shaped the design
+
+- **Sierra's data license** limits its data to Sierra's own interfaces.
+  The user chose "inside Sierra only": the live agent is a C++ ACSIL
+  study; no Python reads live data. Python's part is offline: training
+  the starting policy on the already-built OF23 cache and exporting the
+  weights as a text file.
+- **Sierra's DTC server refuses CME data** to external programs, so an
+  outside process could not have received the feed anyway.
+- **MBO is live only** (Denali, orders of 3+ lots; never recorded or
+  replayed), so no historical training on MBO is possible: the agent can
+  only learn what MBO is worth from its own live sim trades.
+- **Forward days:** days from 2026-11-12 are OF21's and the confirm
+  block's. The study reads them live inside Sierra and writes only its
+  own decisions, fills and weights. Nothing from them is used to tune a
+  pre-registered rule; OF21's runner is frozen. The agent's log is not
+  evidence for any claim.
+- **SierraChart-KB** (`Desktop\SierraChart-KB`, the user's ACSIL
+  knowledge base) sets the build and safety rules followed here:
+  local MSVC build with its `build.ps1`, a new DLL name per build
+  (`Name_v<n>_64`, never a digit suffix), a pure C++ kernel with a thin
+  ACSIL adapter, heap state in a persistent pointer, sim guard on every
+  call, an Arm input defaulting to off, a dedicated Sim account, no
+  per-bar logging, and "verified" meaning observed at runtime.
+
+## 2. Parts
+
+1. **Kernel** `include/rag/live/of24_kernel.hpp` (pure C++17, no Sierra
+   headers): OF23's candidates and 37 features from 1-min bars (plan
+   OF23 section 3 and 5), the policy network (2 x 64 tanh, 13 actions:
+   skip + the 12 exits of OF23 6b), weight file load and save, and the
+   online update (section 4). Checked against `experiments/of23_mine.py`
+   on synthetic days by `python/tests/test_of24.py` through
+   `examples/of24_parity.cpp`: same candidates, same features, same
+   policy outputs.
+2. **Weights** `experiments/of24_export.py`: trains the RL-free arm of
+   OF23 (same code, same settings, seed 0) on all 228 days and writes
+   the policy, the value network and the feature standardization to a
+   text file outside the repository.
+3. **Study** `sierra/RagAgent.cpp` (ACSIL adapter): on a 1-min ESZ26
+   chart it feeds completed RTH bars to the kernel; at a candidate it
+   samples an action from the policy, sends a market entry with attached
+   target and stop (`Target1Offset` / `Stop1Offset`), flattens at the
+   time cap, and after the trade closes applies the online update. It
+   reads the depth book and MBO queues each call for the live book
+   features, and logs decisions and fills to a CSV in its own folder.
+4. **Sub-instance:** a second Sierra instance (File >> New Instance) in
+   Trade Simulation Mode with its own Sim account, so nothing touches
+   the main instance's charts, recorders or the S1 strategy.
+
+## 3. Policy inputs
+
+The 37 OF23 features (standardized with the training means) plus 6 live
+book features, zero when the data is absent (replay, or before the book
+fills in):
+
+- depth imbalance at the best level and over the 5 and 10 best levels,
+  (bid − ask) / (bid + ask), signed by the trade direction;
+- MBO at the best bid and ask: share of displayed size in orders of 10+
+  lots on the entry side and on the far side (signed pair);
+- spread in ticks.
+
+The book inputs' weights start at zero, so at the start the live policy
+equals the trained one; only the online update can give them weight.
+
+## 4. Online learning (inside the study)
+
+After each closed trade: reward = net ticks after the OF23 base costs
+(1.28 round trip for market/stop exits, 0.76 with a limit target) / 10;
+one actor-critic step on the stored inputs and sampled action (advantage
+= reward − value; policy-gradient and value steps by SGD, learning rate
+1e-4, gradient norm clipped at 1, entropy bonus 0.01). Skips are updated
+with reward 0 at the same time. Weights are saved to the study's folder
+after each update and reloaded on start; the starting file is kept.
+An input freezes learning (a fixed-policy run) and another switches
+sampling to greedy.
+
+## 5. Safety
+
+- Sim only: `sc.SendOrdersToTradeService = 0` and
+  `sc.GlobalTradeSimulationIsOn` must be 1 on every call, else nothing
+  is sent and one line is logged. Arm input defaults to off.
+- One position, one lot, `sc.MaximumPositionAllowed = 1`; no entry
+  before 08:50 or after 14:30 CT; flat by 15:00; a daily stop (default
+  −120 ticks) disarms until the next session.
+- Entry only when flat with no working orders; a rejected order is
+  logged and not retried on the same bar.
+- The study never changes global settings; the sub-instance setup is
+  done once, with the user's approval of each step that touches the
+  main instance.
+
+## 6. What is and is not comparable with OF23
+
+Sim fills are quote-based and immediate (no latency, optimistic limit
+fills), OF23's fills are from the trade records with a one-tick
+trade-through for targets: live sim results will look somewhat better
+than OF23's for the same decisions. The log keeps both the sim fill and
+the kernel's own OF23-style accounting where it can.
+
+## 7. Verification order
+
+1. Parity test (kernel vs Python) in the gate.
+2. Compile with the KB build script; load in the sub-instance; confirm
+   the module path in the log.
+3. Chart replay of a recorded day with depth (from 2026-11-04 on), in
+   sim: candidates fire, orders bracket, time cap flattens, log
+   reconciles with Sierra's fills; MBO features are expected to be zero.
+4. Live from the Globex open (Sunday 17:00 CT) for the feed checks and
+   Monday 08:30 CT for the first RTH session, armed in sim.
 
 
 

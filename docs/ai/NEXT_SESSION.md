@@ -70,6 +70,10 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > **no edge** (A92; primary −1.99 ticks per trade, t −2.52, no better
 > than random entries; RL agents −2.33 and −3.22). Build Alpha checks of
 > the agents' trade lists are descriptive (plan section 8).
+> **OF24** (`OF24_LIVE_SIM_PLAN.md`, A93): the OF23 agent as a Sierra
+> study, sim orders only (`sierra/RagAgent.cpp`, kernel
+> `include/rag/live/of24_kernel.hpp`); built, not yet run: next are the
+> sub-instance, a replay test, then live sim (plan section 7).
 > **OF21** (`OF21_FORWARD_PLAN.md`, pre-registered, A87): forward test of
 > exhaustion at the OF20 levels on days from 2026-11-12. Run `--count`
 > any time; a look only when the count reaches 60 / 125 / 250 full days

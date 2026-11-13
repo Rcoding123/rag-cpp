@@ -30,6 +30,7 @@ docs/ai/OF20_LEVELS_PLAN.md
 docs/ai/OF21_FORWARD_PLAN.md
 docs/ai/OF22_REAL_LEARNING_PLAN.md
 docs/ai/OF23_SWING_MINING_PLAN.md
+docs/ai/OF24_LIVE_SIM_PLAN.md
 docs/ai/ORDERFLOW.md
 docs/ai/PROJECT_MAP.md
 docs/ai/RAG_ENGINE.md
@@ -42,6 +43,7 @@ docs/ai/TASK_SPECS.md
 examples/agent_demo.cpp
 examples/demo.cpp
 examples/of15_refdump.cpp
+examples/of24_parity.cpp
 examples/of_backtest.cpp
 examples/of_calibrate.cpp
 examples/of_trace.cpp
@@ -232,6 +234,7 @@ experiments/of21_rehearsal.txt
 experiments/of23_ba_export.py
 experiments/of23_mine.py
 experiments/of23_results.txt
+experiments/of24_export.py
 experiments/of2_baselines.cpp
 experiments/of2_results.txt
 experiments/of3_rl.cpp
@@ -289,6 +292,7 @@ include/rag/epoch.hpp
 include/rag/fusion.hpp
 include/rag/io.hpp
 include/rag/ivf_index.hpp
+include/rag/live/of24_kernel.hpp
 include/rag/orderflow/features.hpp
 include/rag/orderflow/replay_env.hpp
 include/rag/orderflow/scalp_env.hpp
@@ -341,11 +345,13 @@ python/tests/test_ledger.py
 python/tests/test_of19.py
 python/tests/test_of21.py
 python/tests/test_of23.py
+python/tests/test_of24.py
 python/tests/test_pipeline.py
 python/tests/test_privileged.py
 python/tests/test_real.py
 python/tests/test_smoke.py
 python/tests/test_vec_env.py
+sierra/RagAgent.cpp
 tests/agent_coverage_tests.cpp
 tests/agent_edge_case_tests.cpp
 tests/agent_tests.cpp
@@ -413,146 +419,151 @@ tools/test_research_crawler.py
 23. docs/ai/OF20_LEVELS_PLAN.md
 24. docs/ai/OF21_FORWARD_PLAN.md
 25. docs/ai/OF23_SWING_MINING_PLAN.md
-26. experiments/research_synthesis.md
-27. README.md
-28. CMakeLists.txt
-29. .github\workflows\ci.yml
-30. include\rag\agent\agent.hpp
-31. include\rag\agent\analysis.hpp
-32. include\rag\agent\drift.hpp
-33. include\rag\agent\env.hpp
-34. include\rag\agent\evaluate.hpp
-35. include\rag\agent\execution_dp.hpp
-36. include\rag\agent\features.hpp
-37. include\rag\agent\learners.hpp
-38. include\rag\agent\market_making.hpp
-39. include\rag\agent\mlp.hpp
-40. include\rag\agent\model_based.hpp
-41. include\rag\agent\ope.hpp
-42. include\rag\agent\policy_table.hpp
-43. include\rag\agent\rng.hpp
-44. include\rag\agent\trainer.hpp
-45. include\rag\agent\tuning.hpp
-46. include\rag\agent\validation.hpp
-47. include\rag\agent\variance_reduction.hpp
-48. include\rag\arena.hpp
-49. include\rag\bm25.hpp
-50. include\rag\chunker.hpp
-51. include\rag\common.hpp
-52. include\rag\embedder.hpp
-53. include\rag\engine.hpp
-54. include\rag\epoch.hpp
-55. include\rag\fusion.hpp
-56. include\rag\io.hpp
-57. include\rag\ivf_index.hpp
-58. include\rag\orderflow\features.hpp
-59. include\rag\orderflow\replay_env.hpp
-60. include\rag\orderflow\scalp_env.hpp
-61. include\rag\orderflow\scalp_run.hpp
-62. include\rag\orderflow\seed_ledger.hpp
-63. include\rag\orderflow\simulator.hpp
-64. include\rag\orderflow\stylized.hpp
-65. include\rag\orderflow\tick_csv.hpp
-66. include\rag\orderflow\tick_env.hpp
-67. include\rag\orderflow\vec_scalp_env.hpp
-68. include\rag\pdf.hpp
-69. include\rag\prompt.hpp
-70. include\rag\simd.hpp
-71. include\rag\text_clean.hpp
-72. include\rag\tokenizer.hpp
-73. include\rag\topk.hpp
-74. include\rag\vector_store.hpp
-75. include\rag.hpp
-76. examples\agent_demo.cpp
-77. examples\demo.cpp
-78. examples\of15_refdump.cpp
-79. examples\of_backtest.cpp
-80. examples\of_calibrate.cpp
-81. examples\of_trace.cpp
-82. examples\of_train.cpp
-83. examples\of_train_live.cpp
-84. examples\rag_pdf.cpp
-85. examples\train_ensemble.cpp
-86. examples\tune_agent.cpp
-87. bench\latency.cpp
-88. bench\rag_bench.cpp
-89. bench\fixtures.hpp
-90. tests\agent_coverage_tests.cpp
-91. tests\agent_edge_case_tests.cpp
-92. tests\agent_tests.cpp
-93. tests\api_examples_tests.cpp
-94. tests\forgery_tests.cpp
-95. tests\market_making_tests.cpp
-96. tests\mlp_tests.cpp
-97. tests\model_based_tests.cpp
-98. tests\optional_libs_tests.cpp
-99. tests\orderflow_tests.cpp
-100. tests\pdf_tests.cpp
-101. tests\policy_table_tests.cpp
-102. tests\rag_property_tests.cpp
-103. tests\rag_tests.cpp
-104. tests\reference_tests.cpp
-105. tests\stress.cpp
-106. tests\stylized_tests.cpp
-107. tests\text_clean_tests.cpp
-108. tests\vec_scalp_env_tests.cpp
-109. tests\pdf_writer.hpp
-110. tests\pid.hpp
-111. tests\synthetic.hpp
-112. tests\test_util.hpp
-113. tests\fuzz\fuzz_common.hpp
-114. tests\fuzz\fuzz_load.cpp
-115. tests\fuzz\fuzz_policy_table.cpp
-116. tests\fuzz\fuzz_text.cpp
-117. tests\fuzz\make_seeds.cpp
-118. tools\make_context_pack.py
-119. tools\of_train_live.py
-120. tools\of_viz.py
-121. tools\of_zoo_trace.py
-122. tools\real_vs_sim.py
-123. tools\research_crawler.py
-124. tools\scid_to_bars.py
-125. tools\scid_to_trades.py
-126. tools\sierra_to_ticks.py
-127. tools\test_research_crawler.py
-128. python\ragof_module.cpp
-129. python\ragrl\__init__.py
-130. python\ragrl\__main__.py
-131. python\ragrl\agents\__init__.py
-132. python\ragrl\agents\imitation.py
-133. python\ragrl\agents\neuralq.py
-134. python\ragrl\agents\sb3_agents.py
-135. python\ragrl\agents\supervised.py
-136. python\ragrl\checkpoints.py
-137. python\ragrl\cli.py
-138. python\ragrl\config.py
-139. python\ragrl\envs.py
-140. python\ragrl\evaluate.py
-141. python\ragrl\hpo.py
-142. python\ragrl\ledger.py
-143. python\ragrl\live.py
-144. python\ragrl\native.py
-145. python\ragrl\policies.py
-146. python\ragrl\real.py
-147. python\ragrl\redflags.py
-148. python\ragrl\registry.py
-149. python\ragrl\report.py
-150. python\ragrl\runner.py
-151. python\ragrl\score_real.py
-152. python\ragrl\stats.py
-153. python\ragrl\worker.py
-154. python\tests\conftest.py
-155. python\tests\test_bars.py
-156. python\tests\test_bit_identity.py
-157. python\tests\test_ledger.py
-158. python\tests\test_of19.py
-159. python\tests\test_of21.py
-160. python\tests\test_of23.py
-161. python\tests\test_pipeline.py
-162. python\tests\test_privileged.py
-163. python\tests\test_real.py
-164. python\tests\test_smoke.py
-165. python\tests\test_vec_env.py
+26. docs/ai/OF24_LIVE_SIM_PLAN.md
+27. experiments/research_synthesis.md
+28. README.md
+29. CMakeLists.txt
+30. .github\workflows\ci.yml
+31. include\rag\agent\agent.hpp
+32. include\rag\agent\analysis.hpp
+33. include\rag\agent\drift.hpp
+34. include\rag\agent\env.hpp
+35. include\rag\agent\evaluate.hpp
+36. include\rag\agent\execution_dp.hpp
+37. include\rag\agent\features.hpp
+38. include\rag\agent\learners.hpp
+39. include\rag\agent\market_making.hpp
+40. include\rag\agent\mlp.hpp
+41. include\rag\agent\model_based.hpp
+42. include\rag\agent\ope.hpp
+43. include\rag\agent\policy_table.hpp
+44. include\rag\agent\rng.hpp
+45. include\rag\agent\trainer.hpp
+46. include\rag\agent\tuning.hpp
+47. include\rag\agent\validation.hpp
+48. include\rag\agent\variance_reduction.hpp
+49. include\rag\arena.hpp
+50. include\rag\bm25.hpp
+51. include\rag\chunker.hpp
+52. include\rag\common.hpp
+53. include\rag\embedder.hpp
+54. include\rag\engine.hpp
+55. include\rag\epoch.hpp
+56. include\rag\fusion.hpp
+57. include\rag\io.hpp
+58. include\rag\ivf_index.hpp
+59. include\rag\live\of24_kernel.hpp
+60. include\rag\orderflow\features.hpp
+61. include\rag\orderflow\replay_env.hpp
+62. include\rag\orderflow\scalp_env.hpp
+63. include\rag\orderflow\scalp_run.hpp
+64. include\rag\orderflow\seed_ledger.hpp
+65. include\rag\orderflow\simulator.hpp
+66. include\rag\orderflow\stylized.hpp
+67. include\rag\orderflow\tick_csv.hpp
+68. include\rag\orderflow\tick_env.hpp
+69. include\rag\orderflow\vec_scalp_env.hpp
+70. include\rag\pdf.hpp
+71. include\rag\prompt.hpp
+72. include\rag\simd.hpp
+73. include\rag\text_clean.hpp
+74. include\rag\tokenizer.hpp
+75. include\rag\topk.hpp
+76. include\rag\vector_store.hpp
+77. include\rag.hpp
+78. examples\agent_demo.cpp
+79. examples\demo.cpp
+80. examples\of15_refdump.cpp
+81. examples\of24_parity.cpp
+82. examples\of_backtest.cpp
+83. examples\of_calibrate.cpp
+84. examples\of_trace.cpp
+85. examples\of_train.cpp
+86. examples\of_train_live.cpp
+87. examples\rag_pdf.cpp
+88. examples\train_ensemble.cpp
+89. examples\tune_agent.cpp
+90. sierra\RagAgent.cpp
+91. bench\latency.cpp
+92. bench\rag_bench.cpp
+93. bench\fixtures.hpp
+94. tests\agent_coverage_tests.cpp
+95. tests\agent_edge_case_tests.cpp
+96. tests\agent_tests.cpp
+97. tests\api_examples_tests.cpp
+98. tests\forgery_tests.cpp
+99. tests\market_making_tests.cpp
+100. tests\mlp_tests.cpp
+101. tests\model_based_tests.cpp
+102. tests\optional_libs_tests.cpp
+103. tests\orderflow_tests.cpp
+104. tests\pdf_tests.cpp
+105. tests\policy_table_tests.cpp
+106. tests\rag_property_tests.cpp
+107. tests\rag_tests.cpp
+108. tests\reference_tests.cpp
+109. tests\stress.cpp
+110. tests\stylized_tests.cpp
+111. tests\text_clean_tests.cpp
+112. tests\vec_scalp_env_tests.cpp
+113. tests\pdf_writer.hpp
+114. tests\pid.hpp
+115. tests\synthetic.hpp
+116. tests\test_util.hpp
+117. tests\fuzz\fuzz_common.hpp
+118. tests\fuzz\fuzz_load.cpp
+119. tests\fuzz\fuzz_policy_table.cpp
+120. tests\fuzz\fuzz_text.cpp
+121. tests\fuzz\make_seeds.cpp
+122. tools\make_context_pack.py
+123. tools\of_train_live.py
+124. tools\of_viz.py
+125. tools\of_zoo_trace.py
+126. tools\real_vs_sim.py
+127. tools\research_crawler.py
+128. tools\scid_to_bars.py
+129. tools\scid_to_trades.py
+130. tools\sierra_to_ticks.py
+131. tools\test_research_crawler.py
+132. python\ragof_module.cpp
+133. python\ragrl\__init__.py
+134. python\ragrl\__main__.py
+135. python\ragrl\agents\__init__.py
+136. python\ragrl\agents\imitation.py
+137. python\ragrl\agents\neuralq.py
+138. python\ragrl\agents\sb3_agents.py
+139. python\ragrl\agents\supervised.py
+140. python\ragrl\checkpoints.py
+141. python\ragrl\cli.py
+142. python\ragrl\config.py
+143. python\ragrl\envs.py
+144. python\ragrl\evaluate.py
+145. python\ragrl\hpo.py
+146. python\ragrl\ledger.py
+147. python\ragrl\live.py
+148. python\ragrl\native.py
+149. python\ragrl\policies.py
+150. python\ragrl\real.py
+151. python\ragrl\redflags.py
+152. python\ragrl\registry.py
+153. python\ragrl\report.py
+154. python\ragrl\runner.py
+155. python\ragrl\score_real.py
+156. python\ragrl\stats.py
+157. python\ragrl\worker.py
+158. python\tests\conftest.py
+159. python\tests\test_bars.py
+160. python\tests\test_bit_identity.py
+161. python\tests\test_ledger.py
+162. python\tests\test_of19.py
+163. python\tests\test_of21.py
+164. python\tests\test_of23.py
+165. python\tests\test_of24.py
+166. python\tests\test_pipeline.py
+167. python\tests\test_privileged.py
+168. python\tests\test_real.py
+169. python\tests\test_smoke.py
+170. python\tests\test_vec_env.py
 
 
 ---
@@ -3306,7 +3317,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (142,382 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (143,874 bytes)
 
 # RL experiment log
 
@@ -5667,11 +5678,37 @@ Plan `OF23_SWING_MINING_PLAN.md`, revised after a design review (needs-work,
   trades exported by `experiments/of23_ba_export.py` (outside the repo,
   Build Alpha's external trade-list format) for its robustness tests.
 
+## OF24. The OF23 agent live in Sierra Chart, simulated orders: built, not yet run
+
+At the user's request (a separate Sierra sub-instance; the agent in C++
+and Python; live ticks, depth and MBO; sim trading). Design
+`OF24_LIVE_SIM_PLAN.md`. An observation, not a test of an edge: the
+starting policy is OF23's RL-free arm, which lost on unseen months (A92).
+
+* **Kernel** `include/rag/live/of24_kernel.hpp`: OF23's candidates and 37
+  features, the 2 x 64 policy and value networks, 6 live book inputs
+  (depth imbalance, MBO large-order share, spread; zero weights at the
+  start), and one actor-critic step per closed sim trade. Parity with
+  `of23_mine.py` and with torch autograd on synthetic days
+  (`python/tests/test_of24.py` through `examples/of24_parity.cpp`).
+* **Weights** `experiments/of24_export.py`: the RL-free arm trained on all
+  228 days (seed 0), written outside the repo. Greedy: skip 52%, 48/16 to
+  the close 29%.
+* **Study** `sierra/RagAgent.cpp` (ACSIL, built with the SierraChart-KB
+  script, a new DLL name per build): 1-min chart, market entry with an
+  attached target and stop, time cap, OF23's trailing rule, daily stop;
+  sim guards on every call, Arm input off by default, a dedicated Sim
+  account. Reviewed; compiles without warnings. Live data stays inside
+  Sierra (its data license); Python only trains offline on the OF23 cache.
+* **Not done:** the sub-instance, the replay test and the live run
+  (plan section 7). Nothing is verified at runtime yet.
+
+
 
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (39,652 bytes)
+## FILE: docs/ai/DECISIONS.md  (40,174 bytes)
 
 # Decision log
 
@@ -5808,6 +5845,7 @@ the code looks the way it does.
 | A90 | OF23 pre-registered: nested walk-forward mining of six turning-point candidate families with a 240-exit grid on the 228 days of bars, choices inside training only (primary M = 1), Build Alpha descriptive only and after scoring | The user asked for held trades, tops and bottoms, wide targets and data mining; the plan keeps all selection inside training, resolves the path inside bars from the records, and sends any pass to OF23b on fresh days |
 | A91 | OF23 adds two RL arms (PPO over each day's candidates: one must trade and picks one of 12 exits, one may skip) and is built and frozen before any label or outcome was computed (plan 6b, 9b) | The user asked to let the agent trade and learn rather than gate on edge at each step; the arms report behaviour first and still count as secondaries (M = 15, t >= 4.33). Code review fixes (day denominators, empty families, gap entries) went in before the freeze |
 | A92 | OF23 result: no edge. The primary miner lost −1.99 ticks per trade (t −2.52, bound +1.58), between the random-time control's mean and 95th percentile; no secondary or RL arm is positive at stress cost; the naive best of 8,400 trials has deflated Sharpe 0 | Pre-registered rule (plan section 7). Turning-point entries on 1-min bars carry no information that wide exits could keep; Build Alpha is used only as a descriptive check of the exported trade lists |
+| A93 | OF24: the live agent is a C++ Sierra study with a pure kernel; no Python reads live data; bars come from the chart, depth and MBO only at decisions; learning is one actor-critic step per closed sim trade inside the study; orders are simulated only | The user chose inside-Sierra (Sierra's data license; its DTC server refuses CME data), MBO is live-only so it can be learned only online, and SierraChart-KB's rules (new DLL name per build, sim guard every call, Arm off by default, own Sim account) are followed |
 
 
 
@@ -5898,7 +5936,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (13,990 bytes)
+## FILE: docs/ai/STATUS.md  (14,156 bytes)
 
 # Status, limitations and next steps
 
@@ -6106,7 +6144,9 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
    −1.99 ticks per trade (t −2.52), no better than random entries with
    its exits; the must-trade RL agent learned to take the widest exit
    (48 / 16 to the close) and lost −2.33 per trade, the random-walk
-   rate for that exit after costs.
+   rate for that exit after costs. OF24 (A93) puts that agent into
+   Sierra Chart as a sim-only study with live depth and MBO inputs and
+   online learning: built and reviewed, not yet loaded or run.
    Next (the user's choice): passive execution, which needs queue data
    (MBO) to replay honestly, or other information; the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
@@ -6777,7 +6817,7 @@ step. What remains, in order:
 
 ---
 
-## FILE: docs/ai/NEXT_SESSION.md  (20,459 bytes)
+## FILE: docs/ai/NEXT_SESSION.md  (20,720 bytes)
 
 # Continuing the work: the prompt and the Claude Code agent architecture
 
@@ -6851,6 +6891,10 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > **no edge** (A92; primary −1.99 ticks per trade, t −2.52, no better
 > than random entries; RL agents −2.33 and −3.22). Build Alpha checks of
 > the agents' trade lists are descriptive (plan section 8).
+> **OF24** (`OF24_LIVE_SIM_PLAN.md`, A93): the OF23 agent as a Sierra
+> study, sim orders only (`sierra/RagAgent.cpp`, kernel
+> `include/rag/live/of24_kernel.hpp`); built, not yet run: next are the
+> sub-instance, a replay test, then live sim (plan section 7).
 > **OF21** (`OF21_FORWARD_PLAN.md`, pre-registered, A87): forward test of
 > exhaustion at the OF20 levels on days from 2026-11-12. Run `--count`
 > any time; a look only when the count reaches 60 / 125 / 250 full days
@@ -8553,6 +8597,137 @@ about 25,000 candidates on 228 days, C1 the large majority, C6 85 in all
 
 ---
 
+## FILE: docs/ai/OF24_LIVE_SIM_PLAN.md  (6,532 bytes)
+
+# OF24 plan: the OF23 agent live in Sierra Chart, simulated orders only
+
+Status: **design, 2026-11-13.** At the user's request ("run a separate
+Sierra Chart sub-instance, build out the agents in C++ and Python, let it
+observe the live tick data, order-flow data (MBO) and let it trade in
+sim. I want to see if this can work"). Decisions below were left to this
+session ("do whatever you see fit, learn from the KB then make your
+decision") after the user's four answers: the live agent stays inside
+Sierra; MBO is on; this session drives Sierra; keep learning in sim.
+
+**This is an observation, not a test of an edge.** OF23 found no edge
+(A92): the agent starts from a policy that lost 2-3 ticks per trade on
+unseen months. Nothing here is a claim; a claim would need its own
+pre-registration on forward days. Orders are **simulated only**.
+
+## 1. Constraints that shaped the design
+
+- **Sierra's data license** limits its data to Sierra's own interfaces.
+  The user chose "inside Sierra only": the live agent is a C++ ACSIL
+  study; no Python reads live data. Python's part is offline: training
+  the starting policy on the already-built OF23 cache and exporting the
+  weights as a text file.
+- **Sierra's DTC server refuses CME data** to external programs, so an
+  outside process could not have received the feed anyway.
+- **MBO is live only** (Denali, orders of 3+ lots; never recorded or
+  replayed), so no historical training on MBO is possible: the agent can
+  only learn what MBO is worth from its own live sim trades.
+- **Forward days:** days from 2026-11-12 are OF21's and the confirm
+  block's. The study reads them live inside Sierra and writes only its
+  own decisions, fills and weights. Nothing from them is used to tune a
+  pre-registered rule; OF21's runner is frozen. The agent's log is not
+  evidence for any claim.
+- **SierraChart-KB** (`Desktop\SierraChart-KB`, the user's ACSIL
+  knowledge base) sets the build and safety rules followed here:
+  local MSVC build with its `build.ps1`, a new DLL name per build
+  (`Name_v<n>_64`, never a digit suffix), a pure C++ kernel with a thin
+  ACSIL adapter, heap state in a persistent pointer, sim guard on every
+  call, an Arm input defaulting to off, a dedicated Sim account, no
+  per-bar logging, and "verified" meaning observed at runtime.
+
+## 2. Parts
+
+1. **Kernel** `include/rag/live/of24_kernel.hpp` (pure C++17, no Sierra
+   headers): OF23's candidates and 37 features from 1-min bars (plan
+   OF23 section 3 and 5), the policy network (2 x 64 tanh, 13 actions:
+   skip + the 12 exits of OF23 6b), weight file load and save, and the
+   online update (section 4). Checked against `experiments/of23_mine.py`
+   on synthetic days by `python/tests/test_of24.py` through
+   `examples/of24_parity.cpp`: same candidates, same features, same
+   policy outputs.
+2. **Weights** `experiments/of24_export.py`: trains the RL-free arm of
+   OF23 (same code, same settings, seed 0) on all 228 days and writes
+   the policy, the value network and the feature standardization to a
+   text file outside the repository.
+3. **Study** `sierra/RagAgent.cpp` (ACSIL adapter): on a 1-min ESZ26
+   chart it feeds completed RTH bars to the kernel; at a candidate it
+   samples an action from the policy, sends a market entry with attached
+   target and stop (`Target1Offset` / `Stop1Offset`), flattens at the
+   time cap, and after the trade closes applies the online update. It
+   reads the depth book and MBO queues each call for the live book
+   features, and logs decisions and fills to a CSV in its own folder.
+4. **Sub-instance:** a second Sierra instance (File >> New Instance) in
+   Trade Simulation Mode with its own Sim account, so nothing touches
+   the main instance's charts, recorders or the S1 strategy.
+
+## 3. Policy inputs
+
+The 37 OF23 features (standardized with the training means) plus 6 live
+book features, zero when the data is absent (replay, or before the book
+fills in):
+
+- depth imbalance at the best level and over the 5 and 10 best levels,
+  (bid − ask) / (bid + ask), signed by the trade direction;
+- MBO at the best bid and ask: share of displayed size in orders of 10+
+  lots on the entry side and on the far side (signed pair);
+- spread in ticks.
+
+The book inputs' weights start at zero, so at the start the live policy
+equals the trained one; only the online update can give them weight.
+
+## 4. Online learning (inside the study)
+
+After each closed trade: reward = net ticks after the OF23 base costs
+(1.28 round trip for market/stop exits, 0.76 with a limit target) / 10;
+one actor-critic step on the stored inputs and sampled action (advantage
+= reward − value; policy-gradient and value steps by SGD, learning rate
+1e-4, gradient norm clipped at 1, entropy bonus 0.01). Skips are updated
+with reward 0 at the same time. Weights are saved to the study's folder
+after each update and reloaded on start; the starting file is kept.
+An input freezes learning (a fixed-policy run) and another switches
+sampling to greedy.
+
+## 5. Safety
+
+- Sim only: `sc.SendOrdersToTradeService = 0` and
+  `sc.GlobalTradeSimulationIsOn` must be 1 on every call, else nothing
+  is sent and one line is logged. Arm input defaults to off.
+- One position, one lot, `sc.MaximumPositionAllowed = 1`; no entry
+  before 08:50 or after 14:30 CT; flat by 15:00; a daily stop (default
+  −120 ticks) disarms until the next session.
+- Entry only when flat with no working orders; a rejected order is
+  logged and not retried on the same bar.
+- The study never changes global settings; the sub-instance setup is
+  done once, with the user's approval of each step that touches the
+  main instance.
+
+## 6. What is and is not comparable with OF23
+
+Sim fills are quote-based and immediate (no latency, optimistic limit
+fills), OF23's fills are from the trade records with a one-tick
+trade-through for targets: live sim results will look somewhat better
+than OF23's for the same decisions. The log keeps both the sim fill and
+the kernel's own OF23-style accounting where it can.
+
+## 7. Verification order
+
+1. Parity test (kernel vs Python) in the gate.
+2. Compile with the KB build script; load in the sub-instance; confirm
+   the module path in the log.
+3. Chart replay of a recorded day with depth (from 2026-11-04 on), in
+   sim: candidates fire, orders bracket, time cap flattens, log
+   reconciles with Sierra's fills; MBO features are expected to be zero.
+4. Live from the Globex open (Sunday 17:00 CT) for the feed checks and
+   Monday 08:30 CT for the first RTH session, armed in sim.
+
+
+
+---
+
 ## FILE: experiments/research_synthesis.md  (44,562 bytes)
 
 # Research synthesis: ES order-flow simulator, scalping agent, tick-scalping agent, validation
@@ -9320,7 +9495,7 @@ jobs build with `-Werror`:
 
 ---
 
-## FILE: CMakeLists.txt  (18,235 bytes)
+## FILE: CMakeLists.txt  (18,432 bytes)
 
 ```cmake
 cmake_minimum_required(VERSION 3.20)
@@ -9605,6 +9780,9 @@ if(RAG_PYTHON)
   target_link_libraries(_ragof PRIVATE rag)
   add_executable(of15_refdump examples/of15_refdump.cpp)
   target_link_libraries(of15_refdump PRIVATE rag)
+  # OF24: the live-agent kernel against experiments/of23_mine.py (python/tests/test_of24.py)
+  add_executable(of24_parity examples/of24_parity.cpp)
+  target_link_libraries(of24_parity PRIVATE rag)
   # The pytest suite (fast; `smoke`-marked tests are separate ctests). RAGOF_REQUIRED=1: a module that
   # does not import, or a missing of15_refdump, fails the suite instead of skipping it; -rs lists skips.
   add_test(NAME ragrl_pytest COMMAND ${Python_EXECUTABLE} -m pytest -q -rs -p no:cacheprovider -m "not smoke" ${CMAKE_CURRENT_SOURCE_DIR}/python/tests
@@ -15635,6 +15813,551 @@ class IvfIndex {
 
 ---
 
+## FILE: include\rag\live\of24_kernel.hpp  (22,844 bytes)
+
+```cpp
+// OF24 kernel: the OF23 turning-point candidates, their features and the policy network, in plain C++17.
+// No Sierra Chart header is used here; sierra/RagAgent.cpp is the adapter (docs/ai/OF24_LIVE_SIM_PLAN.md).
+// The candidate and feature definitions mirror experiments/of23_mine.py line for line (candidates(),
+// prior_levels(), value_area of of20_levels.py); python/tests/test_of24.py checks them against it.
+//
+//   of24::Bars day;                      // completed 1-min RTH bars 0..m of the day, prices in ticks
+//   of24::Levels lv = of24::prior_levels(prev_day);
+//   of24::Cand c;
+//   if (of24::candidate_at(day, &lv, dow, c)) { ... c.f[0..36], c.dir ... }   // decided at the close of bar m
+//   of24::Policy p;  p.load(path);  auto out = p.forward(x);  p.update(x, action, reward);  p.save(path);
+#pragma once
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdio>
+#include <fstream>
+#include <limits>
+#include <random>
+#include <string>
+#include <vector>
+
+namespace of24 {
+
+inline constexpr int kFirstM = 20, kLastM = 359, kGapWin = 30;
+inline constexpr int kFeat = 37;   // the OF23 features, in of23_mine.FEATS order
+inline constexpr int kBook = 6;    // live book features (zero when absent)
+inline constexpr int kIn = kFeat + kBook;
+inline constexpr int kHidden = 64;
+inline constexpr int kExits = 12;
+inline constexpr int kActions = kExits + 1;  // 0 = skip
+inline const double kNaN = std::numeric_limits<double>::quiet_NaN();
+
+// feature indices (of23_mine.FEATS)
+enum F : int {
+  c1_1, c1_5, c1_15, c2, c3, c4, c5, c6, c3_count, c3_name, dir_, d_ext_entry, d_ext_far, d_open, d_vwap, vwap_z,
+  atr_, range_atr, close_loc, relvol, delta1, delta5, delta15, delta30, ret5, ret15, ret60, ret_open,
+  slope5, slope15, slope60, d_level, fvg5_n, fvg15_n, d_fvg, minute_, dow_
+};
+
+struct ExitSpec { int target, stop, hold_min; bool trailing; };  // hold_min 0 = end of day
+// of23_mine.MENU x trailing {off, on}: action a (1..12) -> kMenu[a - 1]
+inline constexpr std::array<ExitSpec, kExits> kMenu = {{
+    {8, 4, 30, false}, {8, 4, 30, true}, {12, 6, 60, false}, {12, 6, 60, true}, {16, 8, 60, false}, {16, 8, 60, true},
+    {24, 8, 120, false}, {24, 8, 120, true}, {32, 12, 0, false}, {32, 12, 0, true}, {48, 16, 0, false}, {48, 16, 0, true}}};
+
+struct Bars {
+  std::vector<double> o, h, l, c, v, buy, sell;
+  int size() const { return static_cast<int>(o.size()); }
+  void push(double o_, double h_, double l_, double c_, double v_, double b_, double s_) {
+    o.push_back(o_); h.push_back(h_); l.push_back(l_); c.push_back(c_); v.push_back(v_); buy.push_back(b_); sell.push_back(s_);
+  }
+  void clear() { o.clear(); h.clear(); l.clear(); c.clear(); v.clear(); buy.clear(); sell.clear(); }
+};
+
+struct Levels {  // pdh, pdl, pdc, ppoc, pvah, pval
+  bool ok = false;
+  std::array<double, 6> v{};
+};
+
+struct Cand {
+  int m = 0;
+  int dir = 0;
+  std::array<double, kFeat> f{};
+};
+
+// The prior day's levels: high, low, close, and POC / 70% value area with each bar's volume spread evenly over
+// the ticks of its range (of23_mine.prior_levels, of20_levels.value_area).
+inline Levels prior_levels(const Bars& p) {
+  Levels L;
+  const int n = p.size();
+  if (n == 0) return L;
+  double lo_d = p.l[0], hi_d = p.h[0];
+  for (int i = 0; i < n; ++i) { lo_d = std::min(lo_d, p.l[i]); hi_d = std::max(hi_d, p.h[i]); }
+  long long lo = 0;
+  bool any = false;
+  for (int i = 0; i < n; ++i)
+    if (p.v[i] > 0) { const long long x = static_cast<long long>(p.l[i]); lo = any ? std::min(lo, x) : x; any = true; }
+  if (!any) return L;
+  long long hi = lo;
+  for (int i = 0; i < n; ++i)
+    if (p.v[i] > 0) hi = std::max(hi, static_cast<long long>(p.h[i]));
+  std::vector<double> vol(static_cast<size_t>(hi - lo + 1), 0.0);
+  double sum_px = 0.0, sum_sz = 0.0;
+  for (int i = 0; i < n; ++i) {
+    if (!(p.v[i] > 0)) continue;
+    const long long a = static_cast<long long>(p.l[i]), b = static_cast<long long>(p.h[i]);
+    const double per = p.v[i] / static_cast<double>(b - a + 1);
+    for (long long t = a; t <= b; ++t) {
+      vol[static_cast<size_t>(t - lo)] += per;
+      sum_px += static_cast<double>(t) * per;
+      sum_sz += per;
+    }
+  }
+  double total = 0.0, vmax = vol[0];
+  for (double x : vol) { total += x; vmax = std::max(vmax, x); }
+  const double vw = sum_px / sum_sz - static_cast<double>(lo);
+  int poc = -1;
+  double best = 0.0;
+  for (int i = 0; i < static_cast<int>(vol.size()); ++i)
+    if (vol[i] == vmax) {
+      const double d = std::fabs(i - vw);
+      if (poc < 0 || d < best) { poc = i; best = d; }
+    }
+  int a = poc, b = poc;
+  double held = vol[poc];
+  const int nv = static_cast<int>(vol.size());
+  while (held < 0.70 * total) {
+    const double up = b + 1 < nv ? vol[b + 1] : -1.0;
+    const double dn = a - 1 >= 0 ? vol[a - 1] : -1.0;
+    if (up < 0 && dn < 0) break;
+    if (up >= dn) { ++b; held += up; } else { --a; held += dn; }
+  }
+  L.ok = true;
+  L.v = {hi_d, lo_d, p.c[n - 1], static_cast<double>(poc + lo), static_cast<double>(b + lo), static_cast<double>(a + lo)};
+  return L;
+}
+
+namespace detail {
+
+struct TfBars { std::vector<double> o, h, l, c; };
+
+inline TfBars tf_bars(const Bars& b, int tf) {
+  TfBars t;
+  const int n = b.size() / tf;
+  for (int k = 0; k < n; ++k) {
+    double hi = b.h[k * tf], lo = b.l[k * tf];
+    for (int j = k * tf; j < (k + 1) * tf; ++j) { hi = std::max(hi, b.h[j]); lo = std::min(lo, b.l[j]); }
+    t.o.push_back(b.o[k * tf]); t.h.push_back(hi); t.l.push_back(lo); t.c.push_back(b.c[(k + 1) * tf - 1]);
+  }
+  return t;
+}
+
+// +1 / -1 flags for a 5-bar swing low / high of tf bars confirmed exactly at 1-min bar m.
+inline void swing_at(const std::vector<double>& hi, const std::vector<double>& lo, int tf, int m, bool& low, bool& high) {
+  low = high = false;
+  if ((m + 1) % tf != 0) return;
+  const int k = (m + 1) / tf - 3;
+  if (k < 2 || k + 2 >= static_cast<int>(lo.size())) return;
+  low = high = true;
+  for (int j = k - 2; j <= k + 2; ++j) {
+    if (j == k) continue;
+    if (!(lo[k] < lo[j])) low = false;
+    if (!(hi[k] > hi[j])) high = false;
+  }
+}
+
+struct Fvg { int dir; double bot, top; int m0; int closed; int retest; bool ok; };  // closed / retest -1 = none
+
+inline std::vector<Fvg> fvgs(const Bars& b, const TfBars& t, int tf) {
+  std::vector<Fvg> out;
+  const int n1 = b.size(), nt = static_cast<int>(t.h.size());
+  for (int i = 2; i < nt; ++i) {
+    for (int d : {1, -1}) {
+      double bot, top;
+      if (d == 1 && t.l[i] > t.h[i - 2]) { bot = t.h[i - 2]; top = t.l[i]; }
+      else if (d == -1 && t.h[i] < t.l[i - 2]) { bot = t.h[i]; top = t.l[i - 2]; }
+      else continue;
+      Fvg g{d, bot, top, (i + 1) * tf - 1, -1, -1, false};
+      for (int k = i + 1; k < nt; ++k)
+        if ((d == 1 && t.c[k] < bot) || (d == -1 && t.c[k] > top)) { g.closed = (k + 1) * tf - 1; break; }
+      for (int m = g.m0 + 1; m < n1; ++m) {
+        if (g.closed >= 0 && m > g.closed) break;
+        if (b.l[m] <= top && b.h[m] >= bot) {
+          g.retest = m;
+          g.ok = !((d == 1 && b.c[m] < bot) || (d == -1 && b.c[m] > top));
+          break;
+        }
+      }
+      out.push_back(g);
+    }
+  }
+  return out;
+}
+
+inline double ema_slope(const TfBars& t, int m, int tf, double atr) {
+  const int k = (m + 1) / tf;
+  if (k < 2 || !(atr > 0)) return kNaN;
+  const double a = 2.0 / 9.0;
+  double e = t.c[0], prev = t.c[0];
+  for (int i = 1; i < k; ++i) { prev = e; e = e + a * (t.c[i] - e); }
+  return (e - prev) / atr;
+}
+
+// numpy.quantile(x, q), linear interpolation
+inline double quantile(std::vector<double> x, double q) {
+  std::sort(x.begin(), x.end());
+  const double pos = q * static_cast<double>(x.size() - 1);
+  const size_t i = static_cast<size_t>(std::floor(pos));
+  if (i + 1 >= x.size()) return x.back();
+  const double t = pos - static_cast<double>(i), a = x[i], b = x[i + 1];
+  return t >= 0.5 ? b - (b - a) * (1.0 - t) : a + (b - a) * t;
+}
+
+}  // namespace detail
+
+// The candidate decided at the close of the last bar in `b` (m = b.size() - 1), if any. `lv` may be null or !ok
+// (no prior-day levels). Mirrors of23_mine.candidates() for that m.
+inline bool candidate_at(const Bars& b, const Levels* lv, int dow, Cand& out) {
+  using namespace detail;
+  const int n = b.size(), m = n - 1;
+  if (m < kFirstM || m > kLastM) return false;
+  const auto &o = b.o, &h = b.h, &l = b.l, &c = b.c, &v = b.v;
+  for (int i = std::max(0, m - kGapWin + 1); i <= m; ++i)
+    if (!(v[i] > 0)) return false;
+  // ATR: mean true range of bars m-19..m (bar 0: high - low)
+  double atr = 0.0;
+  for (int i = m - 19; i <= m; ++i)
+    atr += i == 0 ? h[0] - l[0] : std::max(h[i], c[i - 1]) - std::min(l[i], c[i - 1]);
+  atr /= 20.0;
+  if (!(atr > 0)) return false;
+  const bool has_lv = lv != nullptr && lv->ok;
+
+  double fl[2][8] = {};  // [0] long (+1), [1] short (-1); c1_1 c1_5 c1_15 c2 c3 c4 c5 c6
+  bool any[2] = {false, false};
+  auto add = [&](int d, int key) { fl[d > 0 ? 0 : 1][key] += 1.0; any[d > 0 ? 0 : 1] = true; };
+
+  const TfBars t5 = tf_bars(b, 5), t15 = tf_bars(b, 15), t60 = tf_bars(b, 60);
+  bool lo_, hi_;
+  swing_at(h, l, 1, m, lo_, hi_);
+  if (lo_) add(1, F::c1_1);
+  if (hi_) add(-1, F::c1_1);
+  swing_at(t5.h, t5.l, 5, m, lo_, hi_);
+  if (lo_) add(1, F::c1_5);
+  if (hi_) add(-1, F::c1_5);
+  swing_at(t15.h, t15.l, 15, m, lo_, hi_);
+  if (lo_) add(1, F::c1_15);
+  if (hi_) add(-1, F::c1_15);
+
+  if (m >= 30) {
+    double ph = h[0], pl = l[0];
+    for (int i = 0; i < m; ++i) { ph = std::max(ph, h[i]); pl = std::min(pl, l[i]); }
+    if (h[m] > ph && c[m] < ph) add(-1, F::c2);
+    if (l[m] < pl && c[m] > pl) add(1, F::c2);
+  }
+  std::vector<int> fired[2];
+  if (has_lv && m >= 1) {
+    for (int li = 0; li < 6; ++li) {
+      const double L = lv->v[li];
+      if (c[m - 1] < L && h[m] >= L + 1 && c[m] < L) fired[1].push_back(li);
+      else if (c[m - 1] > L && l[m] <= L - 1 && c[m] > L) fired[0].push_back(li);
+    }
+    if (!fired[0].empty()) add(1, F::c3);
+    if (!fired[1].empty()) add(-1, F::c3);
+  }
+  double cv = 0.0, cvp = 0.0, cvp2 = 0.0;
+  for (int i = 0; i <= m; ++i) {
+    const double tp = (h[i] + l[i] + c[i]) / 3.0;
+    cv += v[i]; cvp += v[i] * tp; cvp2 += v[i] * tp * tp;
+  }
+  const double vw = cv > 0 ? cvp / cv : kNaN;
+  const double sd = cv > 0 ? std::sqrt(std::max(cvp2 / cv - vw * vw, 0.0)) : kNaN;
+  if (m >= 60 && sd > 0) {
+    if (h[m] >= vw + 2 * sd && c[m] < vw + 2 * sd) add(-1, F::c4);
+    if (l[m] <= vw - 2 * sd && c[m] > vw - 2 * sd) add(1, F::c4);
+  }
+  const std::vector<Fvg> g5 = fvgs(b, t5, 5), g15 = fvgs(b, t15, 15);
+  {
+    bool r[2] = {false, false};
+    for (const auto* gs : {&g5, &g15})
+      for (const Fvg& g : *gs)
+        if (g.retest == m && g.ok) r[g.dir > 0 ? 0 : 1] = true;
+    if (r[0]) add(1, F::c5);
+    if (r[1]) add(-1, F::c5);
+  }
+  const double rng = h[m] - l[m];
+  if (m >= 30 && rng >= 2 * atr && v[m] >= quantile(std::vector<double>(v.begin(), v.begin() + m), 0.9)) {
+    double mh = h[m - 29], ml = l[m - 29];
+    for (int i = m - 29; i < m; ++i) { mh = std::max(mh, h[i]); ml = std::min(ml, l[i]); }
+    if (h[m] > mh && c[m] <= l[m] + rng / 3.0) add(-1, F::c6);
+    if (l[m] < ml && c[m] >= h[m] - rng / 3.0) add(1, F::c6);
+  }
+  if (any[0] == any[1]) return false;  // none, or both directions on one bar
+  const int s = any[0] ? 0 : 1, d = any[0] ? 1 : -1;
+  auto& f = out.f;
+  f.fill(0.0);
+  for (int k = 0; k < 8; ++k) f[k] = fl[s][k];
+  const double A = atr;
+  double sh = h[0], sl = l[0];
+  for (int i = 0; i <= m; ++i) { sh = std::max(sh, h[i]); sl = std::min(sl, l[i]); }
+  const auto& lis = fired[s];
+  f[F::c3_count] = static_cast<double>(lis.size());
+  f[F::c3_name] = -1.0;
+  if (!lis.empty()) {
+    int nearest = lis[0];
+    for (int li : lis)
+      if (std::fabs(c[m] - lv->v[li]) < std::fabs(c[m] - lv->v[nearest])) nearest = li;
+    f[F::c3_name] = nearest;
+  }
+  f[F::dir_] = d;
+  f[F::d_ext_entry] = (d == -1 ? sh - c[m] : c[m] - sl) / A;
+  f[F::d_ext_far] = (d == -1 ? c[m] - sl : sh - c[m]) / A;
+  f[F::d_open] = (c[m] - o[0]) / A;
+  f[F::d_vwap] = (c[m] - vw) / A;
+  f[F::vwap_z] = sd > 0 ? d * (c[m] - vw) / sd : kNaN;
+  f[F::atr_] = A;
+  f[F::range_atr] = rng / A;
+  f[F::close_loc] = rng > 0 ? (c[m] - l[m]) / rng : kNaN;
+  {
+    double pv = 0.0;
+    const int s0 = std::max(0, m - 30);
+    for (int i = s0; i < m; ++i) pv += v[i];
+    const double mean = m > s0 ? pv / (m - s0) : 0.0;
+    f[F::relvol] = mean > 0 ? v[m] / mean : kNaN;
+  }
+  const int dk[4] = {1, 5, 15, 30};
+  for (int q = 0; q < 4; ++q) {
+    double vv = 0.0, bs = 0.0, ss = 0.0;
+    for (int i = std::max(0, m - dk[q] + 1); i <= m; ++i) { vv += v[i]; bs += b.buy[i]; ss += b.sell[i]; }
+    f[F::delta1 + q] = vv > 0 ? d * (bs - ss) / vv : kNaN;
+  }
+  const int rk[3] = {5, 15, 60};
+  for (int q = 0; q < 3; ++q) f[F::ret5 + q] = d * (c[m] - (m - rk[q] >= 0 ? c[m - rk[q]] : o[0])) / A;
+  f[F::ret_open] = d * (c[m] - o[0]) / A;
+  f[F::slope5] = d * ema_slope(t5, m, 5, A);
+  f[F::slope15] = d * ema_slope(t15, m, 15, A);
+  f[F::slope60] = d * ema_slope(t60, m, 60, A);
+  if (has_lv) {
+    double dm = std::fabs(c[m] - lv->v[0]);
+    for (int li = 1; li < 6; ++li) dm = std::min(dm, std::fabs(c[m] - lv->v[li]));
+    f[F::d_level] = dm / A;
+  } else {
+    f[F::d_level] = kNaN;
+  }
+  double dmin = kNaN;
+  int q = 0;
+  for (const auto* gs : {&g5, &g15}) {
+    int cnt = 0;
+    for (const Fvg& g : *gs)
+      if (g.m0 <= m && (g.closed < 0 || g.closed > m)) {
+        ++cnt;
+        const double dist = (g.bot <= c[m] && c[m] <= g.top) ? 0.0 : std::min(std::fabs(c[m] - g.bot), std::fabs(c[m] - g.top)) / A;
+        if (!(dmin <= dist)) dmin = dist;
+      }
+    f[F::fvg5_n + q++] = cnt;
+  }
+  f[F::d_fvg] = dmin;
+  f[F::minute_] = m;
+  f[F::dow_] = dow;
+  out.m = m;
+  out.dir = d;
+  return true;
+}
+
+// ---------------------------------------------------------------- the policy (actor and critic, 2 x 64 tanh)
+struct Net {
+  int in = 0, out = 0;
+  std::vector<double> W1, b1, W2, b2, W3, b3;  // row-major: W1[kHidden x in], W2[kHidden x kHidden], W3[out x kHidden]
+  void init(int in_, int out_) {
+    in = in_; out = out_;
+    W1.assign(static_cast<size_t>(kHidden) * in, 0.0); b1.assign(kHidden, 0.0);
+    W2.assign(static_cast<size_t>(kHidden) * kHidden, 0.0); b2.assign(kHidden, 0.0);
+    W3.assign(static_cast<size_t>(out) * kHidden, 0.0); b3.assign(out, 0.0);
+  }
+  struct Act { std::vector<double> h1, h2, y; };
+  void forward(const double* x, Act& a) const {
+    a.h1.assign(kHidden, 0.0); a.h2.assign(kHidden, 0.0); a.y.assign(out, 0.0);
+    for (int i = 0; i < kHidden; ++i) {
+      double s = b1[i];
+      for (int j = 0; j < in; ++j) s += W1[static_cast<size_t>(i) * in + j] * x[j];
+      a.h1[i] = std::tanh(s);
+    }
+    for (int i = 0; i < kHidden; ++i) {
+      double s = b2[i];
+      for (int j = 0; j < kHidden; ++j) s += W2[static_cast<size_t>(i) * kHidden + j] * a.h1[j];
+      a.h2[i] = std::tanh(s);
+    }
+    for (int i = 0; i < out; ++i) {
+      double s = b3[i];
+      for (int j = 0; j < kHidden; ++j) s += W3[static_cast<size_t>(i) * kHidden + j] * a.h2[j];
+      a.y[i] = s;
+    }
+  }
+  // One SGD step along -dy (dy = dLoss/dy), the whole gradient clipped to norm `clip`.
+  void sgd(const double* x, const Act& a, const std::vector<double>& dy, double lr, double clip) {
+    std::vector<double> d2(kHidden, 0.0), d1(kHidden, 0.0);
+    for (int j = 0; j < kHidden; ++j) {
+      double s = 0.0;
+      for (int i = 0; i < out; ++i) s += W3[static_cast<size_t>(i) * kHidden + j] * dy[i];
+      d2[j] = s * (1.0 - a.h2[j] * a.h2[j]);
+    }
+    for (int j = 0; j < kHidden; ++j) {
+      double s = 0.0;
+      for (int i = 0; i < kHidden; ++i) s += W2[static_cast<size_t>(i) * kHidden + j] * d2[i];
+      d1[j] = s * (1.0 - a.h1[j] * a.h1[j]);
+    }
+    double n2 = 0.0;
+    for (int i = 0; i < out; ++i) { n2 += dy[i] * dy[i]; for (int j = 0; j < kHidden; ++j) { const double g = dy[i] * a.h2[j]; n2 += g * g; } }
+    for (int i = 0; i < kHidden; ++i) { n2 += d2[i] * d2[i]; for (int j = 0; j < kHidden; ++j) { const double g = d2[i] * a.h1[j]; n2 += g * g; } }
+    for (int i = 0; i < kHidden; ++i) { n2 += d1[i] * d1[i]; for (int j = 0; j < in; ++j) { const double g = d1[i] * x[j]; n2 += g * g; } }
+    const double norm = std::sqrt(n2), k = lr * (norm > clip ? clip / norm : 1.0);
+    if (!std::isfinite(norm)) return;  // a non-finite gradient changes nothing
+    for (int i = 0; i < out; ++i) { b3[i] -= k * dy[i]; for (int j = 0; j < kHidden; ++j) W3[static_cast<size_t>(i) * kHidden + j] -= k * dy[i] * a.h2[j]; }
+    for (int i = 0; i < kHidden; ++i) { b2[i] -= k * d2[i]; for (int j = 0; j < kHidden; ++j) W2[static_cast<size_t>(i) * kHidden + j] -= k * d2[i] * a.h1[j]; }
+    for (int i = 0; i < kHidden; ++i) { b1[i] -= k * d1[i]; for (int j = 0; j < in; ++j) W1[static_cast<size_t>(i) * in + j] -= k * d1[i] * x[j]; }
+  }
+};
+
+// Replaces `path` by `tmp` in one step where the platform can (set OF24_REPLACE_FILE to override, e.g. MoveFileExA).
+inline bool replace_file(const std::string& tmp, const std::string& path) {
+#ifdef OF24_REPLACE_FILE
+  return OF24_REPLACE_FILE(tmp.c_str(), path.c_str());
+#else
+  std::remove(path.c_str());
+  return std::rename(tmp.c_str(), path.c_str()) == 0;
+#endif
+}
+
+struct Policy {
+  std::array<double, kFeat> mu{}, sd{};
+  Net pol, val;
+  long long updates = 0;
+  double lr = 1e-4, clip = 1.0, ent = 0.01;
+
+  Policy() { pol.init(kIn, kActions); val.init(kIn, 1); sd.fill(1.0); }
+
+  // The network input: standardized OF23 features (missing = 0), then the book features as given.
+  std::array<double, kIn> input(const Cand& c, const std::array<double, kBook>& book) const {
+    std::array<double, kIn> x{};
+    for (int i = 0; i < kFeat; ++i) {
+      const double z = (c.f[i] - mu[i]) / sd[i];
+      x[i] = std::isfinite(z) ? z : 0.0;
+    }
+    for (int i = 0; i < kBook; ++i) x[kFeat + i] = std::isfinite(book[i]) ? book[i] : 0.0;
+    return x;
+  }
+  struct Out { std::array<double, kActions> logit{}, p{}; double value = 0.0; };
+  Out forward(const std::array<double, kIn>& x) const {
+    Net::Act a;
+    Out o;
+    pol.forward(x.data(), a);
+    double mx = a.y[0];
+    for (int i = 0; i < kActions; ++i) { o.logit[i] = a.y[i]; mx = std::max(mx, a.y[i]); }
+    double z = 0.0;
+    for (int i = 0; i < kActions; ++i) { o.p[i] = std::exp(a.y[i] - mx); z += o.p[i]; }
+    for (double& p : o.p) p /= z;
+    val.forward(x.data(), a);
+    o.value = a.y[0];
+    return o;
+  }
+  static bool finite(const Out& o) {
+    for (double p : o.p)
+      if (!std::isfinite(p)) return false;
+    return std::isfinite(o.value);
+  }
+  static int greedy(const Out& o) {
+    if (!finite(o)) return 0;
+    return static_cast<int>(std::max_element(o.logit.begin(), o.logit.end()) - o.logit.begin());
+  }
+  template <class Rng>
+  static int sample(const Out& o, Rng& rng) {
+    if (!finite(o)) return 0;  // a broken network skips
+    double u = std::uniform_real_distribution<double>(0.0, 1.0)(rng);
+    for (int i = 0; i < kActions; ++i) { u -= o.p[i]; if (u < 0) return i; }
+    return 0;
+  }
+  // One actor-critic step for a finished decision: reward already scaled (net ticks / 10; 0 for a skip).
+  void update(const std::array<double, kIn>& x, int action, double reward) {
+    Net::Act ap, av;
+    pol.forward(x.data(), ap);
+    val.forward(x.data(), av);
+    const double adv = reward - av.y[0];
+    double mx = ap.y[0];
+    for (double y : ap.y) mx = std::max(mx, y);
+    std::vector<double> p(kActions), dy(kActions);
+    double z = 0.0;
+    for (int i = 0; i < kActions; ++i) { p[i] = std::exp(ap.y[i] - mx); z += p[i]; }
+    double H = 0.0;
+    for (double& q : p) { q /= z; if (q > 0) H -= q * std::log(q); }
+    for (int i = 0; i < kActions; ++i) {
+      const double lp = p[i] > 0 ? std::log(p[i]) : -745.0;
+      dy[i] = adv * (p[i] - (i == action ? 1.0 : 0.0)) + ent * p[i] * (lp + H);  // d/dlogit of -adv*log p_a - ent*H
+    }
+    pol.sgd(x.data(), ap, dy, lr, clip);
+    val.sgd(x.data(), av, {av.y[0] - reward}, lr, clip);
+    ++updates;
+  }
+
+  // Text file: "OF24W 1", "in <kIn> hidden <kHidden> actions <kActions> updates <n>", then named arrays.
+  bool save(const std::string& path) const {
+    const std::string tmp = path + ".tmp";
+    {
+      std::ofstream f(tmp, std::ios::trunc);
+      if (!f) return false;
+      f.precision(17);
+      f << "OF24W 1\nin " << kIn << " hidden " << kHidden << " actions " << kActions << " updates " << updates << "\n";
+      auto put = [&](const char* name, const double* a, size_t n) {
+        f << name << " " << n << "\n";
+        for (size_t i = 0; i < n; ++i) f << a[i] << (i + 1 == n ? "\n" : " ");
+      };
+      put("mu", mu.data(), mu.size()); put("sd", sd.data(), sd.size());
+      for (const auto* net : {&pol, &val}) {
+        const char* p = net == &pol ? "pol" : "val";
+        put((std::string(p) + "_W1").c_str(), net->W1.data(), net->W1.size()); put((std::string(p) + "_b1").c_str(), net->b1.data(), net->b1.size());
+        put((std::string(p) + "_W2").c_str(), net->W2.data(), net->W2.size()); put((std::string(p) + "_b2").c_str(), net->b2.data(), net->b2.size());
+        put((std::string(p) + "_W3").c_str(), net->W3.data(), net->W3.size()); put((std::string(p) + "_b3").c_str(), net->b3.data(), net->b3.size());
+      }
+      if (!f) return false;
+    }
+    return replace_file(tmp, path);
+  }
+  bool load(const std::string& path) {
+    std::ifstream f(path);
+    std::string tag, k1, k2, k3, k4;
+    int ver = 0, in = 0, hid = 0, act = 0;
+    long long upd = 0;
+    if (!(f >> tag >> ver) || tag != "OF24W" || ver != 1) return false;
+    if (!(f >> k1 >> in >> k2 >> hid >> k3 >> act >> k4 >> upd) || in != kIn || hid != kHidden || act != kActions) return false;
+    Policy t;
+    auto get = [&](const std::string& name, double* a, size_t n) {
+      std::string nm;
+      size_t cnt = 0;
+      if (!(f >> nm >> cnt) || nm != name || cnt != n) return false;
+      for (size_t i = 0; i < n; ++i)
+        if (!(f >> a[i])) return false;
+      return true;
+    };
+    if (!get("mu", t.mu.data(), t.mu.size()) || !get("sd", t.sd.data(), t.sd.size())) return false;
+    for (auto* net : {&t.pol, &t.val}) {
+      const std::string p = net == &t.pol ? "pol" : "val";
+      if (!get(p + "_W1", net->W1.data(), net->W1.size()) || !get(p + "_b1", net->b1.data(), net->b1.size()) ||
+          !get(p + "_W2", net->W2.data(), net->W2.size()) || !get(p + "_b2", net->b2.data(), net->b2.size()) ||
+          !get(p + "_W3", net->W3.data(), net->W3.size()) || !get(p + "_b3", net->b3.data(), net->b3.size()))
+        return false;
+    }
+    for (double s : t.sd)
+      if (!(s > 0)) return false;
+    mu = t.mu; sd = t.sd; pol = t.pol; val = t.val; updates = upd;
+    return true;
+  }
+};
+
+// OF23 base costs in ticks for a finished trade (market entry; limit target or market/stop exit).
+inline double net_ticks(double move_ticks, bool exit_was_target) { return move_ticks - 0.64 - (exit_was_target ? 0.12 : 0.64); }
+
+}  // namespace of24
+
+```
+
+
+---
+
 ## FILE: include\rag\orderflow\features.hpp  (6,788 bytes)
 
 ```cpp
@@ -21047,6 +21770,73 @@ int main(int argc, char** argv) {
 
 ---
 
+## FILE: examples\of24_parity.cpp  (2,296 bytes)
+
+```cpp
+// of24_parity: runs the OF24 kernel on bars from a text file and prints every candidate, for the parity test
+// against experiments/of23_mine.py (python/tests/test_of24.py).
+//
+//   of24_parity BARS.txt [WEIGHTS.txt]
+// BARS.txt: "n_prev n dow", then n_prev + n lines "open high low close volume buy sell" (ticks; the prior day first;
+// n_prev may be 0). Output per candidate: "C m dir f0 .. f36", then with weights "P logit0 .. logit12 value", and
+// "U ..." the logits after one update(action 3, reward 0.5) on a copy of the policy.
+#include <cstdio>
+#include <fstream>
+#include <iostream>
+
+#include "rag/live/of24_kernel.hpp"
+
+int main(int argc, char** argv) {
+  if (argc < 2) { std::fprintf(stderr, "usage: of24_parity BARS.txt [WEIGHTS.txt]\n"); return 2; }
+  std::ifstream f(argv[1]);
+  int n_prev = 0, n = 0, dow = 0;
+  if (!(f >> n_prev >> n >> dow)) { std::fprintf(stderr, "bad header\n"); return 2; }
+  of24::Bars prev, day;
+  for (int i = 0; i < n_prev + n; ++i) {
+    double o, h, l, c, v, b, s;
+    if (!(f >> o >> h >> l >> c >> v >> b >> s)) { std::fprintf(stderr, "bad bar %d\n", i); return 2; }
+    (i < n_prev ? prev : day).push(o, h, l, c, v, b, s);
+  }
+  of24::Levels lv;
+  if (n_prev > 0) lv = of24::prior_levels(prev);
+  of24::Policy pol;
+  const bool has_w = argc > 2;
+  if (has_w && !pol.load(argv[2])) { std::fprintf(stderr, "bad weights\n"); return 2; }
+  if (lv.ok) {
+    std::printf("L");
+    for (double x : lv.v) std::printf(" %.17g", x);
+    std::printf("\n");
+  }
+  of24::Bars cut;
+  for (int m = 0; m < n; ++m) {
+    cut.push(day.o[m], day.h[m], day.l[m], day.c[m], day.v[m], day.buy[m], day.sell[m]);
+    of24::Cand c;
+    if (!of24::candidate_at(cut, lv.ok ? &lv : nullptr, dow, c)) continue;
+    std::printf("C %d %d", c.m, c.dir);
+    for (double x : c.f) std::printf(" %.17g", x);
+    std::printf("\n");
+    if (has_w) {
+      const auto x = pol.input(c, {});
+      const auto o = pol.forward(x);
+      std::printf("P");
+      for (double z : o.logit) std::printf(" %.17g", z);
+      std::printf(" %.17g\n", o.value);
+      of24::Policy q = pol;
+      q.update(x, 3, 0.5);
+      const auto o2 = q.forward(x);
+      std::printf("U");
+      for (double z : o2.logit) std::printf(" %.17g", z);
+      std::printf(" %.17g\n", o2.value);
+    }
+  }
+  return 0;
+}
+
+```
+
+
+---
+
 ## FILE: examples\of_backtest.cpp  (4,488 bytes)
 
 ```cpp
@@ -22769,6 +23559,515 @@ int main(int argc, char** argv) {
   std::printf("  %-22s %16s %12s\n", "parameter", "linear per sd", "curvature");
   for (std::size_t i = 0; i < space.size(); ++i)
     std::printf("  %-22s %+15.1f%% %+11.1f%%\n", space[i].name.c_str(), 100 * sens.linear[i], 100 * sens.quadratic[i]);
+}
+
+```
+
+
+---
+
+## FILE: sierra\RagAgent.cpp  (25,594 bytes)
+
+```cpp
+// RagAgent: the OF23/OF24 agent as a Sierra Chart study. SIMULATED ORDERS ONLY.
+// Design: docs/ai/OF24_LIVE_SIM_PLAN.md. Kernel (candidates, features, policy, learning): include/rag/live/of24_kernel.hpp.
+//
+// Chart: ES front month, 1-minute bars, at least 2 days loaded. On every completed RTH bar (08:30-15:00 Chicago) the
+// study rebuilds the day's bars, asks the kernel for a turning-point candidate at that bar, and when flat samples an
+// action from the policy: skip, or a market entry with one of 12 attached target/stop brackets and a time cap. After
+// each closed trade it applies one online learning step and saves the weights. It reads the depth book and the
+// Market By Order queues at the decision for six book inputs (zero when absent, as in a replay).
+//
+// Safety (SierraChart-KB conventions): sc.SendOrdersToTradeService = 0 every call; nothing is sent unless Trade
+// Simulation Mode is on, the Armed input is Yes, the selected trade account equals the required Sim account and the
+// chart is 1-minute with a valid tick size. One lot, one position. A rejected order ends trading until recalculation.
+//
+// Build (never the same DLL name twice; no digit suffix):
+//   powershell -File <SierraChart-KB>\build\build.ps1 -Source C:\rag-cpp\sierra\RagAgent.cpp -Name RagAgent_va_64 -Extra "/IC:\rag-cpp\include"
+#include "sierrachart.h"
+
+#include <cstdarg>
+#include <cstdint>
+#include <cstdio>
+#include <share.h>
+
+static bool of24_move(const char* tmp, const char* path) { return MoveFileExA(tmp, path, MOVEFILE_REPLACE_EXISTING) != 0; }
+#define OF24_REPLACE_FILE of24_move
+#include "rag/live/of24_kernel.hpp"
+
+SCDLLName("RagAgent OF24 (SIM ONLY)")
+
+EXTERN_C IMAGE_DOS_HEADER __ImageBase;
+
+namespace {
+
+constexpr int kOpenMin = 8 * 60 + 30;   // 08:30 Chicago
+constexpr int kDayBars = 390;
+constexpr int kMboCap = 512;
+
+struct Pending {            // the open trade's decision, kept for the learning step
+  bool live = false;
+  std::array<double, of24::kIn> x{};
+  int action = 0, dir = 0;
+  int entry_m = 0;          // RTH minute index of the entry bar (m + 1)
+  int date = 0;             // Chicago date (SCDateTime::GetDate) of the entry
+  uint64_t entry_id = 0, stop_id = 0, target_id = 0;
+  double best_close_ticks = -1e9;   // best completed-bar close in profit ticks (trailing exits)
+  double stop_at_ticks = 0;         // current stop distance below entry in profit ticks (negative = loss side)
+  bool flatten_sent = false;
+  int flatten_try_bar = -1;         // the completed bar at which a flatten was last tried (one try per bar)
+  bool entry_filled = false;        // the entry was seen filled (a position, or its fill)
+  SCString account, symbol;         // the owner of the trade: exits act only there
+};
+
+struct State {
+  of24::Policy policy;
+  bool policy_ok = false;
+  FILE* log = nullptr;
+  std::mt19937_64 rng{0x0F24ULL};
+  int last_done = -1;       // index of the last completed bar already handled
+  bool ended = false;       // a rejected order: no more orders until recalculation
+  int day = 0;              // Chicago date of the running totals
+  double day_net = 0.0;     // net ticks today (OF23 base costs)
+  int day_trades = 0;
+  bool day_stopped = false;
+  Pending t;
+  n_ACSIL::s_MarketOrderData mbo[kMboCap];
+  std::string weights_live;
+  int skips_unsaved = 0;
+  int orphan_try_bar = -1;
+  bool replay_mode = false;
+  std::string weights_start;
+};
+
+void logf(State& s, const char* fmt, ...);
+
+void save_weights(SCStudyInterfaceRef sc, State& s) {
+  if (!s.policy.save(s.weights_live)) {
+    logf(s, "E,0,0,weights save failed\n");
+    sc.AddMessageToLog("RagAgent: saving the learned weights failed", 1);
+  }
+  s.skips_unsaved = 0;
+}
+
+void logf(State& s, const char* fmt, ...) {
+  if (!s.log) return;
+  va_list a;
+  va_start(a, fmt);
+  std::vfprintf(s.log, fmt, a);
+  va_end(a);
+  std::fflush(s.log);
+}
+
+struct ChiTime { int date; int minute; int dow; };  // Chicago date, minute of day, weekday (Monday = 0)
+
+ChiTime chicago(SCStudyInterfaceRef sc, const SCDateTime& chart_time) {
+  const SCDateTime t = sc.ConvertDateTimeFromChartTimeZone(chart_time, TIMEZONE_CHICAGO);
+  return {t.GetDate(), t.GetTimeInSeconds() / 60, (t.GetDayOfWeek() + 6) % 7};
+}
+
+// The RTH bars of Chicago date `date` up to chart bar `last` (inclusive), one per minute from 08:30; a minute with
+// no chart bar carries the last close with zero volume (a gap, as in tools/scid_to_bars.py). Prices in ticks.
+bool day_bars(SCStudyInterfaceRef sc, int date, int last, of24::Bars& out, int& last_minute) {
+  out.clear();
+  int first = -1;
+  for (int i = last; i >= 0; --i) {
+    const ChiTime c = chicago(sc, sc.BaseDateTimeIn[i]);
+    if (c.date < date) break;
+    if (c.date == date && c.minute >= kOpenMin && c.minute < kOpenMin + kDayBars) first = i;
+  }
+  if (first < 0) return false;
+  const double ts = sc.TickSize;
+  double carry = std::round(sc.Open[first] / ts);
+  int next = 0;
+  for (int i = first; i <= last; ++i) {
+    const ChiTime c = chicago(sc, sc.BaseDateTimeIn[i]);
+    if (c.date != date) break;
+    const int m = c.minute - kOpenMin;
+    if (m < 0 || m >= kDayBars) continue;
+    if (m < next) return false;  // two chart bars in one minute: not a 1-minute chart
+    for (; next < m; ++next) out.push(carry, carry, carry, carry, 0, 0, 0);
+    out.push(std::round(sc.Open[i] / ts), std::round(sc.High[i] / ts), std::round(sc.Low[i] / ts), std::round(sc.Close[i] / ts),
+             sc.Volume[i], sc.AskVolume[i], sc.BidVolume[i]);
+    carry = std::round(sc.Close[i] / ts);
+    next = m + 1;
+  }
+  last_minute = next - 1;
+  return out.size() > 0;
+}
+
+// The prior session's bars: the most recent earlier Chicago date with RTH bars in the chart.
+bool prev_day_bars(SCStudyInterfaceRef sc, int date, int from, of24::Bars& out) {
+  for (int i = from; i >= 0; --i) {
+    const ChiTime c = chicago(sc, sc.BaseDateTimeIn[i]);
+    if (c.date >= date || c.minute < kOpenMin || c.minute >= kOpenMin + kDayBars) continue;
+    int lm = 0;
+    if (!day_bars(sc, c.date, i, out, lm)) return false;
+    int traded = 0;
+    for (double v : out.v) traded += v > 0;
+    return out.size() == kDayBars && traded >= kDayBars - 5;  // a full session only (OF18's rule: at most 5 gap minutes)
+  }
+  return false;
+}
+
+// Six book inputs, signed by the trade direction; zeros where the data is absent.
+std::array<double, of24::kBook> book_features(SCStudyInterfaceRef sc, State& s, int dir, int& levels, int& mbo_orders) {
+  std::array<double, of24::kBook> f{};
+  levels = mbo_orders = 0;
+  if (sc.ReplayStatus != REPLAY_STOPPED) return f;  // depth in a replay may be recorded; MBO never is: keep replays to bars
+  const int nb = sc.GetBidMarketDepthNumberOfLevels(), na = sc.GetAskMarketDepthNumberOfLevels();
+  levels = nb < na ? nb : na;
+  if (levels < 1) return f;
+  double qb[10] = {}, qa[10] = {};
+  int tick_b = 0, tick_a = 0;
+  for (int i = 0; i < 10 && i < levels; ++i) {
+    s_MarketDepthEntry eb{}, ea{};
+    if (!sc.GetBidMarketDepthEntryAtLevel(eb, i) || !sc.GetAskMarketDepthEntryAtLevel(ea, i)) { levels = i; break; }
+    if (!(eb.AdjustedPrice > 0) || !(ea.AdjustedPrice > 0)) { levels = i; break; }
+    qb[i] = eb.Quantity;
+    qa[i] = ea.Quantity;
+    if (i == 0) { tick_b = static_cast<int>(std::lround(eb.AdjustedPrice / sc.TickSize)); tick_a = static_cast<int>(std::lround(ea.AdjustedPrice / sc.TickSize)); }
+  }
+  if (levels < 1 || tick_a <= tick_b) return f;
+  auto imb = [&](int n) {
+    double b = 0, a = 0;
+    for (int i = 0; i < n; ++i) { b += qb[i]; a += qa[i]; }
+    return b + a > 0 ? dir * (b - a) / (b + a) : 0.0;
+  };
+  f[0] = imb(1);
+  if (levels >= 5) f[1] = imb(5);
+  if (levels >= 10) f[2] = imb(10);
+  auto big_share = [&](bool bid) {
+    const int n = bid ? sc.GetBidMarketLimitOrdersForPrice(tick_b, kMboCap, s.mbo) : sc.GetAskMarketLimitOrdersForPrice(tick_a, kMboCap, s.mbo);
+    if (n <= 0 || n >= kMboCap) return 0.0;  // none, or possibly truncated
+    mbo_orders += n;
+    double all = 0, big = 0;
+    for (int i = 0; i < n; ++i) { const double q = static_cast<double>(s.mbo[i].OrderQuantity); all += q; if (q >= 10) big += q; }
+    return all > 0 ? big / all : 0.0;
+  };
+  const double sb = big_share(true), sa = big_share(false);
+  f[3] = dir > 0 ? sb : sa;   // large resting orders behind the entry (support for a long, resistance for a short)
+  f[4] = dir > 0 ? sa : sb;   // and on the far side
+  f[5] = tick_a - tick_b;
+  return f;
+}
+
+bool own_fill(SCStudyInterfaceRef sc, const s_SCOrderFillData& f) {
+  return f.IsSimulated && f.TradeAccount == sc.SelectedTradeAccount && f.Symbol == sc.GetTradeSymbol();
+}
+
+}  // namespace
+
+SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
+  sc.SendOrdersToTradeService = 0;  // every call: simulated orders only, never routed
+  SCInputRef InArmed = sc.Input[0];
+  SCInputRef InAccount = sc.Input[1];
+  SCInputRef InWeights = sc.Input[2];
+  SCInputRef InLearn = sc.Input[3];
+  SCInputRef InGreedy = sc.Input[4];
+  SCInputRef InDayStop = sc.Input[5];
+  SCInputRef InReplay = sc.Input[6];
+  SCInputRef InUseBook = sc.Input[7];
+  if (sc.SetDefaults) {
+    sc.GraphName = "RagAgent OF24 (turning points, RL exits) - SIM ONLY";
+    sc.StudyDescription = "OF23 turning-point candidates on 1-minute RTH bars; a policy network picks skip or one of 12 brackets; "
+                          "learns online from its simulated trades. Simulation accounts only. docs/ai/OF24_LIVE_SIM_PLAN.md";
+    sc.AutoLoop = 0;
+    sc.UpdateAlways = 1;
+    sc.GraphRegion = 0;
+    sc.UsesMarketDepthData = 1;
+    sc.CalculationPrecedence = LOW_PREC_LEVEL;
+    sc.MaximumPositionAllowed = 1;
+    sc.AllowMultipleEntriesInSameDirection = 0;
+    sc.SupportReversals = 0;
+    sc.AllowOnlyOneTradePerBar = 1;
+    sc.SupportAttachedOrdersForTrading = 1;
+    sc.AllowEntryWithWorkingOrders = 0;
+    sc.CancelAllOrdersOnEntriesAndReversals = 0;
+    sc.MaintainTradeStatisticsAndTradesData = 1;
+    InArmed.Name = "Armed (send SIM orders)";
+    InArmed.SetYesNo(0);
+    InAccount.Name = "Required simulation trade account";
+    InAccount.SetString("Sim9");
+    InWeights.Name = "Starting weights file (experiments/of24_export.py)";
+    InWeights.SetString("C:\\rag-cpp\\build-avx512\\of24\\of24_weights.txt");
+    InLearn.Name = "Learn online from closed sim trades";
+    InLearn.SetYesNo(1);
+    InGreedy.Name = "Greedy actions (No = sample from the policy)";
+    InGreedy.SetYesNo(0);
+    InDayStop.Name = "Daily stop (net ticks lost; 0 = none)";
+    InDayStop.SetInt(120);
+    InDayStop.SetIntLimits(0, 10000);
+    InReplay.Name = "Replay test mode (Yes = orders ONLY during a chart replay, separate weights; No = live only)";
+    InReplay.SetYesNo(0);
+    InUseBook.Name = "Read depth and Market By Order for the book inputs";
+    InUseBook.SetYesNo(1);
+    sc.Subgraph[0].Name = "Long entry";
+    sc.Subgraph[0].DrawStyle = DRAWSTYLE_ARROW_UP;
+    sc.Subgraph[0].PrimaryColor = RGB(0, 200, 0);
+    sc.Subgraph[0].LineWidth = 3;
+    sc.Subgraph[0].DrawZeros = 0;
+    sc.Subgraph[1].Name = "Short entry";
+    sc.Subgraph[1].DrawStyle = DRAWSTYLE_ARROW_DOWN;
+    sc.Subgraph[1].PrimaryColor = RGB(220, 0, 0);
+    sc.Subgraph[1].LineWidth = 3;
+    sc.Subgraph[1].DrawZeros = 0;
+    sc.Subgraph[2].Name = "Candidate skipped";
+    sc.Subgraph[2].DrawStyle = DRAWSTYLE_POINT;
+    sc.Subgraph[2].PrimaryColor = RGB(150, 150, 150);
+    sc.Subgraph[2].LineWidth = 3;
+    sc.Subgraph[2].DrawZeros = 0;
+    return;
+  }
+  void*& slot = sc.GetPersistentPointer(1);
+  if (sc.LastCallToFunction) {
+    State* s = static_cast<State*>(slot);
+    if (s) {
+      if (s->t.live) sc.AddMessageToLog("RagAgent removed with an open SIM trade: its bracket stays, flatten it by hand", 1);
+      if (s->skips_unsaved > 0) s->policy.save(s->weights_live);
+      if (s->log) std::fclose(s->log);
+      delete s;
+    }
+    slot = nullptr;
+    return;
+  }
+  if (sc.IsFullRecalculation && sc.UpdateStartIndex == 0 && slot) {
+    // inputs changed or the chart reloaded: with an open trade keep its identity and the policy and restart the bar
+    // cursor; otherwise start over, so a changed mode or weights path takes effect
+    State* r = static_cast<State*>(slot);
+    if (r->t.live) {
+      r->last_done = -1;
+      r->ended = false;
+    } else {
+      if (r->skips_unsaved > 0) r->policy.save(r->weights_live);
+      if (r->log) std::fclose(r->log);
+      delete r;
+      slot = nullptr;
+    }
+  }
+  const bool replay_mode = slot ? static_cast<State*>(slot)->replay_mode : InReplay.GetYesNo() != 0;
+  if (!slot) {
+    State* s = new (std::nothrow) State();
+    if (!s) return;
+    slot = s;
+    const SCString dir = sc.DataFilesFolder() + "RagAgent";
+    CreateDirectoryA(dir.GetChars(), nullptr);
+    char mod[MAX_PATH] = "?";
+    GetModuleFileNameA(reinterpret_cast<HMODULE>(&__ImageBase), mod, MAX_PATH);
+    const SCDateTime now_utc = sc.ConvertDateTimeFromChartTimeZone(sc.CurrentSystemDateTime, TIMEZONE_UTC);
+    char path[MAX_PATH];
+    std::snprintf(path, sizeof path, "%s\\%s-c%d-%lld.csv", dir.GetChars(), replay_mode ? "replay" : "live", sc.ChartNumber,
+                  static_cast<long long>(now_utc.ToUNIXTimeInMicroseconds() / 1000000));
+    s->log = _fsopen(path, "w", _SH_DENYWR);
+    s->replay_mode = replay_mode;
+    s->rng.seed(static_cast<uint64_t>(now_utc.ToUNIXTimeInMicroseconds()));
+    char wname[64];
+    std::snprintf(wname, sizeof wname, "\\weights_%s_c%d.txt", replay_mode ? "replay" : "live", sc.ChartNumber);
+    s->weights_live = std::string(dir.GetChars()) + wname;
+    // the learned weights if a run already saved some (live mode only), else the starting file
+    const char* from = "learned";
+    s->policy_ok = !replay_mode && s->policy.load(s->weights_live);
+    if (!s->policy_ok) { s->policy_ok = s->policy.load(InWeights.GetString()); from = "start"; }
+    logf(*s, "H,module=%s,symbol=%s,account=%s,tick=%g,seconds_per_bar=%d,replay_mode=%d,weights=%s,weights_ok=%d,updates=%lld,learn=%d,greedy=%d,day_stop=%d\n",
+         mod, sc.Symbol.GetChars(), InAccount.GetString(), sc.TickSize, sc.SecondsPerBar, replay_mode ? 1 : 0, from, s->policy_ok ? 1 : 0,
+         s->policy.updates, InLearn.GetYesNo(), InGreedy.GetYesNo(), InDayStop.GetInt());
+    SCString msg;
+    msg.Format("RagAgent: module %s, weights %s (%s), log %s", mod, from, s->policy_ok ? "ok" : "MISSING: no decisions", path);
+    sc.AddMessageToLog(msg, s->policy_ok ? 0 : 1);
+  }
+  State& s = *static_cast<State*>(slot);
+  if (!(sc.TickSize > 0) || sc.ArraySize < 3) return;
+  const int cur = sc.ArraySize - 1, done = cur - 1;
+  if (sc.IsFullRecalculation || s.last_done < 0) {  // never act on history: start from the bar forming now
+    s.last_done = done;
+    return;
+  }
+
+  s_SCPositionData pos;
+  const bool have_pos = sc.GetTradePosition(pos) > 0;
+  const bool flat_idle = have_pos && pos.PositionQuantity == 0 && !pos.WorkingOrdersExist;
+  const bool account_ok = sc.SelectedTradeAccount.GetLength() > 0 && sc.SelectedTradeAccount.CompareNoCase(InAccount.GetString()) == 0;
+  // replay mode: only while a replay is running; live mode: only with no replay, connected and not downloading
+  const bool feed_ok = replay_mode ? sc.ReplayStatus == REPLAY_RUNNING
+                                   : sc.ReplayStatus == REPLAY_STOPPED && sc.ServerConnectionState == SCS_CONNECTED &&
+                                         !sc.ChartIsDownloadingHistoricalData(sc.ChartNumber);
+  const bool sim_ok = sc.GlobalTradeSimulationIsOn == 1 && account_ok;
+  const bool may_send = InArmed.GetYesNo() != 0 && sim_ok && sc.SecondsPerBar == 60 && feed_ok && s.policy_ok && !s.ended;
+  const ChiTime now = chicago(sc, sc.BaseDateTimeIn[cur]);  // the forming bar's start: the study's clock (also in a replay)
+  const double ts = sc.TickSize;
+
+  // ---- 1. the open trade: closed? time cap? trailing stop?
+  const bool owner_ok = sc.GlobalTradeSimulationIsOn == 1 && s.t.live && sc.SelectedTradeAccount == s.t.account && sc.GetTradeSymbol() == s.t.symbol;
+  if (s.t.live && !owner_ok) {
+    // the chart's account or symbol changed, or simulation was switched off: touch nothing
+  } else if (s.t.live) {
+    if (!s.t.entry_filled) {
+      if (have_pos && pos.PositionQuantity * s.t.dir > 0) s.t.entry_filled = true;
+      for (int i = sc.GetOrderFillArraySize() - 1; i >= 0 && !s.t.entry_filled; --i) {
+        s_SCOrderFillData f;
+        if (sc.GetOrderFillEntry(i, f) && own_fill(sc, f) && f.InternalOrderID == s.t.entry_id) s.t.entry_filled = true;
+      }
+      if (!s.t.entry_filled) {
+        s_SCTradeOrder od;
+        if (sc.GetOrderByOrderID(s.t.entry_id, od) != SCTRADING_ORDER_ERROR &&
+            (od.OrderStatusCode == SCT_OSC_CANCELED || od.OrderStatusCode == SCT_OSC_ERROR)) {
+          logf(s, "E,%d,%d,entry order ended unfilled (status %d)\n", s.t.date, s.t.entry_m, static_cast<int>(od.OrderStatusCode));
+          s.t = Pending{};
+        }
+      }
+    }
+    if (!s.t.live || !s.t.entry_filled) {
+      // nothing to manage yet
+    } else if (flat_idle) {
+      // closed: the entry fill and the last opposite fill after it
+      s_SCOrderFillData fe, fx;
+      bool got_e = false, got_x = false;
+      for (int i = sc.GetOrderFillArraySize() - 1; i >= 0 && !(got_e && got_x); --i) {
+        s_SCOrderFillData f;
+        if (!sc.GetOrderFillEntry(i, f) || !own_fill(sc, f)) continue;
+        if (!got_e && f.InternalOrderID == s.t.entry_id) { fe = f; got_e = true; }
+        else if (!got_x && !got_e && f.BuySell == (s.t.dir > 0 ? BSE_SELL : BSE_BUY)) { fx = f; got_x = true; }
+      }
+      if (got_e && got_x) {
+        const double move = s.t.dir * (fx.FillPrice - fe.FillPrice) / ts;
+        const bool was_target = fx.InternalOrderID == s.t.target_id;
+        const double net = of24::net_ticks(move, was_target);
+        if (s.t.date != s.day) { s.day = s.t.date; s.day_net = 0; s.day_trades = 0; s.day_stopped = false; }
+        s.day_net += net;
+        ++s.day_trades;
+        if (InLearn.GetYesNo()) {
+          s.policy.update(s.t.x, s.t.action, net / 10.0);
+          save_weights(sc, s);
+        }
+        const int stop_lim = InDayStop.GetInt();
+        if (stop_lim > 0 && s.day_net <= -stop_lim) s.day_stopped = true;
+        logf(s, "T,%d,%d,%d,%d,%.2f,%.2f,%.2f,%s,%.2f,%.2f,%d,%lld,%d\n", s.t.date, s.t.entry_m, s.t.dir, s.t.action, fe.FillPrice, fx.FillPrice, move,
+             was_target ? "target" : fx.InternalOrderID == s.t.stop_id ? "stop" : "time", net, s.day_net, s.day_trades, s.policy.updates, s.day_stopped ? 1 : 0);
+      } else {
+        logf(s, "E,%d,%d,closed without matching fills (entry %d exit %d)\n", s.t.date, s.t.entry_m, got_e ? 1 : 0, got_x ? 1 : 0);
+      }
+      s.t = Pending{};
+    } else if (!s.t.flatten_sent && s.t.flatten_try_bar != done && have_pos && pos.PositionQuantity * s.t.dir > 0) {
+      const of24::ExitSpec ex = of24::kMenu[s.t.action - 1];
+      const int m_now = now.date == s.t.date ? now.minute - kOpenMin : kDayBars;  // a later date: past the close
+      const bool cap = m_now >= kDayBars || (ex.hold_min > 0 && m_now >= s.t.entry_m + ex.hold_min);
+      const bool disarmed = InArmed.GetYesNo() == 0;
+      if (cap || disarmed) {
+        const int r = sc.FlattenAndCancelAllOrders();  // owner_ok: simulation on, the trade's own account and symbol
+        s.t.flatten_try_bar = done;                    // a failed flatten is retried at the next completed bar
+        if (r > 0) s.t.flatten_sent = true;
+        else sc.AddMessageToLog("RagAgent: the time-cap flatten failed; retrying at the next bar", 1);
+        logf(s, "X,%d,%d,%s,%d\n", s.t.date, m_now, disarmed ? "disarmed" : "time", r);
+      }
+    }
+  } else if (sim_ok && have_pos && pos.PositionQuantity != 0 && s.orphan_try_bar != done &&
+             (now.minute >= kOpenMin + kDayBars || now.minute < kOpenMin)) {
+    // a position on the agent's own Sim account that this run does not track (a restart, a lost entry): out after the close
+    const int r = sc.FlattenAndCancelAllOrders();
+    s.orphan_try_bar = done;
+    logf(s, "X,%d,%d,orphan,%d\n", now.date, now.minute - kOpenMin, r);
+  }
+
+  // ---- 2. a bar completed
+  if (done > s.last_done) {
+    const bool single = done == s.last_done + 1;  // several at once (a reload, a jump): no decision
+    s.last_done = done;
+    const ChiTime bt = chicago(sc, sc.BaseDateTimeIn[done]);
+    const int m = bt.minute - kOpenMin;
+    // trailing exits: OF23's rule on completed closes (stop to best close - S once the best close is >= S in profit)
+    if (s.t.live && owner_ok && s.t.entry_filled && !s.t.flatten_sent && s.t.stop_id && of24::kMenu[s.t.action - 1].trailing && bt.date == s.t.date && m >= s.t.entry_m) {
+      s_SCOrderFillData f;
+      for (int i = sc.GetOrderFillArraySize() - 1; i >= 0; --i) {
+        if (!sc.GetOrderFillEntry(i, f) || !own_fill(sc, f) || f.InternalOrderID != s.t.entry_id) continue;
+        const int S = of24::kMenu[s.t.action - 1].stop;
+        const double prof = s.t.dir * (sc.Close[done] - f.FillPrice) / ts;
+        if (prof > s.t.best_close_ticks) s.t.best_close_ticks = prof;
+        const double want = s.t.best_close_ticks - S;  // stop level in profit ticks
+        if (s.t.best_close_ticks >= S && want > s.t.stop_at_ticks) {
+          s_SCNewOrder mod;
+          mod.InternalOrderID = s.t.stop_id;
+          mod.Price1 = std::round((f.FillPrice + s.t.dir * want * ts) / ts) * ts;
+          const int r = sc.ModifyOrder(mod);
+          if (r > 0) s.t.stop_at_ticks = want;
+          logf(s, "M,%d,%d,%.2f,%d\n", bt.date, m, mod.Price1, r);
+        }
+        break;
+      }
+    }
+    if (bt.date != s.day) { s.day = bt.date; s.day_net = 0; s.day_trades = 0; s.day_stopped = false; }
+    // the new bar must be the very next minute, so the entry is at open(m + 1) as in OF23
+    const bool next_ok = now.date == bt.date && now.minute == bt.minute + 1;
+    if (single && next_ok && m >= of24::kFirstM && m <= of24::kLastM && s.policy_ok) {
+      of24::Bars day, prev;
+      int lm = 0;
+      of24::Cand c;
+      if (day_bars(sc, bt.date, done, day, lm) && lm == m) {
+        const of24::Levels lv = prev_day_bars(sc, bt.date, done, prev) ? of24::prior_levels(prev) : of24::Levels{};
+        if (of24::candidate_at(day, lv.ok ? &lv : nullptr, bt.dow, c) && !s.t.live && flat_idle) {
+          int levels = 0, mbo_n = 0;
+          std::array<double, of24::kBook> book{};
+          if (InUseBook.GetYesNo()) book = book_features(sc, s, c.dir, levels, mbo_n);
+          const auto x = s.policy.input(c, book);
+          const auto o = s.policy.forward(x);
+          if (!of24::Policy::finite(o)) {
+            s.policy_ok = false;
+            sc.AddMessageToLog("RagAgent: the policy gave a non-finite output; decisions stopped", 1);
+            logf(s, "E,%d,%d,non-finite policy output\n", bt.date, m);
+            return;
+          }
+          int a = InGreedy.GetYesNo() ? of24::Policy::greedy(o) : of24::Policy::sample(o, s.rng);
+          const char* why = "ok";
+          if (!may_send) { why = "not armed or guards"; }
+          else if (s.day_stopped) { why = "daily stop"; }
+          int r = 0;
+          s_SCNewOrder ord;
+          if (a > 0 && may_send && !s.day_stopped) {
+            const of24::ExitSpec ex = of24::kMenu[a - 1];
+            ord.OrderType = SCT_ORDERTYPE_MARKET;
+            ord.OrderQuantity = 1;
+            ord.Symbol = sc.GetTradeSymbol();
+            ord.TradeAccount = sc.SelectedTradeAccount;
+            ord.TextTag = "RagAgentOF24";
+            ord.Target1Offset = ex.target * ts;
+            ord.Stop1Offset = ex.stop * ts;
+            ord.AttachedOrderTarget1Type = SCT_ORDERTYPE_LIMIT;
+            ord.AttachedOrderStop1Type = SCT_ORDERTYPE_STOP;
+            r = static_cast<int>(c.dir > 0 ? sc.BuyEntry(ord, cur) : sc.SellEntry(ord, cur));
+            if (r > 0) {
+              s.t = Pending{};
+              s.t.live = true;
+              s.t.x = x;
+              s.t.action = a;
+              s.t.dir = c.dir;
+              s.t.entry_m = m + 1;
+              s.t.date = bt.date;
+              s.t.entry_id = ord.InternalOrderID;
+              s.t.stop_id = ord.Stop1InternalOrderID;
+              s.t.target_id = ord.Target1InternalOrderID;
+              s.t.stop_at_ticks = -ex.stop;
+              s.t.account = sc.SelectedTradeAccount;
+              s.t.symbol = sc.GetTradeSymbol();
+              sc.Subgraph[c.dir > 0 ? 0 : 1][cur] = static_cast<float>(c.dir > 0 ? sc.Low[done] - 2 * ts : sc.High[done] + 2 * ts);
+            } else if (r <= SCT_SKIPPED_AUTO_TRADING_DISABLED) {
+              why = "skipped by Sierra";  // one trade per bar, auto trading off, downloading: not an error, no retry on this bar
+            } else {
+              s.ended = true;  // a rejected entry: stop until the study is recalculated (never retry each call)
+              why = "rejected";
+            }
+          } else if (a == 0 && may_send && !s.day_stopped) {
+            if (InLearn.GetYesNo()) {
+              s.policy.update(x, 0, 0.0);
+              if (++s.skips_unsaved >= 20) save_weights(sc, s);  // skips are saved in batches; trades at once
+            }
+            sc.Subgraph[2][done] = static_cast<float>(c.dir > 0 ? sc.Low[done] - ts : sc.High[done] + ts);
+          }
+          // D,date,m,dir,action,p(action),value,families(c1_1 c1_5 c1_15 c2 c3 c4 c5 c6),book x6,depth levels,mbo orders,order result,why
+          logf(s, "D,%d,%d,%d,%d,%.4f,%.4f,%g%g%g%g%g%g%g%g,%.3f,%.3f,%.3f,%.3f,%.3f,%.0f,%d,%d,%d,%s\n", bt.date, m, c.dir, a, o.p[a], o.value,
+               c.f[0], c.f[1], c.f[2], c.f[3], c.f[4], c.f[5], c.f[6], c.f[7], book[0], book[1], book[2], book[3], book[4], book[5], levels, mbo_n, r, why);
+        }
+      }
+    }
+  }
 }
 
 ```
@@ -34988,7 +36287,7 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: tools\make_context_pack.py  (4,496 bytes)
+## FILE: tools\make_context_pack.py  (4,553 bytes)
 
 ````python
 #!/usr/bin/env python3
@@ -35036,6 +36335,7 @@ DOCS = [
     "docs/ai/OF20_LEVELS_PLAN.md",
     "docs/ai/OF21_FORWARD_PLAN.md",
     "docs/ai/OF23_SWING_MINING_PLAN.md",
+    "docs/ai/OF24_LIVE_SIM_PLAN.md",
     "experiments/research_synthesis.md",
     "README.md",
 ]
@@ -35044,6 +36344,7 @@ SOURCE_GLOBS = [
     ".github/workflows/ci.yml",
     "include/**/*.hpp",
     "examples/*.cpp",
+    "sierra/*.cpp",
     "bench/*.cpp",
     "bench/*.hpp",
     "tests/*.cpp",
@@ -44593,6 +45894,159 @@ def test_end_to_end_on_a_synthetic_cache(tmp_path, monkeypatch):
     M.report(log=lambda s: None)
     txt = (tmp_path / "results.txt").read_text(encoding="utf-8")
     assert "PRIMARY:" in txt and "RL-trade" in txt and "deflated Sharpe" in txt and "resolution check" in txt
+
+```
+
+
+---
+
+## FILE: python\tests\test_of24.py  (6,064 bytes)
+
+```python
+"""OF24 (docs/ai/OF24_LIVE_SIM_PLAN.md): the C++ live kernel gives OF23's candidates, features and policy outputs.
+Synthetic bars only."""
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+import numpy as np
+import pytest
+
+REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO / "experiments"))
+import of23_mine as M  # noqa: E402
+from test_of23 import day_bars  # noqa: E402
+
+RAGOF_DIR = Path(os.environ.get("RAGOF_DIR", REPO / "build-avx512" / "Release"))
+EXE = RAGOF_DIR / "of24_parity.exe"
+F_IN, H, A = len(M.FEATS) + 6, 64, 13
+
+
+def need_exe():
+    if not EXE.exists():
+        if os.environ.get("RAGOF_REQUIRED", "") not in ("", "0"):
+            pytest.fail(f"{EXE} is missing (build the of24_parity target)")
+        pytest.skip("of24_parity is not built")
+
+
+def write_bars(path, prev, b, dow):
+    rows = []
+    for d in ([prev] if prev is not None else []) + [b]:
+        rows += [" ".join(repr(float(d[k][i])) for k in ("open", "high", "low", "close", "volume", "buy", "sell")) for i in range(len(d["open"]))]
+    path.write_text(f"{0 if prev is None else len(prev['open'])} {len(b['open'])} {dow}\n" + "\n".join(rows) + "\n", encoding="ascii")
+
+
+def run(*args):
+    p = subprocess.run([str(EXE), *map(str, args)], capture_output=True, text=True)
+    assert p.returncode == 0, p.stderr
+    out = {"L": [], "C": [], "P": [], "U": []}
+    for line in p.stdout.splitlines():
+        t = line.split()
+        out[t[0]].append([float(x) for x in t[1:]])
+    return out
+
+
+def close(a, b, tol=1e-9):
+    a, b = np.asarray(a, float), np.asarray(b, float)
+    return a.shape == b.shape and bool(np.all((np.isnan(a) & np.isnan(b)) | (np.abs(a - b) <= tol * (1 + np.abs(b)))))
+
+
+def exhaustion(b, m=200):
+    b["high"][m] = b["high"][m - 29:m].max() + 40
+    b["low"][m] = b["close"][m - 1] - 2
+    b["close"][m] = b["low"][m] + 3
+    b["volume"][m] = b["volume"][:m].max() * 2
+    b["sell"][m] = b["volume"][m] - b["buy"][m]
+    return b
+
+
+def test_candidates_and_features_match_of23(tmp_path):
+    need_exe()
+    seen = set()
+    for seed in range(6):
+        b = day_bars(seed)
+        if seed == 5:
+            b = exhaustion(b)
+        prev = day_bars(100 + seed) if seed % 3 else None
+        lv = M.prior_levels(prev) if prev is not None else None
+        py = M.candidates(b, lv, seed % 5)
+        f = tmp_path / f"bars{seed}.txt"
+        write_bars(f, prev, b, seed % 5)
+        out = run(f)
+        if lv is not None:
+            assert close(out["L"][0], [lv[k] for k in M.LEVELS])
+        assert [int(c[0]) for c in out["C"]] == [c["m"] for c in py], seed
+        for cc, pc in zip(out["C"], py):
+            assert int(cc[1]) == int(pc["dir"])
+            got, want = cc[2:], [pc[k] for k in M.FEATS]
+            assert close(got, want), (seed, pc["m"], [(k, g, w) for k, g, w in zip(M.FEATS, got, want) if not close([g], [w])])
+            seen |= {k for k in M.FEATS[:8] if pc[k]}
+    assert {"c1_1", "c1_5", "c1_15", "c2", "c3", "c4", "c5", "c6"} <= seen, seen
+
+
+def write_weights(path, rng):
+    arrs = {"mu": rng.normal(size=37), "sd": rng.uniform(0.5, 2.0, 37)}
+    for p, out in (("pol", A), ("val", 1)):
+        arrs[f"{p}_W1"], arrs[f"{p}_b1"] = rng.normal(0, 0.2, (H, F_IN)), rng.normal(0, 0.1, H)
+        arrs[f"{p}_W2"], arrs[f"{p}_b2"] = rng.normal(0, 0.2, (H, H)), rng.normal(0, 0.1, H)
+        arrs[f"{p}_W3"], arrs[f"{p}_b3"] = rng.normal(0, 0.2, (out, H)), rng.normal(0, 0.1, out)
+    lines = ["OF24W 1", f"in {F_IN} hidden {H} actions {A} updates 0"]
+    for k, a in arrs.items():
+        lines += [f"{k} {a.size}", " ".join(repr(float(x)) for x in a.ravel())]
+    path.write_text("\n".join(lines) + "\n", encoding="ascii")
+    return arrs
+
+
+def fwd(w, p, x):
+    h1 = np.tanh(w[f"{p}_W1"] @ x + w[f"{p}_b1"])
+    h2 = np.tanh(w[f"{p}_W2"] @ h1 + w[f"{p}_b2"])
+    return w[f"{p}_W3"] @ h2 + w[f"{p}_b3"]
+
+
+def test_policy_forward_and_update_match_torch(tmp_path):
+    need_exe()
+    import torch
+    rng = np.random.default_rng(1)
+    b = day_bars(2)
+    write_bars(tmp_path / "bars.txt", None, b, 1)
+    w = write_weights(tmp_path / "w.txt", rng)
+    out = run(tmp_path / "bars.txt", tmp_path / "w.txt")
+    py = M.candidates(b, None, 1)
+    assert len(out["P"]) == len(py) > 10
+    for k, pc in enumerate(py[:25]):
+        f = np.array([pc[n] for n in M.FEATS])
+        x = np.r_[np.nan_to_num((f - w["mu"]) / w["sd"]), np.zeros(6)]
+        assert close(out["P"][k], np.r_[fwd(w, "pol", x), fwd(w, "val", x)], 1e-9)
+        # one actor-critic step (lr 1e-4, entropy 0.01, clip 1 per network) with torch autograd
+        T = {n: torch.tensor(a, dtype=torch.float64, requires_grad=True) for n, a in w.items() if n not in ("mu", "sd")}
+        xt = torch.tensor(x)
+
+        def net(p):
+            return T[f"{p}_W3"] @ torch.tanh(T[f"{p}_W2"] @ torch.tanh(T[f"{p}_W1"] @ xt + T[f"{p}_b1"]) + T[f"{p}_b2"]) + T[f"{p}_b3"]
+        logits, v = net("pol"), net("val")[0]
+        lp = torch.log_softmax(logits, 0)
+        adv = (0.5 - v).detach()
+        lossp = -adv * lp[3] + 0.01 * (lp.exp() * lp).sum()
+        lossv = 0.5 * (v - 0.5) ** 2
+        w2 = dict(w)
+        for p, loss in (("pol", lossp), ("val", lossv)):
+            names = [f"{p}_{s}" for s in ("W1", "b1", "W2", "b2", "W3", "b3")]
+            g = torch.autograd.grad(loss, [T[n] for n in names])
+            norm = float(torch.sqrt(sum((x_ ** 2).sum() for x_ in g)))
+            k_ = 1e-4 * (1.0 / norm if norm > 1.0 else 1.0)
+            for n, gi in zip(names, g):
+                w2[n] = w[n] - k_ * gi.numpy()
+        assert close(out["U"][k], np.r_[fwd(w2, "pol", x), fwd(w2, "val", x)], 1e-9), k
+
+
+def test_exit_menu_matches_of23():
+    txt = (REPO / "include" / "rag" / "live" / "of24_kernel.hpp").read_text(encoding="utf-8")
+    menu = txt.split("kMenu = {{")[1].split("}};")[0]
+    import re
+    got = re.findall(r"\{(\d+), (\d+), (\d+), (true|false)\}", menu)
+    want = [(str(T), str(S), "0" if H_ is None else str(H_), "true" if tr else "false") for (T, S, H_, tr) in (M.EXITS[e] for e in M.MENU_E)]
+    assert got == want
 
 ```
 

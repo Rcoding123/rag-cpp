@@ -280,6 +280,9 @@ if(RAG_PYTHON)
   target_link_libraries(_ragof PRIVATE rag)
   add_executable(of15_refdump examples/of15_refdump.cpp)
   target_link_libraries(of15_refdump PRIVATE rag)
+  # OF24: the live-agent kernel against experiments/of23_mine.py (python/tests/test_of24.py)
+  add_executable(of24_parity examples/of24_parity.cpp)
+  target_link_libraries(of24_parity PRIVATE rag)
   # The pytest suite (fast; `smoke`-marked tests are separate ctests). RAGOF_REQUIRED=1: a module that
   # does not import, or a missing of15_refdump, fails the suite instead of skipping it; -rs lists skips.
   add_test(NAME ragrl_pytest COMMAND ${Python_EXECUTABLE} -m pytest -q -rs -p no:cacheprovider -m "not smoke" ${CMAKE_CURRENT_SOURCE_DIR}/python/tests

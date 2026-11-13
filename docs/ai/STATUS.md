@@ -204,7 +204,9 @@
    −1.99 ticks per trade (t −2.52), no better than random entries with
    its exits; the must-trade RL agent learned to take the widest exit
    (48 / 16 to the close) and lost −2.33 per trade, the random-walk
-   rate for that exit after costs.
+   rate for that exit after costs. OF24 (A93) puts that agent into
+   Sierra Chart as a sim-only study with live depth and MBO inputs and
+   online learning: built and reviewed, not yet loaded or run.
    Next (the user's choice): passive execution, which needs queue data
    (MBO) to replay honestly, or other information; the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
