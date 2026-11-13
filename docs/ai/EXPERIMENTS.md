@@ -2288,7 +2288,7 @@ frozen with OF19/OF20's code by sha256 (plan section 8, checked by
   results file still reproduces byte for byte after the `overnight()`
   guard change.
 
-## OF23. Mining turning-point entries with wide exits: pre-registered, not run
+## OF23. Mining turning-point entries with wide exits: pre-registered and built, not run
 
 At the user's request ("let it hold trades, try to pick tops and bottoms,
 an extended profit target ... train it like a data mining algorithm").
@@ -2317,3 +2317,14 @@ Plan `OF23_SWING_MINING_PLAN.md`, revised after a design review (needs-work,
 * **Build Alpha** (offered by the user; not installed): descriptive only,
   after OF23's test months are scored, on the same days and fold
   boundaries; any strategy it finds is a lead for OF23b.
+* **RL arms** (amendment 6b, at the user's request "let the RL agent
+  trade, let it figure out"): PPO agents on the same candidates as
+  episodes, one that must trade and picks one of 12 exits, one that may
+  skip; behaviour reported first; they join the secondaries (M = 15).
+* **Built** (`experiments/of23_mine.py`, frozen by sha256 in plan 9b;
+  `python/tests/test_of23.py`: truncation leak test, fills on synthetic
+  records, each family, the in-order walk, an end-to-end run of the
+  workers and report on a synthetic cache). Only candidate counts were
+  computed on real bars: about 25,000 on 228 days (C1 most, C6 85).
+  Run: `kit.ps1 run of23 'python experiments/of23_mine.py --run'`,
+  about 1.5-2.5 hours on 24 threads.

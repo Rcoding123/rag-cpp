@@ -81,9 +81,12 @@ def main():
     files = [f for f in DOCS if (ROOT / f).is_file()]
     if args.with_source:
         seen = set(files)
-        for pattern in SOURCE_GLOBS:
+        tracked = {t.replace("\\", "/") for t in tracked_files()}  # files on disk that git does not track (another
+        for pattern in SOURCE_GLOBS:                                 # session's work in progress) stay out
             for p in sorted(ROOT.glob(pattern)):
                 rel = str(p.relative_to(ROOT))
+                if tracked and rel.replace("\\", "/") not in tracked:
+                    continue
                 if p.is_file() and rel not in seen:
                     files.append(rel)
                     seen.add(rel)

@@ -29,6 +29,7 @@ docs/ai/OF19_FOOTPRINT_PLAN.md
 docs/ai/OF20_LEVELS_PLAN.md
 docs/ai/OF21_FORWARD_PLAN.md
 docs/ai/OF22_REAL_LEARNING_PLAN.md
+docs/ai/OF23_SWING_MINING_PLAN.md
 docs/ai/ORDERFLOW.md
 docs/ai/PROJECT_MAP.md
 docs/ai/RAG_ENGINE.md
@@ -228,6 +229,7 @@ experiments/of20_atlevels.txt
 experiments/of20_levels.py
 experiments/of21_forward.py
 experiments/of21_rehearsal.txt
+experiments/of23_mine.py
 experiments/of2_baselines.cpp
 experiments/of2_results.txt
 experiments/of3_rl.cpp
@@ -336,6 +338,7 @@ python/tests/test_bit_identity.py
 python/tests/test_ledger.py
 python/tests/test_of19.py
 python/tests/test_of21.py
+python/tests/test_of23.py
 python/tests/test_pipeline.py
 python/tests/test_privileged.py
 python/tests/test_real.py
@@ -3154,7 +3157,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (139,725 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (140,466 bytes)
 
 # RL experiment log
 
@@ -5446,7 +5449,7 @@ frozen with OF19/OF20's code by sha256 (plan section 8, checked by
   results file still reproduces byte for byte after the `overnight()`
   guard change.
 
-## OF23. Mining turning-point entries with wide exits: pre-registered, not run
+## OF23. Mining turning-point entries with wide exits: pre-registered and built, not run
 
 At the user's request ("let it hold trades, try to pick tops and bottoms,
 an extended profit target ... train it like a data mining algorithm").
@@ -5475,12 +5478,23 @@ Plan `OF23_SWING_MINING_PLAN.md`, revised after a design review (needs-work,
 * **Build Alpha** (offered by the user; not installed): descriptive only,
   after OF23's test months are scored, on the same days and fold
   boundaries; any strategy it finds is a lead for OF23b.
+* **RL arms** (amendment 6b, at the user's request "let the RL agent
+  trade, let it figure out"): PPO agents on the same candidates as
+  episodes, one that must trade and picks one of 12 exits, one that may
+  skip; behaviour reported first; they join the secondaries (M = 15).
+* **Built** (`experiments/of23_mine.py`, frozen by sha256 in plan 9b;
+  `python/tests/test_of23.py`: truncation leak test, fills on synthetic
+  records, each family, the in-order walk, an end-to-end run of the
+  workers and report on a synthetic cache). Only candidate counts were
+  computed on real bars: about 25,000 on 228 days (C1 most, C6 85).
+  Run: `kit.ps1 run of23 'python experiments/of23_mine.py --run'`,
+  about 1.5-2.5 hours on 24 threads.
 
 
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (38,721 bytes)
+## FILE: docs/ai/DECISIONS.md  (39,186 bytes)
 
 # Decision log
 
@@ -5615,6 +5629,7 @@ the code looks the way it does.
 | A88 | `ragrl train` workers end with `cli.hard_exit(0)` (flush stdout and stderr, then TerminateProcess on the own process) instead of `os._exit(0)` (A84) | A gate worker still crashed (0xC0000005) on the `os._exit` line after its work: on Windows `os._exit` runs ExitProcess's DLL detach and CRT teardown with the OpenMP threads already killed; TerminateProcess runs no DLL code (LESSONS 63). Worker files are closed per write, so nothing is lost |
 | A89 | Every `python -m ragrl` command that returns ends with `cli.hard_exit` (in `__main__`), not only the train workers (A88) | A `ragrl seal` child crashed with 0xC0000005 in the native teardown after printing its final line (LESSONS 64); all ragrl processes load torch and `_ragof`. Commands that raise keep the interpreter's traceback and nonzero exit; files are closed per write, sqlite (hpo) commits per trial |
 | A90 | OF23 pre-registered: nested walk-forward mining of six turning-point candidate families with a 240-exit grid on the 228 days of bars, choices inside training only (primary M = 1), Build Alpha descriptive only and after scoring | The user asked for held trades, tops and bottoms, wide targets and data mining; the plan keeps all selection inside training, resolves the path inside bars from the records, and sends any pass to OF23b on fresh days |
+| A91 | OF23 adds two RL arms (PPO over each day's candidates: one must trade and picks one of 12 exits, one may skip) and is built and frozen before any label or outcome was computed (plan 6b, 9b) | The user asked to let the agent trade and learn rather than gate on edge at each step; the arms report behaviour first and still count as secondaries (M = 15, t >= 4.33). Code review fixes (day denominators, empty families, gap entries) went in before the freeze |
 
 
 
@@ -5705,7 +5720,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (13,654 bytes)
+## FILE: docs/ai/STATUS.md  (13,743 bytes)
 
 # Status, limitations and next steps
 
@@ -5908,7 +5923,8 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
    OF23 pre-registers a walk-forward mining of turning-point entries
    (swings, failed extremes, level and VWAP fades, FVG retests,
    exhaustion) with wide exits (240 target/stop/cap/trailing choices)
-   on the same 228 days (A90; not run).
+   on the same 228 days (A90), plus two PPO agents on the same
+   candidates that keep trading (A91); built and frozen, not run.
    Next (the user's choice): passive execution, which needs queue data
    (MBO) to replay honestly, or other information; the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
@@ -6575,7 +6591,7 @@ step. What remains, in order:
 
 ---
 
-## FILE: docs/ai/NEXT_SESSION.md  (20,316 bytes)
+## FILE: docs/ai/NEXT_SESSION.md  (20,386 bytes)
 
 # Continuing the work: the prompt and the Claude Code agent architecture
 
@@ -6645,8 +6661,9 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > than a plain level touch.
 > **OF23** (`OF23_SWING_MINING_PLAN.md`, pre-registered, A90): nested
 > walk-forward mining of turning-point entries with wide exits on the
-> 228 days of bars; build `experiments/of23_mine.py` and its tests, freeze
-> it, tell the user the 3-4 h estimate, then run once.
+> 228 days of bars, plus two PPO agents on the same candidates (A91);
+> `experiments/of23_mine.py` is built and frozen: run it once
+> (`--run`, about 1.5-2.5 h on 24 threads, after telling the user).
 > **OF21** (`OF21_FORWARD_PLAN.md`, pre-registered, A87): forward test of
 > exhaustion at the OF20 levels on days from 2026-11-12. Run `--count`
 > any time; a look only when the count reaches 60 / 125 / 250 full days
@@ -7945,7 +7962,7 @@ change):
 
 ---
 
-## FILE: docs/ai/OF23_SWING_MINING_PLAN.md  (18,719 bytes)
+## FILE: docs/ai/OF23_SWING_MINING_PLAN.md  (22,583 bytes)
 
 # OF23 plan: mining turning-point entries with wide exits on real ES bars
 
@@ -8134,7 +8151,8 @@ reported as low-power.
    and predicts it, giving an out-of-fold prediction for every training
    candidate. Parameters fixed: objective l2 on the label clipped to ±60
    ticks, num_leaves 15, min_data_in_leaf 100 (lowered to n/20 when a
-   fit has fewer than 2,000 rows), learning_rate 0.03, 200 rounds,
+   fit has fewer than 2,000 rows; below 40 rows the prediction is the
+   training mean), learning_rate 0.03, 200 rounds,
    feature_fraction 0.7, bagging 0.7 every 1, lambda_l2 10, seed 0,
    deterministic true, force_row_wise true, num_threads 4.
 2. **Simulate in order:** for each (e, q), q ∈ {top 10%, 25%, 50%,
@@ -8156,10 +8174,38 @@ The test month is touched once per fold by the fixed policy. Every
 choice (exit, cut, models) is made inside training, so the 9 test
 months together score **one** procedure: the primary has M = 1.
 
-**Secondaries (M = 13):** the same procedure restricted to each family
+**Secondaries (M = 15):** the same procedure restricted to each family
 (6); the same per family without the model (q = 100% only; e chosen by
-step 2-3: 6); and the pooled procedure without the model (1).
-t_req = 2 + sqrt(2 ln 13) = 4.26.
+step 2-3: 6); the pooled procedure without the model (1); and the two RL
+arms of section 6b (2). t_req = 2 + sqrt(2 ln 15) = 4.33.
+
+### 6b. RL arms (amendment 2026-11-13, before any OF23 code existed)
+
+The user, on seeing the plan: "let the RL agent trade, let it figure
+out and work it out". Two RL agents learn the same problem as a
+sequential decision, inside the same folds and training days:
+
+- **Episode** = one day's candidates in time order. While flat, at each
+  candidate the agent sees the section 5 features (standardized on the
+  fold's training rows, missing = 0), and acts (so each seed's greedy
+  action is a function of the candidate alone). Taking a trade with exit k moves the
+  episode to the first candidate decided at or after the exit minute;
+  reward = the label's net ticks (base costs) / 10; skipping = 0.
+- **Exit menu (12):** (T, S, H) ∈ {(8, 4, 30), (12, 6, 60), (16, 8, 60),
+  (24, 8, 120), (32, 12, EOD), (48, 16, EOD)} × trailing {off, on}.
+- **RL-trade (must trade):** actions = the 12 exits; it takes every
+  candidate it meets while flat and learns which exit to use.
+- **RL-free:** actions = skip + the 12 exits; it may learn to wait.
+- **Learner:** PPO, MLP 2 × 64 tanh (separate policy and value heads),
+  all training days as parallel episodes per iteration, 300 iterations,
+  γ = 1, GAE λ 0.95, clip 0.2, 4 epochs, minibatch 512, lr 3e-4,
+  entropy 0.01, torch threads 1, seeds 0-4. Test: each seed acts
+  greedily; the arm's policy is the vote of the 5 seeds (ties to the
+  lower action index, skip = 0), and every seed is reported alone too.
+- **Reported first, as behaviour:** trades per day, exits chosen, win
+  rate, average win and loss, holding time, net by month; then the same
+  statistics as the secondaries. They count toward the secondaries, so
+  M = 15 and t_req = 2 + sqrt(2 ln 15) = 4.33.
 
 **Naive mining, descriptive only:** the same steps 1-3 run once on all
 228 days (blocks = all months), and its chosen combination scored on
@@ -8195,7 +8241,7 @@ information" from "the model carries information".
 6. ≥ 0.5 trades per test day on average.
 7. Positive mean without the 5 best test days (LESSONS 61).
 
-A secondary is an edge only under the same seven with t ≥ 4.26.
+A secondary is an edge only under the same seven with t ≥ 4.33.
 
 **A pass is never a claim:** it goes to OF23b, a fresh pre-registration
 on days from 2026-11-12, written before any such day is read for it and
@@ -8283,6 +8329,38 @@ test; resolution bias above 0.25 ticks.
   × 7 pipelines), ~0.5 s each, 6 at a time at 4 threads, plus a record
   pass for the path inside bars: about 3-4 hours on the server. The user
   is told the estimate before the run.
+
+### 9b. Implementation notes and freeze (amendment 2026-11-13, before any label or outcome was computed)
+
+Written with the code, after an independent code review (no lookahead or
+leakage found; its fixes are in). Only candidate counts per family and
+month were computed on the real bars (`--check`, no labels, no P&L):
+about 25,000 candidates on 228 days, C1 the large majority, C6 85 in all
+(so the C6 rows will mostly trade nothing; reported as they come out).
+
+- **No entry into a gap bar:** a candidate whose bar m + 1 has no trade
+  is dropped (there is no price to enter at); a time exit whose bar is a
+  gap moves to the next bar that trades.
+- **Prior day:** levels come from the previous used session only when it
+  is the same contract and no session between was dropped (a half day or
+  holiday leaves the next day without C3 and with missing level features).
+- **Cut:** "above the cut" is strict (prediction > cut); q = 100% takes
+  every candidate. Below 40 training rows the prediction is the clipped
+  training mean, so such a pipeline takes every candidate at any q.
+- **Training days** for net per day and the 0.5 floor are all used days
+  before the test month, also for the family pipelines (a family is not
+  credited with the days it had no candidate). A pipeline with no
+  training candidate trades nothing in that fold.
+- **Naive mining** applies the 0.5 floor over all days and the step-3
+  tie order (pipeline, then q, then exit order) before taking the best.
+- **Workers** run as separate processes, 6 at a time, each ending with
+  `ragrl.cli.hard_exit` (LESSONS 63-64); work files go to
+  `build-avx512/of23/`; `--run` resumes from finished jobs.
+- **Measured compute** (synthetic data at full scale): one RL training
+  about 1 minute (90 in all); labels under 1 ms per candidate (6 ms on
+  tick days). Expected wall time on the server: about 1.5-2.5 hours.
+- **Freeze:** `experiments/of23_mine.py` sha256 `2680114ab00f905162e03b08c05ce7d59f7ae474cce634fb0e6b18ac192e7896`
+  (CRLF read as LF), checked by `python/tests/test_of23.py`.
 
 
 
