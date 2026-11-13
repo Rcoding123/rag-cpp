@@ -58,6 +58,14 @@ record's high is the ask, its low the bid and its close the trade price.
   any minute of its feature window (the 30 min before it) or of its
   holding period is a gap; a day with more than 5 gap minutes is dropped
   and listed. Early closes drop out by the same rule.
+- **Amendment 2026-11-12 (bars built, before any OF18 statistic).** The
+  bars show ESH26 at 150,046 RTH lots on 2025-12-12 against 847,556 to
+  1,664,448 on 12-15..12-18, and the March roll's volume crossing on the
+  Monday after the CME roll date (03-16): 12-12 was still the back month
+  by volume, the rule above. The span starts **2025-12-15**. Built: 236
+  weekdays with trades; 7 holiday or half sessions have 165-180 gap
+  minutes and drop out; 228 used days; 0 OHLC violations; tick records
+  from 2026-09-08.
 - The 13 OF16 days (8 seen, 5 dev) are inside the span. They helped form
   the hypothesis, so a sensitivity run without them is reported (§5).
 
