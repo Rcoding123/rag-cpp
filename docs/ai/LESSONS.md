@@ -358,3 +358,12 @@ building learning systems in general, not just this task.
     Every `python -m ragrl` process loads torch and `_ragof`, so
     `__main__` now ends every command that returns with `hard_exit`;
     a command that raises still exits through the interpreter, nonzero.
+65. **With no information at the entry, the exit only reshapes the loss.**
+    OF23's must-trade RL agent chose a 48-tick target with a 16-tick stop
+    for most trades and won 27%: the gambler's-ruin probability of +49
+    before −16 on a random walk is 24.6%, which after costs is about −2.2
+    ticks per trade, what it lost (−2.33). It picked the wide exit because
+    a long hold blocks later forced trades, so fewer trades a day lose
+    less a day. Before reading an exit choice as skill, compare its win
+    rate with the random-walk hit rate S/(T + S) and with random entries
+    at the same exit (OF23).

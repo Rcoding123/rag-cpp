@@ -1,0 +1,78 @@
+OF23: turning-point entries with wide exits, mined walk-forward on real ES 1-min bars
+plan docs/ai/OF23_SWING_MINING_PLAN.md; runner sha256 2680114ab00f905162e03b08c05ce7d59f7ae474cce634fb0e6b18ac192e7896; manifest sha256 7134cdb0a055f523b54d05b4c10a9319fffb8836740083629a55139e7843e1ab
+lightgbm 4.7.0, torch 2.15.0+cpu, numpy 2.5.4
+days 228 used (2025-12-15 .. 2026-11-11), 7 dropped; candidates 24983; test days 178 (2026-03 .. 2026-11)
+
+== What the agents did (test months, one trade at a time) ==
+RL-trade (must trade, picks the exit): 5989 trades, 33.65/day; win 27%, avg win +30.79, avg loss -14.80; exits target 24% / stop 75% / time 1%; net -2.33 ticks/trade (-78.52/day)
+    most used exits: T48/S16/EOD 3226, T8/S4/30m/trail 565, T48/S16/EOD/trail 510, T8/S4/30m 372
+    holding 8 min on average; long -2.43, short -2.24 ticks/trade; by family: C1 -2.48 (3853), C2 -3.28 (748), C3 -0.66 (692), C4 -1.43 (501), C5 -1.96 (534), C6 -3.59 (60)
+    per seed net/trade: s0 -2.24 (6132), s1 -2.49 (6211), s2 -2.45 (6235), s3 -2.38 (6157), s4 -2.16 (6183)
+    by month: 03 -2.6, 04 -3.2, 05 -1.6, 06 -2.3, 07 -2.1, 08 -2.8, 09 -2.3, 10 -1.2, 11 -3.0
+RL-free (may skip): 3237 trades, 18.19/day; win 24%, avg win +41.90, avg loss -17.45; exits target 22% / stop 77% / time 1%; net -3.22 ticks/trade (-58.57/day)
+    most used exits: T48/S16/EOD 2825, T16/S8/60m 142, T48/S16/EOD/trail 84, T12/S6/60m 56
+    holding 13 min on average; long -3.38, short -3.13 ticks/trade; by family: C1 -3.41 (2011), C2 -5.72 (350), C3 -1.53 (234), C4 -3.24 (227), C5 -2.37 (552), C6 +1.56 (39)
+    per seed net/trade: s0 -2.53 (3857), s1 -2.92 (3814), s2 -2.77 (3799), s3 -2.56 (3820), s4 -2.40 (3807)
+    by month: 03 -1.8, 04 -5.9, 05 -2.2, 06 -2.0, 07 -5.8, 08 -2.3, 09 -2.2, 10 -2.2, 11 -6.0
+GBM miner (pooled, primary): 945 trades, 5.31/day; win 33%, avg win +25.91, avg loss -15.94; exits target 27% / stop 67% / time 6%; net -1.99 ticks/trade (-10.56/day)
+    most used exits: T32/S16/30m/trail 153, T32/S16/EOD 146, T48/S12/30m 139, T16/S16/30m/trail 107
+    holding 10 min on average; long -3.56, short -1.14 ticks/trade; by family: C1 -1.66 (610), C2 -4.84 (116), C3 +2.05 (62), C4 -1.35 (81), C5 -2.92 (111)
+    by month: 03 -0.7, 04 -3.4, 05 -1.0, 06 -3.6, 07 -4.9, 08 -0.2, 09 +2.7, 10 -3.0, 11 -0.2
+
+== Primary: the pooled mining procedure (M = 1, t >= 2) ==
+fold  month    exit                  q     train net/day  train trades/day  test net/day  test trades/day  test net/trade
+   1  2026-03  T48/S16/30m           0.10          +8.80              6.44         -3.53             4.82           -0.73
+   2  2026-04  T16/S16/30m/trail     0.10          +1.84              7.74        -17.53             5.10           -3.44
+   3  2026-05  T16/S16/60m/trail     0.10          -1.29              8.20         -5.43             5.20           -1.04
+   4  2026-06  T48/S12/30m           0.10          +1.73              7.36        -23.96             6.62           -3.62
+   5  2026-07  T32/S16/30m/trail     0.10          -1.37              7.72        -33.99             6.95           -4.89
+   6  2026-08  T48/S8/120m           0.10          -9.63              7.31         -0.87             4.86           -0.18
+   7  2026-09  T32/S16/30m           0.10          -4.20              6.90        +11.21             4.19           +2.68
+   8  2026-10  T32/S16/EOD           0.10          -4.51              5.93        -12.83             4.27           -3.00
+   9  2026-11  T32/S16/EOD           0.10          -2.25              5.80         -1.21             6.50           -0.19
+pooled: 945 trades (5.31/day), net -1.99 ticks/trade, SE 0.79, t -2.52; training out-of-fold net/trade (mean of folds) -0.17
+  halves -2.96 / -0.22; stress -2.87; without the 5 best days -2.71; median -14.28; without the top 1% -2.46
+  random-time control: mean -2.65, 95th percentile -1.29; random-candidate control: mean -2.84, 95th -1.38
+  resolution check (47 tick days, 5100 candidates x 49 exits): 1-s minus tick -0.00 ticks/trade, SE 0.00, upper 95% +0.00 (needs <= +0.25): PASS
+  conditions: t >= 2 no; both halves > 0 no; stress > 0 no; above random-time p95 no; resolution check yes; >= 0.5 trades/day yes; > 0 without best 5 days no
+  PRIMARY: NO EDGE; bound X = +1.58 ticks/trade; detectable at t = 2: 1.58 ticks/trade
+  red flags: none
+
+== Secondaries (M = 15, t >= 4.33) ==
+row               trades  /day   net/trade  SE     t      halves          stress  no-best5  rand-p95  edge
+C1 model             719  4.04      -2.01  0.73   -2.74   -1.90/-2.18    -2.79     -2.85     -0.93  no
+C2 model             105  0.59      -2.64  1.44   -1.84   -3.71/-1.33    -3.52     -4.89     -0.13  no
+C3 model             190  1.07      -4.30  1.61   -2.67   -4.63/-3.54    -5.33     -6.29     +0.18  no
+C4 model             123  0.69      -1.78  1.89   -0.94   -3.76/+1.12    -2.70     -4.63     +0.74  no
+C5 model             317  1.78      -0.60  1.50   -0.40   -3.74/+3.00    -1.54     -2.59     -0.04  no
+C6 model              76  0.43      -2.90  0.74   -3.94   -3.80/-1.27    -3.86     -3.89     -1.16  no
+C1 no-model         4567  25.66      -2.43  0.36   -6.79   -2.42/-2.45    -3.33     -2.77     -0.98  no
+C2 no-model         1112  6.25      -2.32  0.56   -4.17   -2.07/-2.65    -3.06     -2.84     -1.37  no
+C3 no-model         1162  6.53      -2.10  0.70   -3.02   -1.88/-2.68    -2.99     -2.87     -0.26  no
+C4 no-model          878  4.93      -3.16  0.50   -6.39   -3.27/-2.98    -4.03     -3.68     -1.46  no
+C5 no-model         1345  7.56      -1.27  0.68   -1.86   -1.06/-1.61    -2.24     -2.00     -0.93  no
+C6 no-model           76  0.43      -2.90  0.74   -3.94   -3.80/-1.27    -3.86     -3.89     -1.16  no
+pooled no-model     5762  32.37      -2.07  0.30   -6.94   -1.94/-2.43    -2.94     -2.33     -0.77  no
+rl_trade            5989  33.65      -2.33  0.29   -8.08   -2.40/-2.18    -3.30     -2.61     -1.61  no
+rl_free             3237  18.19      -3.22  0.57   -5.68   -3.41/-2.83    -4.20     -3.81     -1.12  no
+
+bars alone (stop first when a bar reaches both): primary net -2.09 vs -1.99 from the records
+two-touch share, short exits: bars 3.6%, records 0.0%
+two-touch share, wide exits: bars 0.5%, records 0.0%
+two-touch share (a bar / a step reached both target and stop at the chosen exits), by month:
+  2026-03: bars 2.6%, records 0.0%
+  2026-04: bars 1.3%, records 0.0%
+  2026-05: bars 1.2%, records 0.0%
+  2026-06: bars 2.9%, records 0.0%
+  2026-07: bars 1.6%, records 0.0%
+  2026-08: bars 0.5%, records 0.0%
+  2026-09: bars 0.7%, records 0.0%
+  2026-10: bars 1.2%, records 0.0%
+  2026-11: bars 3.1%, records 0.0%
+
+== Naive mining (descriptive): the best combination chosen on all 228 days at once ==
+best of 8400 trials: C5 model q 0.25 T48/S12/60m: net +5.42 ticks/day over 228 days, naive t +2.07
+  deflated Sharpe ratio 0.000 (N 8400, effective 7758, mean pairwise correlation 0.08)
+  the same pipeline walk-forward: net -0.60 ticks/trade on the test months (t -0.40)
+
+Behaviour is reported first at the user's request; the decision rule is the plan's (section 7). A pass is a lead for OF23b on days from 2026-11-12, never a claim.

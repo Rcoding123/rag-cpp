@@ -229,7 +229,9 @@ experiments/of20_atlevels.txt
 experiments/of20_levels.py
 experiments/of21_forward.py
 experiments/of21_rehearsal.txt
+experiments/of23_ba_export.py
 experiments/of23_mine.py
+experiments/of23_results.txt
 experiments/of2_baselines.cpp
 experiments/of2_results.txt
 experiments/of3_rl.cpp
@@ -2383,7 +2385,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (22,826 bytes)
+## FILE: docs/ai/LESSONS.md  (23,440 bytes)
 
 # Lessons, distilled
 
@@ -2745,6 +2747,15 @@ building learning systems in general, not just this task.
     Every `python -m ragrl` process loads torch and `_ragof`, so
     `__main__` now ends every command that returns with `hard_exit`;
     a command that raises still exits through the interpreter, nonzero.
+65. **With no information at the entry, the exit only reshapes the loss.**
+    OF23's must-trade RL agent chose a 48-tick target with a 16-tick stop
+    for most trades and won 27%: the gambler's-ruin probability of +49
+    before −16 on a random walk is 24.6%, which after costs is about −2.2
+    ticks per trade, what it lost (−2.33). It picked the wide exit because
+    a long hold blocks later forced trades, so fewer trades a day lose
+    less a day. Before reading an exit choice as skill, compare its win
+    rate with the random-walk hit rate S/(T + S) and with random entries
+    at the same exit (OF23).
 
 
 
@@ -3157,7 +3168,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (140,466 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (142,382 bytes)
 
 # RL experiment log
 
@@ -5449,7 +5460,7 @@ frozen with OF19/OF20's code by sha256 (plan section 8, checked by
   results file still reproduces byte for byte after the `overnight()`
   guard change.
 
-## OF23. Mining turning-point entries with wide exits: pre-registered and built, not run
+## OF23. Mining turning-point entries with wide exits: no edge
 
 At the user's request ("let it hold trades, try to pick tops and bottoms,
 an extended profit target ... train it like a data mining algorithm").
@@ -5489,12 +5500,40 @@ Plan `OF23_SWING_MINING_PLAN.md`, revised after a design review (needs-work,
   computed on real bars: about 25,000 on 228 days (C1 most, C6 85).
   Run: `kit.ps1 run of23 'python experiments/of23_mine.py --run'`,
   about 1.5-2.5 hours on 24 threads.
+* **Result (2026-11-13, `experiments/of23_results.txt`, A92): no edge.**
+  24,983 candidates on 228 days; 178 test days (March-November 2026).
+  - **Primary** (pooled miner): 945 trades, 5.3 a day, net −1.99 ticks
+    per trade (SE 0.79, t −2.52), both halves negative, stress −2.87.
+    It sits between the random-time control's mean (−2.65) and its 95th
+    percentile (−1.29), so its entries carry no measurable information.
+    Bound: an edge above +1.58 ticks per trade is excluded. Every fold
+    chose q = 10%; only September was positive (+2.68).
+  - **RL-trade** (must trade): 5,989 trades, 33.7 a day, −2.33 per trade;
+    it learned to pick the widest exit, T48/S16 to the close, for 54% of
+    trades and stop out 75% of the time (win 27%, average win +30.8,
+    loss −14.8). That is the gambler's-ruin rate on a random walk: +49
+    before −16 has probability 16/65 = 24.6%, which with the costs gives
+    about −2.2 per trade. The wide exit minimizes forced trades per day
+    (holding blocks later candidates), not loss per trade.
+  - **RL-free** (may skip): 3,237 trades, 18.2 a day, −3.22 per trade; it
+    learned to skip about half the candidates but not to stay flat.
+  - **Secondaries:** none of 15 is positive at stress cost; no family
+    beats its random-time control's 95th percentile.
+  - **Naive mining:** the best of 8,400 combinations on all 228 days (C5,
+    model, q 25%, T48/S12/60 min) made +5.42 ticks a day in-sample, naive
+    t +2.07; deflated Sharpe 0.000 (effective trials 7,758), and the same
+    pipeline walk-forward lost −0.60 per trade.
+  - **Checks:** resolution check passes (1-s vs tick 0.00); bars alone with
+    stop first would have said −2.09 instead of −1.99; no red flags.
+* **Build Alpha (descriptive, after the commit):** the three agents' test
+  trades exported by `experiments/of23_ba_export.py` (outside the repo,
+  Build Alpha's external trade-list format) for its robustness tests.
 
 
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (39,186 bytes)
+## FILE: docs/ai/DECISIONS.md  (39,652 bytes)
 
 # Decision log
 
@@ -5630,6 +5669,7 @@ the code looks the way it does.
 | A89 | Every `python -m ragrl` command that returns ends with `cli.hard_exit` (in `__main__`), not only the train workers (A88) | A `ragrl seal` child crashed with 0xC0000005 in the native teardown after printing its final line (LESSONS 64); all ragrl processes load torch and `_ragof`. Commands that raise keep the interpreter's traceback and nonzero exit; files are closed per write, sqlite (hpo) commits per trial |
 | A90 | OF23 pre-registered: nested walk-forward mining of six turning-point candidate families with a 240-exit grid on the 228 days of bars, choices inside training only (primary M = 1), Build Alpha descriptive only and after scoring | The user asked for held trades, tops and bottoms, wide targets and data mining; the plan keeps all selection inside training, resolves the path inside bars from the records, and sends any pass to OF23b on fresh days |
 | A91 | OF23 adds two RL arms (PPO over each day's candidates: one must trade and picks one of 12 exits, one may skip) and is built and frozen before any label or outcome was computed (plan 6b, 9b) | The user asked to let the agent trade and learn rather than gate on edge at each step; the arms report behaviour first and still count as secondaries (M = 15, t >= 4.33). Code review fixes (day denominators, empty families, gap entries) went in before the freeze |
+| A92 | OF23 result: no edge. The primary miner lost −1.99 ticks per trade (t −2.52, bound +1.58), between the random-time control's mean and 95th percentile; no secondary or RL arm is positive at stress cost; the naive best of 8,400 trials has deflated Sharpe 0 | Pre-registered rule (plan section 7). Turning-point entries on 1-min bars carry no information that wide exits could keep; Build Alpha is used only as a descriptive check of the exported trade lists |
 
 
 
@@ -5720,7 +5760,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (13,743 bytes)
+## FILE: docs/ai/STATUS.md  (13,990 bytes)
 
 # Status, limitations and next steps
 
@@ -5924,7 +5964,11 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
    (swings, failed extremes, level and VWAP fades, FVG retests,
    exhaustion) with wide exits (240 target/stop/cap/trailing choices)
    on the same 228 days (A90), plus two PPO agents on the same
-   candidates that keep trading (A91); built and frozen, not run.
+   candidates that keep trading (A91): no edge (A92). The miner lost
+   −1.99 ticks per trade (t −2.52), no better than random entries with
+   its exits; the must-trade RL agent learned to take the widest exit
+   (48 / 16 to the close) and lost −2.33 per trade, the random-walk
+   rate for that exit after costs.
    Next (the user's choice): passive execution, which needs queue data
    (MBO) to replay honestly, or other information; the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
@@ -5949,7 +5993,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/ORDERFLOW.md  (45,791 bytes)
+## FILE: docs/ai/ORDERFLOW.md  (46,092 bytes)
 
 # ES order-flow trading: simulator, agents, validation, plan
 
@@ -6507,7 +6551,11 @@ step. What remains, in order:
    **OF20** (A86): absorption and exhaustion at key levels: no edge, no
    better than a plain touch of the level. **OF21** (A87): a forward test
    of exhaustion at those levels is pre-registered on days from
-   2026-11-12 (looks at 60 / 125 / 250 full days).
+   2026-11-12 (looks at 60 / 125 / 250 full days). **OF23** (A92):
+   turning-point entries (swings, failed extremes, level and VWAP fades,
+   FVG retests, exhaustion) with wide exits (targets to 48 ticks, holds
+   to the close), mined walk-forward with LightGBM and two PPO agents:
+   no edge; entries no better than random times with the same exits.
    In parallel, simulator realism where the
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
@@ -6591,7 +6639,7 @@ step. What remains, in order:
 
 ---
 
-## FILE: docs/ai/NEXT_SESSION.md  (20,386 bytes)
+## FILE: docs/ai/NEXT_SESSION.md  (20,459 bytes)
 
 # Continuing the work: the prompt and the Claude Code agent architecture
 
@@ -6661,9 +6709,10 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > than a plain level touch.
 > **OF23** (`OF23_SWING_MINING_PLAN.md`, pre-registered, A90): nested
 > walk-forward mining of turning-point entries with wide exits on the
-> 228 days of bars, plus two PPO agents on the same candidates (A91);
-> `experiments/of23_mine.py` is built and frozen: run it once
-> (`--run`, about 1.5-2.5 h on 24 threads, after telling the user).
+> 228 days of bars, plus two PPO agents on the same candidates (A91):
+> **no edge** (A92; primary −1.99 ticks per trade, t −2.52, no better
+> than random entries; RL agents −2.33 and −3.22). Build Alpha checks of
+> the agents' trade lists are descriptive (plan section 8).
 > **OF21** (`OF21_FORWARD_PLAN.md`, pre-registered, A87): forward test of
 > exhaustion at the OF20 levels on days from 2026-11-12. Run `--count`
 > any time; a look only when the count reaches 60 / 125 / 250 full days

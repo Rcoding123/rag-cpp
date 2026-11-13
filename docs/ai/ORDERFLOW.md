@@ -554,7 +554,11 @@ step. What remains, in order:
    **OF20** (A86): absorption and exhaustion at key levels: no edge, no
    better than a plain touch of the level. **OF21** (A87): a forward test
    of exhaustion at those levels is pre-registered on days from
-   2026-11-12 (looks at 60 / 125 / 250 full days).
+   2026-11-12 (looks at 60 / 125 / 250 full days). **OF23** (A92):
+   turning-point entries (swings, failed extremes, level and VWAP fades,
+   FVG retests, exhaustion) with wide exits (targets to 48 ticks, holds
+   to the close), mined walk-forward with LightGBM and two PPO agents:
+   no edge; entries no better than random times with the same exits.
    In parallel, simulator realism where the
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on

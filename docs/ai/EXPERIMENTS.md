@@ -2288,7 +2288,7 @@ frozen with OF19/OF20's code by sha256 (plan section 8, checked by
   results file still reproduces byte for byte after the `overnight()`
   guard change.
 
-## OF23. Mining turning-point entries with wide exits: pre-registered and built, not run
+## OF23. Mining turning-point entries with wide exits: no edge
 
 At the user's request ("let it hold trades, try to pick tops and bottoms,
 an extended profit target ... train it like a data mining algorithm").
@@ -2328,3 +2328,31 @@ Plan `OF23_SWING_MINING_PLAN.md`, revised after a design review (needs-work,
   computed on real bars: about 25,000 on 228 days (C1 most, C6 85).
   Run: `kit.ps1 run of23 'python experiments/of23_mine.py --run'`,
   about 1.5-2.5 hours on 24 threads.
+* **Result (2026-11-13, `experiments/of23_results.txt`, A92): no edge.**
+  24,983 candidates on 228 days; 178 test days (March-November 2026).
+  - **Primary** (pooled miner): 945 trades, 5.3 a day, net −1.99 ticks
+    per trade (SE 0.79, t −2.52), both halves negative, stress −2.87.
+    It sits between the random-time control's mean (−2.65) and its 95th
+    percentile (−1.29), so its entries carry no measurable information.
+    Bound: an edge above +1.58 ticks per trade is excluded. Every fold
+    chose q = 10%; only September was positive (+2.68).
+  - **RL-trade** (must trade): 5,989 trades, 33.7 a day, −2.33 per trade;
+    it learned to pick the widest exit, T48/S16 to the close, for 54% of
+    trades and stop out 75% of the time (win 27%, average win +30.8,
+    loss −14.8). That is the gambler's-ruin rate on a random walk: +49
+    before −16 has probability 16/65 = 24.6%, which with the costs gives
+    about −2.2 per trade. The wide exit minimizes forced trades per day
+    (holding blocks later candidates), not loss per trade.
+  - **RL-free** (may skip): 3,237 trades, 18.2 a day, −3.22 per trade; it
+    learned to skip about half the candidates but not to stay flat.
+  - **Secondaries:** none of 15 is positive at stress cost; no family
+    beats its random-time control's 95th percentile.
+  - **Naive mining:** the best of 8,400 combinations on all 228 days (C5,
+    model, q 25%, T48/S12/60 min) made +5.42 ticks a day in-sample, naive
+    t +2.07; deflated Sharpe 0.000 (effective trials 7,758), and the same
+    pipeline walk-forward lost −0.60 per trade.
+  - **Checks:** resolution check passes (1-s vs tick 0.00); bars alone with
+    stop first would have said −2.09 instead of −1.99; no red flags.
+* **Build Alpha (descriptive, after the commit):** the three agents' test
+  trades exported by `experiments/of23_ba_export.py` (outside the repo,
+  Build Alpha's external trade-list format) for its robustness tests.

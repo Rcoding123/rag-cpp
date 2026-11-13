@@ -200,7 +200,11 @@
    (swings, failed extremes, level and VWAP fades, FVG retests,
    exhaustion) with wide exits (240 target/stop/cap/trailing choices)
    on the same 228 days (A90), plus two PPO agents on the same
-   candidates that keep trading (A91); built and frozen, not run.
+   candidates that keep trading (A91): no edge (A92). The miner lost
+   −1.99 ticks per trade (t −2.52), no better than random entries with
+   its exits; the must-trade RL agent learned to take the widest exit
+   (48 / 16 to the close) and lost −2.33 per trade, the random-walk
+   rate for that exit after costs.
    Next (the user's choice): passive execution, which needs queue data
    (MBO) to replay honestly, or other information; the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
