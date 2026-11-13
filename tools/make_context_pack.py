@@ -40,6 +40,7 @@ DOCS = [
     "docs/ai/OF17_SIGNAL_CENSUS_PLAN.md",
     "docs/ai/OF18_REGIME_PLAN.md",
     "docs/ai/OF19_FOOTPRINT_PLAN.md",
+    "docs/ai/OF20_LEVELS_PLAN.md",
     "experiments/research_synthesis.md",
     "README.md",
 ]
