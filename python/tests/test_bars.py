@@ -78,3 +78,31 @@ def test_bars_from_bundles_and_ticks(tmp_path):
     p = subprocess.run([sys.executable, str(TOOL), "--start", "2026-11-10", "--end", "2026-11-12", "--scid-dir", str(tmp_path),
                         "--out-dir", str(tmp_path / "no")], capture_output=True, text=True, timeout=120)
     assert p.returncode == 2 and "refused" in p.stderr and not (tmp_path / "no").exists()
+
+
+def test_trades_from_tick_records(tmp_path):
+    """tools/scid_to_trades.py: one row per trade on a tick day (time from 08:30 CT, ticks, aggressor side, the
+    record's bid / ask), a record with both volumes split (buy first), one with neither sided by the quote."""
+    s = "2026-09-15 13:30:00"
+    recs = [(_us(s, 1_000_000), 0.0, _p(6500.25), _p(6500.00), _p(6500.25), 1, 2, 0, 2),     # buy 2 at the ask
+            (_us(s, 1_000_500), 0.0, _p(6500.25), _p(6500.00), _p(6500.00), 1, 1, 1, 0),     # sell 1 at the bid
+            (_us(s, 2_000_000), 0.0, _p(6500.50), _p(6500.25), _p(6500.50), 2, 5, 2, 3),     # both: buy 3, sell 2
+            (_us(s, 2_000_500), 0.0, _p(6500.50), _p(6500.25), _p(6500.50), 1, 4, 0, 0)]     # neither, at the ask: buy 4
+    _write(tmp_path / "ESZ26_FUT_CME.scid", recs)
+    env_bars = [sys.executable, str(TOOL), "--start", "2026-09-15", "--end", "2026-09-15", "--scid-dir", str(tmp_path),
+                "--out-dir", str(tmp_path / "bars"), "--contracts", "ESZ26"]
+    assert subprocess.run(env_bars, capture_output=True, text=True, timeout=120).returncode == 0
+    p = subprocess.run([sys.executable, str(REPO / "tools" / "scid_to_trades.py"), "--start", "2026-09-15", "--end", "2026-09-15",
+                        "--scid-dir", str(tmp_path), "--bars", str(tmp_path / "bars"), "--out-dir", str(tmp_path / "trades")],
+                       capture_output=True, text=True, timeout=120)
+    assert p.returncode == 0, p.stderr
+    z = np.load(tmp_path / "trades" / "2026-09-15.npz")
+    assert z["side"].tolist() == [1, -1, 1, -1, 1] and z["size"].tolist() == [2, 1, 3, 2, 4]
+    assert z["price"].tolist() == [26001.0, 26000.0, 26002.0, 26002.0, 26002.0]
+    assert (z["bid"][0], z["ask"][0]) == (26000.0, 26001.0)
+    assert np.allclose(z["t"], [1.0, 1.0005, 2.0, 2.0, 2.0005])
+    side = json.loads((tmp_path / "trades" / "2026-09-15.json").read_text(encoding="utf-8"))
+    assert side["volume"] == side["bars_volume"] == 12 and side["dropped_records"] == 0
+    p = subprocess.run([sys.executable, str(REPO / "tools" / "scid_to_trades.py"), "--start", "2026-11-11", "--end", "2026-11-12",
+                        "--scid-dir", str(tmp_path), "--out-dir", str(tmp_path / "no")], capture_output=True, text=True, timeout=120)
+    assert p.returncode == 2 and "refused" in p.stderr and not (tmp_path / "no").exists()
