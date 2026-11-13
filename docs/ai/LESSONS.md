@@ -351,3 +351,10 @@ building learning systems in general, not just this task.
     `os._exit` runs and 0 of 480 `hard_exit` runs, and 8 rounds of the 9
     smoke tests were clean both ways, so the evidence for the fix is the
     mechanism plus later clean gates, not the A/B.
+64. **Fix the exit at the entry point, not per command.** After A88 put
+    `hard_exit` on the train workers only, a gate's `ragrl seal` child
+    (lgbm_threshold smoke, 2026-11-13) printed its final line and then
+    died with 0xC0000005 in the same native teardown, failing the run.
+    Every `python -m ragrl` process loads torch and `_ragof`, so
+    `__main__` now ends every command that returns with `hard_exit`;
+    a command that raises still exits through the interpreter, nonzero.

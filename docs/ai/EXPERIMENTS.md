@@ -2287,3 +2287,33 @@ frozen with OF19/OF20's code by sha256 (plan section 8, checked by
   925, setup − shell +2.61 ± 2.23); all 37 pass the full-day rule. OF20's
   results file still reproduces byte for byte after the `overnight()`
   guard change.
+
+## OF23. Mining turning-point entries with wide exits: pre-registered, not run
+
+At the user's request ("let it hold trades, try to pick tops and bottoms,
+an extended profit target ... train it like a data mining algorithm").
+Plan `OF23_SWING_MINING_PLAN.md`, revised after a design review (needs-work,
+14 findings, all taken) before anything was built.
+
+* **Design:** six turning-point candidate families on the 228 days of
+  1-min RTH bars (swings on 1/5/15 min, failed session extremes, prior-day
+  level fades, VWAP ±2 SD fades, FVG retests, bar exhaustion), each
+  labelled under 240 exits (targets 8-48 ticks, stops 4-16, caps 30 min
+  to end of day, trailing on/off), with the order of target and stop
+  inside a bar taken from the .scid records (1-s bundles, ticks from
+  September).
+* **Mining:** nested walk-forward by test month (March-November 2026): in
+  each training range LightGBM out-of-fold predictions per exit, the
+  exit and take fraction chosen by an in-order simulation with one trade
+  at a time, the test month scored once by the fixed policy. All choices
+  are inside training, so the primary has M = 1 (t >= 2); 13 secondaries
+  (per family, with and without the model) at t >= 4.26.
+* **Edge needs all of:** t >= 2, both halves positive, stress costs
+  positive, above the 95th percentile of a random-time control, the 1-s
+  vs tick resolution check, >= 0.5 trades a day, positive without the
+  5 best days. A pass goes to OF23b on fresh days, never a claim.
+  Detectable size about 1.2-1.8 ticks per trade for short exits, 4-6 for
+  wide ones.
+* **Build Alpha** (offered by the user; not installed): descriptive only,
+  after OF23's test months are scored, on the same days and fold
+  boundaries; any strategy it finds is a lead for OF23b.

@@ -64,6 +64,10 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > **OF20** (`OF20_LEVELS_PLAN.md`, done, A86): the same setups only at key
 > levels: no edge (primary t 0.08, bound 2.47 ticks per trade), no better
 > than a plain level touch.
+> **OF23** (`OF23_SWING_MINING_PLAN.md`, pre-registered, A90): nested
+> walk-forward mining of turning-point entries with wide exits on the
+> 228 days of bars; build `experiments/of23_mine.py` and its tests, freeze
+> it, tell the user the 3-4 h estimate, then run once.
 > **OF21** (`OF21_FORWARD_PLAN.md`, pre-registered, A87): forward test of
 > exhaustion at the OF20 levels on days from 2026-11-12. Run `--count`
 > any time; a look only when the count reaches 60 / 125 / 250 full days

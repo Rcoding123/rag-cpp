@@ -196,6 +196,10 @@
    a forward test of exhaustion at those levels on days from 2026-11-12
    (looks at 60 / 125 / 250 full days, about Feb 2027 to late 2027; low
    power, A87); Sierra must record ESH27 tick by tick by 2026-12-04.
+   OF23 pre-registers a walk-forward mining of turning-point entries
+   (swings, failed extremes, level and VWAP fades, FVG retests,
+   exhaustion) with wide exits (240 target/stop/cap/trailing choices)
+   on the same 228 days (A90; not run).
    Next (the user's choice): passive execution, which needs queue data
    (MBO) to replay honestly, or other information; the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
