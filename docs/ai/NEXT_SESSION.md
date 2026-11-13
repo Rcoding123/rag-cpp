@@ -52,8 +52,11 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > census, A82): no rule on the agents' features pays a market-order round
 > trip at 1 s to 1 min; at 2-10 min none detected, with month-scale
 > momentum / reversal regimes as the one lead (EXPERIMENTS.md OF17).
-> **Next: OF18** (`OF18_REGIME_PLAN.md`, pre-registered, not run): do those
-> regimes persist enough to trade, on ~230 days of `.scid` trades. Without the data,
+> **OF18** (`OF18_REGIME_PLAN.md`, done, A83): no walk-forward regime rule
+> on 7 trend features pays at 5-15 min on 228 days of `.scid` trades
+> (upper bounds 1.55 / 2.53 / 3.46 ticks per trade). Market-order trading
+> on order-flow and trend features is closed from 1 s to 15 min; the next
+> question (passive execution, or other information) is the user's call. Without the data,
 > do the opt-in simulator realism items
 > (v5) of §7. Done when every config is scored once on later days,
 > paired against flat and the 30 s delta rule, with orders/episode and

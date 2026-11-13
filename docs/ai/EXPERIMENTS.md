@@ -2092,3 +2092,59 @@ day-clustered SE.
   book) can, for the trade-based features (delta, returns, VWAP distance,
   relative volume), at 2-30 min horizons, with a pre-registered regime
   rule and a walk-forward by month.
+
+## OF18. Month-scale momentum / reversal regimes at 5-30 min: no edge
+
+Plan pre-registered in `OF18_REGIME_PLAN.md` (e9485da, revised after a
+design review before any number; amended baf2a7b before any statistic:
+the span starts 2025-12-15, since 12-12 was still the back month by
+volume). Bars: `tools/scid_to_bars.py --start 2025-12-15 --end 2026-11-11`
+(`kit.ps1 run of18_bars`): 1-min front-month RTH bars from the `.scid`
+files (1-s bundles through August, tick records with bid and ask from
+2026-09-08), into `build-avx512/real/bars/` (gitignored); 236 weekdays
+with trades, 7 holiday or half sessions dropped (165-180 gap minutes),
+228 used days, 0 OHLC violations, nothing read from the confirm block.
+Study: `experiments/of18_regimes.py --out experiments/of18_regimes.txt`
+(`kit.ps1 run of18_regimes`, ~30 s; the reviewer's rerun was byte
+identical). Walk-forward by day over 168 scored days (2026-03-16 ..
+2026-11-11): per feature (ret_5/15/30, delta_5/15/30, vwap_dist), horizon
+and lookback W (5, 20, 60 days), day D trades the extreme quintiles in the
+direction the W days before it showed; 1-lot market orders entered at the
+next bar's open, 1.28 ticks per round trip.
+
+* **Primary** (vwap_dist, 10 min, W 20, the OF17 lead): 4,926 trades,
+  gross +0.50, net −0.78 ticks per trade (SE 0.43, t −1.83), negative in
+  both halves (−1.13 / −0.44), −1.24 without the 13 OF16 days. No edge;
+  the study could have detected a net of 0.85.
+* **Secondary** (63 rules at 5, 10 and 15 min, t_req 4.88): no candidate.
+  Every rule's net is negative; the best is ret_15 / delta_30 at 15 min,
+  −0.23 / −0.24 (t −0.3). Upper bounds: no rule nets more than 1.55,
+  2.53 and 3.46 ticks per trade at 5, 10 and 15 min. Gross per trade is
+  −1.52 to +1.05: nothing near the cost. At 30 min (descriptive) the best
+  is delta_30 W5, +0.95 net, t 0.7.
+* **Trade-price bias** (47 days with bid and ask): |bias| <= 0.05 ticks
+  for every rule; momentum trades −0.022, reversal +0.020 on average (the
+  direction the design review predicted, and negligible).
+* **Persistence** (descriptive): the correlation between the trailing
+  estimate of a feature's top-minus-bottom move and day D's own value is
+  within ±0.19 for most rules; vwap_dist W20 shows −0.19 to −0.41. The
+  review showed that this is mostly mechanical: day D's own value exists
+  only on the ~50 days that reach both trailing tails (they cross the
+  VWAP), is negative by construction there (a no-regime random walk with
+  the real volatility gives nearly the same), and scales with the day's
+  volatility; with volatility clustering that yields the negative values,
+  which after scaling by volatility sit within a day-shuffle null (SD
+  ~0.15). No evidence of persistence or anti-persistence either way.
+* **Review** (independent): code matches the plan with no lookahead; all
+  390 bars rebuilt independently from the records on four days (bundle,
+  roll, first tick day, CST tick day) with 0 mismatches; the CT clock and
+  front-month choice right; bias formula right. It caught the omitted
+  momentum / reversal bias split (added) and the persistence wording
+  (corrected in the results file).
+* **Reading.** With OF17, market-order trading on order-flow and trend
+  features in ES is closed from 1 s to 15 min, within the stated power:
+  OF17 tight at <= 1 min, OF18's walk-forward regime rules below 1.5-3.5
+  ticks per trade not excluded but nothing points to them. What is left
+  for this data is a different way of trading (passive orders, which the
+  replay cannot fill honestly without queue data) or different
+  information.

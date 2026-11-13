@@ -301,3 +301,23 @@ building learning systems in general, not just this task.
     score on the other also separates two different nulls: no signal, and
     a signal whose sign does not survive a regime change (OF17: vwap_dist
     +10 ticks in Nov, −7 in Sep).
+
+58. **An empty log after a native crash can mean the crash came after the
+    work.** Under the full gate's 24-way load, `ragrl train` workers
+    (ppo once, neuralq_ref once) died with 0xC0000005 and an empty
+    worker.log despite `-X faulthandler`. The crashed worker's last
+    metrics record ("timing", the last statement of `train_worker`) was
+    there: it died in interpreter finalization, the native libraries'
+    teardown, where faulthandler is already off. 200 isolated reruns were
+    clean. Workers now `os._exit(0)` after their last write, like
+    multiprocessing children; a crash during the work still fails. Check
+    the last record a process wrote before hunting inside its work.
+59. **A "persistence" measure built on a conditional subsample can be
+    negative by construction.** OF18 correlated the trailing estimate of
+    a feature's top-minus-bottom move with day D's own value; the own
+    value existed only on days that reach both tails, which for
+    vwap_dist means days that cross the VWAP, where it is negative
+    whatever the regime, and it scaled with volatility. Volatility
+    clustering then produced r ≈ −0.3 with no regime at all. Check a
+    descriptive statistic against a no-signal simulation with the real
+    volatility before reading it.

@@ -185,8 +185,11 @@
    (A79). OF17 (a census of the agents' 13 features on the 8 real days)
    found nothing that pays a market-order round trip at 1 s to 1 min, and
    none detected at 2-10 min, where the features predict within a month
-   with a sign that flips (A82). Next: that regime question on the ~224
-   days of `.scid` trades, richer simulator realism, the heap crash once WMI is
+   with a sign that flips (A82). OF18 tested that regime question on 228
+   days of `.scid` trades: no walk-forward regime rule pays (A83). Market
+   orders on order-flow and trend features are closed from 1 s to 15 min.
+   Next (the user's choice): passive execution, which needs queue data
+   (MBO) to replay honestly, or other information; the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
    at 100 ms latency on fresh seeds.
 

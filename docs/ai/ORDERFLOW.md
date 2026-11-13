@@ -545,7 +545,9 @@ step. What remains, in order:
    1 min (best gross +0.22); at 2-10 min none detected, but vwap_dist,
    delta120 and ret120 predict within a month with a sign that flips
    between Sep and Nov: a regime question for the ~224 days of `.scid`
-   trades. In parallel, simulator realism where the
+   trades. **OF18** (A83): on 228 days, no walk-forward regime rule on 7
+   trend features pays at 5-15 min (primary net −0.78, t −1.83; upper
+   bounds 1.55 / 2.53 / 3.46 ticks per trade). In parallel, simulator realism where the
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
    new real sessions (LESSONS 49).

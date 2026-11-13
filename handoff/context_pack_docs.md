@@ -24,6 +24,7 @@ docs/ai/NEXT_SESSION.md
 docs/ai/OBJECTIVES.md
 docs/ai/OF16_REAL_ES_PLAN.md
 docs/ai/OF17_SIGNAL_CENSUS_PLAN.md
+docs/ai/OF18_REGIME_PLAN.md
 docs/ai/ORDERFLOW.md
 docs/ai/PROJECT_MAP.md
 docs/ai/RAG_ENGINE.md
@@ -213,6 +214,8 @@ experiments/of16_regen.sh
 experiments/of16_summary.py
 experiments/of17_signal_census.py
 experiments/of17_signal_census.txt
+experiments/of18_regimes.py
+experiments/of18_regimes.txt
 experiments/of1_stylized_facts.cpp
 experiments/of2_baselines.cpp
 experiments/of2_results.txt
@@ -317,6 +320,7 @@ python/ragrl/score_real.py
 python/ragrl/stats.py
 python/ragrl/worker.py
 python/tests/conftest.py
+python/tests/test_bars.py
 python/tests/test_bit_identity.py
 python/tests/test_ledger.py
 python/tests/test_pipeline.py
@@ -358,6 +362,7 @@ tools/of_viz.py
 tools/of_zoo_trace.py
 tools/real_vs_sim.py
 tools/research_crawler.py
+tools/scid_to_bars.py
 tools/sierra_to_ticks.py
 tools/test_research_crawler.py
 ```
@@ -384,8 +389,9 @@ tools/test_research_crawler.py
 18. docs/ai/NEXT_SESSION.md
 19. docs/ai/OF16_REAL_ES_PLAN.md
 20. docs/ai/OF17_SIGNAL_CENSUS_PLAN.md
-21. experiments/research_synthesis.md
-22. README.md
+21. docs/ai/OF18_REGIME_PLAN.md
+22. experiments/research_synthesis.md
+23. README.md
 
 
 ---
@@ -2356,7 +2362,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (18,954 bytes)
+## FILE: docs/ai/LESSONS.md  (20,241 bytes)
 
 # Lessons, distilled
 
@@ -2661,6 +2667,26 @@ building learning systems in general, not just this task.
     score on the other also separates two different nulls: no signal, and
     a signal whose sign does not survive a regime change (OF17: vwap_dist
     +10 ticks in Nov, −7 in Sep).
+
+58. **An empty log after a native crash can mean the crash came after the
+    work.** Under the full gate's 24-way load, `ragrl train` workers
+    (ppo once, neuralq_ref once) died with 0xC0000005 and an empty
+    worker.log despite `-X faulthandler`. The crashed worker's last
+    metrics record ("timing", the last statement of `train_worker`) was
+    there: it died in interpreter finalization, the native libraries'
+    teardown, where faulthandler is already off. 200 isolated reruns were
+    clean. Workers now `os._exit(0)` after their last write, like
+    multiprocessing children; a crash during the work still fails. Check
+    the last record a process wrote before hunting inside its work.
+59. **A "persistence" measure built on a conditional subsample can be
+    negative by construction.** OF18 correlated the trailing estimate of
+    a feature's top-minus-bottom move with day D's own value; the own
+    value existed only on days that reach both tails, which for
+    vwap_dist means days that cross the VWAP, where it is negative
+    whatever the regime, and it scaled with volatility. Volatility
+    clustering then produced r ≈ −0.3 with no regime at all. Check a
+    descriptive statistic against a no-signal simulation with the real
+    volatility before reading it.
 
 
 
@@ -3073,7 +3099,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (125,625 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (129,221 bytes)
 
 # RL experiment log
 
@@ -5170,11 +5196,67 @@ day-clustered SE.
   relative volume), at 2-30 min horizons, with a pre-registered regime
   rule and a walk-forward by month.
 
+## OF18. Month-scale momentum / reversal regimes at 5-30 min: no edge
+
+Plan pre-registered in `OF18_REGIME_PLAN.md` (e9485da, revised after a
+design review before any number; amended baf2a7b before any statistic:
+the span starts 2025-12-15, since 12-12 was still the back month by
+volume). Bars: `tools/scid_to_bars.py --start 2025-12-15 --end 2026-11-11`
+(`kit.ps1 run of18_bars`): 1-min front-month RTH bars from the `.scid`
+files (1-s bundles through August, tick records with bid and ask from
+2026-09-08), into `build-avx512/real/bars/` (gitignored); 236 weekdays
+with trades, 7 holiday or half sessions dropped (165-180 gap minutes),
+228 used days, 0 OHLC violations, nothing read from the confirm block.
+Study: `experiments/of18_regimes.py --out experiments/of18_regimes.txt`
+(`kit.ps1 run of18_regimes`, ~30 s; the reviewer's rerun was byte
+identical). Walk-forward by day over 168 scored days (2026-03-16 ..
+2026-11-11): per feature (ret_5/15/30, delta_5/15/30, vwap_dist), horizon
+and lookback W (5, 20, 60 days), day D trades the extreme quintiles in the
+direction the W days before it showed; 1-lot market orders entered at the
+next bar's open, 1.28 ticks per round trip.
+
+* **Primary** (vwap_dist, 10 min, W 20, the OF17 lead): 4,926 trades,
+  gross +0.50, net −0.78 ticks per trade (SE 0.43, t −1.83), negative in
+  both halves (−1.13 / −0.44), −1.24 without the 13 OF16 days. No edge;
+  the study could have detected a net of 0.85.
+* **Secondary** (63 rules at 5, 10 and 15 min, t_req 4.88): no candidate.
+  Every rule's net is negative; the best is ret_15 / delta_30 at 15 min,
+  −0.23 / −0.24 (t −0.3). Upper bounds: no rule nets more than 1.55,
+  2.53 and 3.46 ticks per trade at 5, 10 and 15 min. Gross per trade is
+  −1.52 to +1.05: nothing near the cost. At 30 min (descriptive) the best
+  is delta_30 W5, +0.95 net, t 0.7.
+* **Trade-price bias** (47 days with bid and ask): |bias| <= 0.05 ticks
+  for every rule; momentum trades −0.022, reversal +0.020 on average (the
+  direction the design review predicted, and negligible).
+* **Persistence** (descriptive): the correlation between the trailing
+  estimate of a feature's top-minus-bottom move and day D's own value is
+  within ±0.19 for most rules; vwap_dist W20 shows −0.19 to −0.41. The
+  review showed that this is mostly mechanical: day D's own value exists
+  only on the ~50 days that reach both trailing tails (they cross the
+  VWAP), is negative by construction there (a no-regime random walk with
+  the real volatility gives nearly the same), and scales with the day's
+  volatility; with volatility clustering that yields the negative values,
+  which after scaling by volatility sit within a day-shuffle null (SD
+  ~0.15). No evidence of persistence or anti-persistence either way.
+* **Review** (independent): code matches the plan with no lookahead; all
+  390 bars rebuilt independently from the records on four days (bundle,
+  roll, first tick day, CST tick day) with 0 mismatches; the CT clock and
+  front-month choice right; bias formula right. It caught the omitted
+  momentum / reversal bias split (added) and the persistence wording
+  (corrected in the results file).
+* **Reading.** With OF17, market-order trading on order-flow and trend
+  features in ES is closed from 1 s to 15 min, within the stated power:
+  OF17 tight at <= 1 min, OF18's walk-forward regime rules below 1.5-3.5
+  ticks per trade not excluded but nothing points to them. What is left
+  for this data is a different way of trading (passive orders, which the
+  replay cannot fill honestly without queue data) or different
+  information.
+
 
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (34,948 bytes)
+## FILE: docs/ai/DECISIONS.md  (35,822 bytes)
 
 # Decision log
 
@@ -5301,6 +5383,8 @@ the code looks the way it does.
 | A80 | RG (real gross above the simulator's by 2 SE) is a hard flag only when the real gross is also above 0 by 2 SE on at least `MIN_ORDERS` (2) orders/window; otherwise it is the warning RGv ("less bad, not good" or "too few trades to tell"), as R1 and R1v (A74, A77). Recorded as a post-hoc change: made after OF16 phase 2, where all 6 hard RG flags were policies that lost gross in the simulator and were about 0 on real; under A80 they are 6 RGv and 0 hard. The phase 2 status files keep RED_FLAGS | A leak shows as a real result that is good on its own; a policy that trades less on real is merely less bad (LESSONS 56). It applies from the next real opening (the confirm block); `test_rg_needs_real_gross_good_and_trades` |
 | A81 | After their one scoring (OF16 phase 2) the 8 real test days become manifest role `seen` (`was: test`): opened freely and logged as `real_seen`, like dev days, for exploration and training (OF17, OF16 phase 3); `score-real --days test` now finds no day, and nothing is scored or claimed on them again. A claim on real data goes to the confirm block | Phase 3 of the OF16 plan trains on days already scored; a manifest role, not a bypass of `real.open_tapes`, keeps every opening logged |
 | A82 | OF17 closes market-order trading on the agents' 13 features at 1 s to 1 min on real ES (no candidate of 128; the best gross at <= 60 s is at most a sixth of the 1.28-tick round trip). Its 120-600 s result is reported as 'none detected', not 'absent' (power), and the long-horizon features' within-month predictability with a sign that flips between months is recorded as the one lead | Pre-registered plan and rule (dea264c); the wording was corrected after the independent review, the rule and the numbers were not |
+| A83 | OF18 closes walk-forward momentum / reversal regime rules on 7 trade-based trend features at 5-15 min (no primary edge: vwap_dist 10 min W20 net −0.78, t −1.83; no secondary candidate of 63), reported as upper bounds (1.55 / 2.53 / 3.46 ticks per trade). Market-order trading on order-flow and trend features in ES is closed from 1 s to 15 min within those bounds | Pre-registered (e9485da, amended baf2a7b before any statistic); the persistence column was re-worded after the review, the rule and the numbers were not |
+| A84 | `ragrl train` workers end with `os._exit(0)` after their last write instead of interpreter finalization | Two gate failures (0xC0000005, empty worker.log) were crashes after the worker's last record, in native-library teardown under the gate's load; the worker has nothing to finalize. A crash during the work still fails (LESSONS 58) |
 
 
 
@@ -5391,7 +5475,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (12,624 bytes)
+## FILE: docs/ai/STATUS.md  (12,842 bytes)
 
 # Status, limitations and next steps
 
@@ -5580,8 +5664,11 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
    (A79). OF17 (a census of the agents' 13 features on the 8 real days)
    found nothing that pays a market-order round trip at 1 s to 1 min, and
    none detected at 2-10 min, where the features predict within a month
-   with a sign that flips (A82). Next: that regime question on the ~224
-   days of `.scid` trades, richer simulator realism, the heap crash once WMI is
+   with a sign that flips (A82). OF18 tested that regime question on 228
+   days of `.scid` trades: no walk-forward regime rule pays (A83). Market
+   orders on order-flow and trend features are closed from 1 s to 15 min.
+   Next (the user's choice): passive execution, which needs queue data
+   (MBO) to replay honestly, or other information; the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
    at 100 ms latency on fresh seeds.
 
@@ -5604,7 +5691,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/ORDERFLOW.md  (45,106 bytes)
+## FILE: docs/ai/ORDERFLOW.md  (45,285 bytes)
 
 # ES order-flow trading: simulator, agents, validation, plan
 
@@ -6153,7 +6240,9 @@ step. What remains, in order:
    1 min (best gross +0.22); at 2-10 min none detected, but vwap_dist,
    delta120 and ret120 predict within a month with a sign that flips
    between Sep and Nov: a regime question for the ~224 days of `.scid`
-   trades. In parallel, simulator realism where the
+   trades. **OF18** (A83): on 228 days, no walk-forward regime rule on 7
+   trend features pays at 5-15 min (primary net −0.78, t −1.83; upper
+   bounds 1.55 / 2.53 / 3.46 ticks per trade). In parallel, simulator realism where the
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
    new real sessions (LESSONS 49).
@@ -6236,7 +6325,7 @@ step. What remains, in order:
 
 ---
 
-## FILE: docs/ai/NEXT_SESSION.md  (18,777 bytes)
+## FILE: docs/ai/NEXT_SESSION.md  (19,142 bytes)
 
 # Continuing the work: the prompt and the Claude Code agent architecture
 
@@ -6291,7 +6380,12 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > claim goes to the confirm block (days from 2026-11-12). OF17 (signal
 > census, A82): no rule on the agents' features pays a market-order round
 > trip at 1 s to 1 min; at 2-10 min none detected, with month-scale
-> momentum / reversal regimes as the one lead (EXPERIMENTS.md OF17). Without the data,
+> momentum / reversal regimes as the one lead (EXPERIMENTS.md OF17).
+> **OF18** (`OF18_REGIME_PLAN.md`, done, A83): no walk-forward regime rule
+> on 7 trend features pays at 5-15 min on 228 days of `.scid` trades
+> (upper bounds 1.55 / 2.53 / 3.46 ticks per trade). Market-order trading
+> on order-flow and trend features is closed from 1 s to 15 min; the next
+> question (passive execution, or other information) is the user's call. Without the data,
 > do the opt-in simulator realism items
 > (v5) of §7. Done when every config is scored once on later days,
 > paired against flat and the 30 s delta rule, with orders/episode and
@@ -6786,6 +6880,199 @@ first; the alignment check of §2 failing.
 
 Light: one process, single-threaded. The observation pass is a replay of
 292 windows (minutes); 16 LightGBM fits on ~86k rows each (seconds each).
+
+
+
+---
+
+## FILE: docs/ai/OF18_REGIME_PLAN.md  (9,950 bytes)
+
+# OF18 plan: month-scale momentum and reversal regimes in ES (5-30 min)
+
+Status: **done 2026-11-12: no primary edge, no secondary candidate** (EXPERIMENTS.md OF18, `experiments/of18_regimes.txt`; upper bounds 1.55 / 2.53 / 3.46 ticks per trade at 5 / 10 / 15 min, 0.85 for the primary). Originally: plan only, nothing run. Written 2026-11-12 after OF17 (A82),
+revised the same day after an independent design review (before any OF18
+number existed). Committing this file is the pre-registration: data,
+features, rules, statistics and the decision rule are fixed here.
+
+## 1. Question
+
+OF17 found one lead. At 2-10 min, trend features predict the ES move
+within a month, with a sign that flips between months. The clearest case
+is vwap_dist at 600 s: the top-minus-bottom quintile move was +10.0 ticks
+in November 2026 (momentum) and −7.3 in September (reversal). Eight days
+could not say more. The question here:
+
+**Is the sign of that relationship persistent enough that a rule
+estimating it from the last few weeks, and trading it the next day, beats
+a market-order round trip?**
+
+One **primary** test aims at the lead itself (§5); 63 **secondary** rules
+map the neighbourhood at a multiplicity-adjusted bar. Expected answer: no.
+Intraday momentum and reversal in index futures are weak and unstable,
+and the OF17 reviewer's walk-forward variant (direction from the previous
+day) reached t 1.8.
+
+**Power, stated before the results** (the design review's estimate, 1-min
+SD ~9 ticks, ~40% of decisions trading): the smallest net per trade a
+secondary rule can detect is about 1.5-1.9 ticks at 5 min, ~2.7 at 10 min,
+~3.9 at 15 min; the primary test (t ≥ 2) about 1.1 ticks at 10 min. OF17's
+lead implies at most ~4-5 ticks gross per trade at 10 min if the sign were
+always right, so a null result here is an upper bound, never "no regimes".
+
+## 2. Data
+
+The user's Sierra `.scid` trade files (read only; nothing enters the repo):
+ESH26, ESM26, ESU26, ESZ26 in `C:\SierraChart\Data`. Surveyed 2026-11-12:
+records are 1-s bundles (open, high, low, close of trade prices, trades,
+volume, sell-aggressor "bid" volume, buy-aggressor "ask" volume) through
+August 2026, and tick by tick from early September 2026, where each
+record's high is the ask, its low the bid and its close the trade price.
+
+- **Days:** every RTH day (08:30-15:00 CT, the OF16 clock with the explicit
+  US DST rule) from **2025-12-12 to 2026-11-11**. 2025-12-12 is the day
+  after the CME roll date for ESZ25 (2025-12-11), the first day ESH26 is
+  the front month; there is no ESZ25 file, so earlier days would be the
+  back month. From then on the front month is the file with the larger
+  RTH volume that day (the OF13 rule; both contracts of each later roll
+  have files). **Nothing from 2026-11-12 on is read** (the confirm block;
+  the bar builder refuses those days).
+- **Bars:** 1-min bars built from the records by a new tool, one file per
+  day in `build-avx512/real/bars/` (gitignored) with the file's sha256 in a
+  sidecar. For 1-s bundles: the first bundle's open, the maximum high, the
+  minimum low, the last bundle's close (a bundle never spans a minute
+  boundary). For tick records: open, high, low and close all from the
+  records' close field (the trade price). Volume = the sum of volume; buy
+  aggressor = ask volume, sell aggressor = bid volume.
+- **Outages:** a minute with zero volume is a gap. A decision is skipped if
+  any minute of its feature window (the 30 min before it) or of its
+  holding period is a gap; a day with more than 5 gap minutes is dropped
+  and listed. Early closes drop out by the same rule.
+- **Amendment 2026-11-12 (bars built, before any OF18 statistic).** The
+  bars show ESH26 at 150,046 RTH lots on 2025-12-12 against 847,556 to
+  1,664,448 on 12-15..12-18, and the March roll's volume crossing on the
+  Monday after the CME roll date (03-16): 12-12 was still the back month
+  by volume, the rule above. The span starts **2025-12-15**. Built: 236
+  weekdays with trades; 7 holiday or half sessions have 165-180 gap
+  minutes and drop out; 228 used days; 0 OHLC violations; tick records
+  from 2026-09-08.
+- The 13 OF16 days (8 seen, 5 dev) are inside the span. They helped form
+  the hypothesis, so a sensitivity run without them is reported (§5).
+
+## 3. Decisions, features, outcomes
+
+Bars are numbered 1..390 (bar 1 = 08:30-08:31 CT); close(0) = open of
+bar 1.
+
+**Decisions** at the end of bars m = 30, 35, 40, ... while m + 1 + h ≤ 390:
+71, 70, 69 and 66 decisions a day for h = 5, 10, 15 and 30 min.
+
+**Features** at a decision (bars 1..m of the day only), 7 in all:
+- ret_L = close(m) − close(m − L), L = 5, 15, 30 min;
+- delta_L = Σ (buy − sell aggressor volume) over bars m − L + 1..m,
+  L = 5, 15, 30;
+- vwap_dist = close(m) − session VWAP, the VWAP over bars 1..m weighted by
+  volume at each bar's (high + low + close) / 3.
+
+**Outcomes** at h = 5, 10, 15 (tested) and 30 min (descriptive only), in
+ticks: entry at the open of bar m + 1 (the first trade after the
+decision), exit at the open of bar m + 1 + h; move = exit − entry. A
+trade nets side × move − **1.28 ticks** (OF17's measured mean round trip on
+the front month: the recorded spreads at entry and exit plus $1.50 per
+side). Stress: 1.50 ticks. Nothing crosses a day.
+
+## 4. Rules (walk-forward by day)
+
+For a feature, a horizon h and a lookback W (trading days), on each scored
+day D:
+- from the W used days before D only: the feature's 20th and 80th
+  percentiles, and the direction d = sign(mean move at h in the top
+  quintile − mean move in the bottom quintile);
+- on D: when d = +1, long above the 80th percentile and short below the
+  20th; when d = −1 the reverse; when d = 0, no trade.
+
+**Primary:** vwap_dist, h = 10 min, W = 20 days.
+**Secondary:** the 7 features × h ∈ {5, 10, 15} × W ∈ {5, 20, 60} = 63
+rules (the primary is one of them).
+**Descriptive:** the same at h = 30 (21 rules), not tested.
+
+Scored days: every used day with at least 60 used days before it, the same
+days for every rule, about 165. Nothing is tuned.
+
+## 5. Statistics and the decision rule (fixed now)
+
+Per rule over the scored days: trades, mean gross and mean net per trade
+(total net / total trades), the first-half and second-half net (split at
+the middle scored day), and the SE: **the largest of the moving-block
+bootstrap SEs with blocks of 5, 10 and 21 consecutive scored days**
+(B = 10000, seed 0; each resample's statistic is total net / total trades
+over the resampled days), since a regime that persists makes a
+walk-forward rule's days correlated for up to the regime's length.
+t = mean net / SE.
+
+**Bias check (binding).** On the scored days from 2026-09-08 on, which
+have bid and ask in the records, every trade is also priced at the mid
+(the mean of the ask and bid in the record of the entry and exit trades):
+bias = side × [(exit trade − exit mid) − (entry trade − entry mid)], per
+trade, averaged per rule and reported separately for rules whose d agrees
+with the feature's sign (momentum) and disagrees (reversal). A rule's
+net after bias = mean net − its mean bias.
+
+- **Primary edge:** net > 0, t ≥ 2, positive in both halves, positive at
+  the stress cost and after its bias.
+- **Secondary candidate:** the same with t ≥ t_req = 2 + sqrt(2 ln 63) =
+  4.88.
+- Either goes to **OF18b**, one confirmation on the next 40 full
+  front-month RTH days from 2026-11-12 (about two months of recording):
+  the rule frozen and still walk-forward, each trade at the recorded touch
+  (buy at the ask, sell at the bid, plus $1.50 per side), the SE the
+  largest of 5- and 10-day block bootstraps; claimed only if net > 0 with
+  t ≥ 2.
+- **Otherwise the conclusion is an upper bound:** "No walk-forward regime
+  rule on these 7 trend features nets more than X_h ticks per trade at h"
+  (X_h = the median t_req × SE over the rules at h, and 2 × SE for the
+  primary), "smaller edges are not excluded."
+
+**Reported, not tested:**
+- **Persistence**, apart from any rule: per feature, h and W, the
+  correlation over scored days between the trailing-W estimate of the
+  top-minus-bottom quintile move and day D's own value, with the
+  block-bootstrap SE (largest of 5, 10, 21). This is the regime measured
+  directly.
+- Power: X_h per h.
+- Trades by time of day (the percentiles are pooled over the day, so
+  trades may cluster after the open).
+- Sensitivity: the primary and the 5 best secondary rules without the 13
+  OF16 days.
+
+**Red flags** (stop and check before believing): t > 8, or gross above
+3 ticks per trade at h = 5 min (a candidate at 5 min would be near this
+size; check before believing it): check that features use bars 1..m only
+and the entry is bar m + 1's open. The bar builder's daily volume must
+equal the sum of the records' volume. Every bar must have high ≥ max(open,
+close) and low ≤ min(open, close), and the distribution of bar-to-bar
+price changes must not shift at the switch from bundles to ticks (early
+September).
+
+## 6. Known weaknesses (stated before the results)
+
+- **Power.** See §1. A null is an upper bound.
+- **Trade prices, not quotes.** Through August, entries and exits are
+  trade prices with a constant cost; the bias check measures the effect
+  where quotes exist (about 45 scored days) and binds a candidate to it.
+- **One year, one market.** About 165 scored days and a few regime
+  periods; the block bootstrap only partly reflects how few.
+- **Overlap.** At h = 15, decisions 5 min apart overlap three-fold; the SE
+  comes from day blocks, not trade counts.
+- **Features.** Seven trade-based trend features, no book (OF17 covered
+  the book features up to 10 min on 8 days).
+- **Market orders only.** No passive execution, no sizing.
+
+## 7. Cost
+
+Light. The bar builder reads each day's byte range of the `.scid` files
+once (about 3 GB, the tick-by-tick months most of it) and caches small bar
+files; the statistics are seconds of numpy (the bootstraps a few
+minutes). Implementation and review: about 1.5-2 hours.
 
 
 

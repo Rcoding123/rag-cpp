@@ -24,6 +24,7 @@ docs/ai/NEXT_SESSION.md
 docs/ai/OBJECTIVES.md
 docs/ai/OF16_REAL_ES_PLAN.md
 docs/ai/OF17_SIGNAL_CENSUS_PLAN.md
+docs/ai/OF18_REGIME_PLAN.md
 docs/ai/ORDERFLOW.md
 docs/ai/PROJECT_MAP.md
 docs/ai/RAG_ENGINE.md
@@ -213,6 +214,8 @@ experiments/of16_regen.sh
 experiments/of16_summary.py
 experiments/of17_signal_census.py
 experiments/of17_signal_census.txt
+experiments/of18_regimes.py
+experiments/of18_regimes.txt
 experiments/of1_stylized_facts.cpp
 experiments/of2_baselines.cpp
 experiments/of2_results.txt
@@ -317,6 +320,7 @@ python/ragrl/score_real.py
 python/ragrl/stats.py
 python/ragrl/worker.py
 python/tests/conftest.py
+python/tests/test_bars.py
 python/tests/test_bit_identity.py
 python/tests/test_ledger.py
 python/tests/test_pipeline.py
@@ -358,6 +362,7 @@ tools/of_viz.py
 tools/of_zoo_trace.py
 tools/real_vs_sim.py
 tools/research_crawler.py
+tools/scid_to_bars.py
 tools/sierra_to_ticks.py
 tools/test_research_crawler.py
 ```
@@ -384,140 +389,143 @@ tools/test_research_crawler.py
 18. docs/ai/NEXT_SESSION.md
 19. docs/ai/OF16_REAL_ES_PLAN.md
 20. docs/ai/OF17_SIGNAL_CENSUS_PLAN.md
-21. experiments/research_synthesis.md
-22. README.md
-23. CMakeLists.txt
-24. .github\workflows\ci.yml
-25. include\rag\agent\agent.hpp
-26. include\rag\agent\analysis.hpp
-27. include\rag\agent\drift.hpp
-28. include\rag\agent\env.hpp
-29. include\rag\agent\evaluate.hpp
-30. include\rag\agent\execution_dp.hpp
-31. include\rag\agent\features.hpp
-32. include\rag\agent\learners.hpp
-33. include\rag\agent\market_making.hpp
-34. include\rag\agent\mlp.hpp
-35. include\rag\agent\model_based.hpp
-36. include\rag\agent\ope.hpp
-37. include\rag\agent\policy_table.hpp
-38. include\rag\agent\rng.hpp
-39. include\rag\agent\trainer.hpp
-40. include\rag\agent\tuning.hpp
-41. include\rag\agent\validation.hpp
-42. include\rag\agent\variance_reduction.hpp
-43. include\rag\arena.hpp
-44. include\rag\bm25.hpp
-45. include\rag\chunker.hpp
-46. include\rag\common.hpp
-47. include\rag\embedder.hpp
-48. include\rag\engine.hpp
-49. include\rag\epoch.hpp
-50. include\rag\fusion.hpp
-51. include\rag\io.hpp
-52. include\rag\ivf_index.hpp
-53. include\rag\orderflow\features.hpp
-54. include\rag\orderflow\replay_env.hpp
-55. include\rag\orderflow\scalp_env.hpp
-56. include\rag\orderflow\scalp_run.hpp
-57. include\rag\orderflow\seed_ledger.hpp
-58. include\rag\orderflow\simulator.hpp
-59. include\rag\orderflow\stylized.hpp
-60. include\rag\orderflow\tick_csv.hpp
-61. include\rag\orderflow\tick_env.hpp
-62. include\rag\orderflow\vec_scalp_env.hpp
-63. include\rag\pdf.hpp
-64. include\rag\prompt.hpp
-65. include\rag\simd.hpp
-66. include\rag\text_clean.hpp
-67. include\rag\tokenizer.hpp
-68. include\rag\topk.hpp
-69. include\rag\vector_store.hpp
-70. include\rag.hpp
-71. examples\agent_demo.cpp
-72. examples\demo.cpp
-73. examples\of15_refdump.cpp
-74. examples\of_backtest.cpp
-75. examples\of_calibrate.cpp
-76. examples\of_trace.cpp
-77. examples\of_train.cpp
-78. examples\of_train_live.cpp
-79. examples\rag_pdf.cpp
-80. examples\train_ensemble.cpp
-81. examples\tune_agent.cpp
-82. bench\latency.cpp
-83. bench\rag_bench.cpp
-84. bench\fixtures.hpp
-85. tests\agent_coverage_tests.cpp
-86. tests\agent_edge_case_tests.cpp
-87. tests\agent_tests.cpp
-88. tests\api_examples_tests.cpp
-89. tests\forgery_tests.cpp
-90. tests\market_making_tests.cpp
-91. tests\mlp_tests.cpp
-92. tests\model_based_tests.cpp
-93. tests\optional_libs_tests.cpp
-94. tests\orderflow_tests.cpp
-95. tests\pdf_tests.cpp
-96. tests\policy_table_tests.cpp
-97. tests\rag_property_tests.cpp
-98. tests\rag_tests.cpp
-99. tests\reference_tests.cpp
-100. tests\stress.cpp
-101. tests\stylized_tests.cpp
-102. tests\text_clean_tests.cpp
-103. tests\vec_scalp_env_tests.cpp
-104. tests\pdf_writer.hpp
-105. tests\pid.hpp
-106. tests\synthetic.hpp
-107. tests\test_util.hpp
-108. tests\fuzz\fuzz_common.hpp
-109. tests\fuzz\fuzz_load.cpp
-110. tests\fuzz\fuzz_policy_table.cpp
-111. tests\fuzz\fuzz_text.cpp
-112. tests\fuzz\make_seeds.cpp
-113. tools\make_context_pack.py
-114. tools\of_train_live.py
-115. tools\of_viz.py
-116. tools\of_zoo_trace.py
-117. tools\real_vs_sim.py
-118. tools\research_crawler.py
-119. tools\sierra_to_ticks.py
-120. tools\test_research_crawler.py
-121. python\ragof_module.cpp
-122. python\ragrl\__init__.py
-123. python\ragrl\__main__.py
-124. python\ragrl\agents\__init__.py
-125. python\ragrl\agents\imitation.py
-126. python\ragrl\agents\neuralq.py
-127. python\ragrl\agents\sb3_agents.py
-128. python\ragrl\agents\supervised.py
-129. python\ragrl\checkpoints.py
-130. python\ragrl\cli.py
-131. python\ragrl\config.py
-132. python\ragrl\envs.py
-133. python\ragrl\evaluate.py
-134. python\ragrl\hpo.py
-135. python\ragrl\ledger.py
-136. python\ragrl\live.py
-137. python\ragrl\native.py
-138. python\ragrl\policies.py
-139. python\ragrl\real.py
-140. python\ragrl\redflags.py
-141. python\ragrl\registry.py
-142. python\ragrl\report.py
-143. python\ragrl\runner.py
-144. python\ragrl\score_real.py
-145. python\ragrl\stats.py
-146. python\ragrl\worker.py
-147. python\tests\conftest.py
-148. python\tests\test_bit_identity.py
-149. python\tests\test_ledger.py
-150. python\tests\test_pipeline.py
-151. python\tests\test_privileged.py
-152. python\tests\test_real.py
-153. python\tests\test_smoke.py
-154. python\tests\test_vec_env.py
+21. docs/ai/OF18_REGIME_PLAN.md
+22. experiments/research_synthesis.md
+23. README.md
+24. CMakeLists.txt
+25. .github\workflows\ci.yml
+26. include\rag\agent\agent.hpp
+27. include\rag\agent\analysis.hpp
+28. include\rag\agent\drift.hpp
+29. include\rag\agent\env.hpp
+30. include\rag\agent\evaluate.hpp
+31. include\rag\agent\execution_dp.hpp
+32. include\rag\agent\features.hpp
+33. include\rag\agent\learners.hpp
+34. include\rag\agent\market_making.hpp
+35. include\rag\agent\mlp.hpp
+36. include\rag\agent\model_based.hpp
+37. include\rag\agent\ope.hpp
+38. include\rag\agent\policy_table.hpp
+39. include\rag\agent\rng.hpp
+40. include\rag\agent\trainer.hpp
+41. include\rag\agent\tuning.hpp
+42. include\rag\agent\validation.hpp
+43. include\rag\agent\variance_reduction.hpp
+44. include\rag\arena.hpp
+45. include\rag\bm25.hpp
+46. include\rag\chunker.hpp
+47. include\rag\common.hpp
+48. include\rag\embedder.hpp
+49. include\rag\engine.hpp
+50. include\rag\epoch.hpp
+51. include\rag\fusion.hpp
+52. include\rag\io.hpp
+53. include\rag\ivf_index.hpp
+54. include\rag\orderflow\features.hpp
+55. include\rag\orderflow\replay_env.hpp
+56. include\rag\orderflow\scalp_env.hpp
+57. include\rag\orderflow\scalp_run.hpp
+58. include\rag\orderflow\seed_ledger.hpp
+59. include\rag\orderflow\simulator.hpp
+60. include\rag\orderflow\stylized.hpp
+61. include\rag\orderflow\tick_csv.hpp
+62. include\rag\orderflow\tick_env.hpp
+63. include\rag\orderflow\vec_scalp_env.hpp
+64. include\rag\pdf.hpp
+65. include\rag\prompt.hpp
+66. include\rag\simd.hpp
+67. include\rag\text_clean.hpp
+68. include\rag\tokenizer.hpp
+69. include\rag\topk.hpp
+70. include\rag\vector_store.hpp
+71. include\rag.hpp
+72. examples\agent_demo.cpp
+73. examples\demo.cpp
+74. examples\of15_refdump.cpp
+75. examples\of_backtest.cpp
+76. examples\of_calibrate.cpp
+77. examples\of_trace.cpp
+78. examples\of_train.cpp
+79. examples\of_train_live.cpp
+80. examples\rag_pdf.cpp
+81. examples\train_ensemble.cpp
+82. examples\tune_agent.cpp
+83. bench\latency.cpp
+84. bench\rag_bench.cpp
+85. bench\fixtures.hpp
+86. tests\agent_coverage_tests.cpp
+87. tests\agent_edge_case_tests.cpp
+88. tests\agent_tests.cpp
+89. tests\api_examples_tests.cpp
+90. tests\forgery_tests.cpp
+91. tests\market_making_tests.cpp
+92. tests\mlp_tests.cpp
+93. tests\model_based_tests.cpp
+94. tests\optional_libs_tests.cpp
+95. tests\orderflow_tests.cpp
+96. tests\pdf_tests.cpp
+97. tests\policy_table_tests.cpp
+98. tests\rag_property_tests.cpp
+99. tests\rag_tests.cpp
+100. tests\reference_tests.cpp
+101. tests\stress.cpp
+102. tests\stylized_tests.cpp
+103. tests\text_clean_tests.cpp
+104. tests\vec_scalp_env_tests.cpp
+105. tests\pdf_writer.hpp
+106. tests\pid.hpp
+107. tests\synthetic.hpp
+108. tests\test_util.hpp
+109. tests\fuzz\fuzz_common.hpp
+110. tests\fuzz\fuzz_load.cpp
+111. tests\fuzz\fuzz_policy_table.cpp
+112. tests\fuzz\fuzz_text.cpp
+113. tests\fuzz\make_seeds.cpp
+114. tools\make_context_pack.py
+115. tools\of_train_live.py
+116. tools\of_viz.py
+117. tools\of_zoo_trace.py
+118. tools\real_vs_sim.py
+119. tools\research_crawler.py
+120. tools\scid_to_bars.py
+121. tools\sierra_to_ticks.py
+122. tools\test_research_crawler.py
+123. python\ragof_module.cpp
+124. python\ragrl\__init__.py
+125. python\ragrl\__main__.py
+126. python\ragrl\agents\__init__.py
+127. python\ragrl\agents\imitation.py
+128. python\ragrl\agents\neuralq.py
+129. python\ragrl\agents\sb3_agents.py
+130. python\ragrl\agents\supervised.py
+131. python\ragrl\checkpoints.py
+132. python\ragrl\cli.py
+133. python\ragrl\config.py
+134. python\ragrl\envs.py
+135. python\ragrl\evaluate.py
+136. python\ragrl\hpo.py
+137. python\ragrl\ledger.py
+138. python\ragrl\live.py
+139. python\ragrl\native.py
+140. python\ragrl\policies.py
+141. python\ragrl\real.py
+142. python\ragrl\redflags.py
+143. python\ragrl\registry.py
+144. python\ragrl\report.py
+145. python\ragrl\runner.py
+146. python\ragrl\score_real.py
+147. python\ragrl\stats.py
+148. python\ragrl\worker.py
+149. python\tests\conftest.py
+150. python\tests\test_bars.py
+151. python\tests\test_bit_identity.py
+152. python\tests\test_ledger.py
+153. python\tests\test_pipeline.py
+154. python\tests\test_privileged.py
+155. python\tests\test_real.py
+156. python\tests\test_smoke.py
+157. python\tests\test_vec_env.py
 
 
 ---
@@ -2488,7 +2496,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (18,954 bytes)
+## FILE: docs/ai/LESSONS.md  (20,241 bytes)
 
 # Lessons, distilled
 
@@ -2793,6 +2801,26 @@ building learning systems in general, not just this task.
     score on the other also separates two different nulls: no signal, and
     a signal whose sign does not survive a regime change (OF17: vwap_dist
     +10 ticks in Nov, −7 in Sep).
+
+58. **An empty log after a native crash can mean the crash came after the
+    work.** Under the full gate's 24-way load, `ragrl train` workers
+    (ppo once, neuralq_ref once) died with 0xC0000005 and an empty
+    worker.log despite `-X faulthandler`. The crashed worker's last
+    metrics record ("timing", the last statement of `train_worker`) was
+    there: it died in interpreter finalization, the native libraries'
+    teardown, where faulthandler is already off. 200 isolated reruns were
+    clean. Workers now `os._exit(0)` after their last write, like
+    multiprocessing children; a crash during the work still fails. Check
+    the last record a process wrote before hunting inside its work.
+59. **A "persistence" measure built on a conditional subsample can be
+    negative by construction.** OF18 correlated the trailing estimate of
+    a feature's top-minus-bottom move with day D's own value; the own
+    value existed only on days that reach both tails, which for
+    vwap_dist means days that cross the VWAP, where it is negative
+    whatever the regime, and it scaled with volatility. Volatility
+    clustering then produced r ≈ −0.3 with no regime at all. Check a
+    descriptive statistic against a no-signal simulation with the real
+    volatility before reading it.
 
 
 
@@ -3205,7 +3233,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (125,625 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (129,221 bytes)
 
 # RL experiment log
 
@@ -5302,11 +5330,67 @@ day-clustered SE.
   relative volume), at 2-30 min horizons, with a pre-registered regime
   rule and a walk-forward by month.
 
+## OF18. Month-scale momentum / reversal regimes at 5-30 min: no edge
+
+Plan pre-registered in `OF18_REGIME_PLAN.md` (e9485da, revised after a
+design review before any number; amended baf2a7b before any statistic:
+the span starts 2025-12-15, since 12-12 was still the back month by
+volume). Bars: `tools/scid_to_bars.py --start 2025-12-15 --end 2026-11-11`
+(`kit.ps1 run of18_bars`): 1-min front-month RTH bars from the `.scid`
+files (1-s bundles through August, tick records with bid and ask from
+2026-09-08), into `build-avx512/real/bars/` (gitignored); 236 weekdays
+with trades, 7 holiday or half sessions dropped (165-180 gap minutes),
+228 used days, 0 OHLC violations, nothing read from the confirm block.
+Study: `experiments/of18_regimes.py --out experiments/of18_regimes.txt`
+(`kit.ps1 run of18_regimes`, ~30 s; the reviewer's rerun was byte
+identical). Walk-forward by day over 168 scored days (2026-03-16 ..
+2026-11-11): per feature (ret_5/15/30, delta_5/15/30, vwap_dist), horizon
+and lookback W (5, 20, 60 days), day D trades the extreme quintiles in the
+direction the W days before it showed; 1-lot market orders entered at the
+next bar's open, 1.28 ticks per round trip.
+
+* **Primary** (vwap_dist, 10 min, W 20, the OF17 lead): 4,926 trades,
+  gross +0.50, net −0.78 ticks per trade (SE 0.43, t −1.83), negative in
+  both halves (−1.13 / −0.44), −1.24 without the 13 OF16 days. No edge;
+  the study could have detected a net of 0.85.
+* **Secondary** (63 rules at 5, 10 and 15 min, t_req 4.88): no candidate.
+  Every rule's net is negative; the best is ret_15 / delta_30 at 15 min,
+  −0.23 / −0.24 (t −0.3). Upper bounds: no rule nets more than 1.55,
+  2.53 and 3.46 ticks per trade at 5, 10 and 15 min. Gross per trade is
+  −1.52 to +1.05: nothing near the cost. At 30 min (descriptive) the best
+  is delta_30 W5, +0.95 net, t 0.7.
+* **Trade-price bias** (47 days with bid and ask): |bias| <= 0.05 ticks
+  for every rule; momentum trades −0.022, reversal +0.020 on average (the
+  direction the design review predicted, and negligible).
+* **Persistence** (descriptive): the correlation between the trailing
+  estimate of a feature's top-minus-bottom move and day D's own value is
+  within ±0.19 for most rules; vwap_dist W20 shows −0.19 to −0.41. The
+  review showed that this is mostly mechanical: day D's own value exists
+  only on the ~50 days that reach both trailing tails (they cross the
+  VWAP), is negative by construction there (a no-regime random walk with
+  the real volatility gives nearly the same), and scales with the day's
+  volatility; with volatility clustering that yields the negative values,
+  which after scaling by volatility sit within a day-shuffle null (SD
+  ~0.15). No evidence of persistence or anti-persistence either way.
+* **Review** (independent): code matches the plan with no lookahead; all
+  390 bars rebuilt independently from the records on four days (bundle,
+  roll, first tick day, CST tick day) with 0 mismatches; the CT clock and
+  front-month choice right; bias formula right. It caught the omitted
+  momentum / reversal bias split (added) and the persistence wording
+  (corrected in the results file).
+* **Reading.** With OF17, market-order trading on order-flow and trend
+  features in ES is closed from 1 s to 15 min, within the stated power:
+  OF17 tight at <= 1 min, OF18's walk-forward regime rules below 1.5-3.5
+  ticks per trade not excluded but nothing points to them. What is left
+  for this data is a different way of trading (passive orders, which the
+  replay cannot fill honestly without queue data) or different
+  information.
+
 
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (34,948 bytes)
+## FILE: docs/ai/DECISIONS.md  (35,822 bytes)
 
 # Decision log
 
@@ -5433,6 +5517,8 @@ the code looks the way it does.
 | A80 | RG (real gross above the simulator's by 2 SE) is a hard flag only when the real gross is also above 0 by 2 SE on at least `MIN_ORDERS` (2) orders/window; otherwise it is the warning RGv ("less bad, not good" or "too few trades to tell"), as R1 and R1v (A74, A77). Recorded as a post-hoc change: made after OF16 phase 2, where all 6 hard RG flags were policies that lost gross in the simulator and were about 0 on real; under A80 they are 6 RGv and 0 hard. The phase 2 status files keep RED_FLAGS | A leak shows as a real result that is good on its own; a policy that trades less on real is merely less bad (LESSONS 56). It applies from the next real opening (the confirm block); `test_rg_needs_real_gross_good_and_trades` |
 | A81 | After their one scoring (OF16 phase 2) the 8 real test days become manifest role `seen` (`was: test`): opened freely and logged as `real_seen`, like dev days, for exploration and training (OF17, OF16 phase 3); `score-real --days test` now finds no day, and nothing is scored or claimed on them again. A claim on real data goes to the confirm block | Phase 3 of the OF16 plan trains on days already scored; a manifest role, not a bypass of `real.open_tapes`, keeps every opening logged |
 | A82 | OF17 closes market-order trading on the agents' 13 features at 1 s to 1 min on real ES (no candidate of 128; the best gross at <= 60 s is at most a sixth of the 1.28-tick round trip). Its 120-600 s result is reported as 'none detected', not 'absent' (power), and the long-horizon features' within-month predictability with a sign that flips between months is recorded as the one lead | Pre-registered plan and rule (dea264c); the wording was corrected after the independent review, the rule and the numbers were not |
+| A83 | OF18 closes walk-forward momentum / reversal regime rules on 7 trade-based trend features at 5-15 min (no primary edge: vwap_dist 10 min W20 net −0.78, t −1.83; no secondary candidate of 63), reported as upper bounds (1.55 / 2.53 / 3.46 ticks per trade). Market-order trading on order-flow and trend features in ES is closed from 1 s to 15 min within those bounds | Pre-registered (e9485da, amended baf2a7b before any statistic); the persistence column was re-worded after the review, the rule and the numbers were not |
+| A84 | `ragrl train` workers end with `os._exit(0)` after their last write instead of interpreter finalization | Two gate failures (0xC0000005, empty worker.log) were crashes after the worker's last record, in native-library teardown under the gate's load; the worker has nothing to finalize. A crash during the work still fails (LESSONS 58) |
 
 
 
@@ -5523,7 +5609,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (12,624 bytes)
+## FILE: docs/ai/STATUS.md  (12,842 bytes)
 
 # Status, limitations and next steps
 
@@ -5712,8 +5798,11 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
    (A79). OF17 (a census of the agents' 13 features on the 8 real days)
    found nothing that pays a market-order round trip at 1 s to 1 min, and
    none detected at 2-10 min, where the features predict within a month
-   with a sign that flips (A82). Next: that regime question on the ~224
-   days of `.scid` trades, richer simulator realism, the heap crash once WMI is
+   with a sign that flips (A82). OF18 tested that regime question on 228
+   days of `.scid` trades: no walk-forward regime rule pays (A83). Market
+   orders on order-flow and trend features are closed from 1 s to 15 min.
+   Next (the user's choice): passive execution, which needs queue data
+   (MBO) to replay honestly, or other information; the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
    at 100 ms latency on fresh seeds.
 
@@ -5736,7 +5825,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/ORDERFLOW.md  (45,106 bytes)
+## FILE: docs/ai/ORDERFLOW.md  (45,285 bytes)
 
 # ES order-flow trading: simulator, agents, validation, plan
 
@@ -6285,7 +6374,9 @@ step. What remains, in order:
    1 min (best gross +0.22); at 2-10 min none detected, but vwap_dist,
    delta120 and ret120 predict within a month with a sign that flips
    between Sep and Nov: a regime question for the ~224 days of `.scid`
-   trades. In parallel, simulator realism where the
+   trades. **OF18** (A83): on 228 days, no walk-forward regime rule on 7
+   trend features pays at 5-15 min (primary net −0.78, t −1.83; upper
+   bounds 1.55 / 2.53 / 3.46 ticks per trade). In parallel, simulator realism where the
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
    new real sessions (LESSONS 49).
@@ -6368,7 +6459,7 @@ step. What remains, in order:
 
 ---
 
-## FILE: docs/ai/NEXT_SESSION.md  (18,777 bytes)
+## FILE: docs/ai/NEXT_SESSION.md  (19,142 bytes)
 
 # Continuing the work: the prompt and the Claude Code agent architecture
 
@@ -6423,7 +6514,12 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > claim goes to the confirm block (days from 2026-11-12). OF17 (signal
 > census, A82): no rule on the agents' features pays a market-order round
 > trip at 1 s to 1 min; at 2-10 min none detected, with month-scale
-> momentum / reversal regimes as the one lead (EXPERIMENTS.md OF17). Without the data,
+> momentum / reversal regimes as the one lead (EXPERIMENTS.md OF17).
+> **OF18** (`OF18_REGIME_PLAN.md`, done, A83): no walk-forward regime rule
+> on 7 trend features pays at 5-15 min on 228 days of `.scid` trades
+> (upper bounds 1.55 / 2.53 / 3.46 ticks per trade). Market-order trading
+> on order-flow and trend features is closed from 1 s to 15 min; the next
+> question (passive execution, or other information) is the user's call. Without the data,
 > do the opt-in simulator realism items
 > (v5) of §7. Done when every config is scored once on later days,
 > paired against flat and the 30 s delta rule, with orders/episode and
@@ -6918,6 +7014,199 @@ first; the alignment check of §2 failing.
 
 Light: one process, single-threaded. The observation pass is a replay of
 292 windows (minutes); 16 LightGBM fits on ~86k rows each (seconds each).
+
+
+
+---
+
+## FILE: docs/ai/OF18_REGIME_PLAN.md  (9,950 bytes)
+
+# OF18 plan: month-scale momentum and reversal regimes in ES (5-30 min)
+
+Status: **done 2026-11-12: no primary edge, no secondary candidate** (EXPERIMENTS.md OF18, `experiments/of18_regimes.txt`; upper bounds 1.55 / 2.53 / 3.46 ticks per trade at 5 / 10 / 15 min, 0.85 for the primary). Originally: plan only, nothing run. Written 2026-11-12 after OF17 (A82),
+revised the same day after an independent design review (before any OF18
+number existed). Committing this file is the pre-registration: data,
+features, rules, statistics and the decision rule are fixed here.
+
+## 1. Question
+
+OF17 found one lead. At 2-10 min, trend features predict the ES move
+within a month, with a sign that flips between months. The clearest case
+is vwap_dist at 600 s: the top-minus-bottom quintile move was +10.0 ticks
+in November 2026 (momentum) and −7.3 in September (reversal). Eight days
+could not say more. The question here:
+
+**Is the sign of that relationship persistent enough that a rule
+estimating it from the last few weeks, and trading it the next day, beats
+a market-order round trip?**
+
+One **primary** test aims at the lead itself (§5); 63 **secondary** rules
+map the neighbourhood at a multiplicity-adjusted bar. Expected answer: no.
+Intraday momentum and reversal in index futures are weak and unstable,
+and the OF17 reviewer's walk-forward variant (direction from the previous
+day) reached t 1.8.
+
+**Power, stated before the results** (the design review's estimate, 1-min
+SD ~9 ticks, ~40% of decisions trading): the smallest net per trade a
+secondary rule can detect is about 1.5-1.9 ticks at 5 min, ~2.7 at 10 min,
+~3.9 at 15 min; the primary test (t ≥ 2) about 1.1 ticks at 10 min. OF17's
+lead implies at most ~4-5 ticks gross per trade at 10 min if the sign were
+always right, so a null result here is an upper bound, never "no regimes".
+
+## 2. Data
+
+The user's Sierra `.scid` trade files (read only; nothing enters the repo):
+ESH26, ESM26, ESU26, ESZ26 in `C:\SierraChart\Data`. Surveyed 2026-11-12:
+records are 1-s bundles (open, high, low, close of trade prices, trades,
+volume, sell-aggressor "bid" volume, buy-aggressor "ask" volume) through
+August 2026, and tick by tick from early September 2026, where each
+record's high is the ask, its low the bid and its close the trade price.
+
+- **Days:** every RTH day (08:30-15:00 CT, the OF16 clock with the explicit
+  US DST rule) from **2025-12-12 to 2026-11-11**. 2025-12-12 is the day
+  after the CME roll date for ESZ25 (2025-12-11), the first day ESH26 is
+  the front month; there is no ESZ25 file, so earlier days would be the
+  back month. From then on the front month is the file with the larger
+  RTH volume that day (the OF13 rule; both contracts of each later roll
+  have files). **Nothing from 2026-11-12 on is read** (the confirm block;
+  the bar builder refuses those days).
+- **Bars:** 1-min bars built from the records by a new tool, one file per
+  day in `build-avx512/real/bars/` (gitignored) with the file's sha256 in a
+  sidecar. For 1-s bundles: the first bundle's open, the maximum high, the
+  minimum low, the last bundle's close (a bundle never spans a minute
+  boundary). For tick records: open, high, low and close all from the
+  records' close field (the trade price). Volume = the sum of volume; buy
+  aggressor = ask volume, sell aggressor = bid volume.
+- **Outages:** a minute with zero volume is a gap. A decision is skipped if
+  any minute of its feature window (the 30 min before it) or of its
+  holding period is a gap; a day with more than 5 gap minutes is dropped
+  and listed. Early closes drop out by the same rule.
+- **Amendment 2026-11-12 (bars built, before any OF18 statistic).** The
+  bars show ESH26 at 150,046 RTH lots on 2025-12-12 against 847,556 to
+  1,664,448 on 12-15..12-18, and the March roll's volume crossing on the
+  Monday after the CME roll date (03-16): 12-12 was still the back month
+  by volume, the rule above. The span starts **2025-12-15**. Built: 236
+  weekdays with trades; 7 holiday or half sessions have 165-180 gap
+  minutes and drop out; 228 used days; 0 OHLC violations; tick records
+  from 2026-09-08.
+- The 13 OF16 days (8 seen, 5 dev) are inside the span. They helped form
+  the hypothesis, so a sensitivity run without them is reported (§5).
+
+## 3. Decisions, features, outcomes
+
+Bars are numbered 1..390 (bar 1 = 08:30-08:31 CT); close(0) = open of
+bar 1.
+
+**Decisions** at the end of bars m = 30, 35, 40, ... while m + 1 + h ≤ 390:
+71, 70, 69 and 66 decisions a day for h = 5, 10, 15 and 30 min.
+
+**Features** at a decision (bars 1..m of the day only), 7 in all:
+- ret_L = close(m) − close(m − L), L = 5, 15, 30 min;
+- delta_L = Σ (buy − sell aggressor volume) over bars m − L + 1..m,
+  L = 5, 15, 30;
+- vwap_dist = close(m) − session VWAP, the VWAP over bars 1..m weighted by
+  volume at each bar's (high + low + close) / 3.
+
+**Outcomes** at h = 5, 10, 15 (tested) and 30 min (descriptive only), in
+ticks: entry at the open of bar m + 1 (the first trade after the
+decision), exit at the open of bar m + 1 + h; move = exit − entry. A
+trade nets side × move − **1.28 ticks** (OF17's measured mean round trip on
+the front month: the recorded spreads at entry and exit plus $1.50 per
+side). Stress: 1.50 ticks. Nothing crosses a day.
+
+## 4. Rules (walk-forward by day)
+
+For a feature, a horizon h and a lookback W (trading days), on each scored
+day D:
+- from the W used days before D only: the feature's 20th and 80th
+  percentiles, and the direction d = sign(mean move at h in the top
+  quintile − mean move in the bottom quintile);
+- on D: when d = +1, long above the 80th percentile and short below the
+  20th; when d = −1 the reverse; when d = 0, no trade.
+
+**Primary:** vwap_dist, h = 10 min, W = 20 days.
+**Secondary:** the 7 features × h ∈ {5, 10, 15} × W ∈ {5, 20, 60} = 63
+rules (the primary is one of them).
+**Descriptive:** the same at h = 30 (21 rules), not tested.
+
+Scored days: every used day with at least 60 used days before it, the same
+days for every rule, about 165. Nothing is tuned.
+
+## 5. Statistics and the decision rule (fixed now)
+
+Per rule over the scored days: trades, mean gross and mean net per trade
+(total net / total trades), the first-half and second-half net (split at
+the middle scored day), and the SE: **the largest of the moving-block
+bootstrap SEs with blocks of 5, 10 and 21 consecutive scored days**
+(B = 10000, seed 0; each resample's statistic is total net / total trades
+over the resampled days), since a regime that persists makes a
+walk-forward rule's days correlated for up to the regime's length.
+t = mean net / SE.
+
+**Bias check (binding).** On the scored days from 2026-09-08 on, which
+have bid and ask in the records, every trade is also priced at the mid
+(the mean of the ask and bid in the record of the entry and exit trades):
+bias = side × [(exit trade − exit mid) − (entry trade − entry mid)], per
+trade, averaged per rule and reported separately for rules whose d agrees
+with the feature's sign (momentum) and disagrees (reversal). A rule's
+net after bias = mean net − its mean bias.
+
+- **Primary edge:** net > 0, t ≥ 2, positive in both halves, positive at
+  the stress cost and after its bias.
+- **Secondary candidate:** the same with t ≥ t_req = 2 + sqrt(2 ln 63) =
+  4.88.
+- Either goes to **OF18b**, one confirmation on the next 40 full
+  front-month RTH days from 2026-11-12 (about two months of recording):
+  the rule frozen and still walk-forward, each trade at the recorded touch
+  (buy at the ask, sell at the bid, plus $1.50 per side), the SE the
+  largest of 5- and 10-day block bootstraps; claimed only if net > 0 with
+  t ≥ 2.
+- **Otherwise the conclusion is an upper bound:** "No walk-forward regime
+  rule on these 7 trend features nets more than X_h ticks per trade at h"
+  (X_h = the median t_req × SE over the rules at h, and 2 × SE for the
+  primary), "smaller edges are not excluded."
+
+**Reported, not tested:**
+- **Persistence**, apart from any rule: per feature, h and W, the
+  correlation over scored days between the trailing-W estimate of the
+  top-minus-bottom quintile move and day D's own value, with the
+  block-bootstrap SE (largest of 5, 10, 21). This is the regime measured
+  directly.
+- Power: X_h per h.
+- Trades by time of day (the percentiles are pooled over the day, so
+  trades may cluster after the open).
+- Sensitivity: the primary and the 5 best secondary rules without the 13
+  OF16 days.
+
+**Red flags** (stop and check before believing): t > 8, or gross above
+3 ticks per trade at h = 5 min (a candidate at 5 min would be near this
+size; check before believing it): check that features use bars 1..m only
+and the entry is bar m + 1's open. The bar builder's daily volume must
+equal the sum of the records' volume. Every bar must have high ≥ max(open,
+close) and low ≤ min(open, close), and the distribution of bar-to-bar
+price changes must not shift at the switch from bundles to ticks (early
+September).
+
+## 6. Known weaknesses (stated before the results)
+
+- **Power.** See §1. A null is an upper bound.
+- **Trade prices, not quotes.** Through August, entries and exits are
+  trade prices with a constant cost; the bias check measures the effect
+  where quotes exist (about 45 scored days) and binds a candidate to it.
+- **One year, one market.** About 165 scored days and a few regime
+  periods; the block bootstrap only partly reflects how few.
+- **Overlap.** At h = 15, decisions 5 min apart overlap three-fold; the SE
+  comes from day blocks, not trade counts.
+- **Features.** Seven trade-based trend features, no book (OF17 covered
+  the book features up to 10 min on 8 days).
+- **Market orders only.** No passive execution, no sizing.
+
+## 7. Cost
+
+Light. The bar builder reads each day's byte range of the `.scid` files
+once (about 3 GB, the tick-by-tick months most of it) and caches small bar
+files; the statistics are seconds of numpy (the bootstraps a few
+minutes). Implementation and review: about 1.5-2 hours.
 
 
 
@@ -33358,7 +33647,7 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: tools\make_context_pack.py  (4,025 bytes)
+## FILE: tools\make_context_pack.py  (4,060 bytes)
 
 ````python
 #!/usr/bin/env python3
@@ -33401,6 +33690,7 @@ DOCS = [
     "docs/ai/NEXT_SESSION.md",
     "docs/ai/OF16_REAL_ES_PLAN.md",
     "docs/ai/OF17_SIGNAL_CENSUS_PLAN.md",
+    "docs/ai/OF18_REGIME_PLAN.md",
     "experiments/research_synthesis.md",
     "README.md",
 ]
@@ -36117,6 +36407,237 @@ if __name__ == "__main__":
 
 ---
 
+## FILE: tools\scid_to_bars.py  (10,308 bytes)
+
+```python
+#!/usr/bin/env python3
+"""scid_to_bars.py -- OF18: 1-min RTH bars of the ES front month from Sierra Chart .scid trade files.
+
+usage:
+  python tools/scid_to_bars.py --start 2025-12-12 --end 2026-11-11
+         [--scid-dir C:/SierraChart/Data] [--out-dir build-avx512/real/bars] [--contracts ESH26,ESM26,ESU26,ESZ26]
+         [--manifest experiments/configs/of16_real_manifest.json]
+
+Days on or after the manifest's confirm_rule.from (2026-11-12, the real-data confirm block) are refused
+(exit 2, before any data file is opened). Output per RTH day (08:30-15:00 CT, the OF16 clock):
+OUT/<date>.npz with arrays of length 390 (bar 1 = 08:30-08:31 CT):
+  open, high, low, close   ticks (price / 0.25)
+  volume, buy, sell        lots; buy = the records' ask volume (buy aggressor), sell = bid volume
+  trades                   records' trade counts
+  open_bid, open_ask       ticks: the bid and ask of the bar's first trade (tick-by-tick days; NaN otherwise)
+and OUT/<date>.json (the sidecar): the contract, each file's RTH volume that day, the record style, gap
+minutes, record and volume totals and the npz's sha256. A minute with no trade carries the last close
+(open = high = low = close) with zero volume: a gap (OF18 plan section 2).
+
+Front month: the file with the larger RTH volume that day (the OF13 rule) among --contracts.
+Records (`<q4f4I`, 40 bytes after a 56-byte header): Sierra time (us since 1899-12-30 UTC), open, high, low,
+close (price x100 here, as the files store them), trades, volume, bid volume, ask volume. Two styles
+(surveyed 2026-11-12): 1-s bundles through August 2026 (OHLC of the second's trade prices; one record per
+second) and tick by tick from September 2026 (one record per trade, several per second; high = ask,
+low = bid, close = the trade price, open a marker). Style per day: "tick" when more than half of the
+day's records share their second with the next record. Bars: for bundles the first open, the maximum
+high, the minimum low and the last close of the minute's records; for ticks open, high, low and close all
+from the close field. A bundle never spans a minute boundary (it covers one whole second).
+Only each day's RTH byte range is read (binary search on the timestamps). Standard library + numpy.
+"""
+import argparse
+import hashlib
+import json
+import mmap
+import sys
+from datetime import date, timedelta
+from pathlib import Path
+
+import numpy as np
+
+HERE = Path(__file__).resolve().parent
+REPO = HERE.parent
+if str(REPO / "python") not in sys.path:
+    sys.path.insert(0, str(REPO / "python"))
+from ragrl import real  # noqa: E402  (stdlib only at import: the manifest and the CT clock)
+
+REC = np.dtype([("t", "<i8"), ("o", "<f4"), ("h", "<f4"), ("l", "<f4"), ("c", "<f4"), ("n", "<u4"), ("v", "<u4"),
+                ("bv", "<u4"), ("av", "<u4")])
+HEADER = 56
+PRICE_SCALE = 100.0  # the files store price x100
+TICK = 0.25
+MINUTES = 390
+CONTRACTS = ("ESH26", "ESM26", "ESU26", "ESZ26")
+
+
+class Scid:
+    """A read-only view of one .scid file; records() returns a day's range as a numpy record array."""
+
+    def __init__(self, path: Path):
+        self.path = path
+        self.f = open(path, "rb")
+        self.mm = mmap.mmap(self.f.fileno(), 0, access=mmap.ACCESS_READ)
+        hs = int.from_bytes(self.mm[4:8], "little")
+        if hs != HEADER or (len(self.mm) - HEADER) % REC.itemsize:
+            raise ValueError(f"{path}: header {hs}, size {len(self.mm)}: not a <q4f4I .scid file")
+        self.n = (len(self.mm) - HEADER) // REC.itemsize
+
+    def t(self, i: int) -> int:
+        o = HEADER + i * REC.itemsize
+        return int.from_bytes(self.mm[o:o + 8], "little", signed=True)
+
+    def first_at_or_after(self, t: int) -> int:
+        lo, hi = 0, self.n
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if self.t(mid) < t:
+                lo = mid + 1
+            else:
+                hi = mid
+        return lo
+
+    def records(self, t0: int, t1: int) -> np.ndarray:
+        """Records with Sierra time in [t0, t1)."""
+        a, b = self.first_at_or_after(t0), self.first_at_or_after(t1)
+        return np.frombuffer(self.mm, dtype=REC, count=b - a, offset=HEADER + a * REC.itemsize).copy()
+
+    def close(self):
+        self.mm.close()
+        self.f.close()
+
+
+def bars_of(r: np.ndarray, t0: int) -> tuple:
+    """(bars dict, style, tick share) from one day's RTH records; t0 = the open in Sierra microseconds."""
+    sec = r["t"] // 1_000_000
+    share = float((sec[1:] == sec[:-1]).mean()) if len(r) > 1 else 0.0
+    style = "tick" if share > 0.5 else "bundle"
+    m = ((r["t"] - t0) // 60_000_000).astype(np.int64)
+    if len(m) and (m.min() < 0 or m.max() >= MINUTES):
+        raise ValueError("records outside the RTH minutes")
+    c = r["c"].astype(np.float64) / PRICE_SCALE / TICK
+    if style == "tick":
+        o = h = l = c
+        bid, ask = r["l"].astype(np.float64) / PRICE_SCALE / TICK, r["h"].astype(np.float64) / PRICE_SCALE / TICK
+    else:
+        o = r["o"].astype(np.float64) / PRICE_SCALE / TICK
+        h = r["h"].astype(np.float64) / PRICE_SCALE / TICK
+        l = r["l"].astype(np.float64) / PRICE_SCALE / TICK
+    out = {k: np.full(MINUTES, np.nan) for k in ("open", "high", "low", "close", "open_bid", "open_ask")}
+    for k in ("volume", "buy", "sell", "trades"):
+        out[k] = np.zeros(MINUTES, np.int64)
+    np.add.at(out["volume"], m, r["v"].astype(np.int64))
+    np.add.at(out["buy"], m, r["av"].astype(np.int64))
+    np.add.at(out["sell"], m, r["bv"].astype(np.int64))
+    np.add.at(out["trades"], m, r["n"].astype(np.int64))
+    if len(m):
+        starts = np.flatnonzero(np.r_[True, m[1:] != m[:-1]])  # records are time-ordered: one run per minute
+        ends = np.r_[starts[1:], len(m)]
+        mins = m[starts]
+        out["open"][mins] = o[starts]
+        out["close"][mins] = c[ends - 1]
+        out["high"][mins] = np.maximum.reduceat(h, starts)
+        out["low"][mins] = np.minimum.reduceat(l, starts)
+        if style == "tick":
+            out["open_bid"][mins] = bid[starts]
+            out["open_ask"][mins] = ask[starts]
+    # a minute without a trade carries the last close (no volume): a gap
+    last = np.nan
+    first = next((i for i in range(MINUTES) if not np.isnan(out["close"][i])), None)
+    if first is not None:
+        last = out["open"][first]
+    for i in range(MINUTES):
+        if out["volume"][i] == 0 or np.isnan(out["close"][i]):
+            for k in ("open", "high", "low", "close"):
+                out[k][i] = last
+        else:
+            last = out["close"][i]
+    return out, style, share
+
+
+def build_day(day: str, files: dict, manifest: dict) -> tuple:
+    """(bars, sidecar) for one CT day, or (None, reason)."""
+    o_unix, c_unix = real.rth_span(day, manifest)
+    t0, t1 = real.sierra_us(o_unix), real.sierra_us(c_unix)
+    per = {}
+    for name, s in files.items():
+        r = s.records(t0, t1)
+        per[name] = r
+    vols = {k: int(v["v"].astype(np.int64).sum()) for k, v in per.items()}
+    if not vols or max(vols.values()) == 0:
+        return None, "no RTH trades"
+    front = max(vols, key=lambda k: vols[k])
+    r = per[front]
+    if np.any(np.diff(r["t"]) < 0):
+        raise ValueError(f"{day} {front}: records out of time order")
+    bars, style, share = bars_of(r, t0)
+    gaps = int((bars["volume"] == 0).sum())
+    live = bars["volume"] > 0
+    viol = int((live & ((bars["high"] < np.maximum(bars["open"], bars["close"])) |
+                        (bars["low"] > np.minimum(bars["open"], bars["close"])))).sum())
+    if int(bars["volume"].sum()) != vols[front]:
+        raise ValueError(f"{day}: bar volume {int(bars['volume'].sum())} != record volume {vols[front]}")
+    side = {"schema": "of18_bars/1", "tool": "tools/scid_to_bars.py", "date": day, "contract": front, "rth_volume": vols,
+            "style": style, "same_second_share": round(share, 4), "records": int(len(r)), "volume": vols[front],
+            "gap_minutes": gaps, "ohlc_violations": viol, "rth_open_unix": o_unix, "price_unit": "ticks (0.25)"}
+    return bars, side
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--start", required=True)
+    ap.add_argument("--end", required=True)
+    ap.add_argument("--scid-dir", default="C:/SierraChart/Data")
+    ap.add_argument("--out-dir", default=str(REPO / "build-avx512" / "real" / "bars"))
+    ap.add_argument("--contracts", default=",".join(CONTRACTS))
+    ap.add_argument("--manifest", default=None)
+    a = ap.parse_args(argv)
+    m = real.load_manifest(a.manifest)
+    cutoff = date.fromisoformat(m["confirm_rule"]["from"])
+    d0, d1 = date.fromisoformat(a.start), date.fromisoformat(a.end)
+    if d1 >= cutoff or d0 > d1:
+        print(f"scid_to_bars: refused: days on or after {cutoff} are the real-data confirm block (or start > end)", file=sys.stderr)
+        return 2
+    files = {}
+    for name in a.contracts.split(","):
+        p = Path(a.scid_dir) / f"{name}_FUT_CME.scid"
+        if p.exists():
+            files[name] = Scid(p)
+    if not files:
+        print(f"scid_to_bars: no .scid files for {a.contracts} in {a.scid_dir}", file=sys.stderr)
+        return 1
+    out = Path(a.out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    made = skipped = 0
+    try:
+        d = d0
+        while d <= d1:
+            day = d.isoformat()
+            d += timedelta(days=1)
+            if date.fromisoformat(day).weekday() >= 5:
+                continue
+            bars, side = build_day(day, files, m)
+            if bars is None:
+                skipped += 1
+                print(f"{day}: skipped ({side})")
+                continue
+            npz = out / f"{day}.npz"
+            tmp = out / f"{day}.tmp.npz"
+            np.savez(tmp, **bars)
+            tmp.replace(npz)
+            side["npz_sha256"] = hashlib.sha256(npz.read_bytes()).hexdigest()
+            (out / f"{day}.json").write_text(json.dumps(side, indent=1), encoding="utf-8")
+            made += 1
+            print(f"{day} {side['contract']} {side['style']}: volume {side['volume']}, gaps {side['gap_minutes']}")
+    finally:
+        for s in files.values():
+            s.close()
+    print(f"{made} days written to {out}, {skipped} weekdays without RTH trades")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+```
+
+
+---
+
 ## FILE: tools\sierra_to_ticks.py  (21,179 bytes)
 
 ```python
@@ -37858,7 +38379,7 @@ class ValCheckpointer:
 
 ---
 
-## FILE: python\ragrl\cli.py  (6,585 bytes)
+## FILE: python\ragrl\cli.py  (7,349 bytes)
 
 ```python
 """python -m ragrl <command> ...   (PYTHONPATH=python; RAGOF_DIR = the directory holding _ragof*.pyd)
@@ -37946,6 +38467,16 @@ def main(argv=None):
         from .worker import train_worker
         use_run_module(Path(a.run))
         train_worker(Path(a.run), a.seed, out_dir=a.out_dir)
+        # A worker's results are complete and closed once train_worker returns (every file is opened and closed per
+        # write; no Python thread is left). Under the full gate's load, workers intermittently died with 0xC0000005
+        # AFTER their last record (metrics "timing") was written: in interpreter finalization, the native libraries'
+        # teardown (torch, _ragof, their OpenMP runtimes), where faulthandler is already off (empty worker.log;
+        # LESSONS 58). A worker has nothing to finalize, so it leaves like a multiprocessing child: os._exit after
+        # flushing. A crash during the work itself still exits nonzero and still fails the run.
+        sys.stdout.flush()
+        sys.stderr.flush()
+        import os
+        os._exit(0)
     elif a.cmd == "select":
         from . import ledger
         from . import registry
@@ -41416,6 +41947,95 @@ def fresh(code: str, *args: str, expect_ok: bool = True) -> str:
 @pytest.fixture(scope="session")
 def run_fresh():
     return fresh
+
+```
+
+
+---
+
+## FILE: python\tests\test_bars.py  (4,930 bytes)
+
+```python
+"""OF18: tools/scid_to_bars.py on synthetic Sierra .scid files (never the user's data).
+
+A CST day of 1-s bundles and a CDT day of tick records, two contract files with different RTH volume;
+checks the RTH clock (08:30 CT = 14:30 / 13:30 UTC), the front month by volume, bar OHLC from each record
+style, the aggressor mapping, gap minutes and the refusal of confirm-block days."""
+import json
+import subprocess
+import sys
+from datetime import datetime, timezone
+
+import numpy as np
+
+from conftest import REPO
+
+TOOL = REPO / "tools" / "scid_to_bars.py"
+SC_EPOCH_US = 25569 * 86400 * 1_000_000
+REC = np.dtype([("t", "<i8"), ("o", "<f4"), ("h", "<f4"), ("l", "<f4"), ("c", "<f4"), ("n", "<u4"), ("v", "<u4"),
+                ("bv", "<u4"), ("av", "<u4")])
+
+
+def _us(iso_utc: str, extra_us: int = 0) -> int:
+    t = datetime.fromisoformat(iso_utc).replace(tzinfo=timezone.utc).timestamp()
+    return int(round(t * 1_000_000)) + SC_EPOCH_US + extra_us
+
+
+def _write(path, recs):
+    a = np.array(recs, dtype=REC)
+    a = a[np.argsort(a["t"], kind="stable")]
+    head = b"SCID" + (56).to_bytes(4, "little") + bytes(48)
+    path.write_bytes(head + a.tobytes())
+
+
+def _p(price):
+    return price * 100.0
+
+
+def test_bars_from_bundles_and_ticks(tmp_path):
+    front, back = [], []
+    # 2026-01-06 (CST): 08:30 CT = 14:30 UTC. 1-s bundles: minute 1 has two seconds, minute 2 none (a gap), minute 3 one
+    o = "2026-01-06 14:30:00"
+    front.append((_us(o, 5_000_000), _p(6000.00), _p(6000.50), _p(5999.75), _p(6000.25), 3, 10, 4, 6))
+    front.append((_us(o, 40_000_000), _p(6000.25), _p(6001.00), _p(6000.25), _p(6000.75), 2, 5, 1, 4))
+    front.append((_us(o, 125_000_000), _p(6001.00), _p(6001.00), _p(6000.50), _p(6000.50), 1, 7, 7, 0))
+    front.append((_us("2026-01-06 14:29:59"), _p(1.0), _p(1.0), _p(1.0), _p(1.0), 1, 99, 0, 99))   # before the open: ignored
+    front.append((_us("2026-01-06 21:00:00"), _p(1.0), _p(1.0), _p(1.0), _p(1.0), 1, 99, 0, 99))   # at the close: ignored
+    back.append((_us(o, 7_000_000), _p(6020.00), _p(6020.00), _p(6020.00), _p(6020.00), 1, 3, 0, 3))
+    # 2026-09-15 (CDT): 08:30 CT = 13:30 UTC. Tick records: high = ask, low = bid, close = the trade, open = 0
+    s = "2026-09-15 13:30:00"
+    for k, (us, px, bid, ask, v, sell) in enumerate([(1_000_000, 6500.25, 6500.00, 6500.25, 2, False),
+                                                     (1_000_500, 6500.00, 6500.00, 6500.25, 1, True),
+                                                     (1_200_000, 6500.50, 6500.25, 6500.50, 4, False),
+                                                     (61_000_000, 6499.75, 6499.75, 6500.00, 3, True)]):
+        front.append((_us(s, us), 0.0, _p(ask), _p(bid), _p(px), 1, v, v if sell else 0, 0 if sell else v))
+    back.append((_us(s, 2_000_000), 0.0, _p(6510.25), _p(6510.0), _p(6510.0), 1, 1, 1, 0))
+    _write(tmp_path / "ESH26_FUT_CME.scid", front)
+    _write(tmp_path / "ESM26_FUT_CME.scid", back)
+    out = tmp_path / "bars"
+    p = subprocess.run([sys.executable, str(TOOL), "--start", "2026-01-05", "--end", "2026-09-16", "--scid-dir", str(tmp_path),
+                        "--out-dir", str(out), "--contracts", "ESH26,ESM26"], capture_output=True, text=True, timeout=300)
+    assert p.returncode == 0, p.stderr
+    assert sorted(x.stem for x in out.glob("*.npz")) == ["2026-01-06", "2026-09-15"]
+    a = np.load(out / "2026-01-06.npz")
+    sa = json.loads((out / "2026-01-06.json").read_text(encoding="utf-8"))
+    assert sa["contract"] == "ESH26" and sa["rth_volume"] == {"ESH26": 22, "ESM26": 3} and sa["style"] == "bundle"
+    assert (a["open"][0], a["high"][0], a["low"][0], a["close"][0]) == (24000.0, 24004.0, 23999.0, 24003.0)
+    assert (a["volume"][0], a["buy"][0], a["sell"][0], a["trades"][0]) == (15, 10, 5, 5)
+    assert a["volume"][1] == 0 and a["open"][1] == a["close"][1] == 24003.0          # a gap carries the last close
+    assert (a["open"][2], a["close"][2], a["sell"][2]) == (24004.0, 24002.0, 7)
+    assert sa["gap_minutes"] == 390 - 2 and sa["ohlc_violations"] == 0 and np.isnan(a["open_bid"]).all()
+    b = np.load(out / "2026-09-15.npz")
+    sb = json.loads((out / "2026-09-15.json").read_text(encoding="utf-8"))
+    assert sb["contract"] == "ESH26" and sb["style"] == "tick"
+    assert (b["open"][0], b["high"][0], b["low"][0], b["close"][0]) == (26001.0, 26002.0, 26000.0, 26002.0)
+    assert (b["open_bid"][0], b["open_ask"][0]) == (26000.0, 26001.0)
+    assert (b["volume"][0], b["buy"][0], b["sell"][0]) == (7, 6, 1)
+    assert b["close"][1] == 25999.0 and b["sell"][1] == 3
+    # the confirm block is refused before anything is read
+    p = subprocess.run([sys.executable, str(TOOL), "--start", "2026-11-10", "--end", "2026-11-12", "--scid-dir", str(tmp_path),
+                        "--out-dir", str(tmp_path / "no")], capture_output=True, text=True, timeout=120)
+    assert p.returncode == 2 and "refused" in p.stderr and not (tmp_path / "no").exists()
 
 ```
 

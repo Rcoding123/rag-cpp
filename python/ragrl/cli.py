@@ -83,6 +83,16 @@ def main(argv=None):
         from .worker import train_worker
         use_run_module(Path(a.run))
         train_worker(Path(a.run), a.seed, out_dir=a.out_dir)
+        # A worker's results are complete and closed once train_worker returns (every file is opened and closed per
+        # write; no Python thread is left). Under the full gate's load, workers intermittently died with 0xC0000005
+        # AFTER their last record (metrics "timing") was written: in interpreter finalization, the native libraries'
+        # teardown (torch, _ragof, their OpenMP runtimes), where faulthandler is already off (empty worker.log;
+        # LESSONS 58). A worker has nothing to finalize, so it leaves like a multiprocessing child: os._exit after
+        # flushing. A crash during the work itself still exits nonzero and still fails the run.
+        sys.stdout.flush()
+        sys.stderr.flush()
+        import os
+        os._exit(0)
     elif a.cmd == "select":
         from . import ledger
         from . import registry

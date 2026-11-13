@@ -1,6 +1,6 @@
 # OF18 plan: month-scale momentum and reversal regimes in ES (5-30 min)
 
-Status: **plan only, nothing run.** Written 2026-11-12 after OF17 (A82),
+Status: **done 2026-11-12: no primary edge, no secondary candidate** (EXPERIMENTS.md OF18, `experiments/of18_regimes.txt`; upper bounds 1.55 / 2.53 / 3.46 ticks per trade at 5 / 10 / 15 min, 0.85 for the primary). Originally: plan only, nothing run. Written 2026-11-12 after OF17 (A82),
 revised the same day after an independent design review (before any OF18
 number existed). Committing this file is the pre-registration: data,
 features, rules, statistics and the decision rule are fixed here.
