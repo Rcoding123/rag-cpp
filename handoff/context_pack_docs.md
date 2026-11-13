@@ -27,6 +27,7 @@ docs/ai/OF17_SIGNAL_CENSUS_PLAN.md
 docs/ai/OF18_REGIME_PLAN.md
 docs/ai/OF19_FOOTPRINT_PLAN.md
 docs/ai/OF20_LEVELS_PLAN.md
+docs/ai/OF21_FORWARD_PLAN.md
 docs/ai/OF22_REAL_LEARNING_PLAN.md
 docs/ai/ORDERFLOW.md
 docs/ai/PROJECT_MAP.md
@@ -225,6 +226,8 @@ experiments/of1_stylized_facts.cpp
 experiments/of20_atlevels.py
 experiments/of20_atlevels.txt
 experiments/of20_levels.py
+experiments/of21_forward.py
+experiments/of21_rehearsal.txt
 experiments/of2_baselines.cpp
 experiments/of2_results.txt
 experiments/of3_rl.cpp
@@ -332,6 +335,7 @@ python/tests/test_bars.py
 python/tests/test_bit_identity.py
 python/tests/test_ledger.py
 python/tests/test_of19.py
+python/tests/test_of21.py
 python/tests/test_pipeline.py
 python/tests/test_privileged.py
 python/tests/test_real.py
@@ -2375,7 +2379,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (21,349 bytes)
+## FILE: docs/ai/LESSONS.md  (22,335 bytes)
 
 # Lessons, distilled
 
@@ -2716,6 +2720,20 @@ building learning systems in general, not just this task.
     sha256, and this checkout has `core.autocrlf true`: files written with
     LF become CRLF on the next checkout, which would break every frozen
     hash and refuse the forward looks. Hash the bytes with CRLF read as LF.
+63. **On Windows `os._exit` still runs the native teardown.** After A84 a
+    gate worker (qrdqn smoke, 2026-11-12) still died with 0xC0000005,
+    and faulthandler put the fault on the `os._exit(0)` line itself, after
+    the worker's last record. `os._exit` skips Python's finalization but
+    calls ExitProcess, which kills the process's other threads (the
+    OpenMP pools of torch and `_ragof`) wherever they are and then runs
+    every DLL's DLL_PROCESS_DETACH and CRT teardown without them.
+    TerminateProcess on the own process runs no DLL code. Workers now end
+    with `ragrl.cli.hard_exit` (flush stdio, TerminateProcess). The crash
+    is rare outside the full gate's load: a 24-way synthetic repro (torch
+    and `_ragof` loaded, threaded work, then exit) failed 1 of 1,200
+    `os._exit` runs and 0 of 480 `hard_exit` runs, and 8 rounds of the 9
+    smoke tests were clean both ways, so the evidence for the fix is the
+    mechanism plus later clean gates, not the A/B.
 
 
 
@@ -5424,7 +5442,7 @@ frozen with OF19/OF20's code by sha256 (plan section 8, checked by
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (37,394 bytes)
+## FILE: docs/ai/DECISIONS.md  (37,846 bytes)
 
 # Decision log
 
@@ -5556,6 +5574,7 @@ the code looks the way it does.
 | A85 | OF19 closes the per-price footprint rules (stacked imbalance, absorption, exhaustion, unfinished auction, trapped traders) traded with market orders at the user's study defaults: no primary edge, no candidate of 20, and no footprint condition beats its shell. Sweeps are 1-µs chains of Sierra records | Pre-registered (d659252, revised after design review); the sweep grouping was corrected after the run review in the conservative direction (it lowers every rule and control), the rules were not |
 | A86 | OF20: absorption and exhaustion at the standard auction-market levels (prior high, low, close, POC, value area; overnight; initial balance; VWAP bands) have no edge (primary net +0.10, t 0.08, bound 2.47 ticks per trade) and do not beat a plain level touch. Exhaustion-at-levels' positive mean is carried by 3 trades and is not a lead to act on without fresh days | Pre-registered (0898c06, revised after design review); the run review only corrected descriptive wording |
 | A87 | OF21 pre-registers a forward test of exhaustion at the OF20 levels on days from 2026-11-12: group-sequential looks at 60 / 125 / 250 full days (boundaries 4.504 / 3.022 / 2.007), deadline 2028-03-31, code frozen by sha256. Its looks use confirm-block days through a new ledger kind real_forward; those days count as used for other confirmations | The user asked for it; the power is low (0.39 at the in-sample +1.44), stated before any data; the design review's fixes (fixed day status, roll-window rule, crash retry, frozen modules, deadline, null wording) are in the plan |
+| A88 | `ragrl train` workers end with `cli.hard_exit(0)` (flush stdout and stderr, then TerminateProcess on the own process) instead of `os._exit(0)` (A84) | A gate worker still crashed (0xC0000005) on the `os._exit` line after its work: on Windows `os._exit` runs ExitProcess's DLL detach and CRT teardown with the OpenMP threads already killed; TerminateProcess runs no DLL code (LESSONS 63). Worker files are closed per write, so nothing is lost |
 
 
 

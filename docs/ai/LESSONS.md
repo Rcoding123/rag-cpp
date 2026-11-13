@@ -337,3 +337,17 @@ building learning systems in general, not just this task.
     sha256, and this checkout has `core.autocrlf true`: files written with
     LF become CRLF on the next checkout, which would break every frozen
     hash and refuse the forward looks. Hash the bytes with CRLF read as LF.
+63. **On Windows `os._exit` still runs the native teardown.** After A84 a
+    gate worker (qrdqn smoke, 2026-11-12) still died with 0xC0000005,
+    and faulthandler put the fault on the `os._exit(0)` line itself, after
+    the worker's last record. `os._exit` skips Python's finalization but
+    calls ExitProcess, which kills the process's other threads (the
+    OpenMP pools of torch and `_ragof`) wherever they are and then runs
+    every DLL's DLL_PROCESS_DETACH and CRT teardown without them.
+    TerminateProcess on the own process runs no DLL code. Workers now end
+    with `ragrl.cli.hard_exit` (flush stdio, TerminateProcess). The crash
+    is rare outside the full gate's load: a 24-way synthetic repro (torch
+    and `_ragof` loaded, threaded work, then exit) failed 1 of 1,200
+    `os._exit` runs and 0 of 480 `hard_exit` runs, and 8 rounds of the 9
+    smoke tests were clean both ways, so the evidence for the fix is the
+    mechanism plus later clean gates, not the A/B.

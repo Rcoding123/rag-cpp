@@ -27,6 +27,7 @@ docs/ai/OF17_SIGNAL_CENSUS_PLAN.md
 docs/ai/OF18_REGIME_PLAN.md
 docs/ai/OF19_FOOTPRINT_PLAN.md
 docs/ai/OF20_LEVELS_PLAN.md
+docs/ai/OF21_FORWARD_PLAN.md
 docs/ai/OF22_REAL_LEARNING_PLAN.md
 docs/ai/ORDERFLOW.md
 docs/ai/PROJECT_MAP.md
@@ -225,6 +226,8 @@ experiments/of1_stylized_facts.cpp
 experiments/of20_atlevels.py
 experiments/of20_atlevels.txt
 experiments/of20_levels.py
+experiments/of21_forward.py
+experiments/of21_rehearsal.txt
 experiments/of2_baselines.cpp
 experiments/of2_results.txt
 experiments/of3_rl.cpp
@@ -332,6 +335,7 @@ python/tests/test_bars.py
 python/tests/test_bit_identity.py
 python/tests/test_ledger.py
 python/tests/test_of19.py
+python/tests/test_of21.py
 python/tests/test_pipeline.py
 python/tests/test_privileged.py
 python/tests/test_real.py
@@ -2512,7 +2516,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (21,349 bytes)
+## FILE: docs/ai/LESSONS.md  (22,335 bytes)
 
 # Lessons, distilled
 
@@ -2853,6 +2857,20 @@ building learning systems in general, not just this task.
     sha256, and this checkout has `core.autocrlf true`: files written with
     LF become CRLF on the next checkout, which would break every frozen
     hash and refuse the forward looks. Hash the bytes with CRLF read as LF.
+63. **On Windows `os._exit` still runs the native teardown.** After A84 a
+    gate worker (qrdqn smoke, 2026-11-12) still died with 0xC0000005,
+    and faulthandler put the fault on the `os._exit(0)` line itself, after
+    the worker's last record. `os._exit` skips Python's finalization but
+    calls ExitProcess, which kills the process's other threads (the
+    OpenMP pools of torch and `_ragof`) wherever they are and then runs
+    every DLL's DLL_PROCESS_DETACH and CRT teardown without them.
+    TerminateProcess on the own process runs no DLL code. Workers now end
+    with `ragrl.cli.hard_exit` (flush stdio, TerminateProcess). The crash
+    is rare outside the full gate's load: a 24-way synthetic repro (torch
+    and `_ragof` loaded, threaded work, then exit) failed 1 of 1,200
+    `os._exit` runs and 0 of 480 `hard_exit` runs, and 8 rounds of the 9
+    smoke tests were clean both ways, so the evidence for the fix is the
+    mechanism plus later clean gates, not the A/B.
 
 
 
@@ -5561,7 +5579,7 @@ frozen with OF19/OF20's code by sha256 (plan section 8, checked by
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (37,394 bytes)
+## FILE: docs/ai/DECISIONS.md  (37,846 bytes)
 
 # Decision log
 
@@ -5693,6 +5711,7 @@ the code looks the way it does.
 | A85 | OF19 closes the per-price footprint rules (stacked imbalance, absorption, exhaustion, unfinished auction, trapped traders) traded with market orders at the user's study defaults: no primary edge, no candidate of 20, and no footprint condition beats its shell. Sweeps are 1-µs chains of Sierra records | Pre-registered (d659252, revised after design review); the sweep grouping was corrected after the run review in the conservative direction (it lowers every rule and control), the rules were not |
 | A86 | OF20: absorption and exhaustion at the standard auction-market levels (prior high, low, close, POC, value area; overnight; initial balance; VWAP bands) have no edge (primary net +0.10, t 0.08, bound 2.47 ticks per trade) and do not beat a plain level touch. Exhaustion-at-levels' positive mean is carried by 3 trades and is not a lead to act on without fresh days | Pre-registered (0898c06, revised after design review); the run review only corrected descriptive wording |
 | A87 | OF21 pre-registers a forward test of exhaustion at the OF20 levels on days from 2026-11-12: group-sequential looks at 60 / 125 / 250 full days (boundaries 4.504 / 3.022 / 2.007), deadline 2028-03-31, code frozen by sha256. Its looks use confirm-block days through a new ledger kind real_forward; those days count as used for other confirmations | The user asked for it; the power is low (0.39 at the in-sample +1.44), stated before any data; the design review's fixes (fixed day status, roll-window rule, crash retry, frozen modules, deadline, null wording) are in the plan |
+| A88 | `ragrl train` workers end with `cli.hard_exit(0)` (flush stdout and stderr, then TerminateProcess on the own process) instead of `os._exit(0)` (A84) | A gate worker still crashed (0xC0000005) on the `os._exit` line after its work: on Windows `os._exit` runs ExitProcess's DLL detach and CRT teardown with the OpenMP threads already killed; TerminateProcess runs no DLL code (LESSONS 63). Worker files are closed per write, so nothing is lost |
 
 
 
@@ -39314,7 +39333,7 @@ class ValCheckpointer:
 
 ---
 
-## FILE: python\ragrl\cli.py  (7,349 bytes)
+## FILE: python\ragrl\cli.py  (8,520 bytes)
 
 ```python
 """python -m ragrl <command> ...   (PYTHONPATH=python; RAGOF_DIR = the directory holding _ragof*.pyd)
@@ -39338,8 +39357,31 @@ class ValCheckpointer:
 """
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
+
+
+def hard_exit(code: int = 0):
+    """Ends this process now: no interpreter finalization and, on Windows, no DLL teardown.
+
+    os._exit skips Python's finalization but on Windows still calls ExitProcess, which first kills the
+    process's other threads (torch's and _ragof's OpenMP pools) wherever they are, then runs every DLL's
+    DLL_PROCESS_DETACH and CRT teardown with those threads gone. That teardown intermittently crashed
+    (0xC0000005 at the os._exit line, after the worker's last record; LESSONS 58, 63). TerminateProcess
+    on the own process runs no DLL code, as a crash would but with the given exit code. Callers must have
+    closed their files; stdout and stderr are flushed here (OS-level writes survive termination)."""
+    sys.stdout.flush()
+    sys.stderr.flush()
+    if sys.platform == "win32":
+        import ctypes
+        from ctypes import wintypes
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.GetCurrentProcess.restype = wintypes.HANDLE
+        k32.TerminateProcess.argtypes = (wintypes.HANDLE, wintypes.UINT)
+        k32.TerminateProcess.restype = wintypes.BOOL
+        k32.TerminateProcess(k32.GetCurrentProcess(), int(code) & 0xFFFFFFFF)  # does not return on success
+    os._exit(int(code))
 
 
 def main(argv=None):
@@ -39404,14 +39446,11 @@ def main(argv=None):
         train_worker(Path(a.run), a.seed, out_dir=a.out_dir)
         # A worker's results are complete and closed once train_worker returns (every file is opened and closed per
         # write; no Python thread is left). Under the full gate's load, workers intermittently died with 0xC0000005
-        # AFTER their last record (metrics "timing") was written: in interpreter finalization, the native libraries'
-        # teardown (torch, _ragof, their OpenMP runtimes), where faulthandler is already off (empty worker.log;
-        # LESSONS 58). A worker has nothing to finalize, so it leaves like a multiprocessing child: os._exit after
-        # flushing. A crash during the work itself still exits nonzero and still fails the run.
-        sys.stdout.flush()
-        sys.stderr.flush()
-        import os
-        os._exit(0)
+        # AFTER their last record (metrics "timing") was written: in the native libraries' teardown at process exit
+        # (torch, _ragof, their OpenMP runtimes). os._exit (LESSONS 58) skipped Python's finalization but not that
+        # teardown, which ExitProcess still runs (LESSONS 63), so the worker ends with hard_exit. A crash during the
+        # work itself still exits nonzero and still fails the run.
+        hard_exit(0)
     elif a.cmd == "select":
         from . import ledger
         from . import registry
@@ -43739,7 +43778,7 @@ def test_runner_refusals_and_freeze(tmp_path, capsys):
 
 ---
 
-## FILE: python\tests\test_pipeline.py  (23,184 bytes)
+## FILE: python\tests\test_pipeline.py  (24,152 bytes)
 
 ```python
 """The ragrl pipeline (fast): configs, stats, frozen policies vs SB3's own predict,
@@ -44164,6 +44203,23 @@ def test_confirm_cli_refusal(tmp_path):
                        capture_output=True, text=True)
     assert p.returncode != 0 and "orchestrator only" in p.stderr
     assert not (tmp_path / "ledger_usage.jsonl").exists()
+
+
+def test_hard_exit_keeps_output_and_code(tmp_path):
+    """Workers end with cli.hard_exit (TerminateProcess on Windows: no DLL teardown, LESSONS 63): the exit code passes
+    through, buffered stdout is flushed first, and files the worker closed are complete."""
+    f = tmp_path / "out.txt"
+    code = ("import sys; sys.path.insert(0, sys.argv[1]); from ragrl.cli import hard_exit\n"
+            "open(sys.argv[2], 'w').write('x' * 100000)\n"
+            "print('before exit')\n"
+            "hard_exit(3)\n"
+            "print('after exit')\n")
+    with open(tmp_path / "log.txt", "w") as log:  # a file, as a worker's stdout is (buffered: no -u)
+        p = subprocess.run([sys.executable, "-c", code, str(REPO / "python"), str(f)], stdout=log, stderr=subprocess.STDOUT, timeout=60)
+    out = (tmp_path / "log.txt").read_text()
+    assert p.returncode == 3, out
+    assert "before exit" in out and "after exit" not in out
+    assert f.read_text() == "x" * 100000
 
 ```
 

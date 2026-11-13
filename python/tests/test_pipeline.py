@@ -420,3 +420,20 @@ def test_confirm_cli_refusal(tmp_path):
                        capture_output=True, text=True)
     assert p.returncode != 0 and "orchestrator only" in p.stderr
     assert not (tmp_path / "ledger_usage.jsonl").exists()
+
+
+def test_hard_exit_keeps_output_and_code(tmp_path):
+    """Workers end with cli.hard_exit (TerminateProcess on Windows: no DLL teardown, LESSONS 63): the exit code passes
+    through, buffered stdout is flushed first, and files the worker closed are complete."""
+    f = tmp_path / "out.txt"
+    code = ("import sys; sys.path.insert(0, sys.argv[1]); from ragrl.cli import hard_exit\n"
+            "open(sys.argv[2], 'w').write('x' * 100000)\n"
+            "print('before exit')\n"
+            "hard_exit(3)\n"
+            "print('after exit')\n")
+    with open(tmp_path / "log.txt", "w") as log:  # a file, as a worker's stdout is (buffered: no -u)
+        p = subprocess.run([sys.executable, "-c", code, str(REPO / "python"), str(f)], stdout=log, stderr=subprocess.STDOUT, timeout=60)
+    out = (tmp_path / "log.txt").read_text()
+    assert p.returncode == 3, out
+    assert "before exit" in out and "after exit" not in out
+    assert f.read_text() == "x" * 100000

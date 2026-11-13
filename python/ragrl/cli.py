@@ -19,8 +19,31 @@
 """
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
+
+
+def hard_exit(code: int = 0):
+    """Ends this process now: no interpreter finalization and, on Windows, no DLL teardown.
+
+    os._exit skips Python's finalization but on Windows still calls ExitProcess, which first kills the
+    process's other threads (torch's and _ragof's OpenMP pools) wherever they are, then runs every DLL's
+    DLL_PROCESS_DETACH and CRT teardown with those threads gone. That teardown intermittently crashed
+    (0xC0000005 at the os._exit line, after the worker's last record; LESSONS 58, 63). TerminateProcess
+    on the own process runs no DLL code, as a crash would but with the given exit code. Callers must have
+    closed their files; stdout and stderr are flushed here (OS-level writes survive termination)."""
+    sys.stdout.flush()
+    sys.stderr.flush()
+    if sys.platform == "win32":
+        import ctypes
+        from ctypes import wintypes
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.GetCurrentProcess.restype = wintypes.HANDLE
+        k32.TerminateProcess.argtypes = (wintypes.HANDLE, wintypes.UINT)
+        k32.TerminateProcess.restype = wintypes.BOOL
+        k32.TerminateProcess(k32.GetCurrentProcess(), int(code) & 0xFFFFFFFF)  # does not return on success
+    os._exit(int(code))
 
 
 def main(argv=None):
@@ -85,14 +108,11 @@ def main(argv=None):
         train_worker(Path(a.run), a.seed, out_dir=a.out_dir)
         # A worker's results are complete and closed once train_worker returns (every file is opened and closed per
         # write; no Python thread is left). Under the full gate's load, workers intermittently died with 0xC0000005
-        # AFTER their last record (metrics "timing") was written: in interpreter finalization, the native libraries'
-        # teardown (torch, _ragof, their OpenMP runtimes), where faulthandler is already off (empty worker.log;
-        # LESSONS 58). A worker has nothing to finalize, so it leaves like a multiprocessing child: os._exit after
-        # flushing. A crash during the work itself still exits nonzero and still fails the run.
-        sys.stdout.flush()
-        sys.stderr.flush()
-        import os
-        os._exit(0)
+        # AFTER their last record (metrics "timing") was written: in the native libraries' teardown at process exit
+        # (torch, _ragof, their OpenMP runtimes). os._exit (LESSONS 58) skipped Python's finalization but not that
+        # teardown, which ExitProcess still runs (LESSONS 63), so the worker ends with hard_exit. A crash during the
+        # work itself still exits nonzero and still fails the run.
+        hard_exit(0)
     elif a.cmd == "select":
         from . import ledger
         from . import registry
