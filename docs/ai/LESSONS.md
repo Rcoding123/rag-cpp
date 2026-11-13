@@ -327,3 +327,9 @@ building learning systems in general, not just this task.
     exactly 1 µs). A sweep is a chain of records each 1 µs after the
     previous one (OF19). Check what "simultaneous" means in a data
     source before modelling fills on it.
+61. **A positive mean on fat-tailed trades needs a trim test.** OF20's
+    exhaustion at levels netted +1.44 per trade over 119 trades, but
+    the median was −9.24, and dropping its top 3 trades made it −0.96.
+    With stops of a few ticks and 15-min caps, a few trend days decide
+    the mean. Report the median, the result without the top few trades
+    and without the best days before reading any descriptive positive.

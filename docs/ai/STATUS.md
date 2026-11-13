@@ -190,7 +190,9 @@
    orders on order-flow and trend features are closed from 1 s to 15 min.
    OF19 (footprint patterns on 47 days of true tick data: stacks,
    absorption, exhaustion, unfinished auctions, trapped traders) found no
-   edge either (A85).
+   edge either (A85). OF20 tested absorption and exhaustion only at
+   key levels (prior session, overnight, initial balance, VWAP bands): no
+   edge, and no better than a plain level touch (A86).
    Next (the user's choice): passive execution, which needs queue data
    (MBO) to replay honestly, or other information; the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper

@@ -225,7 +225,8 @@ def sig_P1(F, st):
     return rows
 
 
-def sig_P3(F, E, N, e, shell=False):
+def sig_P3(F, E, N, e, shell=False, meta=None):
+    """meta (a list, OF20): gets (formation time = the extreme bar's start, the extreme) per row."""
     A, Bv, lo = F["A"], F["B"], F["lo"]
     rows = []
     for b in range(N, NBARS):
@@ -256,6 +257,8 @@ def sig_P3(F, E, N, e, shell=False):
             if ti >= E.n or ti >= ci or E.t[ti] > F["end"][b] + 5 * BAR:
                 continue
             rows.append((E.t[ti], side, stop, np.nan))
+            if meta is not None:
+                meta.append((F["end"][b] - BAR, int(ext)))
     return rows
 
 
@@ -355,8 +358,9 @@ def fwd_ext(arr, n, f, fill):
     return f(np.lib.stride_tricks.sliding_window_view(pad, n), axis=1)
 
 
-def sig_P2(T, E, AB, W, thr, shell=False):
-    """thr: per side an array over seconds 1..S of the trailing q95 (by 30-min bucket)."""
+def sig_P2(T, E, AB, W, thr, shell=False, meta=None):
+    """thr: per side an array over seconds 1..S of the trailing q95 (by 30-min bucket). meta (a list, OF20): gets
+    (formation time = the window start t - W, the absorbed price P) per row."""
     S = int(RTH)
     rows = []
     for side in (1, -1):
@@ -395,6 +399,8 @@ def sig_P2(T, E, AB, W, thr, shell=False):
             if ti >= E.n or ti >= ci or E.t[ti] > sig + 60:
                 continue
             rows.append((E.t[ti], side, stop, np.nan))
+            if meta is not None:
+                meta.append((float(t - W), P))
     return rows
 
 

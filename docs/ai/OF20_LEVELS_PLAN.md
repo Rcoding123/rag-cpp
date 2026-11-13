@@ -1,6 +1,6 @@
 # OF20 plan: absorption and exhaustion at key levels
 
-Status: **plan only, nothing run.** Written 2026-11-12 after OF19 (A85),
+Status: **done 2026-11-12: no edge** (EXPERIMENTS.md OF20, `experiments/of20_atlevels.txt`). Originally: plan only, nothing run. Written 2026-11-12 after OF19 (A85),
 at the user's request; revised the same day after an independent design
 review, before any outcome. Committing this file is the pre-registration:
 levels, setups, statistics and the decision rule are fixed here before

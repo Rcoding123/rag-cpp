@@ -551,6 +551,8 @@ step. What remains, in order:
    per-price footprint rules on 47 days of true tick data, at the user's
    Sierra study defaults: no edge, no footprint condition beats its shell,
    unfinished and finished extremes revisited at indistinguishable rates.
+   **OF20** (A86): absorption and exhaustion at key levels: no edge, no
+   better than a plain touch of the level.
    In parallel, simulator realism where the
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on

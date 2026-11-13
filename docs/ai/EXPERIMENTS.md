@@ -2206,3 +2206,51 @@ tick through.
   the stated power. What these tests do not cover: discretionary levels
   ("at a key level"), passive execution, and the book (depth recorded on
   ~13 days only).
+
+## OF20. Absorption and exhaustion at key levels: no edge
+
+Practitioners say these setups work "at a key level". Plan pre-registered
+in `OF20_LEVELS_PLAN.md` (0898c06, revised after a design review before
+any outcome; only signal counts at levels were looked at). Levels
+(`experiments/of20_levels.py`): prior RTH high, low, close, volume POC and
+70% value area; overnight high and low; initial balance (from 09:30 CT);
+RTH VWAP and ± 1 and 2 SD (from 09:30 CT, rounded), each judged at the
+setup's formation time. Study: `experiments/of20_atlevels.py --out
+experiments/of20_atlevels.txt` (`kit.ps1 run of20_atlevels`, ~30 s; OF19's
+data, signals, fills and statistics; OF19's signal functions gained an
+optional `meta` list for the formation time and price, and OF19's results
+file reproduced byte for byte after it). Setups: absorption = OF19 P2
+(W 15, target 4), exhaustion = OF19 P3 (N 1, e 5); the shell = the same
+setup without its footprint condition at the same levels.
+
+* **Primary** (both setups within 2 ticks of any level, 222 trades): net
+  +0.10 ticks per trade, t 0.08, halves −1.93 / +2.98; setup − shell
+  +1.34 ± 1.21 (mix-weighted). No edge; the bound is 2.47 ticks per trade.
+* **Secondary** (8 tests, t_req 4.04): none passes; their bounds are 1.9 to
+  21 ticks (25-63 trades each).
+* **Absorption** loses everywhere: −1.71 away from all levels (471
+  trades, t −6.8), −1.44 at any level; at the VWAP bands −2.12 (59 trades)
+  is only slightly worse than away, and its setup − shell −0.96 ± 0.45 is
+  ~2 SE picked from 8 tests: not VWAP-specific.
+* **Exhaustion** at any level nets +1.44 per trade (119 trades) against
+  −2.83 away (669), but that mean rests on a few trades: median −9.24,
+  SD 26.7, 34% winners; without its top 3 trades −0.96, without its best
+  2 days −0.68. The interaction (setup − shell at levels minus away) is
+  +3.64, about 1.6 joint-day SE: descriptive, not a finding. Exhaustion at
+  the VWAP bands (+6.02, 62 trades) comes from 27 shorts at +13.54, three
+  days contributing ~100 ticks each.
+* **Review** (independent): all ten static levels recomputed on four days
+  (incl. a Monday and the day after the DST change) matched exactly; no
+  lookahead in 55,077 setup and shell trades (formation before signal,
+  initial balance and VWAP matches only from 09:30 CT); four trades
+  re-simulated from raw ticks matched; the rerun is byte identical. It
+  corrected the wording of the exhaustion and absorption-at-VWAP lines
+  (above) and recomputed the interaction SE with a joint resample (2.26;
+  the results file's hypot gives 2.32).
+* **Reading.** At the standard auction-market levels, absorption and
+  exhaustion do not make money after costs on these 37 days, and the
+  footprint condition does not beat a plain touch of the level. Within
+  the power (2.5 ticks per trade for the primary), the "at a key level"
+  claim is not supported. The only loose thread is exhaustion at levels,
+  carried by a handful of trades; it would need many more days (tick
+  records accumulate ~20 a month) and its own pre-registration.

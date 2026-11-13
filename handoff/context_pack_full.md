@@ -26,6 +26,7 @@ docs/ai/OF16_REAL_ES_PLAN.md
 docs/ai/OF17_SIGNAL_CENSUS_PLAN.md
 docs/ai/OF18_REGIME_PLAN.md
 docs/ai/OF19_FOOTPRINT_PLAN.md
+docs/ai/OF20_LEVELS_PLAN.md
 docs/ai/ORDERFLOW.md
 docs/ai/PROJECT_MAP.md
 docs/ai/RAG_ENGINE.md
@@ -220,6 +221,9 @@ experiments/of18_regimes.txt
 experiments/of19_footprint.py
 experiments/of19_footprint.txt
 experiments/of1_stylized_facts.cpp
+experiments/of20_atlevels.py
+experiments/of20_atlevels.txt
+experiments/of20_levels.py
 experiments/of2_baselines.cpp
 experiments/of2_results.txt
 experiments/of3_rl.cpp
@@ -396,144 +400,145 @@ tools/test_research_crawler.py
 20. docs/ai/OF17_SIGNAL_CENSUS_PLAN.md
 21. docs/ai/OF18_REGIME_PLAN.md
 22. docs/ai/OF19_FOOTPRINT_PLAN.md
-23. experiments/research_synthesis.md
-24. README.md
-25. CMakeLists.txt
-26. .github\workflows\ci.yml
-27. include\rag\agent\agent.hpp
-28. include\rag\agent\analysis.hpp
-29. include\rag\agent\drift.hpp
-30. include\rag\agent\env.hpp
-31. include\rag\agent\evaluate.hpp
-32. include\rag\agent\execution_dp.hpp
-33. include\rag\agent\features.hpp
-34. include\rag\agent\learners.hpp
-35. include\rag\agent\market_making.hpp
-36. include\rag\agent\mlp.hpp
-37. include\rag\agent\model_based.hpp
-38. include\rag\agent\ope.hpp
-39. include\rag\agent\policy_table.hpp
-40. include\rag\agent\rng.hpp
-41. include\rag\agent\trainer.hpp
-42. include\rag\agent\tuning.hpp
-43. include\rag\agent\validation.hpp
-44. include\rag\agent\variance_reduction.hpp
-45. include\rag\arena.hpp
-46. include\rag\bm25.hpp
-47. include\rag\chunker.hpp
-48. include\rag\common.hpp
-49. include\rag\embedder.hpp
-50. include\rag\engine.hpp
-51. include\rag\epoch.hpp
-52. include\rag\fusion.hpp
-53. include\rag\io.hpp
-54. include\rag\ivf_index.hpp
-55. include\rag\orderflow\features.hpp
-56. include\rag\orderflow\replay_env.hpp
-57. include\rag\orderflow\scalp_env.hpp
-58. include\rag\orderflow\scalp_run.hpp
-59. include\rag\orderflow\seed_ledger.hpp
-60. include\rag\orderflow\simulator.hpp
-61. include\rag\orderflow\stylized.hpp
-62. include\rag\orderflow\tick_csv.hpp
-63. include\rag\orderflow\tick_env.hpp
-64. include\rag\orderflow\vec_scalp_env.hpp
-65. include\rag\pdf.hpp
-66. include\rag\prompt.hpp
-67. include\rag\simd.hpp
-68. include\rag\text_clean.hpp
-69. include\rag\tokenizer.hpp
-70. include\rag\topk.hpp
-71. include\rag\vector_store.hpp
-72. include\rag.hpp
-73. examples\agent_demo.cpp
-74. examples\demo.cpp
-75. examples\of15_refdump.cpp
-76. examples\of_backtest.cpp
-77. examples\of_calibrate.cpp
-78. examples\of_trace.cpp
-79. examples\of_train.cpp
-80. examples\of_train_live.cpp
-81. examples\rag_pdf.cpp
-82. examples\train_ensemble.cpp
-83. examples\tune_agent.cpp
-84. bench\latency.cpp
-85. bench\rag_bench.cpp
-86. bench\fixtures.hpp
-87. tests\agent_coverage_tests.cpp
-88. tests\agent_edge_case_tests.cpp
-89. tests\agent_tests.cpp
-90. tests\api_examples_tests.cpp
-91. tests\forgery_tests.cpp
-92. tests\market_making_tests.cpp
-93. tests\mlp_tests.cpp
-94. tests\model_based_tests.cpp
-95. tests\optional_libs_tests.cpp
-96. tests\orderflow_tests.cpp
-97. tests\pdf_tests.cpp
-98. tests\policy_table_tests.cpp
-99. tests\rag_property_tests.cpp
-100. tests\rag_tests.cpp
-101. tests\reference_tests.cpp
-102. tests\stress.cpp
-103. tests\stylized_tests.cpp
-104. tests\text_clean_tests.cpp
-105. tests\vec_scalp_env_tests.cpp
-106. tests\pdf_writer.hpp
-107. tests\pid.hpp
-108. tests\synthetic.hpp
-109. tests\test_util.hpp
-110. tests\fuzz\fuzz_common.hpp
-111. tests\fuzz\fuzz_load.cpp
-112. tests\fuzz\fuzz_policy_table.cpp
-113. tests\fuzz\fuzz_text.cpp
-114. tests\fuzz\make_seeds.cpp
-115. tools\make_context_pack.py
-116. tools\of_train_live.py
-117. tools\of_viz.py
-118. tools\of_zoo_trace.py
-119. tools\real_vs_sim.py
-120. tools\research_crawler.py
-121. tools\scid_to_bars.py
-122. tools\scid_to_trades.py
-123. tools\sierra_to_ticks.py
-124. tools\test_research_crawler.py
-125. python\ragof_module.cpp
-126. python\ragrl\__init__.py
-127. python\ragrl\__main__.py
-128. python\ragrl\agents\__init__.py
-129. python\ragrl\agents\imitation.py
-130. python\ragrl\agents\neuralq.py
-131. python\ragrl\agents\sb3_agents.py
-132. python\ragrl\agents\supervised.py
-133. python\ragrl\checkpoints.py
-134. python\ragrl\cli.py
-135. python\ragrl\config.py
-136. python\ragrl\envs.py
-137. python\ragrl\evaluate.py
-138. python\ragrl\hpo.py
-139. python\ragrl\ledger.py
-140. python\ragrl\live.py
-141. python\ragrl\native.py
-142. python\ragrl\policies.py
-143. python\ragrl\real.py
-144. python\ragrl\redflags.py
-145. python\ragrl\registry.py
-146. python\ragrl\report.py
-147. python\ragrl\runner.py
-148. python\ragrl\score_real.py
-149. python\ragrl\stats.py
-150. python\ragrl\worker.py
-151. python\tests\conftest.py
-152. python\tests\test_bars.py
-153. python\tests\test_bit_identity.py
-154. python\tests\test_ledger.py
-155. python\tests\test_of19.py
-156. python\tests\test_pipeline.py
-157. python\tests\test_privileged.py
-158. python\tests\test_real.py
-159. python\tests\test_smoke.py
-160. python\tests\test_vec_env.py
+23. docs/ai/OF20_LEVELS_PLAN.md
+24. experiments/research_synthesis.md
+25. README.md
+26. CMakeLists.txt
+27. .github\workflows\ci.yml
+28. include\rag\agent\agent.hpp
+29. include\rag\agent\analysis.hpp
+30. include\rag\agent\drift.hpp
+31. include\rag\agent\env.hpp
+32. include\rag\agent\evaluate.hpp
+33. include\rag\agent\execution_dp.hpp
+34. include\rag\agent\features.hpp
+35. include\rag\agent\learners.hpp
+36. include\rag\agent\market_making.hpp
+37. include\rag\agent\mlp.hpp
+38. include\rag\agent\model_based.hpp
+39. include\rag\agent\ope.hpp
+40. include\rag\agent\policy_table.hpp
+41. include\rag\agent\rng.hpp
+42. include\rag\agent\trainer.hpp
+43. include\rag\agent\tuning.hpp
+44. include\rag\agent\validation.hpp
+45. include\rag\agent\variance_reduction.hpp
+46. include\rag\arena.hpp
+47. include\rag\bm25.hpp
+48. include\rag\chunker.hpp
+49. include\rag\common.hpp
+50. include\rag\embedder.hpp
+51. include\rag\engine.hpp
+52. include\rag\epoch.hpp
+53. include\rag\fusion.hpp
+54. include\rag\io.hpp
+55. include\rag\ivf_index.hpp
+56. include\rag\orderflow\features.hpp
+57. include\rag\orderflow\replay_env.hpp
+58. include\rag\orderflow\scalp_env.hpp
+59. include\rag\orderflow\scalp_run.hpp
+60. include\rag\orderflow\seed_ledger.hpp
+61. include\rag\orderflow\simulator.hpp
+62. include\rag\orderflow\stylized.hpp
+63. include\rag\orderflow\tick_csv.hpp
+64. include\rag\orderflow\tick_env.hpp
+65. include\rag\orderflow\vec_scalp_env.hpp
+66. include\rag\pdf.hpp
+67. include\rag\prompt.hpp
+68. include\rag\simd.hpp
+69. include\rag\text_clean.hpp
+70. include\rag\tokenizer.hpp
+71. include\rag\topk.hpp
+72. include\rag\vector_store.hpp
+73. include\rag.hpp
+74. examples\agent_demo.cpp
+75. examples\demo.cpp
+76. examples\of15_refdump.cpp
+77. examples\of_backtest.cpp
+78. examples\of_calibrate.cpp
+79. examples\of_trace.cpp
+80. examples\of_train.cpp
+81. examples\of_train_live.cpp
+82. examples\rag_pdf.cpp
+83. examples\train_ensemble.cpp
+84. examples\tune_agent.cpp
+85. bench\latency.cpp
+86. bench\rag_bench.cpp
+87. bench\fixtures.hpp
+88. tests\agent_coverage_tests.cpp
+89. tests\agent_edge_case_tests.cpp
+90. tests\agent_tests.cpp
+91. tests\api_examples_tests.cpp
+92. tests\forgery_tests.cpp
+93. tests\market_making_tests.cpp
+94. tests\mlp_tests.cpp
+95. tests\model_based_tests.cpp
+96. tests\optional_libs_tests.cpp
+97. tests\orderflow_tests.cpp
+98. tests\pdf_tests.cpp
+99. tests\policy_table_tests.cpp
+100. tests\rag_property_tests.cpp
+101. tests\rag_tests.cpp
+102. tests\reference_tests.cpp
+103. tests\stress.cpp
+104. tests\stylized_tests.cpp
+105. tests\text_clean_tests.cpp
+106. tests\vec_scalp_env_tests.cpp
+107. tests\pdf_writer.hpp
+108. tests\pid.hpp
+109. tests\synthetic.hpp
+110. tests\test_util.hpp
+111. tests\fuzz\fuzz_common.hpp
+112. tests\fuzz\fuzz_load.cpp
+113. tests\fuzz\fuzz_policy_table.cpp
+114. tests\fuzz\fuzz_text.cpp
+115. tests\fuzz\make_seeds.cpp
+116. tools\make_context_pack.py
+117. tools\of_train_live.py
+118. tools\of_viz.py
+119. tools\of_zoo_trace.py
+120. tools\real_vs_sim.py
+121. tools\research_crawler.py
+122. tools\scid_to_bars.py
+123. tools\scid_to_trades.py
+124. tools\sierra_to_ticks.py
+125. tools\test_research_crawler.py
+126. python\ragof_module.cpp
+127. python\ragrl\__init__.py
+128. python\ragrl\__main__.py
+129. python\ragrl\agents\__init__.py
+130. python\ragrl\agents\imitation.py
+131. python\ragrl\agents\neuralq.py
+132. python\ragrl\agents\sb3_agents.py
+133. python\ragrl\agents\supervised.py
+134. python\ragrl\checkpoints.py
+135. python\ragrl\cli.py
+136. python\ragrl\config.py
+137. python\ragrl\envs.py
+138. python\ragrl\evaluate.py
+139. python\ragrl\hpo.py
+140. python\ragrl\ledger.py
+141. python\ragrl\live.py
+142. python\ragrl\native.py
+143. python\ragrl\policies.py
+144. python\ragrl\real.py
+145. python\ragrl\redflags.py
+146. python\ragrl\registry.py
+147. python\ragrl\report.py
+148. python\ragrl\runner.py
+149. python\ragrl\score_real.py
+150. python\ragrl\stats.py
+151. python\ragrl\worker.py
+152. python\tests\conftest.py
+153. python\tests\test_bars.py
+154. python\tests\test_bit_identity.py
+155. python\tests\test_ledger.py
+156. python\tests\test_of19.py
+157. python\tests\test_pipeline.py
+158. python\tests\test_privileged.py
+159. python\tests\test_real.py
+160. python\tests\test_smoke.py
+161. python\tests\test_vec_env.py
 
 
 ---
@@ -2504,7 +2509,7 @@ change detection (E9).
 
 ---
 
-## FILE: docs/ai/LESSONS.md  (20,629 bytes)
+## FILE: docs/ai/LESSONS.md  (21,053 bytes)
 
 # Lessons, distilled
 
@@ -2835,6 +2840,12 @@ building learning systems in general, not just this task.
     exactly 1 µs). A sweep is a chain of records each 1 µs after the
     previous one (OF19). Check what "simultaneous" means in a data
     source before modelling fills on it.
+61. **A positive mean on fat-tailed trades needs a trim test.** OF20's
+    exhaustion at levels netted +1.44 per trade over 119 trades, but
+    the median was −9.24, and dropping its top 3 trades made it −0.96.
+    With stops of a few ticks and 15-min caps, a few trend days decide
+    the mean. Report the median, the result without the top few trades
+    and without the best days before reading any descriptive positive.
 
 
 
@@ -3247,7 +3258,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (132,898 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (135,967 bytes)
 
 # RL experiment log
 
@@ -5458,11 +5469,59 @@ tick through.
   ("at a key level"), passive execution, and the book (depth recorded on
   ~13 days only).
 
+## OF20. Absorption and exhaustion at key levels: no edge
+
+Practitioners say these setups work "at a key level". Plan pre-registered
+in `OF20_LEVELS_PLAN.md` (0898c06, revised after a design review before
+any outcome; only signal counts at levels were looked at). Levels
+(`experiments/of20_levels.py`): prior RTH high, low, close, volume POC and
+70% value area; overnight high and low; initial balance (from 09:30 CT);
+RTH VWAP and ± 1 and 2 SD (from 09:30 CT, rounded), each judged at the
+setup's formation time. Study: `experiments/of20_atlevels.py --out
+experiments/of20_atlevels.txt` (`kit.ps1 run of20_atlevels`, ~30 s; OF19's
+data, signals, fills and statistics; OF19's signal functions gained an
+optional `meta` list for the formation time and price, and OF19's results
+file reproduced byte for byte after it). Setups: absorption = OF19 P2
+(W 15, target 4), exhaustion = OF19 P3 (N 1, e 5); the shell = the same
+setup without its footprint condition at the same levels.
+
+* **Primary** (both setups within 2 ticks of any level, 222 trades): net
+  +0.10 ticks per trade, t 0.08, halves −1.93 / +2.98; setup − shell
+  +1.34 ± 1.21 (mix-weighted). No edge; the bound is 2.47 ticks per trade.
+* **Secondary** (8 tests, t_req 4.04): none passes; their bounds are 1.9 to
+  21 ticks (25-63 trades each).
+* **Absorption** loses everywhere: −1.71 away from all levels (471
+  trades, t −6.8), −1.44 at any level; at the VWAP bands −2.12 (59 trades)
+  is only slightly worse than away, and its setup − shell −0.96 ± 0.45 is
+  ~2 SE picked from 8 tests: not VWAP-specific.
+* **Exhaustion** at any level nets +1.44 per trade (119 trades) against
+  −2.83 away (669), but that mean rests on a few trades: median −9.24,
+  SD 26.7, 34% winners; without its top 3 trades −0.96, without its best
+  2 days −0.68. The interaction (setup − shell at levels minus away) is
+  +3.64, about 1.6 joint-day SE: descriptive, not a finding. Exhaustion at
+  the VWAP bands (+6.02, 62 trades) comes from 27 shorts at +13.54, three
+  days contributing ~100 ticks each.
+* **Review** (independent): all ten static levels recomputed on four days
+  (incl. a Monday and the day after the DST change) matched exactly; no
+  lookahead in 55,077 setup and shell trades (formation before signal,
+  initial balance and VWAP matches only from 09:30 CT); four trades
+  re-simulated from raw ticks matched; the rerun is byte identical. It
+  corrected the wording of the exhaustion and absorption-at-VWAP lines
+  (above) and recomputed the interaction SE with a joint resample (2.26;
+  the results file's hypot gives 2.32).
+* **Reading.** At the standard auction-market levels, absorption and
+  exhaustion do not make money after costs on these 37 days, and the
+  footprint condition does not beat a plain touch of the level. Within
+  the power (2.5 ticks per trade for the primary), the "at a key level"
+  claim is not supported. The only loose thread is exhaustion at levels,
+  carried by a handful of trades; it would need many more days (tick
+  records accumulate ~20 a month) and its own pre-registration.
+
 
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (36,329 bytes)
+## FILE: docs/ai/DECISIONS.md  (36,810 bytes)
 
 # Decision log
 
@@ -5592,6 +5651,7 @@ the code looks the way it does.
 | A83 | OF18 closes walk-forward momentum / reversal regime rules on 7 trade-based trend features at 5-15 min (no primary edge: vwap_dist 10 min W20 net −0.78, t −1.83; no secondary candidate of 63), reported as upper bounds (1.55 / 2.53 / 3.46 ticks per trade). Market-order trading on order-flow and trend features in ES is closed from 1 s to 15 min within those bounds | Pre-registered (e9485da, amended baf2a7b before any statistic); the persistence column was re-worded after the review, the rule and the numbers were not |
 | A84 | `ragrl train` workers end with `os._exit(0)` after their last write instead of interpreter finalization | Two gate failures (0xC0000005, empty worker.log) were crashes after the worker's last record, in native-library teardown under the gate's load; the worker has nothing to finalize. A crash during the work still fails (LESSONS 58) |
 | A85 | OF19 closes the per-price footprint rules (stacked imbalance, absorption, exhaustion, unfinished auction, trapped traders) traded with market orders at the user's study defaults: no primary edge, no candidate of 20, and no footprint condition beats its shell. Sweeps are 1-µs chains of Sierra records | Pre-registered (d659252, revised after design review); the sweep grouping was corrected after the run review in the conservative direction (it lowers every rule and control), the rules were not |
+| A86 | OF20: absorption and exhaustion at the standard auction-market levels (prior high, low, close, POC, value area; overnight; initial balance; VWAP bands) have no edge (primary net +0.10, t 0.08, bound 2.47 ticks per trade) and do not beat a plain level touch. Exhaustion-at-levels' positive mean is carried by 3 trades and is not a lead to act on without fresh days | Pre-registered (0898c06, revised after design review); the run review only corrected descriptive wording |
 
 
 
@@ -5682,7 +5742,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/STATUS.md  (13,004 bytes)
+## FILE: docs/ai/STATUS.md  (13,179 bytes)
 
 # Status, limitations and next steps
 
@@ -5876,7 +5936,9 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
    orders on order-flow and trend features are closed from 1 s to 15 min.
    OF19 (footprint patterns on 47 days of true tick data: stacks,
    absorption, exhaustion, unfinished auctions, trapped traders) found no
-   edge either (A85).
+   edge either (A85). OF20 tested absorption and exhaustion only at
+   key levels (prior session, overnight, initial balance, VWAP bands): no
+   edge, and no better than a plain level touch (A86).
    Next (the user's choice): passive execution, which needs queue data
    (MBO) to replay honestly, or other information; the heap crash once WMI is
    repaired; then calibration to the user's ES ticks and the tick scalper
@@ -5901,7 +5963,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ctes
 
 ---
 
-## FILE: docs/ai/ORDERFLOW.md  (45,530 bytes)
+## FILE: docs/ai/ORDERFLOW.md  (45,645 bytes)
 
 # ES order-flow trading: simulator, agents, validation, plan
 
@@ -6456,6 +6518,8 @@ step. What remains, in order:
    per-price footprint rules on 47 days of true tick data, at the user's
    Sierra study defaults: no edge, no footprint condition beats its shell,
    unfinished and finished extremes revisited at indistinguishable rates.
+   **OF20** (A86): absorption and exhaustion at key levels: no edge, no
+   better than a plain touch of the level.
    In parallel, simulator realism where the
    skeptic found gaps (spread that widens, I1 persistence after latency,
    100 ms mid flicker, volatility clustering) as an opt-in v5, judged on
@@ -6539,7 +6603,7 @@ step. What remains, in order:
 
 ---
 
-## FILE: docs/ai/NEXT_SESSION.md  (19,415 bytes)
+## FILE: docs/ai/NEXT_SESSION.md  (19,592 bytes)
 
 # Continuing the work: the prompt and the Claude Code agent architecture
 
@@ -6603,7 +6667,10 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > **OF19** (`OF19_FOOTPRINT_PLAN.md`, done, A85): the per-price footprint
 > rules (stacked imbalance, absorption, exhaustion, unfinished auction,
 > trapped traders) on 47 days of true tick data: no edge, and no
-> footprint condition beats the same price action without it. Without the data,
+> footprint condition beats the same price action without it.
+> **OF20** (`OF20_LEVELS_PLAN.md`, done, A86): the same setups only at key
+> levels: no edge (primary t 0.08, bound 2.47 ticks per trade), no better
+> than a plain level touch. Without the data,
 > do the opt-in simulator realism items
 > (v5) of §7. Done when every config is scored once on later days,
 > paired against flat and the 30 s delta rule, with orders/episode and
@@ -7503,6 +7570,166 @@ entry decision, and that the day's trade volume equals the OF18 bars'.
 Light: one pass over ~47 days of tick records (the ESU26 / ESZ26 byte
 ranges, ~1.5 GB), per-day arrays, then numpy. Implementation, tests and
 review: about 2-3 hours.
+
+
+
+---
+
+## FILE: docs/ai/OF20_LEVELS_PLAN.md  (8,010 bytes)
+
+# OF20 plan: absorption and exhaustion at key levels
+
+Status: **done 2026-11-12: no edge** (EXPERIMENTS.md OF20, `experiments/of20_atlevels.txt`). Originally: plan only, nothing run. Written 2026-11-12 after OF19 (A85),
+at the user's request; revised the same day after an independent design
+review, before any outcome. Committing this file is the pre-registration:
+levels, setups, statistics and the decision rule are fixed here before
+any OF20 profit or loss is computed.
+
+## 1. Question
+
+Practitioners say absorption and exhaustion work "at a key level", not
+everywhere (the user's KB, `practitioner_methods.md` F2, and its section
+6: absorption's discretionary component is "at a key level"). OF19 tested
+them everywhere and found no edge. The question here:
+
+**At the standard auction-market levels, do the absorption and exhaustion
+setups make money after costs, and do they beat a plain touch of the same
+level without the footprint condition?**
+
+What was looked at before writing this: OF19's results for these rules
+over all occurrences (all negative), and the **counts** (not the outcomes)
+of their signals near the levels below on the 37 OF19 scored days
+(absorption W 15: 44 within 2 ticks of a static level, 91 of any level;
+exhaustion N 1: 58 and 129). No outcome of any signal at a level has been
+computed.
+
+Expected answer: no. The test is coarse (§6).
+
+## 2. Data and levels
+
+The OF19 data: tick records of the front month, 47 days 2026-09-08 ..
+2026-11-11; the same 37 scored days (2026-09-22 .. 2026-11-11), the first
+10 days feeding the absorption threshold only. Nothing from 2026-11-12 on
+is read. Levels (`experiments/of20_levels.py`, ticks), from data before
+they are used:
+
+- **Static** (known at 08:30 CT): the prior RTH session's high, low and
+  close (its last trade), volume POC and 70% value area (from the POC, add
+  the adjacent price with more volume, one tick at a time, ties above: a
+  stated deviation from the classic two-row method, edges can differ by
+  1-2 ticks); the overnight high and low (the same contract, 17:00 CT of
+  the previous calendar day to 08:30 CT, the 08:30:00 print excluded); the
+  initial balance high and low (08:30-09:30 CT RTH). RTH is 08:30-15:00 CT
+  as in OF16-OF19 (not the 15:15 CT close some ES charts use). The prior
+  session is the previous CME RTH session of day D's contract; on the 37
+  scored days that is always the previous trades day (no gaps, no
+  holidays).
+- **VWAP set**: RTH VWAP and VWAP ± 1 and 2 volume-weighted SD, from RTH
+  trades strictly before the formation time, each rounded to the nearest
+  tick; active only from 09:30 CT (right after the open VWAP is about the
+  price and the SD near 0, so every early signal would be "at VWAP").
+
+**Formation time.** A level is judged at the setup's formation time:
+absorption, the start of its window (t − W, with t the candidate second);
+exhaustion, the start of its extreme bar. A level counts only if it was
+known at that time: the initial balance only for setups formed at or after
+09:30 CT, the VWAP set as above (none before the first trade).
+
+A setup is **at a level** when its price is within `tol` ticks of a level
+counted at its formation time: absorption, the absorbed price P;
+exhaustion, the bar's extreme (the new low for a long, the new high for a
+short).
+
+## 3. Setups (OF19's definitions, exits and fills unchanged)
+
+- **Absorption** = OF19 P2 with W = 15 s and target 4, at a level. W = 15
+  was chosen for its count (the most frequent variant); it was also the
+  least negative P2 variant in OF19 (net −1.66 against −2.10 for the
+  primary), which was seen.
+- **Exhaustion** = OF19 P3 with N = 1 and e = 5 (the study default), at a
+  level.
+
+Everything else is OF19 (§3 of `OF19_FOOTPRINT_PLAN.md`): trailing q95
+for absorption, triggers, cancellation, stops, target, 15-min (P3) and
+5-min (P2) caps, sweep-aware fills at the recorded touch, 100 ms latency,
+$1.50 per side.
+
+## 4. Tests
+
+- **Primary (one test, t ≥ 2):** both setups pooled, at **any** level
+  (static and VWAP sets), tol = 2 ticks: about 220 trades.
+- **Secondary (8 tests, t_req = 2 + sqrt(2 ln 8) = 4.04):** each setup ×
+  level set (static, VWAP) × tol ∈ {1, 2}.
+
+## 5. Statistics and the decision rule (fixed now)
+
+As OF19 §5: per-trade net at the recorded touch; SE the largest
+moving-block bootstrap SE over blocks of 2, 5 and 10 scored days (10000
+resamples, seed 0; total net / total trades); halves split at the middle
+scored day; stress net − 0.5 ticks.
+
+- **Edge:** net > 0, t ≥ its bar (2 primary, 4.04 secondary), positive in
+  both halves and at stress, **and setup − shell ≥ 2 × the block SE of the
+  difference** (the shell below). For the pooled primary, setup − shell =
+  Σ_s w_s (setup_s − shell_s), with w_s the setup's share s of the
+  primary's trades, its SE from resampling days jointly. Not a claim:
+  OF20b, one confirmation on the next **40** full front-month RTH days
+  from 2026-11-12 (the setups are rare: ~3-6 a day), claimed only if
+  net > 0 with t ≥ 2 **and** setup − shell > 0. For OF20b the prior
+  session is the previous recorded RTH session of the day's contract (read
+  from that contract's .scid, so the December roll uses ESH27's own prior
+  session); half days count as a prior session but are not scored; a day
+  whose prior session is not recorded is skipped and counted.
+- **If the setup passes net and t but not the shell condition**, the
+  result reads "at these levels the touch, not the footprint condition,
+  carries the result": the shell is not a pre-registered rule, so it is
+  not a candidate and nothing is claimed.
+- **Otherwise:** "At these levels the setups net no more than X ticks per
+  trade (X = bar × SE)"; smaller edges are not excluded.
+
+**The level-touch shell** (the comparison that answers the question): the
+same setup without its footprint condition, at the same levels and
+tolerance, with the same exits: absorption without S ≥ q95 (held price and
+confirmation only); exhaustion as a new 1-bar low (high) then a break above
+the bar's high (below its low), without the Bv (A) conditions. Reported
+for every test: shell trades, shell net, and the setup minus the shell
+with its block SE.
+
+**Reported, not tested:** the interaction practitioners claim, (setup −
+shell) at levels minus (setup − shell) away from all levels, with its block
+SE; per level type (prior high/low, POC and value
+area, overnight, initial balance, VWAP bands): trades and net; long and
+short; trades by time of day; the absorption and exhaustion results away
+from all levels (the complement), so the level effect is visible; X per
+test.
+
+**Red flags:** t > 6; a win rate above 75% on 30+ trades; a level computed
+from data after its use (checked in code: static levels from the previous
+day and the overnight before 08:30, the initial balance only after 09:30,
+VWAP from trades before the signal time).
+
+## 6. Known weaknesses (stated before the results)
+
+- **Power.** About 220 trades in the primary over 37 days. Exhaustion's
+  per-trade dispersion is about 3.5 times absorption's (OF19: SE 0.69 on
+  788 trades against 0.23 on 574), so the pooled primary is mostly an
+  exhaustion test: SE about 1.0, X about 2.1 ticks. The secondaries
+  (25-60 trades) have X of roughly 4.5 (absorption) to 14 ticks
+  (exhaustion): they cannot realistically pass, and a pass on 25 trades
+  would itself be a red flag. A null says little below these sizes.
+- **Seen data.** The same 37 days as OF19, whose overall results were
+  seen. The at-level condition is the practitioners' a priori claim, not
+  chosen from OF19's results, and only signal counts at levels were looked
+  at.
+- **Levels.** One standard set; practitioners also draw discretionary
+  levels (prior swing points, composites, naked POCs, the official
+  settlement rather than the last RTH trade) that are not tested.
+- **No book.** As OF19.
+
+## 7. Cost
+
+Light: OF19's pass over the 47 days plus the levels (one overnight byte
+range per day); minutes. Implementation, review: about 1.5-2 hours.
 
 
 
@@ -33943,7 +34170,7 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: tools\make_context_pack.py  (4,098 bytes)
+## FILE: tools\make_context_pack.py  (4,133 bytes)
 
 ````python
 #!/usr/bin/env python3
@@ -33988,6 +34215,7 @@ DOCS = [
     "docs/ai/OF17_SIGNAL_CENSUS_PLAN.md",
     "docs/ai/OF18_REGIME_PLAN.md",
     "docs/ai/OF19_FOOTPRINT_PLAN.md",
+    "docs/ai/OF20_LEVELS_PLAN.md",
     "experiments/research_synthesis.md",
     "README.md",
 ]

@@ -60,7 +60,10 @@ trading-side plan itself is `ORDERFLOW.md` §7.
 > **OF19** (`OF19_FOOTPRINT_PLAN.md`, done, A85): the per-price footprint
 > rules (stacked imbalance, absorption, exhaustion, unfinished auction,
 > trapped traders) on 47 days of true tick data: no edge, and no
-> footprint condition beats the same price action without it. Without the data,
+> footprint condition beats the same price action without it.
+> **OF20** (`OF20_LEVELS_PLAN.md`, done, A86): the same setups only at key
+> levels: no edge (primary t 0.08, bound 2.47 ticks per trade), no better
+> than a plain level touch. Without the data,
 > do the opt-in simulator realism items
 > (v5) of §7. Done when every config is scored once on later days,
 > paired against flat and the 30 s delta rule, with orders/episode and
