@@ -61,8 +61,11 @@ def write(path, C, pol, val):
         put(f"{p}_b1", lin[0].bias.detach().numpy())
         put(f"{p}_W2", lin[1].weight.detach().numpy())
         put(f"{p}_b2", lin[1].bias.detach().numpy())
-        put(f"{p}_W3", lin[2].weight.detach().numpy())
-        put(f"{p}_b3", lin[2].bias.detach().numpy())
+        # OF23's critic predicts the rest-of-day return of an episode; the live study learns from one decision at a
+        # time, so its baseline starts at zero (the value head's output layer) and learns the one-step mean online
+        zero = p == "val"
+        put(f"{p}_W3", lin[2].weight.detach().numpy() * (0.0 if zero else 1.0))
+        put(f"{p}_b3", lin[2].bias.detach().numpy() * (0.0 if zero else 1.0))
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="ascii")
     return mu, sd

@@ -83,7 +83,8 @@ equals the trained one; only the online update can give them weight.
 After each closed trade: reward = net ticks after the OF23 base costs
 (1.28 round trip for market/stop exits, 0.76 with a limit target) / 10;
 one actor-critic step on the stored inputs and sampled action (advantage
-= reward − value; policy-gradient and value steps by SGD, learning rate
+= reward − value, the value head starting at zero because OF23's critic
+predicts a rest-of-day return; policy-gradient and value steps by SGD, learning rate
 1e-4, gradient norm clipped at 1, entropy bonus 0.01). Skips are updated
 with reward 0 at the same time. Weights are saved to the study's folder
 after each update and reloaded on start; the starting file is kept.

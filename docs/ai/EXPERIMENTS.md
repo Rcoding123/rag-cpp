@@ -2379,6 +2379,21 @@ starting policy is OF23's RL-free arm, which lost on unseen months (A92).
   sim guards on every call, Arm input off by default, a dedicated Sim
   account. Reviewed; compiles without warnings. Live data stays inside
   Sierra (its data license); Python only trains offline on the OF23 cache.
-* **Not done:** the sub-instance, the replay test and the live run
-  (plan section 7). Nothing is verified at runtime yet.
+* **Runtime check (2026-11-13, sub-instance #2, Sim9, build
+  `RagAgent_vb_64`):** a chart replay of 2026-11-10 at 30x in sim. 89
+  decisions, 26 entries, 26 closed trades, no error lines; every trade
+  closed at its bracket's target or stop (fills match the attached
+  orders; a few stops filled 1-3 ticks inside the offset because the
+  bracket is priced from the order, not the fill), the trailing rule
+  moved stops four times, a learning step ran after every decision.
+  Net -93.7 ticks on the day by OF23's costs: one replayed day of an
+  agent with no edge, not a result. Not yet observed at runtime: the
+  time-cap and end-of-day flatten (no trade lasted that long), the
+  daily stop, depth and MBO inputs (off in a replay; market closed).
+* **Fix from the replay:** OF23's critic predicts the rest-of-day return
+  of an episode (values of 3-7 in reward units), which is the wrong
+  baseline for one-decision updates; the exported value head now starts
+  at zero and learns the one-step mean online (`of24_export.py`).
+* **State:** the study is in live mode, armed, on Sim9 in the
+  sub-instance, waiting for Monday 2026-11-16 08:50 CT.
 
