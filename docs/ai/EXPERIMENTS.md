@@ -2423,8 +2423,42 @@ starting policy is OF23's RL-free arm, which lost on unseen months (A92).
   the starting policy was trained on, and Sierra's sim fills limit
   targets at the touch, where OF23 required a trade-through; OF23
   measured the same kind of trades at -2 ticks per trade.
-* **State:** build `RagAgent_vf_64` in live mode, armed, on Sim9 in the
-  sub-instance, continuing from the replay-learned weights (1941
-  updates; log header `weights=replay-learned`); first RTH session
-  Monday 2026-11-16 08:50 CT. Its live trades go to `profit_*_live.csv`.
+* **Replay pass 2 (2026-11-14, build `RagAgent_vg_64`, user: "run
+  another replay pass so it keeps learning, see if you add more data or
+  test it on MBO and depth"):** more data: the ESH26/ESM26/ESU26 `.scid`
+  files copied into the sub-instance and the chart switched to a
+  date-rule continuous contract, so one replay ran from 2025-12-15 to
+  2026-11-11 at 1000x (about 5.6 hours, no skipped bars), continuing
+  from pass 1's weights. A new input (9) lets the book inputs read
+  recorded depth in a replay; MBO is never recorded, so it stays zero.
+  **Result (235 sessions):** 3719 trades, +10,498.7 ticks (+$131,234 for
+  one lot), +2.82 per trade (t 6.7 on trades), 147 of 235 days positive;
+  by quarter of trades +2.20, +3.66, +3.08, +2.35 (no steady rise).
+  Weakest months Jan 2026 (+0.88) and Sep 2026 (+0.40). On pass 1's 43
+  days: +1499.4 over 725 trades against pass 1's +1809.5 over 712. Exit
+  mix stable: 48/16 to the close 53-54%, 16/8 trailing 11-13%, 32/12 to
+  the close 18% then 13%. 13,184 learning steps. Same caveats as pass 1:
+  in-sample for the starting policy, optimistic sim limit fills.
+  **Depth was not replayed on the continuous-contract chart:** every
+  decision saw one synthetic level with equal sizes, including
+  2026-11-03 to 11-11 where `.depth` files exist, so the depth weights
+  stayed exactly zero (spread gained 0.007, against a median 1.12 for the
+  bar features). **Depth leg:** on the plain ESZ26 chart a replay of
+  2026-11-03 to 11-11 did read the recorded book (up to 10 levels used;
+  Sierra reports 100): 292 of 487 decisions had depth (none on 11-04,
+  whose file starts 13:50 CT, nor on 11-06); 158 trades, +163.7 ticks.
+  The depth weights moved to about 6e-5, 1e-5, 1e-5: a handful of
+  recorded days is far too little to learn what depth is worth at this
+  learning rate. Ledgers kept as `profit_*_replay_pass2.csv`; weights
+  after each stage kept as `weights_replay_c1_after_pass{1,2}.txt`.
+* **Viewer** `tools/of24_live.py serve [--mode replay|live]`: a stdlib
+  page at http://127.0.0.1:8775 that reads only the study's ledgers, its
+  newest decision log and its weight file (profit, a rolling 100-trade
+  mean, exit mix, trade rate, critic value, book-weight norms, depth
+  levels, latest trades).
+* **State:** build `RagAgent_vg_64` in live mode on plain ESZ26, armed,
+  on Sim9 in the sub-instance, continuing from the replay-learned weights
+  (13,630 updates; log header `weights=replay-learned`); first RTH
+  session Monday 2026-11-16 08:50 CT. Live trades go to
+  `profit_*_live.csv`; live is where depth and MBO get real data.
 

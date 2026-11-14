@@ -147,3 +147,13 @@ keep a log of the profit"):
   back from the last line on restart.
 - These numbers stay an observation: replayed days were in the starting
   policy's training data and sim limit fills are optimistic (section 6).
+- **Longer replays and depth (pass 2).** The older contracts' `.scid`
+  files in the sub-instance plus a date-rule continuous contract let one
+  replay cover 2025-12-15 to 2026-11-11. Sierra did not replay recorded
+  depth on the continuous-contract chart (one synthetic level); on the
+  plain contract chart it did. Input 9 (default off) lets the book
+  inputs read recorded depth in a replay; MBO is live only. Live trading
+  uses the plain contract chart (Continuous Contract None).
+- **Viewer.** `tools/of24_live.py serve` (replay) or `--mode live`
+  shows the ledgers, decisions and weight norms in a browser; it reads
+  only the study's own files.

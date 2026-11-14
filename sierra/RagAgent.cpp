@@ -174,10 +174,12 @@ bool prev_day_bars(SCStudyInterfaceRef sc, int date, int from, of24::Bars& out) 
 }
 
 // Six book inputs, signed by the trade direction; zeros where the data is absent.
-std::array<double, of24::kBook> book_features(SCStudyInterfaceRef sc, State& s, int dir, int& levels, int& mbo_orders) {
+// In a replay only recorded depth can be present (MBO is never recorded), and only if replay_depth is on.
+std::array<double, of24::kBook> book_features(SCStudyInterfaceRef sc, State& s, int dir, bool replay_depth, int& levels, int& mbo_orders) {
   std::array<double, of24::kBook> f{};
   levels = mbo_orders = 0;
-  if (sc.ReplayStatus != REPLAY_STOPPED) return f;  // depth in a replay may be recorded; MBO never is: keep replays to bars
+  const bool replaying = sc.ReplayStatus != REPLAY_STOPPED;
+  if (replaying && !replay_depth) return f;
   const int nb = sc.GetBidMarketDepthNumberOfLevels(), na = sc.GetAskMarketDepthNumberOfLevels();
   levels = nb < na ? nb : na;
   if (levels < 1) return f;
@@ -208,7 +210,7 @@ std::array<double, of24::kBook> book_features(SCStudyInterfaceRef sc, State& s, 
     for (int i = 0; i < n; ++i) { const double q = static_cast<double>(s.mbo[i].OrderQuantity); all += q; if (q >= 10) big += q; }
     return all > 0 ? big / all : 0.0;
   };
-  const double sb = big_share(true), sa = big_share(false);
+  const double sb = replaying ? 0.0 : big_share(true), sa = replaying ? 0.0 : big_share(false);
   f[3] = dir > 0 ? sb : sa;   // large resting orders behind the entry (support for a long, resistance for a short)
   f[4] = dir > 0 ? sa : sb;   // and on the far side
   f[5] = tick_a - tick_b;
@@ -232,6 +234,7 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
   SCInputRef InReplay = sc.Input[6];
   SCInputRef InUseBook = sc.Input[7];
   SCInputRef InChainEnd = sc.Input[8];
+  SCInputRef InReplayDepth = sc.Input[9];
   if (sc.SetDefaults) {
     sc.GraphName = "RagAgent OF24 (turning points, RL exits) - SIM ONLY";
     sc.StudyDescription = "OF23 turning-point candidates on 1-minute RTH bars; a policy network picks skip or one of 12 brackets; "
@@ -269,6 +272,8 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
     InChainEnd.Name = "Replay training: last session (YYYYMMDD); the study stops the replay after it (0 = never)";
     InChainEnd.SetInt(20261111);  // days from 2026-11-12 are the forward block: a replay never trades them by default
     InChainEnd.SetIntLimits(0, 21001231);
+    InReplayDepth.Name = "Replay: read recorded depth for the book inputs (MBO is live only)";
+    InReplayDepth.SetYesNo(0);
     sc.Subgraph[0].Name = "Long entry";
     sc.Subgraph[0].DrawStyle = DRAWSTYLE_ARROW_UP;
     sc.Subgraph[0].PrimaryColor = RGB(0, 200, 0);
@@ -535,7 +540,7 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
         if (of24::candidate_at(day, lv.ok ? &lv : nullptr, bt.dow, c) && !s.t.live && flat_idle) {
           int levels = 0, mbo_n = 0;
           std::array<double, of24::kBook> book{};
-          if (InUseBook.GetYesNo()) book = book_features(sc, s, c.dir, levels, mbo_n);
+          if (InUseBook.GetYesNo()) book = book_features(sc, s, c.dir, InReplayDepth.GetYesNo() != 0, levels, mbo_n);
           const auto x = s.policy.input(c, book);
           const auto o = s.policy.forward(x);
           if (!of24::Policy::finite(o)) {
