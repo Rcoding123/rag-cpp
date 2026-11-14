@@ -3317,7 +3317,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (144,896 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (147,008 bytes)
 
 # RL experiment log
 
@@ -5678,7 +5678,7 @@ Plan `OF23_SWING_MINING_PLAN.md`, revised after a design review (needs-work,
   trades exported by `experiments/of23_ba_export.py` (outside the repo,
   Build Alpha's external trade-list format) for its robustness tests.
 
-## OF24. The OF23 agent live in Sierra Chart, simulated orders: built, not yet run
+## OF24. The OF23 agent live in Sierra Chart, simulated orders: replay-trained, live from 2026-11-16
 
 At the user's request (a separate Sierra sub-instance; the agent in C++
 and Python; live ticks, depth and MBO; sim trading). Design
@@ -5715,15 +5715,46 @@ starting policy is OF23's RL-free arm, which lost on unseen months (A92).
   of an episode (values of 3-7 in reward units), which is the wrong
   baseline for one-decision updates; the exported value head now starts
   at zero and learns the one-step mean online (`of24_export.py`).
-* **State:** the study is in live mode, armed, on Sim9 in the
-  sub-instance, waiting for Monday 2026-11-16 08:50 CT.
+* **Replay training (2026-11-14, build `RagAgent_ve_64`, user: "run more
+  replay days so it keeps learning, and keep a log of the profit"):**
+  one continuous Accurate Trading System Back Test replay from
+  2026-09-15 09:00 ET at 300x with Skip Empty Periods, learning on, through
+  2026-11-11, about 3.3 hours. A new input (last session, default
+  20261111, so a replay never trades the forward block) makes the study
+  flatten, close the day, save the weights and stop the replay after that
+  session's close. Restarting a replay from inside the study
+  (`StopChartReplay` then `StartChartReplayNew` for the next day) did not
+  take, so the days are not chained one by one.
+  **Profit log:** `Data\RagAgent\profit_trades_<mode>.csv` (one line per
+  closed trade: entry, exit rule, fills, net ticks and dollars after
+  OF23's base costs, running day and cumulative totals) and
+  `profit_days_<mode>.csv` (one line per session), separate for replay
+  and live, append-only, totals restored on restart. The restore read the
+  wrong field until build `vf`: replay ledger rows from 2026-09-15 show
+  `cum_trades` 1714 too low (the row count is right).
+  **Result (43 sessions, 2026-09-14 to 2026-11-11):** 712 trades, +1809.5
+  ticks net (+$22,619 for one lot), +2.54 ticks per trade (sd 24.6),
+  33% winners; +1.19 per trade in the first 356 trades, +3.89 in the
+  last 356; 27 of the 43 days ended positive. Exits
+  chosen: 48/16 to the close 52%, 16/8 trailing with a 60-min cap 16%
+  (6% in the first quarter, 24% in the last), 32/12 to the close 13%,
+  24/8 with a 120-min cap 10%. 1941 learning steps (skips included).
+  The time-cap flatten was seen working at runtime.
+  **Not evidence of an edge:** every replayed day is in the 228 days
+  the starting policy was trained on, and Sierra's sim fills limit
+  targets at the touch, where OF23 required a trade-through; OF23
+  measured the same kind of trades at -2 ticks per trade.
+* **State:** build `RagAgent_vf_64` in live mode, armed, on Sim9 in the
+  sub-instance, continuing from the replay-learned weights (1941
+  updates; log header `weights=replay-learned`); first RTH session
+  Monday 2026-11-16 08:50 CT. Its live trades go to `profit_*_live.csv`.
 
 
 
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (40,174 bytes)
+## FILE: docs/ai/DECISIONS.md  (40,784 bytes)
 
 # Decision log
 
@@ -5861,6 +5892,7 @@ the code looks the way it does.
 | A91 | OF23 adds two RL arms (PPO over each day's candidates: one must trade and picks one of 12 exits, one may skip) and is built and frozen before any label or outcome was computed (plan 6b, 9b) | The user asked to let the agent trade and learn rather than gate on edge at each step; the arms report behaviour first and still count as secondaries (M = 15, t >= 4.33). Code review fixes (day denominators, empty families, gap entries) went in before the freeze |
 | A92 | OF23 result: no edge. The primary miner lost −1.99 ticks per trade (t −2.52, bound +1.58), between the random-time control's mean and 95th percentile; no secondary or RL arm is positive at stress cost; the naive best of 8,400 trials has deflated Sharpe 0 | Pre-registered rule (plan section 7). Turning-point entries on 1-min bars carry no information that wide exits could keep; Build Alpha is used only as a descriptive check of the exported trade lists |
 | A93 | OF24: the live agent is a C++ Sierra study with a pure kernel; no Python reads live data; bars come from the chart, depth and MBO only at decisions; learning is one actor-critic step per closed sim trade inside the study; orders are simulated only | The user chose inside-Sierra (Sierra's data license; its DTC server refuses CME data), MBO is live-only so it can be learned only online, and SierraChart-KB's rules (new DLL name per build, sim guard every call, Arm off by default, own Sim account) are followed |
+| A94 | OF24 keeps learning by replaying recorded days in one continuous Sierra replay that the study itself stops after a set last session (default 2026-11-11, before the forward block), and logs every closed sim trade and session to append-only profit ledgers per mode; live starts from the replay-learned weights | The user asked for more replay days and a profit log; restarting a replay from inside a study did not take (2026-11-13), and the ledgers survive restarts. The replay profit (+1809.5 ticks over 712 trades) is in-sample for the starting policy with optimistic sim fills, so it is not a claim |
 
 
 
@@ -8612,7 +8644,7 @@ about 25,000 candidates on 228 days, C1 the large majority, C6 85 in all
 
 ---
 
-## FILE: docs/ai/OF24_LIVE_SIM_PLAN.md  (6,617 bytes)
+## FILE: docs/ai/OF24_LIVE_SIM_PLAN.md  (8,024 bytes)
 
 # OF24 plan: the OF23 agent live in Sierra Chart, simulated orders only
 
@@ -8739,6 +8771,30 @@ the kernel's own OF23-style accounting where it can.
    reconciles with Sierra's fills; MBO features are expected to be zero.
 4. Live from the Globex open (Sunday 17:00 CT) for the feed checks and
    Monday 08:30 CT for the first RTH session, armed in sim.
+
+## 8. Replay training and the profit log (added 2026-11-14)
+
+At the user's request ("run more replay days so it keeps learning, and
+keep a log of the profit"):
+
+- **Replay training.** One continuous chart replay (Accurate Trading
+  System Back Test, Skip Empty Periods) over recorded days, learning on.
+  Input 8 names the last session (default 20261111, the day before the
+  forward block); after that session's close, with the account flat, the
+  study flattens, writes the day line, saves the weights and stops the
+  replay. Restarting the replay from inside the study for each next day
+  did not take in Sierra 2980, so days are not chained one by one.
+- **Weights carry forward.** Replay continues `weights_replay_c<n>.txt`;
+  live continues `weights_live_c<n>.txt`, else the replay-learned file,
+  else the starting file. The log header says which (`weights=`).
+- **Profit log.** `Data\RagAgent\profit_trades_<mode>.csv` (each closed
+  trade: entry time, side, exit rule, fills, move, exit kind, net ticks
+  and dollars after OF23's base costs, day and cumulative totals, update
+  count) and `profit_days_<mode>.csv` (one line per session), with
+  `<mode>` replay or live. Append-only; the cumulative totals are read
+  back from the last line on restart.
+- These numbers stay an observation: replayed days were in the starting
+  policy's training data and sim limit fills are optimistic (section 6).
 
 
 
@@ -23582,7 +23638,7 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: sierra\RagAgent.cpp  (25,594 bytes)
+## FILE: sierra\RagAgent.cpp  (31,103 bytes)
 
 ```cpp
 // RagAgent: the OF23/OF24 agent as a Sierra Chart study. SIMULATED ORDERS ONLY.
@@ -23605,7 +23661,9 @@ int main(int argc, char** argv) {
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <share.h>
+#include <string>
 
 static bool of24_move(const char* tmp, const char* path) { return MoveFileExA(tmp, path, MOVEFILE_REPLACE_EXISTING) != 0; }
 #define OF24_REPLACE_FILE of24_move
@@ -23651,12 +23709,44 @@ struct State {
   n_ACSIL::s_MarketOrderData mbo[kMboCap];
   std::string weights_live;
   int skips_unsaved = 0;
+  std::string ledger_trades, ledger_days;  // the profit log (append-only, survives restarts)
+  double cum_ticks = 0.0;                  // cumulative net ticks over every run of this mode
+  long long cum_trades = 0;
+  bool chain_sent = false;                  // the replay-training end was reached and the replay stopped
+  int jumps = 0;                           // completed bars skipped because several arrived at once
   int orphan_try_bar = -1;
   bool replay_mode = false;
   std::string weights_start;
 };
 
 void logf(State& s, const char* fmt, ...);
+
+std::string ymd(int date) {
+  int y = 0, m = 0, d = 0;
+  SCDateTime(date, 0).GetDateYMD(y, m, d);
+  char b[16];
+  std::snprintf(b, sizeof b, "%04d-%02d-%02d", y, m, d);
+  return b;
+}
+
+void append_line(const std::string& path, const char* header, const char* line) {
+  FILE* f = _fsopen(path.c_str(), "a", _SH_DENYWR);
+  if (!f) return;
+  std::fseek(f, 0, SEEK_END);
+  if (std::ftell(f) == 0) std::fputs(header, f);
+  std::fputs(line, f);
+  std::fclose(f);
+}
+
+// The day's totals to the day ledger, once, when the day is left behind (a new date, or the end of replay training).
+void close_day(State& s) {
+  if (s.day == 0 || s.day_trades == 0) return;
+  char line[256];
+  std::snprintf(line, sizeof line, "%s,%d,%.2f,%.2f,%.2f,%.2f,%lld\n", ymd(s.day).c_str(), s.day_trades, s.day_net, s.day_net * 12.5,
+                s.cum_ticks, s.cum_ticks * 12.5, s.policy.updates);
+  append_line(s.ledger_days, "date,trades,net_ticks,net_usd,cum_ticks,cum_usd,updates\n", line);
+  s.day_trades = 0;
+}
 
 void save_weights(SCStudyInterfaceRef sc, State& s) {
   if (!s.policy.save(s.weights_live)) {
@@ -23784,6 +23874,7 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
   SCInputRef InDayStop = sc.Input[5];
   SCInputRef InReplay = sc.Input[6];
   SCInputRef InUseBook = sc.Input[7];
+  SCInputRef InChainEnd = sc.Input[8];
   if (sc.SetDefaults) {
     sc.GraphName = "RagAgent OF24 (turning points, RL exits) - SIM ONLY";
     sc.StudyDescription = "OF23 turning-point candidates on 1-minute RTH bars; a policy network picks skip or one of 12 brackets; "
@@ -23818,6 +23909,9 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
     InReplay.SetYesNo(0);
     InUseBook.Name = "Read depth and Market By Order for the book inputs";
     InUseBook.SetYesNo(1);
+    InChainEnd.Name = "Replay training: last session (YYYYMMDD); the study stops the replay after it (0 = never)";
+    InChainEnd.SetInt(20261111);  // days from 2026-11-12 are the forward block: a replay never trades them by default
+    InChainEnd.SetIntLimits(0, 21001231);
     sc.Subgraph[0].Name = "Long entry";
     sc.Subgraph[0].DrawStyle = DRAWSTYLE_ARROW_UP;
     sc.Subgraph[0].PrimaryColor = RGB(0, 200, 0);
@@ -23880,10 +23974,28 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
     char wname[64];
     std::snprintf(wname, sizeof wname, "\\weights_%s_c%d.txt", replay_mode ? "replay" : "live", sc.ChartNumber);
     s->weights_live = std::string(dir.GetChars()) + wname;
-    // the learned weights if a run already saved some (live mode only), else the starting file
-    const char* from = "learned";
-    s->policy_ok = !replay_mode && s->policy.load(s->weights_live);
+    // continue learning: this mode's learned weights; live falls back to what the replays learned; then the start
+    const char* from = replay_mode ? "replay-learned" : "live-learned";
+    s->policy_ok = s->policy.load(s->weights_live);
+    if (!s->policy_ok && !replay_mode) {
+      char rname[64];
+      std::snprintf(rname, sizeof rname, "\\weights_replay_c%d.txt", sc.ChartNumber);
+      s->policy_ok = s->policy.load(std::string(dir.GetChars()) + rname);
+      from = "replay-learned";
+    }
     if (!s->policy_ok) { s->policy_ok = s->policy.load(InWeights.GetString()); from = "start"; }
+    s->ledger_trades = std::string(dir.GetChars()) + (replay_mode ? "\\profit_trades_replay.csv" : "\\profit_trades_live.csv");
+    s->ledger_days = std::string(dir.GetChars()) + (replay_mode ? "\\profit_days_replay.csv" : "\\profit_days_live.csv");
+    if (FILE* f = _fsopen(s->ledger_trades.c_str(), "r", _SH_DENYNO)) {  // the running totals from the last ledger line
+      char line[512], last[512] = "";
+      while (std::fgets(line, sizeof line, f)) std::snprintf(last, sizeof last, "%s", line);
+      std::fclose(f);
+      long long n = 0;
+      double cum = 0;
+      const char* c = last;
+      for (int k = 0; k < 11 && c; ++k) { c = std::strchr(c, ','); if (c) ++c; }  // field 12 = cum_ticks, 13 = trade count
+      if (c && std::sscanf(c, "%lf,%lld", &cum, &n) == 2) { s->cum_ticks = cum; s->cum_trades = n; }
+    }
     logf(*s, "H,module=%s,symbol=%s,account=%s,tick=%g,seconds_per_bar=%d,replay_mode=%d,weights=%s,weights_ok=%d,updates=%lld,learn=%d,greedy=%d,day_stop=%d\n",
          mod, sc.Symbol.GetChars(), InAccount.GetString(), sc.TickSize, sc.SecondsPerBar, replay_mode ? 1 : 0, from, s->policy_ok ? 1 : 0,
          s->policy.updates, InLearn.GetYesNo(), InGreedy.GetYesNo(), InDayStop.GetInt());
@@ -23894,6 +24006,7 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
   State& s = *static_cast<State*>(slot);
   if (!(sc.TickSize > 0) || sc.ArraySize < 3) return;
   const int cur = sc.ArraySize - 1, done = cur - 1;
+  const bool replaying_now = sc.ReplayStatus == REPLAY_RUNNING;
   if (sc.IsFullRecalculation || s.last_done < 0) {  // never act on history: start from the bar forming now
     s.last_done = done;
     return;
@@ -23911,6 +24024,33 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
   const bool may_send = InArmed.GetYesNo() != 0 && sim_ok && sc.SecondsPerBar == 60 && feed_ok && s.policy_ok && !s.ended;
   const ChiTime now = chicago(sc, sc.BaseDateTimeIn[cur]);  // the forming bar's start: the study's clock (also in a replay)
   const double ts = sc.TickSize;
+
+  // ---- 0. replay training is one continuous replay over many days: stop it after the last session, before any later
+  // bar is acted on (restarting a replay from inside the study did not take: OF24 replay chain, 2026-11-13)
+  const int chain_end = InChainEnd.GetInt();
+  if (replay_mode && chain_end > 0 && replaying_now) {
+    int y = 0, mo = 0, d = 0;
+    SCDateTime(now.date, 0).GetDateYMD(y, mo, d);
+    const int ymd_now = y * 10000 + mo * 100 + d;
+    const bool after_day = ymd_now > chain_end;
+    const bool after_close = ymd_now == chain_end && now.minute >= kOpenMin + kDayBars + 1 && !s.t.live && flat_idle;
+    if (after_day || after_close) {
+      if (!s.chain_sent) {
+        int r = 0;
+        if (sc.GlobalTradeSimulationIsOn == 1 && account_ok && have_pos && (pos.PositionQuantity != 0 || pos.WorkingOrdersExist))
+          r = sc.FlattenAndCancelAllOrders();
+        close_day(s);
+        if (s.skips_unsaved > 0) save_weights(sc, s);
+        s.chain_sent = true;
+        s.ended = true;
+        sc.StopChartReplay(sc.ChartNumber);
+        logf(s, "C,%d,%d,replay training done,flatten=%d,jumps=%d,cum_ticks=%.2f,cum_trades=%lld\n", now.date, now.minute - kOpenMin, r,
+             s.jumps, s.cum_ticks, s.cum_trades);
+        sc.AddMessageToLog("RagAgent: replay training reached its last session and stopped the replay (see profit_days_replay.csv)", 0);
+      }
+      return;
+    }
+  }
 
   // ---- 1. the open trade: closed? time cap? trailing stop?
   const bool owner_ok = sc.GlobalTradeSimulationIsOn == 1 && s.t.live && sc.SelectedTradeAccount == s.t.account && sc.GetTradeSymbol() == s.t.symbol;
@@ -23948,9 +24088,24 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
         const double move = s.t.dir * (fx.FillPrice - fe.FillPrice) / ts;
         const bool was_target = fx.InternalOrderID == s.t.target_id;
         const double net = of24::net_ticks(move, was_target);
-        if (s.t.date != s.day) { s.day = s.t.date; s.day_net = 0; s.day_trades = 0; s.day_stopped = false; }
+        if (s.t.date != s.day) { close_day(s); s.day = s.t.date; s.day_net = 0; s.day_trades = 0; s.day_stopped = false; }
         s.day_net += net;
         ++s.day_trades;
+        s.cum_ticks += net;
+        ++s.cum_trades;
+        {
+          const of24::ExitSpec ex = of24::kMenu[s.t.action - 1];
+          const int em = kOpenMin + s.t.entry_m;
+          char line[400];
+          std::snprintf(line, sizeof line, "%s,%02d:%02d,%s,T%d/S%d/%s%s,%.2f,%.2f,%.2f,%s,%.2f,%.2f,%.2f,%.2f,%lld,%.2f,%lld\n",
+                        ymd(s.t.date).c_str(), em / 60, em % 60, s.t.dir > 0 ? "long" : "short", ex.target, ex.stop,
+                        ex.hold_min ? std::to_string(ex.hold_min).c_str() : "EOD", ex.trailing ? "/trail" : "", fe.FillPrice, fx.FillPrice,
+                        move, was_target ? "target" : fx.InternalOrderID == s.t.stop_id ? "stop" : "time", net, net * 12.5, s.day_net,
+                        s.cum_ticks, s.cum_trades, s.cum_ticks * 12.5, s.policy.updates + (InLearn.GetYesNo() ? 1 : 0));
+          append_line(s.ledger_trades,
+                      "date,entry_ct,side,exit_rule,entry_px,exit_px,move_ticks,exit,net_ticks,net_usd,day_net_ticks,cum_ticks,cum_trades,cum_usd,updates\n",
+                      line);
+        }
         if (InLearn.GetYesNo()) {
           s.policy.update(s.t.x, s.t.action, net / 10.0);
           save_weights(sc, s);
@@ -24010,7 +24165,8 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
         break;
       }
     }
-    if (bt.date != s.day) { s.day = bt.date; s.day_net = 0; s.day_trades = 0; s.day_stopped = false; }
+    if (bt.date != s.day) { close_day(s); s.day = bt.date; s.day_net = 0; s.day_trades = 0; s.day_stopped = false; }
+    if (!single) ++s.jumps;
     // the new bar must be the very next minute, so the entry is at open(m + 1) as in OF23
     const bool next_ok = now.date == bt.date && now.minute == bt.minute + 1;
     if (single && next_ok && m >= of24::kFirstM && m <= of24::kLastM && s.policy_ok) {

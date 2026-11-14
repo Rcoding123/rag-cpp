@@ -2357,7 +2357,7 @@ Plan `OF23_SWING_MINING_PLAN.md`, revised after a design review (needs-work,
   trades exported by `experiments/of23_ba_export.py` (outside the repo,
   Build Alpha's external trade-list format) for its robustness tests.
 
-## OF24. The OF23 agent live in Sierra Chart, simulated orders: built, not yet run
+## OF24. The OF23 agent live in Sierra Chart, simulated orders: replay-trained, live from 2026-11-16
 
 At the user's request (a separate Sierra sub-instance; the agent in C++
 and Python; live ticks, depth and MBO; sim trading). Design
@@ -2394,6 +2394,37 @@ starting policy is OF23's RL-free arm, which lost on unseen months (A92).
   of an episode (values of 3-7 in reward units), which is the wrong
   baseline for one-decision updates; the exported value head now starts
   at zero and learns the one-step mean online (`of24_export.py`).
-* **State:** the study is in live mode, armed, on Sim9 in the
-  sub-instance, waiting for Monday 2026-11-16 08:50 CT.
+* **Replay training (2026-11-14, build `RagAgent_ve_64`, user: "run more
+  replay days so it keeps learning, and keep a log of the profit"):**
+  one continuous Accurate Trading System Back Test replay from
+  2026-09-15 09:00 ET at 300x with Skip Empty Periods, learning on, through
+  2026-11-11, about 3.3 hours. A new input (last session, default
+  20261111, so a replay never trades the forward block) makes the study
+  flatten, close the day, save the weights and stop the replay after that
+  session's close. Restarting a replay from inside the study
+  (`StopChartReplay` then `StartChartReplayNew` for the next day) did not
+  take, so the days are not chained one by one.
+  **Profit log:** `Data\RagAgent\profit_trades_<mode>.csv` (one line per
+  closed trade: entry, exit rule, fills, net ticks and dollars after
+  OF23's base costs, running day and cumulative totals) and
+  `profit_days_<mode>.csv` (one line per session), separate for replay
+  and live, append-only, totals restored on restart. The restore read the
+  wrong field until build `vf`: replay ledger rows from 2026-09-15 show
+  `cum_trades` 1714 too low (the row count is right).
+  **Result (43 sessions, 2026-09-14 to 2026-11-11):** 712 trades, +1809.5
+  ticks net (+$22,619 for one lot), +2.54 ticks per trade (sd 24.6),
+  33% winners; +1.19 per trade in the first 356 trades, +3.89 in the
+  last 356; 27 of the 43 days ended positive. Exits
+  chosen: 48/16 to the close 52%, 16/8 trailing with a 60-min cap 16%
+  (6% in the first quarter, 24% in the last), 32/12 to the close 13%,
+  24/8 with a 120-min cap 10%. 1941 learning steps (skips included).
+  The time-cap flatten was seen working at runtime.
+  **Not evidence of an edge:** every replayed day is in the 228 days
+  the starting policy was trained on, and Sierra's sim fills limit
+  targets at the touch, where OF23 required a trade-through; OF23
+  measured the same kind of trades at -2 ticks per trade.
+* **State:** build `RagAgent_vf_64` in live mode, armed, on Sim9 in the
+  sub-instance, continuing from the replay-learned weights (1941
+  updates; log header `weights=replay-learned`); first RTH session
+  Monday 2026-11-16 08:50 CT. Its live trades go to `profit_*_live.csv`.
 

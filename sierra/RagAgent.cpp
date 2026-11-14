@@ -18,7 +18,9 @@
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <share.h>
+#include <string>
 
 static bool of24_move(const char* tmp, const char* path) { return MoveFileExA(tmp, path, MOVEFILE_REPLACE_EXISTING) != 0; }
 #define OF24_REPLACE_FILE of24_move
@@ -64,12 +66,44 @@ struct State {
   n_ACSIL::s_MarketOrderData mbo[kMboCap];
   std::string weights_live;
   int skips_unsaved = 0;
+  std::string ledger_trades, ledger_days;  // the profit log (append-only, survives restarts)
+  double cum_ticks = 0.0;                  // cumulative net ticks over every run of this mode
+  long long cum_trades = 0;
+  bool chain_sent = false;                  // the replay-training end was reached and the replay stopped
+  int jumps = 0;                           // completed bars skipped because several arrived at once
   int orphan_try_bar = -1;
   bool replay_mode = false;
   std::string weights_start;
 };
 
 void logf(State& s, const char* fmt, ...);
+
+std::string ymd(int date) {
+  int y = 0, m = 0, d = 0;
+  SCDateTime(date, 0).GetDateYMD(y, m, d);
+  char b[16];
+  std::snprintf(b, sizeof b, "%04d-%02d-%02d", y, m, d);
+  return b;
+}
+
+void append_line(const std::string& path, const char* header, const char* line) {
+  FILE* f = _fsopen(path.c_str(), "a", _SH_DENYWR);
+  if (!f) return;
+  std::fseek(f, 0, SEEK_END);
+  if (std::ftell(f) == 0) std::fputs(header, f);
+  std::fputs(line, f);
+  std::fclose(f);
+}
+
+// The day's totals to the day ledger, once, when the day is left behind (a new date, or the end of replay training).
+void close_day(State& s) {
+  if (s.day == 0 || s.day_trades == 0) return;
+  char line[256];
+  std::snprintf(line, sizeof line, "%s,%d,%.2f,%.2f,%.2f,%.2f,%lld\n", ymd(s.day).c_str(), s.day_trades, s.day_net, s.day_net * 12.5,
+                s.cum_ticks, s.cum_ticks * 12.5, s.policy.updates);
+  append_line(s.ledger_days, "date,trades,net_ticks,net_usd,cum_ticks,cum_usd,updates\n", line);
+  s.day_trades = 0;
+}
 
 void save_weights(SCStudyInterfaceRef sc, State& s) {
   if (!s.policy.save(s.weights_live)) {
@@ -197,6 +231,7 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
   SCInputRef InDayStop = sc.Input[5];
   SCInputRef InReplay = sc.Input[6];
   SCInputRef InUseBook = sc.Input[7];
+  SCInputRef InChainEnd = sc.Input[8];
   if (sc.SetDefaults) {
     sc.GraphName = "RagAgent OF24 (turning points, RL exits) - SIM ONLY";
     sc.StudyDescription = "OF23 turning-point candidates on 1-minute RTH bars; a policy network picks skip or one of 12 brackets; "
@@ -231,6 +266,9 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
     InReplay.SetYesNo(0);
     InUseBook.Name = "Read depth and Market By Order for the book inputs";
     InUseBook.SetYesNo(1);
+    InChainEnd.Name = "Replay training: last session (YYYYMMDD); the study stops the replay after it (0 = never)";
+    InChainEnd.SetInt(20261111);  // days from 2026-11-12 are the forward block: a replay never trades them by default
+    InChainEnd.SetIntLimits(0, 21001231);
     sc.Subgraph[0].Name = "Long entry";
     sc.Subgraph[0].DrawStyle = DRAWSTYLE_ARROW_UP;
     sc.Subgraph[0].PrimaryColor = RGB(0, 200, 0);
@@ -293,10 +331,28 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
     char wname[64];
     std::snprintf(wname, sizeof wname, "\\weights_%s_c%d.txt", replay_mode ? "replay" : "live", sc.ChartNumber);
     s->weights_live = std::string(dir.GetChars()) + wname;
-    // the learned weights if a run already saved some (live mode only), else the starting file
-    const char* from = "learned";
-    s->policy_ok = !replay_mode && s->policy.load(s->weights_live);
+    // continue learning: this mode's learned weights; live falls back to what the replays learned; then the start
+    const char* from = replay_mode ? "replay-learned" : "live-learned";
+    s->policy_ok = s->policy.load(s->weights_live);
+    if (!s->policy_ok && !replay_mode) {
+      char rname[64];
+      std::snprintf(rname, sizeof rname, "\\weights_replay_c%d.txt", sc.ChartNumber);
+      s->policy_ok = s->policy.load(std::string(dir.GetChars()) + rname);
+      from = "replay-learned";
+    }
     if (!s->policy_ok) { s->policy_ok = s->policy.load(InWeights.GetString()); from = "start"; }
+    s->ledger_trades = std::string(dir.GetChars()) + (replay_mode ? "\\profit_trades_replay.csv" : "\\profit_trades_live.csv");
+    s->ledger_days = std::string(dir.GetChars()) + (replay_mode ? "\\profit_days_replay.csv" : "\\profit_days_live.csv");
+    if (FILE* f = _fsopen(s->ledger_trades.c_str(), "r", _SH_DENYNO)) {  // the running totals from the last ledger line
+      char line[512], last[512] = "";
+      while (std::fgets(line, sizeof line, f)) std::snprintf(last, sizeof last, "%s", line);
+      std::fclose(f);
+      long long n = 0;
+      double cum = 0;
+      const char* c = last;
+      for (int k = 0; k < 11 && c; ++k) { c = std::strchr(c, ','); if (c) ++c; }  // field 12 = cum_ticks, 13 = trade count
+      if (c && std::sscanf(c, "%lf,%lld", &cum, &n) == 2) { s->cum_ticks = cum; s->cum_trades = n; }
+    }
     logf(*s, "H,module=%s,symbol=%s,account=%s,tick=%g,seconds_per_bar=%d,replay_mode=%d,weights=%s,weights_ok=%d,updates=%lld,learn=%d,greedy=%d,day_stop=%d\n",
          mod, sc.Symbol.GetChars(), InAccount.GetString(), sc.TickSize, sc.SecondsPerBar, replay_mode ? 1 : 0, from, s->policy_ok ? 1 : 0,
          s->policy.updates, InLearn.GetYesNo(), InGreedy.GetYesNo(), InDayStop.GetInt());
@@ -307,6 +363,7 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
   State& s = *static_cast<State*>(slot);
   if (!(sc.TickSize > 0) || sc.ArraySize < 3) return;
   const int cur = sc.ArraySize - 1, done = cur - 1;
+  const bool replaying_now = sc.ReplayStatus == REPLAY_RUNNING;
   if (sc.IsFullRecalculation || s.last_done < 0) {  // never act on history: start from the bar forming now
     s.last_done = done;
     return;
@@ -324,6 +381,33 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
   const bool may_send = InArmed.GetYesNo() != 0 && sim_ok && sc.SecondsPerBar == 60 && feed_ok && s.policy_ok && !s.ended;
   const ChiTime now = chicago(sc, sc.BaseDateTimeIn[cur]);  // the forming bar's start: the study's clock (also in a replay)
   const double ts = sc.TickSize;
+
+  // ---- 0. replay training is one continuous replay over many days: stop it after the last session, before any later
+  // bar is acted on (restarting a replay from inside the study did not take: OF24 replay chain, 2026-11-13)
+  const int chain_end = InChainEnd.GetInt();
+  if (replay_mode && chain_end > 0 && replaying_now) {
+    int y = 0, mo = 0, d = 0;
+    SCDateTime(now.date, 0).GetDateYMD(y, mo, d);
+    const int ymd_now = y * 10000 + mo * 100 + d;
+    const bool after_day = ymd_now > chain_end;
+    const bool after_close = ymd_now == chain_end && now.minute >= kOpenMin + kDayBars + 1 && !s.t.live && flat_idle;
+    if (after_day || after_close) {
+      if (!s.chain_sent) {
+        int r = 0;
+        if (sc.GlobalTradeSimulationIsOn == 1 && account_ok && have_pos && (pos.PositionQuantity != 0 || pos.WorkingOrdersExist))
+          r = sc.FlattenAndCancelAllOrders();
+        close_day(s);
+        if (s.skips_unsaved > 0) save_weights(sc, s);
+        s.chain_sent = true;
+        s.ended = true;
+        sc.StopChartReplay(sc.ChartNumber);
+        logf(s, "C,%d,%d,replay training done,flatten=%d,jumps=%d,cum_ticks=%.2f,cum_trades=%lld\n", now.date, now.minute - kOpenMin, r,
+             s.jumps, s.cum_ticks, s.cum_trades);
+        sc.AddMessageToLog("RagAgent: replay training reached its last session and stopped the replay (see profit_days_replay.csv)", 0);
+      }
+      return;
+    }
+  }
 
   // ---- 1. the open trade: closed? time cap? trailing stop?
   const bool owner_ok = sc.GlobalTradeSimulationIsOn == 1 && s.t.live && sc.SelectedTradeAccount == s.t.account && sc.GetTradeSymbol() == s.t.symbol;
@@ -361,9 +445,24 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
         const double move = s.t.dir * (fx.FillPrice - fe.FillPrice) / ts;
         const bool was_target = fx.InternalOrderID == s.t.target_id;
         const double net = of24::net_ticks(move, was_target);
-        if (s.t.date != s.day) { s.day = s.t.date; s.day_net = 0; s.day_trades = 0; s.day_stopped = false; }
+        if (s.t.date != s.day) { close_day(s); s.day = s.t.date; s.day_net = 0; s.day_trades = 0; s.day_stopped = false; }
         s.day_net += net;
         ++s.day_trades;
+        s.cum_ticks += net;
+        ++s.cum_trades;
+        {
+          const of24::ExitSpec ex = of24::kMenu[s.t.action - 1];
+          const int em = kOpenMin + s.t.entry_m;
+          char line[400];
+          std::snprintf(line, sizeof line, "%s,%02d:%02d,%s,T%d/S%d/%s%s,%.2f,%.2f,%.2f,%s,%.2f,%.2f,%.2f,%.2f,%lld,%.2f,%lld\n",
+                        ymd(s.t.date).c_str(), em / 60, em % 60, s.t.dir > 0 ? "long" : "short", ex.target, ex.stop,
+                        ex.hold_min ? std::to_string(ex.hold_min).c_str() : "EOD", ex.trailing ? "/trail" : "", fe.FillPrice, fx.FillPrice,
+                        move, was_target ? "target" : fx.InternalOrderID == s.t.stop_id ? "stop" : "time", net, net * 12.5, s.day_net,
+                        s.cum_ticks, s.cum_trades, s.cum_ticks * 12.5, s.policy.updates + (InLearn.GetYesNo() ? 1 : 0));
+          append_line(s.ledger_trades,
+                      "date,entry_ct,side,exit_rule,entry_px,exit_px,move_ticks,exit,net_ticks,net_usd,day_net_ticks,cum_ticks,cum_trades,cum_usd,updates\n",
+                      line);
+        }
         if (InLearn.GetYesNo()) {
           s.policy.update(s.t.x, s.t.action, net / 10.0);
           save_weights(sc, s);
@@ -423,7 +522,8 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
         break;
       }
     }
-    if (bt.date != s.day) { s.day = bt.date; s.day_net = 0; s.day_trades = 0; s.day_stopped = false; }
+    if (bt.date != s.day) { close_day(s); s.day = bt.date; s.day_net = 0; s.day_trades = 0; s.day_stopped = false; }
+    if (!single) ++s.jumps;
     // the new bar must be the very next minute, so the entry is at open(m + 1) as in OF23
     const bool next_ok = now.date == bt.date && now.minute == bt.minute + 1;
     if (single && next_ok && m >= of24::kFirstM && m <= of24::kLastM && s.policy_ok) {

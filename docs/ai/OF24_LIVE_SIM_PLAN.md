@@ -123,3 +123,27 @@ the kernel's own OF23-style accounting where it can.
    reconciles with Sierra's fills; MBO features are expected to be zero.
 4. Live from the Globex open (Sunday 17:00 CT) for the feed checks and
    Monday 08:30 CT for the first RTH session, armed in sim.
+
+## 8. Replay training and the profit log (added 2026-11-14)
+
+At the user's request ("run more replay days so it keeps learning, and
+keep a log of the profit"):
+
+- **Replay training.** One continuous chart replay (Accurate Trading
+  System Back Test, Skip Empty Periods) over recorded days, learning on.
+  Input 8 names the last session (default 20261111, the day before the
+  forward block); after that session's close, with the account flat, the
+  study flattens, writes the day line, saves the weights and stops the
+  replay. Restarting the replay from inside the study for each next day
+  did not take in Sierra 2980, so days are not chained one by one.
+- **Weights carry forward.** Replay continues `weights_replay_c<n>.txt`;
+  live continues `weights_live_c<n>.txt`, else the replay-learned file,
+  else the starting file. The log header says which (`weights=`).
+- **Profit log.** `Data\RagAgent\profit_trades_<mode>.csv` (each closed
+  trade: entry time, side, exit rule, fills, move, exit kind, net ticks
+  and dollars after OF23's base costs, day and cumulative totals, update
+  count) and `profit_days_<mode>.csv` (one line per session), with
+  `<mode>` replay or live. Append-only; the cumulative totals are read
+  back from the last line on restart.
+- These numbers stay an observation: replayed days were in the starting
+  policy's training data and sim limit fills are optimistic (section 6).
