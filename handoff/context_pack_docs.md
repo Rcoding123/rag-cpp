@@ -381,6 +381,7 @@ tests/test_util.hpp
 tests/text_clean_tests.cpp
 tests/vec_scalp_env_tests.cpp
 tools/make_context_pack.py
+tools/of24_live.py
 tools/of_train_live.py
 tools/of_viz.py
 tools/of_zoo_trace.py
@@ -420,8 +421,9 @@ tools/test_research_crawler.py
 24. docs/ai/OF21_FORWARD_PLAN.md
 25. docs/ai/OF23_SWING_MINING_PLAN.md
 26. docs/ai/OF24_LIVE_SIM_PLAN.md
-27. experiments/research_synthesis.md
-28. README.md
+27. docs/ai/OF24_AUDIT.md
+28. experiments/research_synthesis.md
+29. README.md
 
 
 ---
@@ -3175,7 +3177,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (149,330 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (152,851 bytes)
 
 # RL experiment log
 
@@ -5635,18 +5637,69 @@ starting policy is OF23's RL-free arm, which lost on unseen months (A92).
   newest decision log and its weight file (profit, a rolling 100-trade
   mean, exit mix, trade rate, critic value, book-weight norms, depth
   levels, latest trades).
-* **State:** build `RagAgent_vg_64` in live mode on plain ESZ26, armed,
-  on Sim9 in the sub-instance, continuing from the replay-learned weights
-  (13,630 updates; log header `weights=replay-learned`); first RTH
-  session Monday 2026-11-16 08:50 CT. Live trades go to
-  `profit_*_live.csv`; live is where depth and MBO get real data.
+* **Second depth pass (2026-11-15, user: "run another pass on the depth
+  days so it learns more"):** 2026-11-03 to 11-11 again on the plain
+  ESZ26 chart with recorded depth: 168 trades, +510.6 ticks; 14,104
+  updates. The depth weights stayed near 1e-5 (0.00007, 0.00001,
+  0.00001; spread 0.008; against 1.12 for a bar input).
+* **Audit (2026-11-15, `experiments/of24_audit.py`, `OF24_AUDIT.md`, A96;
+  user: "create a framework to make sure there is no look-ahead bias ...
+  learning from patterns ... not just sheer luck").** All figures are
+  ticks per trade with a 95% day-block interval.
+  **Look-ahead: none found.** 18,412 logged replay decisions, all but 10
+  (99.9%) are candidates of OF23's causal pipeline at the same minute
+  and direction; the first decision of the three latest runs reproduces
+  from the saved weights (one early run differs by 0.0012 in
+  probability); all 5757 entry fills are within one tick of the bar
+  after the decision bar (98.7% inside it).
+  **The replay profit is in-sample.** 99% of the replay trades are on
+  days the starting policy was trained on. Re-priced with OF23's fills
+  the pass-2 trades still make +3.01 [+2.20, +3.89] (sim +2.84): the
+  sim's fills are not the reason (+0.07 per trade). Random candidates
+  with the same exits make -2.43; the agent beats all of them, as a
+  policy that has seen the days would.
+  **Unseen days: it loses.** The same recipe trained through 2026-09-11
+  only (`of24_export.py --until`) makes +1.61 [+0.95, +2.29] on its
+  training days and **-2.31 [-3.69, -0.91] on the 43 later days**,
+  against -2.44 for a random exit at every candidate. A Sierra replay of
+  those 43 days from the holdout weights, learning on (build `vh`):
+  847 trades, -1865.5 ticks, sim -2.20 [-3.82, -0.68], OF23 fills -2.75;
+  it beats 61% of random draws. OF23 measured the same recipe at -3.22
+  walk-forward.
+  **The online learning does almost nothing.** Start to pass 1 moved
+  0.07% of the policy's choices, pass 1 to pass 2 0.42%, each depth
+  pass 0.02%, the holdout replay 0.11%; no change in net is measurable
+  (pass 2: +0.02 [-0.42, +0.44] ticks per session).
+  **Inputs.** Shuffling any one group of inputs (setup flags, location,
+  volatility and volume, buy minus sell volume, momentum) moves 23-32%
+  of the choices and turns +50 ticks a session into a loss: the policy
+  leans on exact combinations, which is what memorising looks like. The
+  book inputs carry under 1% of a typical input's weight.
+  **Forward rule** (fixed before the first live session): 20 sessions
+  and 200 live trades, then the lower 95% bound minus the sim haircut
+  must be above zero.
+* **Dynamic stops and targets (2026-11-15, plan section 9, A97; user:
+  "also add dynamic stop losses and take profits").** The menu's target
+  and stop times ATR / typical ATR, within 0.5-2x; input 11, build
+  `RagAgent_vi_64`. On the 43 unseen days (audit C3, OF23 fills, labels
+  from the trade records) the factor has median 0.83 (10-90%: 0.50 to
+  1.51) and the scaled menu makes -2.76 [-4.39, -1.00] against -2.31
+  for the fixed one; the difference per session is -12.0 [-42.9, +18.7]
+  ticks: not measurable. Runtime check: a replay of 2026-11-03 to 11-11
+  with the input on gave 153 trades (+21.4 ticks), every bracket equal to the menu's times the factor (0.50 to 2.00, median 1.36), targets and stops filled at the scaled distances, 30 trailing moves, no error lines..
+* **State:** build `RagAgent_vi_64` in live mode on plain ESZ26, armed,
+  on Sim9 in the sub-instance, dynamic exits on, continuing from the
+  replay-learned weights of the main lineage (14,104 updates; log header
+  `weights=replay-learned`); first RTH session Monday 2026-11-16 08:50
+  CT. Live trades go to `profit_*_live.csv`; live is where depth and MBO
+  get real data, and the forward rule is the only evidence that counts.
 
 
 
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (41,347 bytes)
+## FILE: docs/ai/DECISIONS.md  (42,406 bytes)
 
 # Decision log
 
@@ -5786,6 +5839,8 @@ the code looks the way it does.
 | A93 | OF24: the live agent is a C++ Sierra study with a pure kernel; no Python reads live data; bars come from the chart, depth and MBO only at decisions; learning is one actor-critic step per closed sim trade inside the study; orders are simulated only | The user chose inside-Sierra (Sierra's data license; its DTC server refuses CME data), MBO is live-only so it can be learned only online, and SierraChart-KB's rules (new DLL name per build, sim guard every call, Arm off by default, own Sim account) are followed |
 | A94 | OF24 keeps learning by replaying recorded days in one continuous Sierra replay that the study itself stops after a set last session (default 2026-11-11, before the forward block), and logs every closed sim trade and session to append-only profit ledgers per mode; live starts from the replay-learned weights | The user asked for more replay days and a profit log; restarting a replay from inside a study did not take (2026-11-13), and the ledgers survive restarts. The replay profit (+1809.5 ticks over 712 trades) is in-sample for the starting policy with optimistic sim fills, so it is not a claim |
 | A95 | OF24 replay pass 2 runs on a continuous-contract chart for more days (2025-12-15 to 2026-11-11) and a plain-contract replay of the recorded-depth days; the book inputs may read recorded depth in a replay (input 9); live uses the plain contract chart | The user asked for more data and a depth/MBO test. Sierra replays recorded depth only on the plain contract chart, and only about five days have it, so the depth weights barely moved (about 1e-5); MBO is live only. +10,499 ticks over 3719 replay trades is in-sample with optimistic fills, not a claim |
+| A96 | OF24's results are judged by `of24_audit.py`: replay profit on days the starting policy trained on is never evidence; a holdout policy on later days and the live ledger are. The forward rule is fixed before the first live session: 20 sessions and 200 live trades, then the lower 95% day-block bound of net ticks per trade minus the sim-fill haircut must be above zero | The user asked for a framework against look-ahead and luck. The first run found no look-ahead, but the +10,499-tick replay was memory: the same recipe trained through 2026-09-11 lost -2.31 [-3.69, -0.91] ticks per trade on the 43 later days (a random exit: -2.44), and the online learning moved under 0.5% of the choices |
+| A97 | OF24's stops and targets may scale with volatility (menu ticks x ATR / typical ATR, 0.5x to 2x; study input 11), on for the live sim | The user asked for dynamic stops and targets. On the unseen days the scaled menu is not measurably different from the fixed one (-12 [-43, +19] ticks per session), so it is a behaviour the user wants, not an edge |
 
 
 
@@ -8537,7 +8592,7 @@ about 25,000 candidates on 228 days, C1 the large majority, C6 85 in all
 
 ---
 
-## FILE: docs/ai/OF24_LIVE_SIM_PLAN.md  (8,678 bytes)
+## FILE: docs/ai/OF24_LIVE_SIM_PLAN.md  (10,044 bytes)
 
 # OF24 plan: the OF23 agent live in Sierra Chart, simulated orders only
 
@@ -8698,6 +8753,165 @@ keep a log of the profit"):
 - **Viewer.** `tools/of24_live.py serve` (replay) or `--mode live`
   shows the ledgers, decisions and weight norms in a browser; it reads
   only the study's own files.
+
+## 9. Dynamic stops and targets (added 2026-11-15)
+
+At the user's request ("also add dynamic stop losses and take profits"):
+
+- **Rule.** Input 11 of the study (default off). When on, the target
+  and the stop of the exit the policy picked are multiplied by
+  k = ATR / typical ATR, k kept within 0.5 to 2, rounded to whole ticks
+  (at least 4 and 2). ATR is OF23's `atr` feature at the decision bar
+  (the 20-bar mean true range of 1-minute bars, in ticks); the typical
+  ATR is its training mean in the weight file (about 13.4 ticks). So in
+  ordinary volatility the bracket is the menu's, in a fast market up to
+  twice as wide, in a quiet one down to half.
+- **Unchanged:** the time cap and the trailing flag of the menu exit.
+  A trailing exit trails at the scaled stop distance. The bracket is
+  still attached to the entry order, so it is in the market from the
+  fill.
+- **Kernel** `exit_scale`, `scaled_exit` (`of24_kernel.hpp`), checked
+  against the Python reference through `of24_parity`
+  (`test_of24_audit.py`).
+- **Records.** The trade ledger's `exit_rule` is the bracket actually
+  sent; two new last columns give the menu exit and the factor. The
+  log header has `dynamic_exits=`, the T line ends with the ticks sent.
+- **Evidence.** `of24_audit.py` C3 compares the fixed menu with the
+  scaled one on days the policy never saw (`OF24_AUDIT.md`).
+
+
+
+---
+
+## FILE: docs/ai/OF24_AUDIT.md  (8,105 bytes)
+
+# OF24 audit: look-ahead, and luck against skill
+
+Status: **built and run 2026-11-15**, at the user's request ("create a
+framework to make sure there is no look-ahead bias, make sure that it is
+learning from patterns and proper order-flow analysis and not just sheer
+luck"). Tool: `experiments/of24_audit.py`; tests
+`python/tests/test_of24_audit.py`. Results of the first run are in
+`EXPERIMENTS.md` (OF24) and decision A96.
+
+```
+python experiments/of24_audit.py            # report to the console and build-avx512/of24/audit.txt
+python experiments/of24_export.py --until 2026-09-11 --out build-avx512/of24/of24_weights_holdout.txt
+```
+
+It reads only the study's own files (profit ledgers, decision logs,
+weight files) and the OF23 cache (days through 2026-11-11). It never
+reads the forward block: forward days are judged from the study's live
+ledger alone.
+
+## 1. What can go wrong, and the check for each
+
+| Risk | Check | Passes when |
+|---|---|---|
+| The study decides with bars it could not have had yet | **A1** every decision in a replay log is a candidate of OF23's pipeline at the same day, minute and direction, with the same setup flags. That pipeline has its own truncation test, and the C++ kernel is only ever handed the bars so far | at least 98% match |
+| The live features differ from the tested ones | **A2** the first decision of a run (before any learning step changes the weights) is recomputed from the saved weights and the cached features | probability and value agree to 0.005 |
+| Fills at prices that did not exist after the decision | **A3** every entry fill lies in the range of the bar after the decision bar, or one tick outside it (a market order fills at the quote) | at least 98% |
+| The policy has already seen the days it is scored on | **A4** share of replay trades on the starting policy's training days; **C** a holdout policy scored on days it never saw | reported, never "passed": only C and D count as evidence |
+| The profit is the simulator's generous fills | **B1** the same trades re-priced with OF23's fills (a target needs a trade through it; costs 1.28 / 0.76 ticks) | the gap is reported and used as a haircut on live results |
+| Any trader at these setups would have made it | **B2** random candidates on the same days, the same number of trades, the same exits, one at a time; **B3/C1** a random exit at every candidate | the agent is above 95% of the random draws |
+| The online learning does nothing, or only fits the replayed days | **B3** each saved weight snapshot trades the cached days with the same random numbers; the change from one snapshot to the next is split into days that pass replayed and days it did not | reported with day-block intervals |
+| It does not use order flow | **B4** one group of inputs is shuffled across candidates (setup flags, location, volatility and volume, buy minus sell volume, momentum, time): how many choices move and what the net does. For the live book inputs (depth, MBO, spread), which no cached day has, the size of their weights against a typical input | reported |
+| A lucky run is read as skill | every figure has a 95% interval from a bootstrap over whole days (trades within a day are not independent); **D** a rule fixed before the first live session | see section 3 |
+
+## 2. Unseen days (C)
+
+`of24_export.py --until DAY` trains the same starting policy on the days
+through DAY only and writes the cut beside the weights. The audit then
+runs that policy over the later days, one position at a time, sampled as
+the study samples, with OF23's fills (C1); the same after a Sierra
+replay of those days with learning on (C2, `weights_replay_c*_holdout.txt`
+and a ledger named `*holdout*`); and the fixed exit menu against the
+volatility-scaled one (C3, labels from the trade records of those days,
+cached in `build-avx512/of24/dyn_labels.npz`).
+
+This is the only honest replay evidence: a replay of days the starting
+policy was trained on measures memory, not skill.
+
+**Ledger names.** The study always writes `profit_trades_replay.csv`.
+After each replay run the ledger is renamed (`..._replay_<run>.csv`) and
+the weights copied (`weights_replay_c1_after_<run>.txt`, or
+`..._holdout.txt` for the holdout lineage); a ledger from the holdout
+lineage must have `holdout` in its name, and only its trades after the
+cut are counted as unseen. A ledger with volatility-scaled exits is not
+re-priced (OF23's labels are for the menu's ticks; the scaled exits are
+judged in C3 instead).
+
+## 3. The forward rule (D), fixed 2026-11-15 before the first live session
+
+From `profit_trades_live.csv` only:
+
+- fewer than **20 sessions or 200 trades**: "too early";
+- otherwise the lower end of the 95% day-block interval of net ticks per
+  trade, minus the sim-fill haircut measured in B1: above zero is "skill
+  is supported", else "luck is not excluded".
+
+One look at the rule's outcome when the counts are first met; later looks
+are reported as such. The rule is about the agent as it runs (learning
+on, whatever exits are switched on); a change of exit rule or inputs
+restarts the count.
+
+## 4. What the audit cannot show
+
+- **Order-book and MBO skill.** Recorded depth exists for a handful of
+  days and MBO is never recorded, so nothing offline can say whether the
+  book inputs help. Only the live ledger can, over many sessions; B4
+  reports how much weight they carry.
+- **Live fills.** Sim fills are immediate and queue-free. B1 measures
+  the gap to OF23's stricter fills on replayed days and D subtracts it,
+  but neither is a real fill.
+- **Regime.** 228 days from one year.
+
+## 5. First run (2026-11-15) and what follows
+
+Figures in `EXPERIMENTS.md` (OF24, "Audit"). In short: no look-ahead;
+the replay profit is in-sample; on unseen days the recipe loses like a
+random exit; the online learning barely changes the policy.
+
+**What the agent should be good at, and where it stands**
+
+| Skill | Test | Today |
+|---|---|---|
+| Decide only on the past | A1-A3 | works |
+| Read market context from bars | C1 against a random exit | no edge shown |
+| Read the order book and MBO | weight of the book inputs; the live ledger | not testable: about five recorded depth days, MBO live only |
+| Pick entries (take or skip) | C1, B2 | random on unseen days |
+| Respect costs (skip without an edge) | trades a session at a negative expectancy | fails: 17-23 trades a session |
+| Manage exits | C3 | scaled exits: no measurable gain |
+| Keep risk limits | daily stop, one lot, sim guards | works |
+| Adapt online | B3, C2 | under 0.5% of choices moved |
+| Generalise | training days against unseen days | +1.6 against -2.3 |
+
+**The three learners used so far**
+
+| | Gradient-boosted trees (OF23 miner) | PPO (the starting policy) | Online actor-critic (the study) |
+|---|---|---|---|
+| Learns from | the labelled outcome of every exit | replayed training days, the one exit it sampled | each closed sim trade, once |
+| Good at | small tabular data, walk-forward | sequences (one position, skip) | adapting live; the only way to learn from MBO |
+| Weak at | no sequence | data-hungry, memorises | about 17 noisy lessons a session |
+| Unseen days | -1.99 | -2.33 (must trade), -3.22 (may skip) | no measurable change |
+
+All three lose on unseen days, which points at the inputs and the amount
+of data rather than at the learner.
+
+**Order of work that follows (not started; each needs its own plan)**
+
+1. Signal first: a walk-forward predictor of the move after a setup,
+   on order-book and MBO inputs at short horizons, judged against costs.
+2. One learner with three properties: full feedback (every exit's known
+   outcome), a distributional output (quantiles per exit), and offline
+   caution (trade only when a pessimistic estimate beats costs, else
+   skip), with an ensemble over seeds and resampled days whose
+   disagreement means "skip".
+3. Fewer exits, a simpler model, early stopping on a later block of
+   days; nightly retraining checked on held-out days instead of one
+   step per trade.
+4. Sequence-aware offline RL (exit management, the cost of being busy)
+   only on top of a signal that passes step 1.
 
 
 

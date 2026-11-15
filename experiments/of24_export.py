@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """OF24: train the starting policy of the live sim agent and write it as a text weight file.
 
-  python experiments/of24_export.py [--out build-avx512/of24/of24_weights.txt] [--seed 0]
+  python experiments/of24_export.py [--out build-avx512/of24/of24_weights.txt] [--seed 0] [--until YYYY-MM-DD]
 
 Trains OF23's RL-free arm (skip + 12 exits; of23_mine.rl_train_test, unchanged and frozen) on every used day of
 the OF23 cache (build-avx512/of23; run of23_mine.py --run first) and writes the policy, the value network and the
 feature standardization in the format of include/rag/live/of24_kernel.hpp (Policy::load). The 6 live book inputs
 get zero weights. The file goes outside the repository. docs/ai/OF24_LIVE_SIM_PLAN.md section 2.
+
+--until trains on the days through that date only (a holdout policy for of24_audit.py: the later days are unseen by it)
+and writes <out>.json beside the weights with the cut.
 """
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -21,8 +25,8 @@ import of23_mine as M  # noqa: E402
 BOOK = 6
 
 
-def train(C, seed):
-    """rl_train_test on all rows; the two networks it builds are captured as they are constructed."""
+def train(C, seed, every=None):
+    """rl_train_test on the rows `every` (default all); the two networks it builds are captured as they are constructed."""
     import torch
     made = []
     real = torch.nn.Sequential
@@ -33,7 +37,8 @@ def train(C, seed):
             made.append(self)
     torch.nn.Sequential = Capture
     try:
-        every = np.ones(len(C["day"]), bool)
+        if every is None:
+            every = np.ones(len(C["day"]), bool)
         M.rl_train_test(C, "free", every, ~every, seed)
     finally:
         torch.nn.Sequential = real
@@ -41,8 +46,8 @@ def train(C, seed):
     return made[0], made[1]
 
 
-def write(path, C, pol, val):
-    X = C["X"]
+def write(path, C, pol, val, every=None):
+    X = C["X"] if every is None else C["X"][every]
     mu, sd = np.nanmean(X, 0), np.nanstd(X, 0)
     sd[~(sd > 0)] = 1.0
     F, H, A = X.shape[1] + BOOK, M.RL["hidden"], len(M.MENU_E) + 1
@@ -75,16 +80,27 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", default=str(REPO / "build-avx512" / "of24" / "of24_weights.txt"))
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--until", default=None, help="train on the days through this date only (a holdout policy)")
     a = ap.parse_args(argv)
     import torch
     C, meta = M.load_cache()
-    pol, val = train(C, a.seed)
-    mu, sd = write(Path(a.out), C, pol, val)
+    every = None
+    if a.until:
+        every = C["days"][C["day"]] <= a.until
+        n_days = int((np.array(meta["days"]) <= a.until).sum())
+        if not every.any() or every.all():
+            raise SystemExit(f"--until {a.until} leaves no training days or no unseen days")
+    pol, val = train(C, a.seed, every)
+    mu, sd = write(Path(a.out), C, pol, val, every)
+    if a.until:
+        Path(str(Path(a.out).with_suffix("")) + ".json").write_text(
+            json.dumps({"until": a.until, "seed": a.seed, "train_days": n_days, "train_candidates": int(every.sum())}), encoding="ascii")
+        print(f"holdout: trained on {n_days} days through {a.until}; {len(meta['days']) - n_days} later days are unseen")
     Z = np.nan_to_num((C["X"] - mu) / sd).astype(np.float32)
     with torch.no_grad():
         acts = pol(torch.from_numpy(Z)).argmax(1).numpy()
     share = np.bincount(acts, minlength=len(M.MENU_E) + 1) / len(acts)
-    print(f"trained on {len(meta['days'])} days, {len(acts)} candidates, seed {a.seed}; greedy action shares: "
+    print(f"trained on {n_days if a.until else len(meta['days'])} days, greedy shares over all {len(acts)} candidates, seed {a.seed}: "
           + ", ".join(f"{'skip' if k == 0 else M.exit_name(M.MENU_E[k - 1])} {100 * s:.0f}%" for k, s in enumerate(share) if s >= 0.005))
     print(f"wrote {a.out}")
     return 0

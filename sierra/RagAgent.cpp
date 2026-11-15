@@ -41,6 +41,8 @@ struct Pending {            // the open trade's decision, kept for the learning 
   std::array<double, of24::kIn> x{};
   int action = 0, dir = 0;
   int entry_m = 0;          // RTH minute index of the entry bar (m + 1)
+  int target = 0, stop = 0; // the bracket actually sent, in ticks (the menu's, or scaled by volatility)
+  double scale = 1.0;       // the volatility factor applied to the menu exit (1 = the menu's own ticks)
   int date = 0;             // Chicago date (SCDateTime::GetDate) of the entry
   uint64_t entry_id = 0, stop_id = 0, target_id = 0;
   double best_close_ticks = -1e9;   // best completed-bar close in profit ticks (trailing exits)
@@ -235,6 +237,7 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
   SCInputRef InUseBook = sc.Input[7];
   SCInputRef InChainEnd = sc.Input[8];
   SCInputRef InReplayDepth = sc.Input[9];
+  SCInputRef InDynamic = sc.Input[10];
   if (sc.SetDefaults) {
     sc.GraphName = "RagAgent OF24 (turning points, RL exits) - SIM ONLY";
     sc.StudyDescription = "OF23 turning-point candidates on 1-minute RTH bars; a policy network picks skip or one of 12 brackets; "
@@ -274,6 +277,8 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
     InChainEnd.SetIntLimits(0, 21001231);
     InReplayDepth.Name = "Replay: read recorded depth for the book inputs (MBO is live only)";
     InReplayDepth.SetYesNo(0);
+    InDynamic.Name = "Dynamic stops and targets (menu ticks x ATR / typical ATR, 0.5x to 2x)";
+    InDynamic.SetYesNo(0);
     sc.Subgraph[0].Name = "Long entry";
     sc.Subgraph[0].DrawStyle = DRAWSTYLE_ARROW_UP;
     sc.Subgraph[0].PrimaryColor = RGB(0, 200, 0);
@@ -358,9 +363,9 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
       for (int k = 0; k < 11 && c; ++k) { c = std::strchr(c, ','); if (c) ++c; }  // field 12 = cum_ticks, 13 = trade count
       if (c && std::sscanf(c, "%lf,%lld", &cum, &n) == 2) { s->cum_ticks = cum; s->cum_trades = n; }
     }
-    logf(*s, "H,module=%s,symbol=%s,account=%s,tick=%g,seconds_per_bar=%d,replay_mode=%d,weights=%s,weights_ok=%d,updates=%lld,learn=%d,greedy=%d,day_stop=%d\n",
+    logf(*s, "H,module=%s,symbol=%s,account=%s,tick=%g,seconds_per_bar=%d,replay_mode=%d,weights=%s,weights_ok=%d,updates=%lld,learn=%d,greedy=%d,day_stop=%d,dynamic_exits=%d\n",
          mod, sc.Symbol.GetChars(), InAccount.GetString(), sc.TickSize, sc.SecondsPerBar, replay_mode ? 1 : 0, from, s->policy_ok ? 1 : 0,
-         s->policy.updates, InLearn.GetYesNo(), InGreedy.GetYesNo(), InDayStop.GetInt());
+         s->policy.updates, InLearn.GetYesNo(), InGreedy.GetYesNo(), InDayStop.GetInt(), InDynamic.GetYesNo());
     SCString msg;
     msg.Format("RagAgent: module %s, weights %s (%s), log %s", mod, from, s->policy_ok ? "ok" : "MISSING: no decisions", path);
     sc.AddMessageToLog(msg, s->policy_ok ? 0 : 1);
@@ -456,16 +461,19 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
         s.cum_ticks += net;
         ++s.cum_trades;
         {
-          const of24::ExitSpec ex = of24::kMenu[s.t.action - 1];
+          const of24::ExitSpec menu = of24::kMenu[s.t.action - 1];
+          of24::ExitSpec ex = menu;
+          if (s.t.target > 0 && s.t.stop > 0) { ex.target = s.t.target; ex.stop = s.t.stop; }
           const int em = kOpenMin + s.t.entry_m;
           char line[400];
-          std::snprintf(line, sizeof line, "%s,%02d:%02d,%s,T%d/S%d/%s%s,%.2f,%.2f,%.2f,%s,%.2f,%.2f,%.2f,%.2f,%lld,%.2f,%lld\n",
+          std::snprintf(line, sizeof line, "%s,%02d:%02d,%s,T%d/S%d/%s%s,%.2f,%.2f,%.2f,%s,%.2f,%.2f,%.2f,%.2f,%lld,%.2f,%lld,T%d/S%d,%.3f\n",
                         ymd(s.t.date).c_str(), em / 60, em % 60, s.t.dir > 0 ? "long" : "short", ex.target, ex.stop,
                         ex.hold_min ? std::to_string(ex.hold_min).c_str() : "EOD", ex.trailing ? "/trail" : "", fe.FillPrice, fx.FillPrice,
                         move, was_target ? "target" : fx.InternalOrderID == s.t.stop_id ? "stop" : "time", net, net * 12.5, s.day_net,
-                        s.cum_ticks, s.cum_trades, s.cum_ticks * 12.5, s.policy.updates + (InLearn.GetYesNo() ? 1 : 0));
+                        s.cum_ticks, s.cum_trades, s.cum_ticks * 12.5, s.policy.updates + (InLearn.GetYesNo() ? 1 : 0), menu.target, menu.stop,
+                        s.t.scale);
           append_line(s.ledger_trades,
-                      "date,entry_ct,side,exit_rule,entry_px,exit_px,move_ticks,exit,net_ticks,net_usd,day_net_ticks,cum_ticks,cum_trades,cum_usd,updates\n",
+                      "date,entry_ct,side,exit_rule,entry_px,exit_px,move_ticks,exit,net_ticks,net_usd,day_net_ticks,cum_ticks,cum_trades,cum_usd,updates,menu_exit,exit_scale\n",
                       line);
         }
         if (InLearn.GetYesNo()) {
@@ -474,8 +482,9 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
         }
         const int stop_lim = InDayStop.GetInt();
         if (stop_lim > 0 && s.day_net <= -stop_lim) s.day_stopped = true;
-        logf(s, "T,%d,%d,%d,%d,%.2f,%.2f,%.2f,%s,%.2f,%.2f,%d,%lld,%d\n", s.t.date, s.t.entry_m, s.t.dir, s.t.action, fe.FillPrice, fx.FillPrice, move,
-             was_target ? "target" : fx.InternalOrderID == s.t.stop_id ? "stop" : "time", net, s.day_net, s.day_trades, s.policy.updates, s.day_stopped ? 1 : 0);
+        logf(s, "T,%d,%d,%d,%d,%.2f,%.2f,%.2f,%s,%.2f,%.2f,%d,%lld,%d,%d,%d\n", s.t.date, s.t.entry_m, s.t.dir, s.t.action, fe.FillPrice, fx.FillPrice, move,
+             was_target ? "target" : fx.InternalOrderID == s.t.stop_id ? "stop" : "time", net, s.day_net, s.day_trades, s.policy.updates, s.day_stopped ? 1 : 0,
+             s.t.target > 0 ? s.t.target : of24::kMenu[s.t.action - 1].target, s.t.stop > 0 ? s.t.stop : of24::kMenu[s.t.action - 1].stop);
       } else {
         logf(s, "E,%d,%d,closed without matching fills (entry %d exit %d)\n", s.t.date, s.t.entry_m, got_e ? 1 : 0, got_x ? 1 : 0);
       }
@@ -512,7 +521,7 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
       s_SCOrderFillData f;
       for (int i = sc.GetOrderFillArraySize() - 1; i >= 0; --i) {
         if (!sc.GetOrderFillEntry(i, f) || !own_fill(sc, f) || f.InternalOrderID != s.t.entry_id) continue;
-        const int S = of24::kMenu[s.t.action - 1].stop;
+        const int S = s.t.stop > 0 ? s.t.stop : of24::kMenu[s.t.action - 1].stop;
         const double prof = s.t.dir * (sc.Close[done] - f.FillPrice) / ts;
         if (prof > s.t.best_close_ticks) s.t.best_close_ticks = prof;
         const double want = s.t.best_close_ticks - S;  // stop level in profit ticks
@@ -556,7 +565,8 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
           int r = 0;
           s_SCNewOrder ord;
           if (a > 0 && may_send && !s.day_stopped) {
-            const of24::ExitSpec ex = of24::kMenu[a - 1];
+            const double k_exit = InDynamic.GetYesNo() ? of24::exit_scale(c.f[of24::kAtrFeat], s.policy.mu[of24::kAtrFeat]) : 1.0;
+            const of24::ExitSpec ex = InDynamic.GetYesNo() ? of24::scaled_exit(of24::kMenu[a - 1], k_exit) : of24::kMenu[a - 1];
             ord.OrderType = SCT_ORDERTYPE_MARKET;
             ord.OrderQuantity = 1;
             ord.Symbol = sc.GetTradeSymbol();
@@ -574,6 +584,9 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
               s.t.action = a;
               s.t.dir = c.dir;
               s.t.entry_m = m + 1;
+              s.t.target = ex.target;
+              s.t.stop = ex.stop;
+              s.t.scale = k_exit;
               s.t.date = bt.date;
               s.t.entry_id = ord.InternalOrderID;
               s.t.stop_id = ord.Stop1InternalOrderID;

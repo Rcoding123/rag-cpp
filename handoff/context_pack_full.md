@@ -381,6 +381,7 @@ tests/test_util.hpp
 tests/text_clean_tests.cpp
 tests/vec_scalp_env_tests.cpp
 tools/make_context_pack.py
+tools/of24_live.py
 tools/of_train_live.py
 tools/of_viz.py
 tools/of_zoo_trace.py
@@ -420,150 +421,152 @@ tools/test_research_crawler.py
 24. docs/ai/OF21_FORWARD_PLAN.md
 25. docs/ai/OF23_SWING_MINING_PLAN.md
 26. docs/ai/OF24_LIVE_SIM_PLAN.md
-27. experiments/research_synthesis.md
-28. README.md
-29. CMakeLists.txt
-30. .github\workflows\ci.yml
-31. include\rag\agent\agent.hpp
-32. include\rag\agent\analysis.hpp
-33. include\rag\agent\drift.hpp
-34. include\rag\agent\env.hpp
-35. include\rag\agent\evaluate.hpp
-36. include\rag\agent\execution_dp.hpp
-37. include\rag\agent\features.hpp
-38. include\rag\agent\learners.hpp
-39. include\rag\agent\market_making.hpp
-40. include\rag\agent\mlp.hpp
-41. include\rag\agent\model_based.hpp
-42. include\rag\agent\ope.hpp
-43. include\rag\agent\policy_table.hpp
-44. include\rag\agent\rng.hpp
-45. include\rag\agent\trainer.hpp
-46. include\rag\agent\tuning.hpp
-47. include\rag\agent\validation.hpp
-48. include\rag\agent\variance_reduction.hpp
-49. include\rag\arena.hpp
-50. include\rag\bm25.hpp
-51. include\rag\chunker.hpp
-52. include\rag\common.hpp
-53. include\rag\embedder.hpp
-54. include\rag\engine.hpp
-55. include\rag\epoch.hpp
-56. include\rag\fusion.hpp
-57. include\rag\io.hpp
-58. include\rag\ivf_index.hpp
-59. include\rag\live\of24_kernel.hpp
-60. include\rag\orderflow\features.hpp
-61. include\rag\orderflow\replay_env.hpp
-62. include\rag\orderflow\scalp_env.hpp
-63. include\rag\orderflow\scalp_run.hpp
-64. include\rag\orderflow\seed_ledger.hpp
-65. include\rag\orderflow\simulator.hpp
-66. include\rag\orderflow\stylized.hpp
-67. include\rag\orderflow\tick_csv.hpp
-68. include\rag\orderflow\tick_env.hpp
-69. include\rag\orderflow\vec_scalp_env.hpp
-70. include\rag\pdf.hpp
-71. include\rag\prompt.hpp
-72. include\rag\simd.hpp
-73. include\rag\text_clean.hpp
-74. include\rag\tokenizer.hpp
-75. include\rag\topk.hpp
-76. include\rag\vector_store.hpp
-77. include\rag.hpp
-78. examples\agent_demo.cpp
-79. examples\demo.cpp
-80. examples\of15_refdump.cpp
-81. examples\of24_parity.cpp
-82. examples\of_backtest.cpp
-83. examples\of_calibrate.cpp
-84. examples\of_trace.cpp
-85. examples\of_train.cpp
-86. examples\of_train_live.cpp
-87. examples\rag_pdf.cpp
-88. examples\train_ensemble.cpp
-89. examples\tune_agent.cpp
-90. sierra\RagAgent.cpp
-91. bench\latency.cpp
-92. bench\rag_bench.cpp
-93. bench\fixtures.hpp
-94. tests\agent_coverage_tests.cpp
-95. tests\agent_edge_case_tests.cpp
-96. tests\agent_tests.cpp
-97. tests\api_examples_tests.cpp
-98. tests\forgery_tests.cpp
-99. tests\market_making_tests.cpp
-100. tests\mlp_tests.cpp
-101. tests\model_based_tests.cpp
-102. tests\optional_libs_tests.cpp
-103. tests\orderflow_tests.cpp
-104. tests\pdf_tests.cpp
-105. tests\policy_table_tests.cpp
-106. tests\rag_property_tests.cpp
-107. tests\rag_tests.cpp
-108. tests\reference_tests.cpp
-109. tests\stress.cpp
-110. tests\stylized_tests.cpp
-111. tests\text_clean_tests.cpp
-112. tests\vec_scalp_env_tests.cpp
-113. tests\pdf_writer.hpp
-114. tests\pid.hpp
-115. tests\synthetic.hpp
-116. tests\test_util.hpp
-117. tests\fuzz\fuzz_common.hpp
-118. tests\fuzz\fuzz_load.cpp
-119. tests\fuzz\fuzz_policy_table.cpp
-120. tests\fuzz\fuzz_text.cpp
-121. tests\fuzz\make_seeds.cpp
-122. tools\make_context_pack.py
-123. tools\of_train_live.py
-124. tools\of_viz.py
-125. tools\of_zoo_trace.py
-126. tools\real_vs_sim.py
-127. tools\research_crawler.py
-128. tools\scid_to_bars.py
-129. tools\scid_to_trades.py
-130. tools\sierra_to_ticks.py
-131. tools\test_research_crawler.py
-132. python\ragof_module.cpp
-133. python\ragrl\__init__.py
-134. python\ragrl\__main__.py
-135. python\ragrl\agents\__init__.py
-136. python\ragrl\agents\imitation.py
-137. python\ragrl\agents\neuralq.py
-138. python\ragrl\agents\sb3_agents.py
-139. python\ragrl\agents\supervised.py
-140. python\ragrl\checkpoints.py
-141. python\ragrl\cli.py
-142. python\ragrl\config.py
-143. python\ragrl\envs.py
-144. python\ragrl\evaluate.py
-145. python\ragrl\hpo.py
-146. python\ragrl\ledger.py
-147. python\ragrl\live.py
-148. python\ragrl\native.py
-149. python\ragrl\policies.py
-150. python\ragrl\real.py
-151. python\ragrl\redflags.py
-152. python\ragrl\registry.py
-153. python\ragrl\report.py
-154. python\ragrl\runner.py
-155. python\ragrl\score_real.py
-156. python\ragrl\stats.py
-157. python\ragrl\worker.py
-158. python\tests\conftest.py
-159. python\tests\test_bars.py
-160. python\tests\test_bit_identity.py
-161. python\tests\test_ledger.py
-162. python\tests\test_of19.py
-163. python\tests\test_of21.py
-164. python\tests\test_of23.py
-165. python\tests\test_of24.py
-166. python\tests\test_pipeline.py
-167. python\tests\test_privileged.py
-168. python\tests\test_real.py
-169. python\tests\test_smoke.py
-170. python\tests\test_vec_env.py
+27. docs/ai/OF24_AUDIT.md
+28. experiments/research_synthesis.md
+29. README.md
+30. CMakeLists.txt
+31. .github\workflows\ci.yml
+32. include\rag\agent\agent.hpp
+33. include\rag\agent\analysis.hpp
+34. include\rag\agent\drift.hpp
+35. include\rag\agent\env.hpp
+36. include\rag\agent\evaluate.hpp
+37. include\rag\agent\execution_dp.hpp
+38. include\rag\agent\features.hpp
+39. include\rag\agent\learners.hpp
+40. include\rag\agent\market_making.hpp
+41. include\rag\agent\mlp.hpp
+42. include\rag\agent\model_based.hpp
+43. include\rag\agent\ope.hpp
+44. include\rag\agent\policy_table.hpp
+45. include\rag\agent\rng.hpp
+46. include\rag\agent\trainer.hpp
+47. include\rag\agent\tuning.hpp
+48. include\rag\agent\validation.hpp
+49. include\rag\agent\variance_reduction.hpp
+50. include\rag\arena.hpp
+51. include\rag\bm25.hpp
+52. include\rag\chunker.hpp
+53. include\rag\common.hpp
+54. include\rag\embedder.hpp
+55. include\rag\engine.hpp
+56. include\rag\epoch.hpp
+57. include\rag\fusion.hpp
+58. include\rag\io.hpp
+59. include\rag\ivf_index.hpp
+60. include\rag\live\of24_kernel.hpp
+61. include\rag\orderflow\features.hpp
+62. include\rag\orderflow\replay_env.hpp
+63. include\rag\orderflow\scalp_env.hpp
+64. include\rag\orderflow\scalp_run.hpp
+65. include\rag\orderflow\seed_ledger.hpp
+66. include\rag\orderflow\simulator.hpp
+67. include\rag\orderflow\stylized.hpp
+68. include\rag\orderflow\tick_csv.hpp
+69. include\rag\orderflow\tick_env.hpp
+70. include\rag\orderflow\vec_scalp_env.hpp
+71. include\rag\pdf.hpp
+72. include\rag\prompt.hpp
+73. include\rag\simd.hpp
+74. include\rag\text_clean.hpp
+75. include\rag\tokenizer.hpp
+76. include\rag\topk.hpp
+77. include\rag\vector_store.hpp
+78. include\rag.hpp
+79. examples\agent_demo.cpp
+80. examples\demo.cpp
+81. examples\of15_refdump.cpp
+82. examples\of24_parity.cpp
+83. examples\of_backtest.cpp
+84. examples\of_calibrate.cpp
+85. examples\of_trace.cpp
+86. examples\of_train.cpp
+87. examples\of_train_live.cpp
+88. examples\rag_pdf.cpp
+89. examples\train_ensemble.cpp
+90. examples\tune_agent.cpp
+91. sierra\RagAgent.cpp
+92. bench\latency.cpp
+93. bench\rag_bench.cpp
+94. bench\fixtures.hpp
+95. tests\agent_coverage_tests.cpp
+96. tests\agent_edge_case_tests.cpp
+97. tests\agent_tests.cpp
+98. tests\api_examples_tests.cpp
+99. tests\forgery_tests.cpp
+100. tests\market_making_tests.cpp
+101. tests\mlp_tests.cpp
+102. tests\model_based_tests.cpp
+103. tests\optional_libs_tests.cpp
+104. tests\orderflow_tests.cpp
+105. tests\pdf_tests.cpp
+106. tests\policy_table_tests.cpp
+107. tests\rag_property_tests.cpp
+108. tests\rag_tests.cpp
+109. tests\reference_tests.cpp
+110. tests\stress.cpp
+111. tests\stylized_tests.cpp
+112. tests\text_clean_tests.cpp
+113. tests\vec_scalp_env_tests.cpp
+114. tests\pdf_writer.hpp
+115. tests\pid.hpp
+116. tests\synthetic.hpp
+117. tests\test_util.hpp
+118. tests\fuzz\fuzz_common.hpp
+119. tests\fuzz\fuzz_load.cpp
+120. tests\fuzz\fuzz_policy_table.cpp
+121. tests\fuzz\fuzz_text.cpp
+122. tests\fuzz\make_seeds.cpp
+123. tools\make_context_pack.py
+124. tools\of24_live.py
+125. tools\of_train_live.py
+126. tools\of_viz.py
+127. tools\of_zoo_trace.py
+128. tools\real_vs_sim.py
+129. tools\research_crawler.py
+130. tools\scid_to_bars.py
+131. tools\scid_to_trades.py
+132. tools\sierra_to_ticks.py
+133. tools\test_research_crawler.py
+134. python\ragof_module.cpp
+135. python\ragrl\__init__.py
+136. python\ragrl\__main__.py
+137. python\ragrl\agents\__init__.py
+138. python\ragrl\agents\imitation.py
+139. python\ragrl\agents\neuralq.py
+140. python\ragrl\agents\sb3_agents.py
+141. python\ragrl\agents\supervised.py
+142. python\ragrl\checkpoints.py
+143. python\ragrl\cli.py
+144. python\ragrl\config.py
+145. python\ragrl\envs.py
+146. python\ragrl\evaluate.py
+147. python\ragrl\hpo.py
+148. python\ragrl\ledger.py
+149. python\ragrl\live.py
+150. python\ragrl\native.py
+151. python\ragrl\policies.py
+152. python\ragrl\real.py
+153. python\ragrl\redflags.py
+154. python\ragrl\registry.py
+155. python\ragrl\report.py
+156. python\ragrl\runner.py
+157. python\ragrl\score_real.py
+158. python\ragrl\stats.py
+159. python\ragrl\worker.py
+160. python\tests\conftest.py
+161. python\tests\test_bars.py
+162. python\tests\test_bit_identity.py
+163. python\tests\test_ledger.py
+164. python\tests\test_of19.py
+165. python\tests\test_of21.py
+166. python\tests\test_of23.py
+167. python\tests\test_of24.py
+168. python\tests\test_pipeline.py
+169. python\tests\test_privileged.py
+170. python\tests\test_real.py
+171. python\tests\test_smoke.py
+172. python\tests\test_vec_env.py
 
 
 ---
@@ -3317,7 +3320,7 @@ seed-to-seed variance.
 
 ---
 
-## FILE: docs/ai/EXPERIMENTS.md  (149,330 bytes)
+## FILE: docs/ai/EXPERIMENTS.md  (152,851 bytes)
 
 # RL experiment log
 
@@ -5777,18 +5780,69 @@ starting policy is OF23's RL-free arm, which lost on unseen months (A92).
   newest decision log and its weight file (profit, a rolling 100-trade
   mean, exit mix, trade rate, critic value, book-weight norms, depth
   levels, latest trades).
-* **State:** build `RagAgent_vg_64` in live mode on plain ESZ26, armed,
-  on Sim9 in the sub-instance, continuing from the replay-learned weights
-  (13,630 updates; log header `weights=replay-learned`); first RTH
-  session Monday 2026-11-16 08:50 CT. Live trades go to
-  `profit_*_live.csv`; live is where depth and MBO get real data.
+* **Second depth pass (2026-11-15, user: "run another pass on the depth
+  days so it learns more"):** 2026-11-03 to 11-11 again on the plain
+  ESZ26 chart with recorded depth: 168 trades, +510.6 ticks; 14,104
+  updates. The depth weights stayed near 1e-5 (0.00007, 0.00001,
+  0.00001; spread 0.008; against 1.12 for a bar input).
+* **Audit (2026-11-15, `experiments/of24_audit.py`, `OF24_AUDIT.md`, A96;
+  user: "create a framework to make sure there is no look-ahead bias ...
+  learning from patterns ... not just sheer luck").** All figures are
+  ticks per trade with a 95% day-block interval.
+  **Look-ahead: none found.** 18,412 logged replay decisions, all but 10
+  (99.9%) are candidates of OF23's causal pipeline at the same minute
+  and direction; the first decision of the three latest runs reproduces
+  from the saved weights (one early run differs by 0.0012 in
+  probability); all 5757 entry fills are within one tick of the bar
+  after the decision bar (98.7% inside it).
+  **The replay profit is in-sample.** 99% of the replay trades are on
+  days the starting policy was trained on. Re-priced with OF23's fills
+  the pass-2 trades still make +3.01 [+2.20, +3.89] (sim +2.84): the
+  sim's fills are not the reason (+0.07 per trade). Random candidates
+  with the same exits make -2.43; the agent beats all of them, as a
+  policy that has seen the days would.
+  **Unseen days: it loses.** The same recipe trained through 2026-09-11
+  only (`of24_export.py --until`) makes +1.61 [+0.95, +2.29] on its
+  training days and **-2.31 [-3.69, -0.91] on the 43 later days**,
+  against -2.44 for a random exit at every candidate. A Sierra replay of
+  those 43 days from the holdout weights, learning on (build `vh`):
+  847 trades, -1865.5 ticks, sim -2.20 [-3.82, -0.68], OF23 fills -2.75;
+  it beats 61% of random draws. OF23 measured the same recipe at -3.22
+  walk-forward.
+  **The online learning does almost nothing.** Start to pass 1 moved
+  0.07% of the policy's choices, pass 1 to pass 2 0.42%, each depth
+  pass 0.02%, the holdout replay 0.11%; no change in net is measurable
+  (pass 2: +0.02 [-0.42, +0.44] ticks per session).
+  **Inputs.** Shuffling any one group of inputs (setup flags, location,
+  volatility and volume, buy minus sell volume, momentum) moves 23-32%
+  of the choices and turns +50 ticks a session into a loss: the policy
+  leans on exact combinations, which is what memorising looks like. The
+  book inputs carry under 1% of a typical input's weight.
+  **Forward rule** (fixed before the first live session): 20 sessions
+  and 200 live trades, then the lower 95% bound minus the sim haircut
+  must be above zero.
+* **Dynamic stops and targets (2026-11-15, plan section 9, A97; user:
+  "also add dynamic stop losses and take profits").** The menu's target
+  and stop times ATR / typical ATR, within 0.5-2x; input 11, build
+  `RagAgent_vi_64`. On the 43 unseen days (audit C3, OF23 fills, labels
+  from the trade records) the factor has median 0.83 (10-90%: 0.50 to
+  1.51) and the scaled menu makes -2.76 [-4.39, -1.00] against -2.31
+  for the fixed one; the difference per session is -12.0 [-42.9, +18.7]
+  ticks: not measurable. Runtime check: a replay of 2026-11-03 to 11-11
+  with the input on gave 153 trades (+21.4 ticks), every bracket equal to the menu's times the factor (0.50 to 2.00, median 1.36), targets and stops filled at the scaled distances, 30 trailing moves, no error lines..
+* **State:** build `RagAgent_vi_64` in live mode on plain ESZ26, armed,
+  on Sim9 in the sub-instance, dynamic exits on, continuing from the
+  replay-learned weights of the main lineage (14,104 updates; log header
+  `weights=replay-learned`); first RTH session Monday 2026-11-16 08:50
+  CT. Live trades go to `profit_*_live.csv`; live is where depth and MBO
+  get real data, and the forward rule is the only evidence that counts.
 
 
 
 
 ---
 
-## FILE: docs/ai/DECISIONS.md  (41,347 bytes)
+## FILE: docs/ai/DECISIONS.md  (42,406 bytes)
 
 # Decision log
 
@@ -5928,6 +5982,8 @@ the code looks the way it does.
 | A93 | OF24: the live agent is a C++ Sierra study with a pure kernel; no Python reads live data; bars come from the chart, depth and MBO only at decisions; learning is one actor-critic step per closed sim trade inside the study; orders are simulated only | The user chose inside-Sierra (Sierra's data license; its DTC server refuses CME data), MBO is live-only so it can be learned only online, and SierraChart-KB's rules (new DLL name per build, sim guard every call, Arm off by default, own Sim account) are followed |
 | A94 | OF24 keeps learning by replaying recorded days in one continuous Sierra replay that the study itself stops after a set last session (default 2026-11-11, before the forward block), and logs every closed sim trade and session to append-only profit ledgers per mode; live starts from the replay-learned weights | The user asked for more replay days and a profit log; restarting a replay from inside a study did not take (2026-11-13), and the ledgers survive restarts. The replay profit (+1809.5 ticks over 712 trades) is in-sample for the starting policy with optimistic sim fills, so it is not a claim |
 | A95 | OF24 replay pass 2 runs on a continuous-contract chart for more days (2025-12-15 to 2026-11-11) and a plain-contract replay of the recorded-depth days; the book inputs may read recorded depth in a replay (input 9); live uses the plain contract chart | The user asked for more data and a depth/MBO test. Sierra replays recorded depth only on the plain contract chart, and only about five days have it, so the depth weights barely moved (about 1e-5); MBO is live only. +10,499 ticks over 3719 replay trades is in-sample with optimistic fills, not a claim |
+| A96 | OF24's results are judged by `of24_audit.py`: replay profit on days the starting policy trained on is never evidence; a holdout policy on later days and the live ledger are. The forward rule is fixed before the first live session: 20 sessions and 200 live trades, then the lower 95% day-block bound of net ticks per trade minus the sim-fill haircut must be above zero | The user asked for a framework against look-ahead and luck. The first run found no look-ahead, but the +10,499-tick replay was memory: the same recipe trained through 2026-09-11 lost -2.31 [-3.69, -0.91] ticks per trade on the 43 later days (a random exit: -2.44), and the online learning moved under 0.5% of the choices |
+| A97 | OF24's stops and targets may scale with volatility (menu ticks x ATR / typical ATR, 0.5x to 2x; study input 11), on for the live sim | The user asked for dynamic stops and targets. On the unseen days the scaled menu is not measurably different from the fixed one (-12 [-43, +19] ticks per session), so it is a behaviour the user wants, not an edge |
 
 
 
@@ -8679,7 +8735,7 @@ about 25,000 candidates on 228 days, C1 the large majority, C6 85 in all
 
 ---
 
-## FILE: docs/ai/OF24_LIVE_SIM_PLAN.md  (8,678 bytes)
+## FILE: docs/ai/OF24_LIVE_SIM_PLAN.md  (10,044 bytes)
 
 # OF24 plan: the OF23 agent live in Sierra Chart, simulated orders only
 
@@ -8840,6 +8896,165 @@ keep a log of the profit"):
 - **Viewer.** `tools/of24_live.py serve` (replay) or `--mode live`
   shows the ledgers, decisions and weight norms in a browser; it reads
   only the study's own files.
+
+## 9. Dynamic stops and targets (added 2026-11-15)
+
+At the user's request ("also add dynamic stop losses and take profits"):
+
+- **Rule.** Input 11 of the study (default off). When on, the target
+  and the stop of the exit the policy picked are multiplied by
+  k = ATR / typical ATR, k kept within 0.5 to 2, rounded to whole ticks
+  (at least 4 and 2). ATR is OF23's `atr` feature at the decision bar
+  (the 20-bar mean true range of 1-minute bars, in ticks); the typical
+  ATR is its training mean in the weight file (about 13.4 ticks). So in
+  ordinary volatility the bracket is the menu's, in a fast market up to
+  twice as wide, in a quiet one down to half.
+- **Unchanged:** the time cap and the trailing flag of the menu exit.
+  A trailing exit trails at the scaled stop distance. The bracket is
+  still attached to the entry order, so it is in the market from the
+  fill.
+- **Kernel** `exit_scale`, `scaled_exit` (`of24_kernel.hpp`), checked
+  against the Python reference through `of24_parity`
+  (`test_of24_audit.py`).
+- **Records.** The trade ledger's `exit_rule` is the bracket actually
+  sent; two new last columns give the menu exit and the factor. The
+  log header has `dynamic_exits=`, the T line ends with the ticks sent.
+- **Evidence.** `of24_audit.py` C3 compares the fixed menu with the
+  scaled one on days the policy never saw (`OF24_AUDIT.md`).
+
+
+
+---
+
+## FILE: docs/ai/OF24_AUDIT.md  (8,105 bytes)
+
+# OF24 audit: look-ahead, and luck against skill
+
+Status: **built and run 2026-11-15**, at the user's request ("create a
+framework to make sure there is no look-ahead bias, make sure that it is
+learning from patterns and proper order-flow analysis and not just sheer
+luck"). Tool: `experiments/of24_audit.py`; tests
+`python/tests/test_of24_audit.py`. Results of the first run are in
+`EXPERIMENTS.md` (OF24) and decision A96.
+
+```
+python experiments/of24_audit.py            # report to the console and build-avx512/of24/audit.txt
+python experiments/of24_export.py --until 2026-09-11 --out build-avx512/of24/of24_weights_holdout.txt
+```
+
+It reads only the study's own files (profit ledgers, decision logs,
+weight files) and the OF23 cache (days through 2026-11-11). It never
+reads the forward block: forward days are judged from the study's live
+ledger alone.
+
+## 1. What can go wrong, and the check for each
+
+| Risk | Check | Passes when |
+|---|---|---|
+| The study decides with bars it could not have had yet | **A1** every decision in a replay log is a candidate of OF23's pipeline at the same day, minute and direction, with the same setup flags. That pipeline has its own truncation test, and the C++ kernel is only ever handed the bars so far | at least 98% match |
+| The live features differ from the tested ones | **A2** the first decision of a run (before any learning step changes the weights) is recomputed from the saved weights and the cached features | probability and value agree to 0.005 |
+| Fills at prices that did not exist after the decision | **A3** every entry fill lies in the range of the bar after the decision bar, or one tick outside it (a market order fills at the quote) | at least 98% |
+| The policy has already seen the days it is scored on | **A4** share of replay trades on the starting policy's training days; **C** a holdout policy scored on days it never saw | reported, never "passed": only C and D count as evidence |
+| The profit is the simulator's generous fills | **B1** the same trades re-priced with OF23's fills (a target needs a trade through it; costs 1.28 / 0.76 ticks) | the gap is reported and used as a haircut on live results |
+| Any trader at these setups would have made it | **B2** random candidates on the same days, the same number of trades, the same exits, one at a time; **B3/C1** a random exit at every candidate | the agent is above 95% of the random draws |
+| The online learning does nothing, or only fits the replayed days | **B3** each saved weight snapshot trades the cached days with the same random numbers; the change from one snapshot to the next is split into days that pass replayed and days it did not | reported with day-block intervals |
+| It does not use order flow | **B4** one group of inputs is shuffled across candidates (setup flags, location, volatility and volume, buy minus sell volume, momentum, time): how many choices move and what the net does. For the live book inputs (depth, MBO, spread), which no cached day has, the size of their weights against a typical input | reported |
+| A lucky run is read as skill | every figure has a 95% interval from a bootstrap over whole days (trades within a day are not independent); **D** a rule fixed before the first live session | see section 3 |
+
+## 2. Unseen days (C)
+
+`of24_export.py --until DAY` trains the same starting policy on the days
+through DAY only and writes the cut beside the weights. The audit then
+runs that policy over the later days, one position at a time, sampled as
+the study samples, with OF23's fills (C1); the same after a Sierra
+replay of those days with learning on (C2, `weights_replay_c*_holdout.txt`
+and a ledger named `*holdout*`); and the fixed exit menu against the
+volatility-scaled one (C3, labels from the trade records of those days,
+cached in `build-avx512/of24/dyn_labels.npz`).
+
+This is the only honest replay evidence: a replay of days the starting
+policy was trained on measures memory, not skill.
+
+**Ledger names.** The study always writes `profit_trades_replay.csv`.
+After each replay run the ledger is renamed (`..._replay_<run>.csv`) and
+the weights copied (`weights_replay_c1_after_<run>.txt`, or
+`..._holdout.txt` for the holdout lineage); a ledger from the holdout
+lineage must have `holdout` in its name, and only its trades after the
+cut are counted as unseen. A ledger with volatility-scaled exits is not
+re-priced (OF23's labels are for the menu's ticks; the scaled exits are
+judged in C3 instead).
+
+## 3. The forward rule (D), fixed 2026-11-15 before the first live session
+
+From `profit_trades_live.csv` only:
+
+- fewer than **20 sessions or 200 trades**: "too early";
+- otherwise the lower end of the 95% day-block interval of net ticks per
+  trade, minus the sim-fill haircut measured in B1: above zero is "skill
+  is supported", else "luck is not excluded".
+
+One look at the rule's outcome when the counts are first met; later looks
+are reported as such. The rule is about the agent as it runs (learning
+on, whatever exits are switched on); a change of exit rule or inputs
+restarts the count.
+
+## 4. What the audit cannot show
+
+- **Order-book and MBO skill.** Recorded depth exists for a handful of
+  days and MBO is never recorded, so nothing offline can say whether the
+  book inputs help. Only the live ledger can, over many sessions; B4
+  reports how much weight they carry.
+- **Live fills.** Sim fills are immediate and queue-free. B1 measures
+  the gap to OF23's stricter fills on replayed days and D subtracts it,
+  but neither is a real fill.
+- **Regime.** 228 days from one year.
+
+## 5. First run (2026-11-15) and what follows
+
+Figures in `EXPERIMENTS.md` (OF24, "Audit"). In short: no look-ahead;
+the replay profit is in-sample; on unseen days the recipe loses like a
+random exit; the online learning barely changes the policy.
+
+**What the agent should be good at, and where it stands**
+
+| Skill | Test | Today |
+|---|---|---|
+| Decide only on the past | A1-A3 | works |
+| Read market context from bars | C1 against a random exit | no edge shown |
+| Read the order book and MBO | weight of the book inputs; the live ledger | not testable: about five recorded depth days, MBO live only |
+| Pick entries (take or skip) | C1, B2 | random on unseen days |
+| Respect costs (skip without an edge) | trades a session at a negative expectancy | fails: 17-23 trades a session |
+| Manage exits | C3 | scaled exits: no measurable gain |
+| Keep risk limits | daily stop, one lot, sim guards | works |
+| Adapt online | B3, C2 | under 0.5% of choices moved |
+| Generalise | training days against unseen days | +1.6 against -2.3 |
+
+**The three learners used so far**
+
+| | Gradient-boosted trees (OF23 miner) | PPO (the starting policy) | Online actor-critic (the study) |
+|---|---|---|---|
+| Learns from | the labelled outcome of every exit | replayed training days, the one exit it sampled | each closed sim trade, once |
+| Good at | small tabular data, walk-forward | sequences (one position, skip) | adapting live; the only way to learn from MBO |
+| Weak at | no sequence | data-hungry, memorises | about 17 noisy lessons a session |
+| Unseen days | -1.99 | -2.33 (must trade), -3.22 (may skip) | no measurable change |
+
+All three lose on unseen days, which points at the inputs and the amount
+of data rather than at the learner.
+
+**Order of work that follows (not started; each needs its own plan)**
+
+1. Signal first: a walk-forward predictor of the move after a setup,
+   on order-book and MBO inputs at short horizons, judged against costs.
+2. One learner with three properties: full feedback (every exit's known
+   outcome), a distributional output (quantiles per exit), and offline
+   caution (trade only when a pessimistic estimate beats costs, else
+   skip), with an ensemble over seeds and resampled days whose
+   disagreement means "skip".
+3. Fewer exits, a simpler model, early stopping on a later block of
+   days; nightly retraining checked on held-out days instead of one
+   step per trade.
+4. Sequence-aware offline RL (exit management, the cost of being busy)
+   only on top of a signal that passes step 1.
 
 
 
@@ -15930,7 +16145,7 @@ class IvfIndex {
 
 ---
 
-## FILE: include\rag\live\of24_kernel.hpp  (22,844 bytes)
+## FILE: include\rag\live\of24_kernel.hpp  (23,627 bytes)
 
 ```cpp
 // OF24 kernel: the OF23 turning-point candidates, their features and the policy network, in plain C++17.
@@ -15978,6 +16193,20 @@ struct ExitSpec { int target, stop, hold_min; bool trailing; };  // hold_min 0 =
 inline constexpr std::array<ExitSpec, kExits> kMenu = {{
     {8, 4, 30, false}, {8, 4, 30, true}, {12, 6, 60, false}, {12, 6, 60, true}, {16, 8, 60, false}, {16, 8, 60, true},
     {24, 8, 120, false}, {24, 8, 120, true}, {32, 12, 0, false}, {32, 12, 0, true}, {48, 16, 0, false}, {48, 16, 0, true}}};
+
+// Volatility-scaled exits (OF24 plan section 9): the menu's target and stop times atr / typical atr, the factor
+// kept within [0.5, 2], in whole ticks (at least 4 and 2). The time cap and the trailing flag are the menu's.
+inline constexpr int kAtrFeat = 16;  // "atr" in of23_mine.FEATS: the 20-bar mean true range of 1-minute bars, in ticks
+inline double exit_scale(double atr, double typical) {
+  if (!std::isfinite(atr) || !std::isfinite(typical) || !(atr > 0) || !(typical > 0)) return 1.0;
+  return std::min(2.0, std::max(0.5, atr / typical));
+}
+inline ExitSpec scaled_exit(const ExitSpec& e, double k) {
+  ExitSpec o = e;
+  o.target = std::max(4, static_cast<int>(std::lround(e.target * k)));
+  o.stop = std::max(2, static_cast<int>(std::lround(e.stop * k)));
+  return o;
+}
 
 struct Bars {
   std::vector<double> o, h, l, c, v, buy, sell;
@@ -21887,7 +22116,7 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: examples\of24_parity.cpp  (2,296 bytes)
+## FILE: examples\of24_parity.cpp  (2,685 bytes)
 
 ```cpp
 // of24_parity: runs the OF24 kernel on bars from a text file and prints every candidate, for the parity test
@@ -21896,7 +22125,8 @@ int main(int argc, char** argv) {
 //   of24_parity BARS.txt [WEIGHTS.txt]
 // BARS.txt: "n_prev n dow", then n_prev + n lines "open high low close volume buy sell" (ticks; the prior day first;
 // n_prev may be 0). Output per candidate: "C m dir f0 .. f36", then with weights "P logit0 .. logit12 value", and
-// "U ..." the logits after one update(action 3, reward 0.5) on a copy of the policy.
+// "U ..." the logits after one update(action 3, reward 0.5) on a copy of the policy, and "X k t1 s1 .. t12 s12" the
+// volatility-scaled exits (the factor, then each menu exit's target and stop in ticks).
 #include <cstdio>
 #include <fstream>
 #include <iostream>
@@ -21944,6 +22174,10 @@ int main(int argc, char** argv) {
       std::printf("U");
       for (double z : o2.logit) std::printf(" %.17g", z);
       std::printf(" %.17g\n", o2.value);
+      const double k = of24::exit_scale(c.f[of24::kAtrFeat], pol.mu[of24::kAtrFeat]);
+      std::printf("X %.17g", k);
+      for (const auto& e : of24::kMenu) { const auto d = of24::scaled_exit(e, k); std::printf(" %d %d", d.target, d.stop); }
+      std::printf("\n");
     }
   }
   return 0;
@@ -23683,7 +23917,7 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: sierra\RagAgent.cpp  (31,443 bytes)
+## FILE: sierra\RagAgent.cpp  (32,557 bytes)
 
 ```cpp
 // RagAgent: the OF23/OF24 agent as a Sierra Chart study. SIMULATED ORDERS ONLY.
@@ -23729,6 +23963,8 @@ struct Pending {            // the open trade's decision, kept for the learning 
   std::array<double, of24::kIn> x{};
   int action = 0, dir = 0;
   int entry_m = 0;          // RTH minute index of the entry bar (m + 1)
+  int target = 0, stop = 0; // the bracket actually sent, in ticks (the menu's, or scaled by volatility)
+  double scale = 1.0;       // the volatility factor applied to the menu exit (1 = the menu's own ticks)
   int date = 0;             // Chicago date (SCDateTime::GetDate) of the entry
   uint64_t entry_id = 0, stop_id = 0, target_id = 0;
   double best_close_ticks = -1e9;   // best completed-bar close in profit ticks (trailing exits)
@@ -23923,6 +24159,7 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
   SCInputRef InUseBook = sc.Input[7];
   SCInputRef InChainEnd = sc.Input[8];
   SCInputRef InReplayDepth = sc.Input[9];
+  SCInputRef InDynamic = sc.Input[10];
   if (sc.SetDefaults) {
     sc.GraphName = "RagAgent OF24 (turning points, RL exits) - SIM ONLY";
     sc.StudyDescription = "OF23 turning-point candidates on 1-minute RTH bars; a policy network picks skip or one of 12 brackets; "
@@ -23962,6 +24199,8 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
     InChainEnd.SetIntLimits(0, 21001231);
     InReplayDepth.Name = "Replay: read recorded depth for the book inputs (MBO is live only)";
     InReplayDepth.SetYesNo(0);
+    InDynamic.Name = "Dynamic stops and targets (menu ticks x ATR / typical ATR, 0.5x to 2x)";
+    InDynamic.SetYesNo(0);
     sc.Subgraph[0].Name = "Long entry";
     sc.Subgraph[0].DrawStyle = DRAWSTYLE_ARROW_UP;
     sc.Subgraph[0].PrimaryColor = RGB(0, 200, 0);
@@ -24046,9 +24285,9 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
       for (int k = 0; k < 11 && c; ++k) { c = std::strchr(c, ','); if (c) ++c; }  // field 12 = cum_ticks, 13 = trade count
       if (c && std::sscanf(c, "%lf,%lld", &cum, &n) == 2) { s->cum_ticks = cum; s->cum_trades = n; }
     }
-    logf(*s, "H,module=%s,symbol=%s,account=%s,tick=%g,seconds_per_bar=%d,replay_mode=%d,weights=%s,weights_ok=%d,updates=%lld,learn=%d,greedy=%d,day_stop=%d\n",
+    logf(*s, "H,module=%s,symbol=%s,account=%s,tick=%g,seconds_per_bar=%d,replay_mode=%d,weights=%s,weights_ok=%d,updates=%lld,learn=%d,greedy=%d,day_stop=%d,dynamic_exits=%d\n",
          mod, sc.Symbol.GetChars(), InAccount.GetString(), sc.TickSize, sc.SecondsPerBar, replay_mode ? 1 : 0, from, s->policy_ok ? 1 : 0,
-         s->policy.updates, InLearn.GetYesNo(), InGreedy.GetYesNo(), InDayStop.GetInt());
+         s->policy.updates, InLearn.GetYesNo(), InGreedy.GetYesNo(), InDayStop.GetInt(), InDynamic.GetYesNo());
     SCString msg;
     msg.Format("RagAgent: module %s, weights %s (%s), log %s", mod, from, s->policy_ok ? "ok" : "MISSING: no decisions", path);
     sc.AddMessageToLog(msg, s->policy_ok ? 0 : 1);
@@ -24144,16 +24383,19 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
         s.cum_ticks += net;
         ++s.cum_trades;
         {
-          const of24::ExitSpec ex = of24::kMenu[s.t.action - 1];
+          const of24::ExitSpec menu = of24::kMenu[s.t.action - 1];
+          of24::ExitSpec ex = menu;
+          if (s.t.target > 0 && s.t.stop > 0) { ex.target = s.t.target; ex.stop = s.t.stop; }
           const int em = kOpenMin + s.t.entry_m;
           char line[400];
-          std::snprintf(line, sizeof line, "%s,%02d:%02d,%s,T%d/S%d/%s%s,%.2f,%.2f,%.2f,%s,%.2f,%.2f,%.2f,%.2f,%lld,%.2f,%lld\n",
+          std::snprintf(line, sizeof line, "%s,%02d:%02d,%s,T%d/S%d/%s%s,%.2f,%.2f,%.2f,%s,%.2f,%.2f,%.2f,%.2f,%lld,%.2f,%lld,T%d/S%d,%.3f\n",
                         ymd(s.t.date).c_str(), em / 60, em % 60, s.t.dir > 0 ? "long" : "short", ex.target, ex.stop,
                         ex.hold_min ? std::to_string(ex.hold_min).c_str() : "EOD", ex.trailing ? "/trail" : "", fe.FillPrice, fx.FillPrice,
                         move, was_target ? "target" : fx.InternalOrderID == s.t.stop_id ? "stop" : "time", net, net * 12.5, s.day_net,
-                        s.cum_ticks, s.cum_trades, s.cum_ticks * 12.5, s.policy.updates + (InLearn.GetYesNo() ? 1 : 0));
+                        s.cum_ticks, s.cum_trades, s.cum_ticks * 12.5, s.policy.updates + (InLearn.GetYesNo() ? 1 : 0), menu.target, menu.stop,
+                        s.t.scale);
           append_line(s.ledger_trades,
-                      "date,entry_ct,side,exit_rule,entry_px,exit_px,move_ticks,exit,net_ticks,net_usd,day_net_ticks,cum_ticks,cum_trades,cum_usd,updates\n",
+                      "date,entry_ct,side,exit_rule,entry_px,exit_px,move_ticks,exit,net_ticks,net_usd,day_net_ticks,cum_ticks,cum_trades,cum_usd,updates,menu_exit,exit_scale\n",
                       line);
         }
         if (InLearn.GetYesNo()) {
@@ -24162,8 +24404,9 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
         }
         const int stop_lim = InDayStop.GetInt();
         if (stop_lim > 0 && s.day_net <= -stop_lim) s.day_stopped = true;
-        logf(s, "T,%d,%d,%d,%d,%.2f,%.2f,%.2f,%s,%.2f,%.2f,%d,%lld,%d\n", s.t.date, s.t.entry_m, s.t.dir, s.t.action, fe.FillPrice, fx.FillPrice, move,
-             was_target ? "target" : fx.InternalOrderID == s.t.stop_id ? "stop" : "time", net, s.day_net, s.day_trades, s.policy.updates, s.day_stopped ? 1 : 0);
+        logf(s, "T,%d,%d,%d,%d,%.2f,%.2f,%.2f,%s,%.2f,%.2f,%d,%lld,%d,%d,%d\n", s.t.date, s.t.entry_m, s.t.dir, s.t.action, fe.FillPrice, fx.FillPrice, move,
+             was_target ? "target" : fx.InternalOrderID == s.t.stop_id ? "stop" : "time", net, s.day_net, s.day_trades, s.policy.updates, s.day_stopped ? 1 : 0,
+             s.t.target > 0 ? s.t.target : of24::kMenu[s.t.action - 1].target, s.t.stop > 0 ? s.t.stop : of24::kMenu[s.t.action - 1].stop);
       } else {
         logf(s, "E,%d,%d,closed without matching fills (entry %d exit %d)\n", s.t.date, s.t.entry_m, got_e ? 1 : 0, got_x ? 1 : 0);
       }
@@ -24200,7 +24443,7 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
       s_SCOrderFillData f;
       for (int i = sc.GetOrderFillArraySize() - 1; i >= 0; --i) {
         if (!sc.GetOrderFillEntry(i, f) || !own_fill(sc, f) || f.InternalOrderID != s.t.entry_id) continue;
-        const int S = of24::kMenu[s.t.action - 1].stop;
+        const int S = s.t.stop > 0 ? s.t.stop : of24::kMenu[s.t.action - 1].stop;
         const double prof = s.t.dir * (sc.Close[done] - f.FillPrice) / ts;
         if (prof > s.t.best_close_ticks) s.t.best_close_ticks = prof;
         const double want = s.t.best_close_ticks - S;  // stop level in profit ticks
@@ -24244,7 +24487,8 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
           int r = 0;
           s_SCNewOrder ord;
           if (a > 0 && may_send && !s.day_stopped) {
-            const of24::ExitSpec ex = of24::kMenu[a - 1];
+            const double k_exit = InDynamic.GetYesNo() ? of24::exit_scale(c.f[of24::kAtrFeat], s.policy.mu[of24::kAtrFeat]) : 1.0;
+            const of24::ExitSpec ex = InDynamic.GetYesNo() ? of24::scaled_exit(of24::kMenu[a - 1], k_exit) : of24::kMenu[a - 1];
             ord.OrderType = SCT_ORDERTYPE_MARKET;
             ord.OrderQuantity = 1;
             ord.Symbol = sc.GetTradeSymbol();
@@ -24262,6 +24506,9 @@ SCSFExport scsf_RagAgent(SCStudyInterfaceRef sc) {
               s.t.action = a;
               s.t.dir = c.dir;
               s.t.entry_m = m + 1;
+              s.t.target = ex.target;
+              s.t.stop = ex.stop;
+              s.t.scale = k_exit;
               s.t.date = bt.date;
               s.t.entry_id = ord.InternalOrderID;
               s.t.stop_id = ord.Stop1InternalOrderID;
@@ -36509,7 +36756,7 @@ int main(int argc, char** argv) {
 
 ---
 
-## FILE: tools\make_context_pack.py  (4,553 bytes)
+## FILE: tools\make_context_pack.py  (4,582 bytes)
 
 ````python
 #!/usr/bin/env python3
@@ -36558,6 +36805,7 @@ DOCS = [
     "docs/ai/OF21_FORWARD_PLAN.md",
     "docs/ai/OF23_SWING_MINING_PLAN.md",
     "docs/ai/OF24_LIVE_SIM_PLAN.md",
+    "docs/ai/OF24_AUDIT.md",
     "experiments/research_synthesis.md",
     "README.md",
 ]
@@ -36635,6 +36883,364 @@ if __name__ == "__main__":
     main()
 
 ````
+
+
+---
+
+## FILE: tools\of24_live.py  (24,946 bytes)
+
+```python
+#!/usr/bin/env python3
+"""of24_live.py - live view of the OF24 Sierra agent learning (docs/ai/OF24_LIVE_SIM_PLAN.md section 8).
+
+    python tools/of24_live.py serve [--dir C:/SierraChart/SierraChartInstance_2/Data/RagAgent] [--mode replay]
+                                    [--days 228] [--port 8775]
+
+Serves a page on http://127.0.0.1:PORT/ (local only) that polls /api/state every 4 s. The state is built from
+the study's own output only: the profit ledgers (profit_days_<mode>.csv, profit_trades_<mode>.csv), the newest
+decision log (<mode>-c1-*.csv: one D line per candidate with the sampled action, its probability, the critic
+value and the book inputs) and the weight file (weights_<mode>_c1.txt: how much weight the 6 book inputs have
+gained; they start at zero), plus the verdict lines of the last experiments/of24_audit.py report (--audit).
+No market data is read. Standard library only.
+"""
+import argparse
+import datetime as dt
+import functools
+import glob
+import http.server
+import json
+import math
+import os
+import sys
+import threading
+
+MENU = [(8, 4, 30, 0), (8, 4, 30, 1), (12, 6, 60, 0), (12, 6, 60, 1), (16, 8, 60, 0), (16, 8, 60, 1),
+        (24, 8, 120, 0), (24, 8, 120, 1), (32, 12, 0, 0), (32, 12, 0, 1), (48, 16, 0, 0), (48, 16, 0, 1)]
+GROUPS = ["8/4", "12/6", "16/8", "24/8", "32/12", "48/16"]  # action a (1..12) -> group (a - 1) // 2
+EPOCH = dt.date(1899, 12, 30)  # SCDateTime day 0
+
+
+def sc_date(n):
+    return (EPOCH + dt.timedelta(days=int(n))).isoformat()
+
+
+def read_csv(path):
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            lines = f.read().splitlines()
+    except OSError:
+        return []
+    if not lines:
+        return []
+    head = lines[0].split(",")
+    return [dict(zip(head, ln.split(","))) for ln in lines[1:] if ln]
+
+
+class State:
+    def __init__(self, d, mode, days):
+        self.dir, self.mode, self.days = d, mode, days
+        self.lock = threading.Lock()
+        self.log, self.off, self.part = None, 0, ""
+        self.per_day = {}   # date -> aggregates of D lines
+        self.last_d = None
+        self.events = {"T": 0, "X": 0, "C": []}
+        self.w_mtime, self.w_hist = 0.0, []
+        self.audit = ""     # path of the of24_audit.py report (its verdict is shown)
+
+    def _scan_log(self):
+        logs = [p for p in glob.glob(os.path.join(self.dir, f"{self.mode}-c1-*.csv"))]
+        if not logs:
+            return
+        newest = max(logs, key=os.path.getmtime)
+        if newest != self.log:
+            self.log, self.off, self.part, self.per_day, self.last_d = newest, 0, "", {}, None
+            self.events = {"T": 0, "X": 0, "C": []}
+        with open(self.log, "rb") as f:
+            f.seek(self.off)
+            chunk = f.read()
+        self.off += len(chunk)
+        text = self.part + chunk.decode("utf-8", "replace")
+        lines = text.split("\n")
+        self.part = lines.pop()
+        for ln in lines:
+            p = ln.rstrip("\r").split(",")
+            k = p[0]
+            if k == "D" and len(p) >= 18:
+                try:
+                    date, a, prob, val = sc_date(p[1]), int(p[4]), float(p[5]), float(p[6])
+                    book = [float(x) for x in p[8:14]]
+                    levels = min(int(p[14]), 10)  # the study reads at most 10; the log has what Sierra reports
+                except ValueError:
+                    continue
+                g = self.per_day.setdefault(date, {"n": 0, "skip": 0, "act": [0] * 13, "val": 0.0, "lev": 0, "lev_max": 0,
+                                                   "imb": 0.0, "imb_n": 0})
+                g["n"] += 1
+                g["skip"] += a == 0
+                g["act"][a] += 1
+                g["val"] += val
+                g["lev"] += levels
+                g["lev_max"] = max(g["lev_max"], levels)
+                if levels >= 5:
+                    g["imb"] += abs(book[1])
+                    g["imb_n"] += 1
+                self.last_d = {"date": date, "min": int(p[2]), "dir": int(p[3]), "action": a, "p": prob, "value": val,
+                               "book": book, "levels": levels, "mbo": int(p[15]) if p[15].lstrip("-").isdigit() else 0}
+            elif k in ("T", "X"):
+                self.events[k] += 1
+            elif k == "C":
+                self.events["C"].append(ln.strip())
+
+    def _scan_weights(self):
+        path = os.path.join(self.dir, f"weights_{self.mode}_c1.txt")
+        try:
+            m = os.path.getmtime(path)
+        except OSError:
+            return
+        if m == self.w_mtime:
+            return
+        try:
+            with open(path, encoding="ascii") as f:
+                lines = f.read().split("\n")
+        except OSError:
+            return
+        hdr = lines[1].split() if len(lines) > 1 else []
+        try:
+            n_in, hidden, updates = int(hdr[1]), int(hdr[3]), int(hdr[7])
+            i = next(j for j, ln in enumerate(lines) if ln.startswith("pol_W1 "))
+            w = [float(x) for x in lines[i + 1].split()]
+        except (ValueError, IndexError, StopIteration):
+            return  # a save in progress: try again on the next poll
+        if len(w) != n_in * hidden:
+            return
+        self.w_mtime = m
+        col = [math.sqrt(sum(w[r * n_in + c] ** 2 for r in range(hidden))) for c in range(n_in)]
+        feat = sorted(col[:n_in - 6])
+        rec = {"updates": updates, "depth": math.sqrt(sum(col[c] ** 2 for c in range(n_in - 6, n_in - 3))),
+               "mbo": math.sqrt(col[n_in - 3] ** 2 + col[n_in - 2] ** 2), "spread": col[n_in - 1],
+               "feat_median": feat[len(feat) // 2]}
+        if not self.w_hist or self.w_hist[-1]["updates"] != updates:
+            self.w_hist.append(rec)
+            if len(self.w_hist) > 4000:
+                self.w_hist = self.w_hist[::2]
+
+    def _audit(self):
+        """The verdict lines of the last experiments/of24_audit.py run, and when it ran."""
+        try:
+            txt = open(self.audit, encoding="utf-8").read()
+            when = dt.datetime.fromtimestamp(os.path.getmtime(self.audit)).isoformat(timespec="minutes")
+        except OSError:
+            return None
+        lines = [x.strip() for x in txt.split("VERDICT", 1)[-1].splitlines() if x.strip()] if "VERDICT" in txt else []
+        return {"when": when, "lines": lines}
+
+    def snapshot(self):
+        with self.lock:
+            self._scan_log()
+            self._scan_weights()
+            days = read_csv(os.path.join(self.dir, f"profit_days_{self.mode}.csv"))
+            trades = read_csv(os.path.join(self.dir, f"profit_trades_{self.mode}.csv"))
+            nets = [float(t["net_ticks"]) for t in trades if t.get("net_ticks")]
+            roll, w, s = [], 100, 0.0
+            for i, x in enumerate(nets):
+                s += x - (nets[i - w] if i >= w else 0.0)
+                if i + 1 >= 20 and (i % 5 == 4 or i == len(nets) - 1):
+                    roll.append([i + 1, s / min(i + 1, w)])
+            mix = []
+            for t in trades:
+                r = t.get("menu_exit") or t.get("exit_rule", "")  # the menu exit (a scaled bracket keeps its group)
+                tgt = r.split("/")[0].lstrip("T") + "/" + r.split("/")[1].lstrip("S") if r.count("/") >= 1 else "?"
+                mix.append((t["date"], tgt))
+            by_day_mix = {}
+            for d, g in mix:
+                by_day_mix.setdefault(d, [0] * len(GROUPS))
+                if g in GROUPS:
+                    by_day_mix[d][GROUPS.index(g)] += 1
+            per_day = []
+            for d in sorted(self.per_day):
+                g = self.per_day[d]
+                per_day.append({"date": d, "n": g["n"], "trade_rate": 1 - g["skip"] / g["n"], "value": g["val"] / g["n"],
+                                "levels": g["lev"] / g["n"], "lev_max": g["lev_max"],
+                                "imb": g["imb"] / g["imb_n"] if g["imb_n"] else None, "mix": by_day_mix.get(d, [0] * 6)})
+            return {
+                "mode": self.mode, "total_days": self.days, "log": os.path.basename(self.log or ""),
+                "days": [{k: d[k] for k in ("date", "trades", "net_ticks", "net_usd", "cum_ticks", "cum_usd", "updates")}
+                         for d in days],
+                "n_trades": len(nets), "net_ticks": sum(nets), "roll": roll, "groups": GROUPS,
+                "recent": trades[-12:][::-1], "per_day": per_day, "last": self.last_d, "events": self.events,
+                "weights": self.w_hist, "now": dt.datetime.now().isoformat(timespec="seconds"),
+                "audit": self._audit(),
+            }
+
+
+PAGE = r"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OF24 agent learning</title>
+<style>
+:root{color-scheme:light;--bg:#fcfcfb;--card:#ffffff;--fg:#0b0b0b;--fg2:#52514e;--mut:#898781;--grid:#e1e0d9;--axis:#c3c2b7;
+ --ring:rgba(11,11,11,.10);--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--neg:#e34948}
+@media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])){color-scheme:dark;--bg:#1a1a19;--card:#222221;--fg:#f0efec;
+ --fg2:#c3c2b7;--mut:#898781;--grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.10);--s1:#3987e5;--s2:#d95926;--s3:#199e70;
+ --s4:#c98500;--s5:#d55181;--s6:#008300;--neg:#e66767}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#1a1a19;--card:#222221;--fg:#f0efec;--fg2:#c3c2b7;--mut:#898781;--grid:#2c2c2a;
+ --axis:#383835;--ring:rgba(255,255,255,.10);--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--neg:#e66767}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;padding:16px}
+h1{font-size:19px;margin:0}.sub{color:var(--fg2);margin:2px 0 14px}.mut{color:var(--mut)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.tile{background:var(--card);border:1px solid var(--ring);border-radius:10px;padding:10px 12px}
+.tile .k{color:var(--fg2);font-size:12px}.tile .v{font-size:22px;font-variant-numeric:tabular-nums;font-weight:600}
+.tile .n{color:var(--mut);font-size:12px}.bar{height:6px;background:var(--grid);border-radius:3px;margin-top:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--s1);border-radius:3px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--ring);border-radius:10px;padding:12px;min-width:0;position:relative}
+.card h2{font-size:14px;margin:0}.card .d{color:var(--fg2);font-size:12px;margin:2px 0 6px}
+svg{width:100%;height:210px;display:block;overflow:visible}svg text{fill:var(--mut);font-size:11px}
+.leg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--fg2);margin-bottom:4px}
+.leg span{display:inline-flex;align-items:center;gap:5px}.leg i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.tip{position:absolute;pointer-events:none;background:var(--card);border:1px solid var(--ring);border-radius:8px;padding:6px 8px;
+ font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.15);display:none;white-space:nowrap;z-index:5;font-variant-numeric:tabular-nums}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:12px}
+td,th{padding:4px 6px;text-align:right;border-bottom:1px solid var(--grid)}th{color:var(--fg2);font-weight:500}td:first-child,th:first-child{text-align:left}
+.pos{color:var(--fg)}.wrap{overflow-x:auto}
+</style></head><body>
+<h1>OF24 agent: learning in a Sierra replay</h1>
+<div class="sub">Starts from the PPO-trained policy; one actor-critic step after every closed sim trade. Net is after OF23's base costs, one ES lot.
+ Sim fills and in-sample days: this shows behaviour, not an edge. <span class="mut" id="st"></span></div>
+<div class="tiles" id="tiles"></div>
+<div class="grid">
+ <div class="card"><h2>Cumulative net</h2><div class="d">Dollars, one lot, by replayed session</div><svg id="cum"></svg></div>
+ <div class="card"><h2>Net per session</h2><div class="d">Ticks after costs</div><svg id="daily"></svg></div>
+ <div class="card"><h2>Is it getting better?</h2><div class="d">Mean net ticks per trade over the last 100 trades</div><svg id="roll"></svg></div>
+ <div class="card"><h2>Exit choices</h2><div class="d">Share of each session's trades by target/stop (ticks; plain and trailing together)</div><div class="leg" id="mixleg"></div><svg id="mix"></svg></div>
+ <div class="card"><h2>How often it trades</h2><div class="d">Share of candidate entries taken (the rest are skipped)</div><svg id="rate"></svg></div>
+ <div class="card"><h2>Critic's expected reward</h2><div class="d">Mean value at decisions (reward units: net ticks / 10); it starts at zero</div><svg id="val"></svg></div>
+ <div class="card"><h2>Book inputs: weight learned</h2><div class="d" id="wd">Norm of the policy's first-layer weights on the book inputs (they start at zero); recorded while this page's server runs</div><div class="leg" id="wleg"></div><svg id="w"></svg></div>
+ <div class="card"><h2>Depth seen at decisions</h2><div class="d">Mean book levels read per decision (1 = best bid/ask only; 10 = recorded full depth)</div><svg id="lev"></svg></div>
+</div>
+<div class="card" style="margin-top:12px"><h2>Skill or luck?</h2><div class="d" id="auw">The last audit (python experiments/of24_audit.py)</div><ul id="au" style="margin:6px 0 0 18px;padding:0;font-size:13px;line-height:1.5"></ul></div>
+<div class="card" style="margin-top:12px"><h2>Latest trades</h2><div class="wrap"><table id="tb"></table></div></div>
+<div class="tip" id="tip"></div>
+<script>
+const NS="http://www.w3.org/2000/svg",css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const tip=document.getElementById("tip");let S=null;
+const EXITS=[[8,4,30,0],[8,4,30,1],[12,6,60,0],[12,6,60,1],[16,8,60,0],[16,8,60,1],[24,8,120,0],[24,8,120,1],[32,12,0,0],[32,12,0,1],[48,16,0,0],[48,16,0,1]]
+ .map(([t,s,h,tr])=>`${t}/${s}`+(h?` ${h}m`:" to close")+(tr?" trail":""));
+function el(t,a,p){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);p&&p.appendChild(e);return e}
+const f0=x=>x.toLocaleString(undefined,{maximumFractionDigits:0}),f1=x=>x.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}),
+ f2=x=>x.toFixed(2),usd=x=>(x<0?"−$":"$")+f0(Math.abs(x)),sg=x=>(x>0?"+":x<0?"−":"")+Math.abs(x).toFixed(1);
+function nice(lo,hi,n=4){if(lo===hi){lo-=1;hi+=1}const s=Math.pow(10,Math.floor(Math.log10((hi-lo)/n))),m=[1,2,2.5,5,10].find(m=>(hi-lo)/(m*s)<=n)*s;
+ const a=Math.floor(lo/m)*m,b=Math.ceil(hi/m)*m,t=[];for(let v=a;v<=b+m/2;v+=m)t.push(+v.toFixed(10));return t}
+// frame: x is a category index 0..n-1 (sessions or trades); returns scale helpers
+function frame(svg,n,ys,o={}){svg.innerHTML="";const W=svg.clientWidth||600,H=svg.clientHeight||210,L=o.L||52,R=8,T=6,B=22;
+ let lo=Math.min(...ys,o.zero?0:Infinity),hi=Math.max(...ys,o.zero?0:-Infinity);if(o.lo!=null)lo=o.lo;if(o.hi!=null)hi=o.hi;
+ const ticks=nice(lo,hi);lo=ticks[0];hi=ticks[ticks.length-1];
+ const X=i=>L+(n<=1?0.5:i/(n-1))*(W-L-R),Y=v=>T+(1-(v-lo)/(hi-lo||1))*(H-T-B);
+ for(const t of ticks){el("line",{x1:L,x2:W-R,y1:Y(t),y2:Y(t),stroke:t===0&&o.zero?css("--axis"):css("--grid"),"stroke-width":1},svg);
+  el("text",{x:L-6,y:Y(t)+4,"text-anchor":"end"},svg).textContent=(o.yf||f0)(t)}
+ const lab=o.labels||[];if(lab.length){const k=Math.max(1,Math.ceil(lab.length/6));for(let i=0;i<lab.length;i+=k)
+  el("text",{x:X(i),y:H-6,"text-anchor":i===0?"start":"middle"},svg).textContent=lab[i]}
+ return{W,H,L,R,T,B,X,Y,lo,hi}}
+function hover(svg,F,n,html,bw){svg.onmousemove=e=>{const r=svg.getBoundingClientRect(),x=e.clientX-r.left;
+  let i=n<=1?0:Math.round((x-F.L)/(F.W-F.L-F.R)*(n-1));i=Math.max(0,Math.min(n-1,i));let g=svg.querySelector(".hv");g&&g.remove();
+  g=el("g",{class:"hv"},svg);el("line",{x1:F.X(i),x2:F.X(i),y1:F.T,y2:F.H-F.B,stroke:css("--axis"),"stroke-width":1},g);
+  tip.innerHTML=html(i);tip.style.display="block";const c=svg.closest(".card").getBoundingClientRect();
+  let tx=r.left+F.X(i)+12+window.scrollX,ty=r.top+window.scrollY+8;if(tx+tip.offsetWidth>window.scrollX+document.documentElement.clientWidth-8)tx-=tip.offsetWidth+24;
+  tip.style.left=tx+"px";tip.style.top=ty+"px"};svg.onmouseleave=()=>{tip.style.display="none";const g=svg.querySelector(".hv");g&&g.remove()}}
+function line(svg,F,ys,col,w=2){if(!ys.length)return;let d="";ys.forEach((y,i)=>{if(y==null)return;d+=(d?"L":"M")+F.X(i).toFixed(1)+","+F.Y(y).toFixed(1)});
+ el("path",{d,fill:"none",stroke:col,"stroke-width":w,"stroke-linejoin":"round","stroke-linecap":"round"},svg)}
+function bars(svg,F,ys,colf,n){const bw=Math.max(1,Math.min(14,(F.W-F.L-F.R)/Math.max(n,1)-2));ys.forEach((y,i)=>{if(y==null)return;
+ const y0=F.Y(Math.max(0,F.lo)),y1=F.Y(y),h=Math.abs(y1-y0);el("rect",{x:F.X(i)-bw/2,y:Math.min(y0,y1),width:bw,height:Math.max(h,0.5),rx:Math.min(2,bw/2),fill:colf(y,i)},svg)})}
+function leg(id,items){document.getElementById(id).innerHTML=items.map(([n,c])=>`<span><i style="background:${c}"></i>${n}</span>`).join("")}
+function render(){if(!S)return;const D=S.days,P=S.per_day,lab=D.map(d=>d.date.slice(2)),last=D[D.length-1];
+ const done=D.length,pct=Math.min(1,done/S.total_days),cur=S.last?S.last.date:"–";
+ const trades=S.n_trades,net=S.net_ticks,upd=S.weights.length?S.weights[S.weights.length-1].updates:(last?+last.updates:0);
+ const tiles=[["Replayed session",cur,`${done} of ${S.total_days} closed`,pct],["Trades",f0(trades),trades?`${f2(net/trades)} ticks per trade`:""],
+  ["Net",usd(net*12.5),`${sg(net)} ticks after costs`],["Learning steps",f0(upd),"actor-critic updates so far"],
+  ["Last decision",S.last?(S.last.action?(S.last.dir>0?"Long ":"Short ")+EXITS[S.last.action-1]:"Skip"):"–",S.last?`p=${f2(S.last.p)} · value ${f2(S.last.value)} · ${S.last.levels} level${S.last.levels===1?"":"s"}`:""]];
+ document.getElementById("tiles").innerHTML=tiles.map(([k,v,n,p])=>`<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="n">${n}</div>${p!=null?`<div class="bar"><i style="width:${(p*100).toFixed(1)}%"></i></div>`:""}</div>`).join("");
+ document.getElementById("st").textContent=`Updated ${S.now.slice(11)} · log ${S.log}`+(S.events.C.length?" · "+S.events.C[S.events.C.length-1]:"");
+ // cumulative $
+ let s=document.getElementById("cum"),ys=D.map(d=>+d.cum_usd),F=frame(s,D.length,ys,{zero:1,labels:lab,yf:usd});line(s,F,ys,css("--s1"));
+ hover(s,F,D.length,i=>`<b>${D[i].date}</b><br>Cumulative ${usd(+D[i].cum_usd)}<br>Session ${sg(+D[i].net_ticks)} ticks, ${D[i].trades} trades`);
+ s=document.getElementById("daily");ys=D.map(d=>+d.net_ticks);F=frame(s,D.length,ys,{zero:1,labels:lab});bars(s,F,ys,y=>y>=0?css("--s1"):css("--neg"),D.length);
+ hover(s,F,D.length,i=>`<b>${D[i].date}</b><br>${sg(+D[i].net_ticks)} ticks (${usd(+D[i].net_usd)})<br>${D[i].trades} trades`);
+ s=document.getElementById("roll");const R=S.roll;ys=R.map(r=>r[1]);F=frame(s,R.length,ys,{zero:1,labels:R.map(r=>"#"+r[0]),yf:f1});line(s,F,ys,css("--s1"));
+ hover(s,F,R.length,i=>`Trades to #${R[i][0]}<br>${f2(R[i][1])} ticks per trade`);
+ const cols=["--s1","--s2","--s3","--s4","--s5","--s6"].map(css);leg("mixleg",S.groups.map((g,i)=>[g,cols[i]]));
+ s=document.getElementById("mix");const plab=P.map(p=>p.date.slice(2));F=frame(s,P.length,[0,1],{lo:0,hi:1,labels:plab,yf:v=>Math.round(v*100)+"%"});
+ const bw=Math.max(1,Math.min(14,(F.W-F.L-F.R)/Math.max(P.length,1)-2));P.forEach((p,i)=>{const tot=p.mix.reduce((a,b)=>a+b,0);if(!tot)return;let acc=0;
+  p.mix.forEach((m,k)=>{if(!m)return;const y0=F.Y(acc/tot),y1=F.Y((acc+m)/tot);acc+=m;el("rect",{x:F.X(i)-bw/2,y:y1+(acc<tot?1:0),width:bw,height:Math.max(0.5,y0-y1-(acc<tot?1:0)),fill:cols[k]},s)})});
+ hover(s,F,P.length,i=>{const t=P[i].mix.reduce((a,b)=>a+b,0);return `<b>${P[i].date}</b> · ${t} trades<br>`+S.groups.map((g,k)=>P[i].mix[k]?`${g}: ${P[i].mix[k]}`:"").filter(Boolean).join("<br>")});
+ s=document.getElementById("rate");ys=P.map(p=>p.trade_rate);F=frame(s,P.length,ys,{lo:0,labels:plab,yf:v=>Math.round(v*100)+"%"});line(s,F,ys,css("--s1"));
+ hover(s,F,P.length,i=>`<b>${P[i].date}</b><br>Took ${Math.round(P[i].trade_rate*100)}% of ${P[i].n} candidates`);
+ s=document.getElementById("val");ys=P.map(p=>p.value);F=frame(s,P.length,ys,{zero:1,labels:plab,yf:f2});line(s,F,ys,css("--s1"));
+ hover(s,F,P.length,i=>`<b>${P[i].date}</b><br>Mean value ${P[i].value.toFixed(3)}`);
+ const Wh=S.weights,wc=[["Depth imbalance (3)",css("--s1"),"depth"],["MBO large orders (2)",css("--s2"),"mbo"],["Spread",css("--s3"),"spread"]];
+ leg("wleg",wc.map(w=>[w[0],w[1]]));
+ if(Wh.length)document.getElementById("wd").textContent=`Norm of the policy's first-layer weights on the book inputs (they start at zero). For scale, a bar feature's median is ${Wh[Wh.length-1].feat_median.toFixed(3)}. Recorded while this page's server runs.`;
+ s=document.getElementById("w");if(Wh.length){const all=Wh.flatMap(h=>[h.depth,h.mbo,h.spread]);const fx=v=>v===0?"0":v<0.001?v.toExponential(1):v.toFixed(3);
+  F=frame(s,Wh.length,all,{lo:0,labels:Wh.map(h=>"#"+h.updates),yf:fx,L:58});for(const w of wc)line(s,F,Wh.map(h=>h[w[2]]),w[1]);
+  hover(s,F,Wh.length,i=>`After update #${Wh[i].updates}<br>`+wc.map(w=>`${w[0]}: ${Wh[i][w[2]].toFixed(4)}`).join("<br>")+`<br>Bar feature median: ${Wh[i].feat_median.toFixed(4)}`)}
+ else{s.innerHTML="";el("text",{x:10,y:20},s).textContent="Waiting for the first weight save"}
+ s=document.getElementById("lev");ys=P.map(p=>p.levels);F=frame(s,P.length,ys,{lo:0,hi:10,labels:plab,yf:f0});bars(s,F,ys,()=>css("--s1"),P.length);
+ hover(s,F,P.length,i=>`<b>${P[i].date}</b><br>Mean ${f1(P[i].levels)} levels (max ${P[i].lev_max})`+(P[i].imb!=null?`<br>Mean |5-level imbalance| ${f2(P[i].imb)}`:""));
+ const H=["date","entry_ct","side","exit_rule","entry_px","exit_px","exit","net_ticks","net_usd","cum_usd"],N=["Date","Entry (CT)","Side","Exit rule","Entry","Exit","Closed by","Net ticks","Net $","Cumulative $"];
+ document.getElementById("tb").innerHTML="<tr>"+N.map(n=>`<th>${n}</th>`).join("")+"</tr>"+S.recent.map(t=>"<tr>"+H.map(h=>{let v=t[h]??"";
+  if(h==="net_ticks")v=sg(+v);else if(h==="net_usd"||h==="cum_usd")v=usd(+v);return `<td>${v}</td>`}).join("")+"</tr>").join("");
+ const A=S.audit;document.getElementById("auw").textContent=A?`The last audit, run ${A.when.replace("T"," ")} (python experiments/of24_audit.py)`:"No audit yet (python experiments/of24_audit.py)";
+ document.getElementById("au").innerHTML=A?A.lines.map(l=>{const i=l.indexOf(":");return `<li><b>${esc(l.slice(0,i))}</b>${esc(l.slice(i))}</li>`}).join(""):""}
+function esc(t){return t.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}
+async function poll(){try{const r=await fetch("api/state",{cache:"no-store"});S=await r.json();render()}catch(e){document.getElementById("st").textContent="server not reachable"}}
+poll();setInterval(poll,4000);addEventListener("resize",render);
+</script></body></html>"""
+
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    def __init__(self, *a, state=None, **k):
+        self.state = state
+        super().__init__(*a, **k)
+
+    def log_message(self, *a):
+        pass
+
+    def do_GET(self):
+        path = self.path.split("?")[0]
+        if path in ("/", "/index.html"):
+            body, ctype = PAGE.encode(), "text/html; charset=utf-8"
+        elif path == "/api/state":
+            body, ctype = json.dumps(self.state.snapshot()).encode(), "application/json"
+        else:
+            self.send_error(404)
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    s = sub.add_parser("serve")
+    s.add_argument("--dir", default=r"C:\SierraChart\SierraChartInstance_2\Data\RagAgent")
+    s.add_argument("--mode", choices=("replay", "live"), default="replay")
+    s.add_argument("--days", type=int, default=228, help="sessions in the replay, for the progress bar")
+    s.add_argument("--port", type=int, default=8775)
+    s.add_argument("--audit", default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "build-avx512", "of24", "audit.txt"),
+                   help="the report of experiments/of24_audit.py; its verdict is shown on the page")
+    a = ap.parse_args(argv)
+    st = State(a.dir, a.mode, a.days)
+    st.audit = a.audit
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", a.port), functools.partial(Handler, state=st))
+    print(f"OF24 live view: http://127.0.0.1:{a.port}/ ({a.mode}, {a.dir})", flush=True)
+    srv.serve_forever()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+```
 
 
 ---
@@ -46122,7 +46728,7 @@ def test_end_to_end_on_a_synthetic_cache(tmp_path, monkeypatch):
 
 ---
 
-## FILE: python\tests\test_of24.py  (6,064 bytes)
+## FILE: python\tests\test_of24.py  (6,073 bytes)
 
 ```python
 """OF24 (docs/ai/OF24_LIVE_SIM_PLAN.md): the C++ live kernel gives OF23's candidates, features and policy outputs.
@@ -46162,7 +46768,7 @@ def write_bars(path, prev, b, dow):
 def run(*args):
     p = subprocess.run([str(EXE), *map(str, args)], capture_output=True, text=True)
     assert p.returncode == 0, p.stderr
-    out = {"L": [], "C": [], "P": [], "U": []}
+    out = {"L": [], "C": [], "P": [], "U": [], "X": []}
     for line in p.stdout.splitlines():
         t = line.split()
         out[t[0]].append([float(x) for x in t[1:]])

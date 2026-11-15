@@ -8,7 +8,8 @@ Serves a page on http://127.0.0.1:PORT/ (local only) that polls /api/state every
 the study's own output only: the profit ledgers (profit_days_<mode>.csv, profit_trades_<mode>.csv), the newest
 decision log (<mode>-c1-*.csv: one D line per candidate with the sampled action, its probability, the critic
 value and the book inputs) and the weight file (weights_<mode>_c1.txt: how much weight the 6 book inputs have
-gained; they start at zero). No market data is read. Standard library only.
+gained; they start at zero), plus the verdict lines of the last experiments/of24_audit.py report (--audit).
+No market data is read. Standard library only.
 """
 import argparse
 import datetime as dt
@@ -52,6 +53,7 @@ class State:
         self.last_d = None
         self.events = {"T": 0, "X": 0, "C": []}
         self.w_mtime, self.w_hist = 0.0, []
+        self.audit = ""     # path of the of24_audit.py report (its verdict is shown)
 
     def _scan_log(self):
         logs = [p for p in glob.glob(os.path.join(self.dir, f"{self.mode}-c1-*.csv"))]
@@ -129,6 +131,16 @@ class State:
             if len(self.w_hist) > 4000:
                 self.w_hist = self.w_hist[::2]
 
+    def _audit(self):
+        """The verdict lines of the last experiments/of24_audit.py run, and when it ran."""
+        try:
+            txt = open(self.audit, encoding="utf-8").read()
+            when = dt.datetime.fromtimestamp(os.path.getmtime(self.audit)).isoformat(timespec="minutes")
+        except OSError:
+            return None
+        lines = [x.strip() for x in txt.split("VERDICT", 1)[-1].splitlines() if x.strip()] if "VERDICT" in txt else []
+        return {"when": when, "lines": lines}
+
     def snapshot(self):
         with self.lock:
             self._scan_log()
@@ -143,8 +155,8 @@ class State:
                     roll.append([i + 1, s / min(i + 1, w)])
             mix = []
             for t in trades:
-                r = t.get("exit_rule", "")
-                tgt = r.split("/")[0].lstrip("T") + "/" + r.split("/")[1].lstrip("S") if r.count("/") >= 2 else "?"
+                r = t.get("menu_exit") or t.get("exit_rule", "")  # the menu exit (a scaled bracket keeps its group)
+                tgt = r.split("/")[0].lstrip("T") + "/" + r.split("/")[1].lstrip("S") if r.count("/") >= 1 else "?"
                 mix.append((t["date"], tgt))
             by_day_mix = {}
             for d, g in mix:
@@ -164,6 +176,7 @@ class State:
                 "n_trades": len(nets), "net_ticks": sum(nets), "roll": roll, "groups": GROUPS,
                 "recent": trades[-12:][::-1], "per_day": per_day, "last": self.last_d, "events": self.events,
                 "weights": self.w_hist, "now": dt.datetime.now().isoformat(timespec="seconds"),
+                "audit": self._audit(),
             }
 
 
@@ -210,6 +223,7 @@ td,th{padding:4px 6px;text-align:right;border-bottom:1px solid var(--grid)}th{co
  <div class="card"><h2>Book inputs: weight learned</h2><div class="d" id="wd">Norm of the policy's first-layer weights on the book inputs (they start at zero); recorded while this page's server runs</div><div class="leg" id="wleg"></div><svg id="w"></svg></div>
  <div class="card"><h2>Depth seen at decisions</h2><div class="d">Mean book levels read per decision (1 = best bid/ask only; 10 = recorded full depth)</div><svg id="lev"></svg></div>
 </div>
+<div class="card" style="margin-top:12px"><h2>Skill or luck?</h2><div class="d" id="auw">The last audit (python experiments/of24_audit.py)</div><ul id="au" style="margin:6px 0 0 18px;padding:0;font-size:13px;line-height:1.5"></ul></div>
 <div class="card" style="margin-top:12px"><h2>Latest trades</h2><div class="wrap"><table id="tb"></table></div></div>
 <div class="tip" id="tip"></div>
 <script>
@@ -278,7 +292,10 @@ function render(){if(!S)return;const D=S.days,P=S.per_day,lab=D.map(d=>d.date.sl
  hover(s,F,P.length,i=>`<b>${P[i].date}</b><br>Mean ${f1(P[i].levels)} levels (max ${P[i].lev_max})`+(P[i].imb!=null?`<br>Mean |5-level imbalance| ${f2(P[i].imb)}`:""));
  const H=["date","entry_ct","side","exit_rule","entry_px","exit_px","exit","net_ticks","net_usd","cum_usd"],N=["Date","Entry (CT)","Side","Exit rule","Entry","Exit","Closed by","Net ticks","Net $","Cumulative $"];
  document.getElementById("tb").innerHTML="<tr>"+N.map(n=>`<th>${n}</th>`).join("")+"</tr>"+S.recent.map(t=>"<tr>"+H.map(h=>{let v=t[h]??"";
-  if(h==="net_ticks")v=sg(+v);else if(h==="net_usd"||h==="cum_usd")v=usd(+v);return `<td>${v}</td>`}).join("")+"</tr>").join("")}
+  if(h==="net_ticks")v=sg(+v);else if(h==="net_usd"||h==="cum_usd")v=usd(+v);return `<td>${v}</td>`}).join("")+"</tr>").join("");
+ const A=S.audit;document.getElementById("auw").textContent=A?`The last audit, run ${A.when.replace("T"," ")} (python experiments/of24_audit.py)`:"No audit yet (python experiments/of24_audit.py)";
+ document.getElementById("au").innerHTML=A?A.lines.map(l=>{const i=l.indexOf(":");return `<li><b>${esc(l.slice(0,i))}</b>${esc(l.slice(i))}</li>`}).join(""):""}
+function esc(t){return t.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}
 async function poll(){try{const r=await fetch("api/state",{cache:"no-store"});S=await r.json();render()}catch(e){document.getElementById("st").textContent="server not reachable"}}
 poll();setInterval(poll,4000);addEventListener("resize",render);
 </script></body></html>"""
@@ -317,8 +334,11 @@ def main(argv=None):
     s.add_argument("--mode", choices=("replay", "live"), default="replay")
     s.add_argument("--days", type=int, default=228, help="sessions in the replay, for the progress bar")
     s.add_argument("--port", type=int, default=8775)
+    s.add_argument("--audit", default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "build-avx512", "of24", "audit.txt"),
+                   help="the report of experiments/of24_audit.py; its verdict is shown on the page")
     a = ap.parse_args(argv)
     st = State(a.dir, a.mode, a.days)
+    st.audit = a.audit
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", a.port), functools.partial(Handler, state=st))
     print(f"OF24 live view: http://127.0.0.1:{a.port}/ ({a.mode}, {a.dir})", flush=True)
     srv.serve_forever()

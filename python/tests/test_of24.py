@@ -35,7 +35,7 @@ def write_bars(path, prev, b, dow):
 def run(*args):
     p = subprocess.run([str(EXE), *map(str, args)], capture_output=True, text=True)
     assert p.returncode == 0, p.stderr
-    out = {"L": [], "C": [], "P": [], "U": []}
+    out = {"L": [], "C": [], "P": [], "U": [], "X": []}
     for line in p.stdout.splitlines():
         t = line.split()
         out[t[0]].append([float(x) for x in t[1:]])

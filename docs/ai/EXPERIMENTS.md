@@ -2456,9 +2456,60 @@ starting policy is OF23's RL-free arm, which lost on unseen months (A92).
   newest decision log and its weight file (profit, a rolling 100-trade
   mean, exit mix, trade rate, critic value, book-weight norms, depth
   levels, latest trades).
-* **State:** build `RagAgent_vg_64` in live mode on plain ESZ26, armed,
-  on Sim9 in the sub-instance, continuing from the replay-learned weights
-  (13,630 updates; log header `weights=replay-learned`); first RTH
-  session Monday 2026-11-16 08:50 CT. Live trades go to
-  `profit_*_live.csv`; live is where depth and MBO get real data.
+* **Second depth pass (2026-11-15, user: "run another pass on the depth
+  days so it learns more"):** 2026-11-03 to 11-11 again on the plain
+  ESZ26 chart with recorded depth: 168 trades, +510.6 ticks; 14,104
+  updates. The depth weights stayed near 1e-5 (0.00007, 0.00001,
+  0.00001; spread 0.008; against 1.12 for a bar input).
+* **Audit (2026-11-15, `experiments/of24_audit.py`, `OF24_AUDIT.md`, A96;
+  user: "create a framework to make sure there is no look-ahead bias ...
+  learning from patterns ... not just sheer luck").** All figures are
+  ticks per trade with a 95% day-block interval.
+  **Look-ahead: none found.** 18,412 logged replay decisions, all but 10
+  (99.9%) are candidates of OF23's causal pipeline at the same minute
+  and direction; the first decision of the three latest runs reproduces
+  from the saved weights (one early run differs by 0.0012 in
+  probability); all 5757 entry fills are within one tick of the bar
+  after the decision bar (98.7% inside it).
+  **The replay profit is in-sample.** 99% of the replay trades are on
+  days the starting policy was trained on. Re-priced with OF23's fills
+  the pass-2 trades still make +3.01 [+2.20, +3.89] (sim +2.84): the
+  sim's fills are not the reason (+0.07 per trade). Random candidates
+  with the same exits make -2.43; the agent beats all of them, as a
+  policy that has seen the days would.
+  **Unseen days: it loses.** The same recipe trained through 2026-09-11
+  only (`of24_export.py --until`) makes +1.61 [+0.95, +2.29] on its
+  training days and **-2.31 [-3.69, -0.91] on the 43 later days**,
+  against -2.44 for a random exit at every candidate. A Sierra replay of
+  those 43 days from the holdout weights, learning on (build `vh`):
+  847 trades, -1865.5 ticks, sim -2.20 [-3.82, -0.68], OF23 fills -2.75;
+  it beats 61% of random draws. OF23 measured the same recipe at -3.22
+  walk-forward.
+  **The online learning does almost nothing.** Start to pass 1 moved
+  0.07% of the policy's choices, pass 1 to pass 2 0.42%, each depth
+  pass 0.02%, the holdout replay 0.11%; no change in net is measurable
+  (pass 2: +0.02 [-0.42, +0.44] ticks per session).
+  **Inputs.** Shuffling any one group of inputs (setup flags, location,
+  volatility and volume, buy minus sell volume, momentum) moves 23-32%
+  of the choices and turns +50 ticks a session into a loss: the policy
+  leans on exact combinations, which is what memorising looks like. The
+  book inputs carry under 1% of a typical input's weight.
+  **Forward rule** (fixed before the first live session): 20 sessions
+  and 200 live trades, then the lower 95% bound minus the sim haircut
+  must be above zero.
+* **Dynamic stops and targets (2026-11-15, plan section 9, A97; user:
+  "also add dynamic stop losses and take profits").** The menu's target
+  and stop times ATR / typical ATR, within 0.5-2x; input 11, build
+  `RagAgent_vi_64`. On the 43 unseen days (audit C3, OF23 fills, labels
+  from the trade records) the factor has median 0.83 (10-90%: 0.50 to
+  1.51) and the scaled menu makes -2.76 [-4.39, -1.00] against -2.31
+  for the fixed one; the difference per session is -12.0 [-42.9, +18.7]
+  ticks: not measurable. Runtime check: a replay of 2026-11-03 to 11-11
+  with the input on gave 153 trades (+21.4 ticks), every bracket equal to the menu's times the factor (0.50 to 2.00, median 1.36), targets and stops filled at the scaled distances, 30 trailing moves, no error lines..
+* **State:** build `RagAgent_vi_64` in live mode on plain ESZ26, armed,
+  on Sim9 in the sub-instance, dynamic exits on, continuing from the
+  replay-learned weights of the main lineage (14,104 updates; log header
+  `weights=replay-learned`); first RTH session Monday 2026-11-16 08:50
+  CT. Live trades go to `profit_*_live.csv`; live is where depth and MBO
+  get real data, and the forward rule is the only evidence that counts.
 

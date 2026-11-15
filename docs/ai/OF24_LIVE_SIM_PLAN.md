@@ -157,3 +157,28 @@ keep a log of the profit"):
 - **Viewer.** `tools/of24_live.py serve` (replay) or `--mode live`
   shows the ledgers, decisions and weight norms in a browser; it reads
   only the study's own files.
+
+## 9. Dynamic stops and targets (added 2026-11-15)
+
+At the user's request ("also add dynamic stop losses and take profits"):
+
+- **Rule.** Input 11 of the study (default off). When on, the target
+  and the stop of the exit the policy picked are multiplied by
+  k = ATR / typical ATR, k kept within 0.5 to 2, rounded to whole ticks
+  (at least 4 and 2). ATR is OF23's `atr` feature at the decision bar
+  (the 20-bar mean true range of 1-minute bars, in ticks); the typical
+  ATR is its training mean in the weight file (about 13.4 ticks). So in
+  ordinary volatility the bracket is the menu's, in a fast market up to
+  twice as wide, in a quiet one down to half.
+- **Unchanged:** the time cap and the trailing flag of the menu exit.
+  A trailing exit trails at the scaled stop distance. The bracket is
+  still attached to the entry order, so it is in the market from the
+  fill.
+- **Kernel** `exit_scale`, `scaled_exit` (`of24_kernel.hpp`), checked
+  against the Python reference through `of24_parity`
+  (`test_of24_audit.py`).
+- **Records.** The trade ledger's `exit_rule` is the bracket actually
+  sent; two new last columns give the menu exit and the factor. The
+  log header has `dynamic_exits=`, the T line ends with the ticks sent.
+- **Evidence.** `of24_audit.py` C3 compares the fixed menu with the
+  scaled one on days the policy never saw (`OF24_AUDIT.md`).

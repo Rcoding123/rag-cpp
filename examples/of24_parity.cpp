@@ -4,7 +4,8 @@
 //   of24_parity BARS.txt [WEIGHTS.txt]
 // BARS.txt: "n_prev n dow", then n_prev + n lines "open high low close volume buy sell" (ticks; the prior day first;
 // n_prev may be 0). Output per candidate: "C m dir f0 .. f36", then with weights "P logit0 .. logit12 value", and
-// "U ..." the logits after one update(action 3, reward 0.5) on a copy of the policy.
+// "U ..." the logits after one update(action 3, reward 0.5) on a copy of the policy, and "X k t1 s1 .. t12 s12" the
+// volatility-scaled exits (the factor, then each menu exit's target and stop in ticks).
 #include <cstdio>
 #include <fstream>
 #include <iostream>
@@ -52,6 +53,10 @@ int main(int argc, char** argv) {
       std::printf("U");
       for (double z : o2.logit) std::printf(" %.17g", z);
       std::printf(" %.17g\n", o2.value);
+      const double k = of24::exit_scale(c.f[of24::kAtrFeat], pol.mu[of24::kAtrFeat]);
+      std::printf("X %.17g", k);
+      for (const auto& e : of24::kMenu) { const auto d = of24::scaled_exit(e, k); std::printf(" %d %d", d.target, d.stop); }
+      std::printf("\n");
     }
   }
   return 0;

@@ -44,6 +44,20 @@ inline constexpr std::array<ExitSpec, kExits> kMenu = {{
     {8, 4, 30, false}, {8, 4, 30, true}, {12, 6, 60, false}, {12, 6, 60, true}, {16, 8, 60, false}, {16, 8, 60, true},
     {24, 8, 120, false}, {24, 8, 120, true}, {32, 12, 0, false}, {32, 12, 0, true}, {48, 16, 0, false}, {48, 16, 0, true}}};
 
+// Volatility-scaled exits (OF24 plan section 9): the menu's target and stop times atr / typical atr, the factor
+// kept within [0.5, 2], in whole ticks (at least 4 and 2). The time cap and the trailing flag are the menu's.
+inline constexpr int kAtrFeat = 16;  // "atr" in of23_mine.FEATS: the 20-bar mean true range of 1-minute bars, in ticks
+inline double exit_scale(double atr, double typical) {
+  if (!std::isfinite(atr) || !std::isfinite(typical) || !(atr > 0) || !(typical > 0)) return 1.0;
+  return std::min(2.0, std::max(0.5, atr / typical));
+}
+inline ExitSpec scaled_exit(const ExitSpec& e, double k) {
+  ExitSpec o = e;
+  o.target = std::max(4, static_cast<int>(std::lround(e.target * k)));
+  o.stop = std::max(2, static_cast<int>(std::lround(e.stop * k)));
+  return o;
+}
+
 struct Bars {
   std::vector<double> o, h, l, c, v, buy, sell;
   int size() const { return static_cast<int>(o.size()); }

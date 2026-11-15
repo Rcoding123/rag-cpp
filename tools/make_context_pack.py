@@ -44,6 +44,7 @@ DOCS = [
     "docs/ai/OF21_FORWARD_PLAN.md",
     "docs/ai/OF23_SWING_MINING_PLAN.md",
     "docs/ai/OF24_LIVE_SIM_PLAN.md",
+    "docs/ai/OF24_AUDIT.md",
     "experiments/research_synthesis.md",
     "README.md",
 ]
