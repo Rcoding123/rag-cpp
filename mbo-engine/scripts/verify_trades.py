@@ -27,4 +27,19 @@ for f in files:
         bad += 1
         print("MISMATCH", d, len(p), len(t))
 print(f"{len(files)} days, {tot:,} trades, mismatching days: {bad}")
-sys.exit(1 if bad else 0)
+if bad:
+    sys.exit(1)
+
+# supplement: purchased ESZ6 roll-window trades (before the first MBO record of 2026-09-16)
+import glob as _g
+x = db.DBNStore.from_file(_g.glob("/srv/quant/data/raw/es-trades-esz6-roll/*/*.trades.dbn.zst")[0]).to_ndarray()
+first = db.DBNStore.from_file(_g.glob("/srv/quant/data/raw/es-mbo/*/glbx-mdp3-20260916.mbo.dbn.zst")[0]).to_ndarray()["ts_recv"][0]
+x = x[x["ts_recv"] < first]
+q = pq.read_table("/srv/quant/data/features/trades/20260915_esz6_roll.parquet").to_pandas()
+okx = (len(q) == len(x) and int(q["size"].sum()) == int(x["size"].sum()) and
+       np.array_equal(q["ts_recv"].to_numpy(), x["ts_recv"].astype("int64")) and
+       np.array_equal(np.round(q["price"].to_numpy() * 1e9).astype(np.int64), x["price"]) and
+       np.array_equal(q["side"].to_numpy().astype("S1"), x["side"]))
+print(f"supplement 20260915_esz6_roll: {len(q)} trades, identical to the purchased file: {okx}")
+if not okx:
+    sys.exit(1)

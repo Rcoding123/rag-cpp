@@ -166,8 +166,9 @@ checks pass on the server.
   scheduled pause 15:00-16:00 CT (CME's 2020 FAQ mentions a 15:15-15:30 CT pause: gone by 2026),
   1,534/1,534 preliminary settlements at 15:00 CT map to the right `ts_ref` trade date; the
   only early close found is 2026-09-07 (12:00 CT). DST unit tests: `scripts/test_sessions.py`.
-  **RTH = 08:30-15:00 CT is a convention, NOT verified against CME** (cmegroup.com 403); it is one
-  constant to change.
+  **RTH = 08:30-15:00 CT** (owner-confirmed 2026-11-18: NYSE 09:30-16:00 ET, matches the 15:00 CT
+  settlement; CME itself could not be checked, cmegroup.com 403). Shortened days: 12:00 CT close, no
+  RTH. It is one constant (`sessions.RTH_OPEN/RTH_CLOSE`).
 - Settlement: CME FAQ (archived copy, effective 2020-10-26) says ES settles at 15:00 CT (12:00 CT
   on shortened days). Value comes from statistics (stat_type 3), never computed. `stat_flags` bit0
   = final, bit1 = actual (Databento GLBX.MDP3 page); our data has prelim-actual (2) published
@@ -185,7 +186,9 @@ checks pass on the server.
   check): median |settle - VWAP 14:55-15:00 CT| = 3.6 ticks, p90 8.0, max 21.3.
 - DONE: session levels `data/features/levels/session_levels.parquet` (`scripts/levels.py`): per
   (trade_date, instrument) ETH and RTH open/high/low/close/VWAP/volume/POC/VAH/VAL, overnight
-  H/L, 30-minute opening range (30 min is a convention), completeness flag, and prior-session
+  H/L (every ETH trade before the RTH open, evening part included), opening ranges of 5, 15, 30
+  and 60 minutes (`orb{5,15,30,60}_{high,low}`; `orb_high/orb_low` = the 30-minute default),
+  completeness flag, and prior-session
   levels (same contract; across a roll the old contract's levels plus `prior_basis_adj` from the
   two official settlements; `prior_settle` is always the contract's own). 78 rows.
   Verified independently (`scripts/verify_levels.py`: sessions from the exchange's scheduled
@@ -193,7 +196,20 @@ checks pass on the server.
   78, brute-force POC equal, value area contains POC and holds >=70%. Unit tests
   `scripts/test_levels.py`. **Data limits:** trade date 2026-09-16 is split between ESU6 (stub,
   17:00-18:59 CT) and ESZ6 (from 19:00 CT; ES.v.0 switches at UTC midnight, so ESZ6's first two
-  hours are not in our files) and 2026-11-17 is a one-hour stub; both flagged `complete=False`.
+  hours were not in the MBO files) and 2026-11-17 is a one-hour stub. **Fixed 2026-11-18:** the
+  missing ESZ6 window was bought as `trades` (not MBO: a book cannot be built from a mid-day MBO
+  window, and the whole-day MBO quotes $0.96, over the cap): `es-trades-esz6-roll`, ESZ6,
+  2026-09-15 22:00 -> 2026-09-16 00:30 UTC, $0.0064. The 30-minute overlap with our MBO trades is
+  identical (1,441/1,441: ts_recv, price, size, side, sequence); 3,665 new trades (volume 7,937)
+  before 00:00 UTC are in `data/features/trades/20260915_esz6_roll.parquet` (`scripts/supplement_trades.py`).
+  ESZ6 2026-09-16 is now `complete`; the ESU6 stub of that date (its session was cut at 00:00 UTC
+  by the switch to ESZ6) and 2026-11-17 stay `complete=False`. No book or bars exist for the
+  bought window (trades only).
+  **Bug found and fixed by the independent check:** the first overnight range used 'clock < 08:30'
+  and dropped the evening half of the session; now all ETH trades before the RTH open.
+  **Multiple-testing rule:** all four opening-range lengths are stored because it is cheap, but
+  ONLY ONE length may be used in any pre-registered test (choose it before looking at results),
+  otherwise the choice becomes a free parameter and biases the result.
   2026-09-07 (Labor Day, 12:00 CT close) has no RTH by design.
 - TODO: windowed features (delta 5/30/120 s, OFI windows, volume ratio,
   imbalance L1/L1-5, returns, VWAP distance) with the rag-cpp EWMA

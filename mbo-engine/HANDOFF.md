@@ -62,10 +62,10 @@ Range 2026-08-01 to 2026-11-16 (92 trading-day files per dataset), dataset
 Total: 665 files, 18.59 GB on disk. About $9.81 of Databento credit should
 remain; check the portal.
 
-**Added 2026-11-18 (owner-approved, $0.0810 total):** `es-status` (ES.FUT parent, status schema,
+**Added 2026-11-18 (owner-approved, $0.0874 total incl. `es-trades-esz6-roll`, ESZ6 trades 2026-09-15 22:00 -> 2026-09-16 00:30 UTC, $0.0064):** `es-status` (ES.FUT parent, status schema,
 2026-08-01..11-17, $0.0031) and `es-mbp1-20260911-12h` (ES.v.0 mbp-1, 2026-09-11 12:00-13:00 UTC,
 $0.0779), bought with `scripts/order_extra.py` (quote-only unless `--buy`, per-item caps $0.05 and
-$1.00, total cap $0.20, records in orders.json, never re-orders). Credit left is about $9.73.
+$1.00, total cap $0.20, records in orders.json, never re-orders). Credit left is about $9.72.
 
 **data/raw is read-only** (`chmod -R a-w`, owner request 2026-11-18). To add data lift only the
 directory (`chmod u+w /srv/quant/data/raw`), download, then `chmod -R a-w /srv/quant/data/raw`, and

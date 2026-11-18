@@ -25,7 +25,14 @@ for f in sorted(glob.glob("/srv/quant/data/raw/es-mbo/*/*.mbo.dbn.zst")):
     a = db.DBNStore.from_file(f).to_ndarray()
     a = a[a["action"] == b"T"]
     ts.append(a["ts_recv"].astype("int64")); px.append(a["price"] / 1e9); sz.append(a["size"].astype("int64")); iid.append(a["instrument_id"].astype("int64"))
+# purchased ESZ6 roll-window trades (see supplement_trades.py): only those before the first MBO record of 2026-09-16
+extra = db.DBNStore.from_file(glob.glob("/srv/quant/data/raw/es-trades-esz6-roll/*/*.trades.dbn.zst")[0]).to_ndarray()
+first_mbo = db.DBNStore.from_file(glob.glob("/srv/quant/data/raw/es-mbo/*/glbx-mdp3-20260916.mbo.dbn.zst")[0]).to_ndarray()["ts_recv"][0]
+extra = extra[extra["ts_recv"] < first_mbo]
+ts.append(extra["ts_recv"].astype("int64")); px.append(extra["price"] / 1e9); sz.append(extra["size"].astype("int64")); iid.append(extra["instrument_id"].astype("int64"))
 ts, px, sz, iid = map(np.concatenate, (ts, px, sz, iid))
+order = np.argsort(ts, kind="stable"); ts, px, sz, iid = ts[order], px[order], sz[order], iid[order]
+print("extra purchased trades included:", len(extra))
 # early close = a scheduled stop (is_trading N, reason Scheduled) earlier than the normal 16:00 CT, i.e. < 23h after the open
 nt = st[(st["reason"] == 1) & (st["is_trading"] == b"N") & ((st["ts_recv"].astype("int64") % (86400 * 10**9)) > 5 * 10**9)]["ts_recv"].astype("int64")
 nsess = np.searchsorted(opens, nt, side="right") - 1
@@ -60,6 +67,20 @@ for (s_i, i, m), (_, r) in zip(rows, L.iterrows()):
             g = r[pre + k]
             if not (np.isclose(g, e, rtol=0, atol=1e-9, equal_nan=True) if k != "vwap" else np.isclose(g, e, rtol=1e-12, equal_nan=True)):
                 print("MISMATCH", str(r.trade_date)[:10], i, pre + k, g, e); bad += 1
+    # overnight and opening ranges, independently from open-relative time (RTH opens 15.5h after the session open)
+    ag = ts[m] - opens[s_i]
+    on = m.copy(); on[m] = ag < int(15.5 * H)
+    exp_on = (px[on].max(), px[on].min()) if on.any() else (np.nan, np.nan)
+    if not (np.isclose(r.on_high, exp_on[0], equal_nan=True) and np.isclose(r.on_low, exp_on[1], equal_nan=True)):
+        print("ON MISMATCH", str(r.trade_date)[:10], r.on_high, r.on_low, exp_on); bad += 1
+    for L_ in (5, 15, 30, 60):
+        w = m.copy(); w[m] = (ag >= int(15.5 * H)) & (ag < int(15.5 * H) + L_ * 60 * 10**9)
+        if s_i in early: w[:] = False
+        e = (px[w].max(), px[w].min()) if w.any() else (np.nan, np.nan)
+        if not (np.isclose(r[f"orb{L_}_high"], e[0], equal_nan=True) and np.isclose(r[f"orb{L_}_low"], e[1], equal_nan=True)):
+            print("ORB MISMATCH", L_, str(r.trade_date)[:10], r[f"orb{L_}_high"], r[f"orb{L_}_low"], e); bad += 1
+    if not (np.isclose(r.orb_high, r.orb30_high, equal_nan=True) and np.isclose(r.orb_low, r.orb30_low, equal_nan=True)):
+        print("default ORB != orb30", str(r.trade_date)[:10]); bad += 1
     # volume-profile POC independent brute force (ETH)
     p, v = px[m], sz[m]
     prof = {}

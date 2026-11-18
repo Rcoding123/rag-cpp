@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-"""Order the small extra Databento requests approved by the owner on 2026-11-18.
+"""Order the small extra Databento requests approved by the owner (2026-11-18, roll-window trades also 2026-11-18).
 
   es-status            ES.FUT (parent) schema "status", 2026-08-01 .. 2026-11-17   cap $0.05
   es-mbp1-20260911-12h ES.v.0 schema "mbp-1", 2026-09-11 12:00-13:00 UTC           cap $1.00
        (the hour contains the 12:30:01-12:30:06 crossed-book run)
+  es-trades-esz6-roll  ESZ6 schema "trades", 2026-09-15 22:00 -> 2026-09-16 00:30 UTC  cap $0.50
+       (ESZ6 trades missing from our ES.v.0 files: the session of 2026-09-16 opened at 22:00 UTC on
+        ESU6 and ES.v.0 switched to ESZ6 only at 00:00 UTC; the last 30 min overlap our MBO trades
+        so the purchase can be checked exactly)
 
 Safe by default: without --buy it only quotes. With --buy it orders, with a hard
 per-item cap (above it nothing is ordered) and a total cap (--max-usd, default 0.20).
@@ -29,6 +33,9 @@ EXTRA = {
     "es-mbp1-20260911-12h": dict(symbols=["ES.v.0"], stype_in="continuous", schema="mbp-1",
                                  start="2026-09-11T12:00", end="2026-09-11T13:00",
                                  split_duration="none", cap_usd=1.00),
+    "es-trades-esz6-roll": dict(symbols=["ESZ6"], stype_in="raw_symbol", schema="trades",
+                                start="2026-09-15T22:00", end="2026-09-16T00:30",
+                                split_duration="none", cap_usd=0.50),
 }
 
 

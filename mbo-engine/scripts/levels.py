@@ -3,7 +3,7 @@
 
 One row per (trade_date, instrument_id). Conventions (see sessions.py): trade date = 17:00 CT -> 16:00 CT,
 ETH = the whole trading session, RTH = 08:30-15:00 CT (convention, unverified vs CME), overnight (ON) = ETH
-before RTH open, opening range = first ORB_MINUTES of RTH (convention: 30).
+before RTH open, opening range = first N minutes of RTH, stored for N in ORB_LENGTHS (5/15/30/60; default 30 = orb_high/orb_low).
 Per scope (eth_, rth_): open, high, low, close, vwap, volume, poc, vah, val. Value area = 70% of volume built
 around the point of control at tick resolution (standard expansion: add the larger of the next two levels
 above/below); POC ties go to the price closest to the VWAP.
@@ -24,7 +24,8 @@ sys.path.insert(0, __file__.rsplit("/", 1)[0])
 import sessions as S
 
 TICK = 0.25
-ORB_MINUTES = 30
+ORB_LENGTHS = (5, 15, 30, 60)   # all stored (cheap); ONLY ONE may be used in any pre-registered test (multiple-testing bias)
+ORB_DEFAULT = 30                # the default length; also written as orb_high / orb_low
 VALUE_AREA = 0.70
 
 
@@ -74,15 +75,21 @@ def session_rows(trades, early_close=frozenset()):
         for pre, d in (("eth_", eth), ("rth_", rth)):
             for k, v in scope_stats(d).items():
                 r[pre + k] = v
-        on = g[~g.rth & (pd.to_datetime(g.ts_recv, unit="ns", utc=True).dt.tz_convert(S.CHI).dt.hour * 60
-                         + pd.to_datetime(g.ts_recv, unit="ns", utc=True).dt.tz_convert(S.CHI).dt.minute < S.RTH_OPEN.hour * 60 + S.RTH_OPEN.minute)]
+        # overnight = every trade of the session BEFORE the RTH open: the evening part (local calendar date earlier than the
+        # trade date, 17:00-24:00 CT) plus 00:00-08:30 CT. (A plain "clock < 08:30" test would drop the evening part.)
+        gl = pd.to_datetime(g.ts_recv, unit="ns", utc=True).dt.tz_convert(S.CHI)
+        evening = gl.dt.tz_localize(None).dt.normalize().to_numpy() < np.datetime64(pd.Timestamp(td))
+        before_open = (gl.dt.hour * 60 + gl.dt.minute).to_numpy() < S.RTH_OPEN.hour * 60 + S.RTH_OPEN.minute
+        on = g[(evening | before_open) & ~g.rth.to_numpy()]
         r["on_high"] = float(on.price.max()) if len(on) else np.nan
         r["on_low"] = float(on.price.min()) if len(on) else np.nan
         loc = pd.to_datetime(rth.ts_recv, unit="ns", utc=True).dt.tz_convert(S.CHI)
         mins = loc.dt.hour * 60 + loc.dt.minute - (S.RTH_OPEN.hour * 60 + S.RTH_OPEN.minute)
-        orb = rth[(mins >= 0) & (mins < ORB_MINUTES)]
-        r["orb_high"] = float(orb.price.max()) if len(orb) else np.nan
-        r["orb_low"] = float(orb.price.min()) if len(orb) else np.nan
+        for L_ in ORB_LENGTHS:
+            orb = rth[(mins >= 0) & (mins < L_)]
+            r[f"orb{L_}_high"] = float(orb.price.max()) if len(orb) else np.nan
+            r[f"orb{L_}_low"] = float(orb.price.min()) if len(orb) else np.nan
+        r["orb_high"] = r[f"orb{ORB_DEFAULT}_high"]; r["orb_low"] = r[f"orb{ORB_DEFAULT}_low"]
         first = pd.to_datetime(g.ts_recv.iloc[0], unit="ns", utc=True).tz_convert(S.CHI)
         last = pd.to_datetime(g.ts_recv.iloc[-1], unit="ns", utc=True).tz_convert(S.CHI)
         open_dt = dt.datetime.combine(pd.Timestamp(td).date() - dt.timedelta(days=1), S.SESSION_OPEN, tzinfo=S.CHI)
@@ -98,7 +105,7 @@ def session_rows(trades, early_close=frozenset()):
 def add_prior(levels, settle):
     """Attach prior-session levels (see module docstring)."""
     L = levels.sort_values(["trade_date", "instrument_id"]).reset_index(drop=True)
-    cols = [c for c in L.columns if c.startswith(("eth_", "rth_")) and not c.endswith("volume")] + ["on_high", "on_low", "orb_high", "orb_low"]
+    cols = [c for c in L.columns if c.startswith(("eth_", "rth_")) and not c.endswith("volume")] + ["on_high", "on_low", "orb_high", "orb_low"] + [f"orb{L_}_{e}" for L_ in ORB_LENGTHS for e in ("high", "low")]
     out = []
     for i, r in L.iterrows():
         same = L[(L.instrument_id == r.instrument_id) & (L.trade_date < r.trade_date)]
