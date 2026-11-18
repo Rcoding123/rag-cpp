@@ -1,0 +1,11 @@
+# Versions installed on the server on 2026-11-18 (by server/bootstrap.sh).
+# order_data.py relies on an internal databento helper: re-test after upgrading databento.
+databento==0.90.0
+numpy==2.5.5
+pandas==3.1.1
+polars==2.1.0
+pyarrow==26.0.1
+duckdb==2.0.0
+numba==0.68.1
+pybind11==3.1.0
+nanobind==3.1.0
