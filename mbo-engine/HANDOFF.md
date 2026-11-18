@@ -62,6 +62,15 @@ Range 2026-08-01 to 2026-11-16 (92 trading-day files per dataset), dataset
 Total: 665 files, 18.59 GB on disk. About $9.81 of Databento credit should
 remain; check the portal.
 
+**Added 2026-11-18 (owner-approved, $0.0810 total):** `es-status` (ES.FUT parent, status schema,
+2026-08-01..11-17, $0.0031) and `es-mbp1-20260911-12h` (ES.v.0 mbp-1, 2026-09-11 12:00-13:00 UTC,
+$0.0779), bought with `scripts/order_extra.py` (quote-only unless `--buy`, per-item caps $0.05 and
+$1.00, total cap $0.20, records in orders.json, never re-orders). Credit left is about $9.73.
+
+**data/raw is read-only** (`chmod -R a-w`, owner request 2026-11-18). To add data lift only the
+directory (`chmod u+w /srv/quant/data/raw`), download, then `chmod -R a-w /srv/quant/data/raw`, and
+tell the owner. It was lifted once (directory only) for the two purchases above and re-locked.
+
 **Free re-download window ends around 2026-12-18** (30 days after the
 orders). After that, replacing lost files costs money, and the disk has no
 RAID. A backup copy is still to do.
@@ -89,7 +98,27 @@ RAID. A backup copy is still to do.
 2. Back up `data/raw` before the 2026-12-18 re-download window closes.
 3. The owner should back up their SSH key and store the `quant` password.
 4. Optionally add the owner's IP to fail2ban's `ignoreip`.
-5. Phase 1 (engine) is waiting for the owner's approval.
+5. Queue position from MBO is not exact (3.6-7.4% of fills hit an order with an earlier unfilled
+   order ahead; PLAN.md Phase 2). Matters for Phase 6.
+6. RTH hours (08:30-15:00 CT) are a convention, unverified against CME.
+
+## Engine (built 2026-11-18)
+`engine/` (CMake, C++20, gcc 13): `include/mbo/dbn.hpp` (reader),
+`include/mbo/book.hpp` (per-order book), `include/mbo/bars.hpp` (bucket rows), tools `dbn_digest`, `book_check`,
+tools `bar_extract` (-> Parquet via `scripts/bars_to_parquet.py`), tests `book_test`, `bars_test`. Build: `cmake -S engine -B engine/build -G Ninja &&
+cmake --build engine/build`. `scripts/verify_dbn.py` is the Phase 1 acceptance
+(`.venv/bin/python -I scripts/verify_dbn.py engine/build/dbn_digest FILES`).
+Heavy runs: `scripts/batch_run.sh <cmd>` (transient user scope, MemoryMax 90G + taskset on the batch
+CPUs, no sudo; needs `XDG_RUNTIME_DIR=/run/user/1001`, which the script sets). Tested: affinity and
+the memory cap are enforced (1.5 GB allocation under a 300 MB cap -> killed, exit 137). It runs in
+the user's app.slice, not `quant-batch.slice` (that needs sudo), with the same CPU/memory limits.
+
+Outputs on the server (not in git): `/srv/quant/data/features/{bars,trades}/*.parquet`,
+`/srv/quant/data/features/levels/{settlement,session_levels}.parquet`,
+`/srv/quant/results/crossed/*.ts` + `crossed_vs_status.txt`. Earlier list: `/srv/quant/results/phase2_book_check.jsonl`
+(per-day book acceptance numbers) and `/srv/quant/data/features/bars/*.parquet`
+(Phase 3 bar layer, 92 files). `scripts/verify_bars.py` re-checks a day
+(`bar_extract FILE /tmp/x.bars 100` first).
 
 ## rag-cpp review summary (2026-11-18)
 rag-cpp cannot be the base for this engine:
