@@ -114,7 +114,7 @@ CPUs, no sudo; needs `XDG_RUNTIME_DIR=/run/user/1001`, which the script sets). T
 the memory cap are enforced (1.5 GB allocation under a 300 MB cap -> killed, exit 137). It runs in
 the user's app.slice, not `quant-batch.slice` (that needs sudo), with the same CPU/memory limits.
 
-Outputs on the server (not in git): `/srv/quant/data/features/{bars,trades}/*.parquet`,
+Outputs on the server (not in git): `/srv/quant/data/features/{bars,trades,windowed}/*.parquet`,
 `/srv/quant/data/features/levels/{settlement,session_levels}.parquet`,
 `/srv/quant/results/crossed/*.ts` + `crossed_vs_status.txt`. Earlier list: `/srv/quant/results/phase2_book_check.jsonl`
 (per-day book acceptance numbers) and `/srv/quant/data/features/bars/*.parquet`

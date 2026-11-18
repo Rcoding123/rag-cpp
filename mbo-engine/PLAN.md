@@ -5,9 +5,10 @@ order-book structure, price levels and options/gamma levels, plus RL agents
 trained on full market-by-order (MBO) data. The agents are trained on a Linux
 server and run live on Windows inside ATAS on a prop-firm account.
 
-**Status (2026-11-18):** Phase 0 (infrastructure, data), Phase 1 (DBN reader) and
-Phase 2 (per-order book, validated against mbp-1 and the status feed) are done; Phase 3
-is in progress (bars, sessions done). The
+**Status (2026-11-18):** Phases 0-3 are done and verified (infrastructure, data, DBN reader, per-order book
+validated against mbp-1 and the status feed, bars/trades/sessions/settlements/levels, and the windowed features
+checked bit-for-bit against the original C++). Phase 4 (options and gamma) is next; Phase 5 (signal research)
+comes before any RL. The
 owner approved engine work on 2026-11-18 ("proceed with the plan autonomously").
 The no-spending rule still applies.
 
@@ -233,17 +234,32 @@ checks pass on the server.
   ONLY ONE length may be used in any pre-registered test (choose it before looking at results),
   otherwise the choice becomes a free parameter and biases the result.
   2026-09-07 (Labor Day, 12:00 CT close) has no RTH by design.
-- TODO: windowed features (delta 5/30/120 s, OFI windows, volume ratio,
-  imbalance L1/L1-5, returns, VWAP distance) with the rag-cpp EWMA
-  normalisation, built from the bar rows; session assignment (CME session
-  runs 18:00-17:00 ET, files are UTC days, DST shifts the halt between 21:00
-  and 23:00 UTC); levels (prior-session high/low/settlement, VWAP, opening
-  range, volume profile): levels are done (above); only the windowed features remain.
-- Order-flow features: OFI, imbalance, delta, absorption. Port from rag-cpp
-  `include/rag/orderflow/features.hpp`.
-- Levels: volume profile, prior-session high/low/settlement, VWAP, opening
-  range.
-- Output: Parquet in `data/features/`, one file per day.
+- DONE: windowed features `data/features/windowed/YYYYMMDD.parquet` (per CME trade date, 77 files) from
+  `scripts/features.py`: the 13 rag-cpp features on a dense 100 ms grid (raw0-12 and scaled x0-12, float32, plus
+  `trading`, `qok`, `warm`, `valid`). It is a port of the ORIGINAL `include/rag/orderflow/features.hpp` (delta 5/30/120 s,
+  OFI 5/30 s, volume ratio, imbalance L1 and L1-5, mid returns 5/30/120 s in ticks, VWAP distance, absorption; EWMA RMS scaling,
+  clip +-4).
+  **Parity with the original C++:** `engine/tools/feat_ref.cpp` runs the real `FeatureBuilder` (it builds on Linux g++ 13) on
+  the same dense bucket stream (quote forward-filled from the bars, individual side-known trades). All 13 raw and 13 scaled
+  features agree with the vectorised numba kernel on every bucket of whole UTC days: max relative difference 0.0 (bit-identical) on
+  on ALL 92 UTC days: 70,864,870 buckets compared, worst relative difference 0, 0 mismatching days (`scripts/verify_features.py`). Negative controls (a perturbed OFI value, quote
+  size or absorption value) are caught. This also checks bar_extract's per-bucket OFI and absorption against the original code.
+  **One deliberate deviation, found by that test:** when either quote being compared has an EMPTY side (bid or ask 0), the original
+  computes OFI arithmetically from zero prices (garbage); bar_extract writes 0. It happens in 12 of 92 files, one bucket each (the Sunday files: empty book, then the
+  snapshot). The parity test proves the difference is confined to such buckets (asserts it) and uses the original formula there.
+  **Assembly check** (`scripts/verify_features_pipeline.py`, pandas rolling recomputation from the bars/trades parquet, covering what the
+  kernel parity cannot: unit boundaries, prior-quote carry, per-session windows/VWAP, masks): raw0-4 and 8-11 equal on all usable rows
+  of 10 sessions (first session, Labor Day early close, roll day with both units, final stub, DST-change week, three days with
+  Velocity-Logic pauses). Masking/NaN/densification rules: `scripts/test_features.py` (hand-computed cases).
+  **Design choices (all documented in features.py):** units are (trade_date, instrument); windows, VWAP and absorption restart
+  per unit; the EWMA scalers carry across units (causal); volume/delta/VWAP use side-known trades only (the original needs an
+  aggressor); `valid` = exchange says Trading AND both sides present AND not crossed AND no snapshot in the bucket AND >=120 s into the
+  unit AND returns/VWAP finite; weekends are skipped; the last session is not padded past the data end; the 2026-09-16 session is two
+  units (ESU6 stub 17:00-19:00 CT, ESZ6 from 19:00 CT because no book exists for ESZ6 before 00:00 UTC; its first two hours have
+  trades only).
+  **Known limits:** bars are built per UTC-day file, so the absorption run counter and the first OFI restart at 00:00 UTC (a minor
+  discontinuity once per day); the features are NOT yet tested for any predictive value (that is Phase 5, on sealed later days).
+  Output: 62,963,999 rows, 3.8 GB.
 
 ### Phase 4: options and gamma levels
 - Inputs:

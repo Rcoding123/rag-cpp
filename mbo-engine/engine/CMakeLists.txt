@@ -43,3 +43,9 @@ target_link_libraries(fifo_check mbo)
 
 add_executable(trades_extract tools/trades_extract.cpp)
 target_link_libraries(trades_extract mbo)
+
+# Parity reference: the original rag-cpp FeatureBuilder (header-only; needs the rag-cpp include dir two levels up).
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../../include/rag/orderflow/features.hpp)
+  add_executable(feat_ref tools/feat_ref.cpp)
+  target_include_directories(feat_ref PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../include)
+endif()
