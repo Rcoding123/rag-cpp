@@ -42,13 +42,15 @@ struct Touch {
   uint32_t orders; // number of orders at the level
 };
 
-// What a modify does to queue priority. Cme is the documented CME rule and the default; the
-// others exist only so tools/fifo_check can show empirically which rule the data follows.
-enum class ModifyPolicy { Cme, KeepOnIncrease, AlwaysRequeue };
+// What a modify does to queue priority. The other policies exist so tools/fifo_check can show empirically
+// which rule the data follows. Cme = loses priority on size increase or price change only.
+enum class ModifyPolicy { Cme, KeepOnIncrease, AlwaysRequeue, RequeueOnEqual };  // RequeueOnEqual: a same-price same-size modify (e.g. an account change, which CME says loses priority) also requeues
 
 class Book {
  public:
-  explicit Book(ModifyPolicy p = ModifyPolicy::Cme) : policy_(p) {}
+  // Default RequeueOnEqual: CME loses priority on a quantity increase, a price change or an account change (an account
+  // change shows up as a same-price same-size modify); it fits the data best on all 7 days tested (tools/fifo_check).
+  explicit Book(ModifyPolicy p = ModifyPolicy::RequeueOnEqual) : policy_(p) {}
   void apply(const MboMsg& m) {
     if (m.flags & (flag::TOB | flag::MBP)) { ++stats_.ignored_tob_or_mbp; return; }
     switch (m.action) {
@@ -214,6 +216,7 @@ class Book {
     bool keep = px == o.price && sz <= o.size;  // CME: only a size decrease at the same price keeps place
     if (policy_ == ModifyPolicy::KeepOnIncrease) keep = px == o.price;
     if (policy_ == ModifyPolicy::AlwaysRequeue) keep = false;
+    if (policy_ == ModifyPolicy::RequeueOnEqual) keep = px == o.price && sz < o.size;
     if (keep) {
       Level& lv = level_ref(o.side, o.price);
       lv.total = lv.total - o.size + sz;

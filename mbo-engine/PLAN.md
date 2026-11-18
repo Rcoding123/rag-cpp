@@ -126,19 +126,41 @@ checks pass on the server.
 - Files are whole UTC calendar days, not trading sessions: each starts with a
   synthetic snapshot (`R` then adds, F_SNAPSHOT) and a session spans two files.
   One instrument_id per file (ES.v.0 switched from 42140870 to 10252 between 2026-08-04 and 2026-09-17; exact roll day not yet located).
-- `modify` priority rule (size increase or price change loses queue position, size decrease keeps
-  it): CME docs agree (owner's links). Empirical test `engine/tools/fifo_check.cpp`: ES is FIFO,
-  so a filled order should have no unfilled earlier order ahead of it (orders filled in the same
-  packet are allowed ahead). Fraction of fills violating this, 7 days (2026-08-10, 08-26, 09-15,
-  10-01, 10-22, 11-10, 11-13), policy CME / keep-priority-on-increase / always-requeue:
-  3.6-7.4% / 3.7-7.4% / 5.1-9.7%. CME is best on all 7 days, requeue-always clearly worst (so a
-  size decrease keeps priority: confirmed), CME vs keep differs by only 0.4-3.1% relative (so
-  "size increase loses priority" is only weakly supported). **Caveat that matters for Phase 6:
-  3.6-7.4% of fills hit an order with an earlier-arrived, still-resting, unfilled order ahead of
-  it, mostly between never-modified live orders (57,744 of 64,369 on 11-13; snapshot orders are
-  not the cause; blockers have the smaller order_id in 97% of cases).** Unexplained: CME's own
-  book rule sorts by MDOrderPriority, which Databento's MBO does not carry, and ES may not be
-  strictly FIFO for every order. Queue position from MBO is therefore an estimate, not exact.
+- Queue priority and the FIFO anomaly (item investigated 2026-11-18). **ES is pure FIFO:** CME's
+  matching-algorithm page (owner's link; algorithm F = "resting orders are matched in timestamp order
+  only") and the exchange's own definition records (`match_algorithm = 'F'` for all 1,944 ES outright
+  definitions in our data). CME's modify rule: priority is lost on a quantity increase, a price change
+  or an account change (an account change is a same-price same-size modify in MBO); display-quantity
+  (iceberg) orders are refreshed to the back of the queue after each match. The book therefore
+  defaults to `ModifyPolicy::RequeueOnEqual` (size decrease keeps priority; increase, price change and
+  equal-size modify requeue).
+  Test (`engine/tools/fifo_check.cpp`): when a resting order is filled (`F`), every order ahead of it in
+  our queue should also have been filled in the same packet. Message order, not timestamps, ranks the
+  queue (Databento: messages of an instrument are never reordered and the start-of-day snapshot is
+  published in priority order; verified: in the live part `sequence` is strictly non-decreasing on all
+  3 days checked and `ts_recv` never decreases; the `sequence` decreases are all inside the snapshot,
+  which is priority-sorted, so ranking by sequence would have been wrong; for adds at one price ts_event
+  order equals message order in ~20M pairs, 0 exceptions). Layers removed one at a time, 2026-11-13:
+  raw 5.1% of fills -> allowing same-packet fills 4.5% -> excluding AGGRESSOR fills (an `F` carrying the
+  trade's own order_id: the aggressing order already rested on the book and was modified to cross; these
+  were exactly the 5,869 fills whose price/side disagreed with the book) 4.13% -> excluding blockers
+  removed (C) in the same packet 3.54% -> equal-size modify requeues 3.46% (CME rule alone 3.54%).
+  **Residual FIFO violations, 7 days (2026-08-10, 08-26, 09-15, 10-01, 10-22, 11-10, 11-13): 3.0-6.2%
+  of passive fills** (policy `eq`: 3.0-6.1%; always-requeue 5.2% and worse). Not explained by: the
+  snapshot (involved in only 1-2% of the residual), timestamps (identical order), modifies (mostly
+  never-modified orders), unknown fills (0), or a previously-partially-filled blocker (13.6%, a
+  contributor only). Unexplained; candidates are order attributes MBO does not carry (minimum-quantity
+  or other conditional orders) or display-quantity refreshes that MBO does not show as a requeue.
+  **Size of the gap** (blocked contracts = unfilled quantity sitting ahead of a filled order): median
+  1 contract, p90 3-6, p99 13-47; median 8-18% of the price level, p90 30-50%.
+  **Phase 6 rule:** queue position from MBO is an upper bound on contracts ahead (the exchange skips
+  some earlier orders, never the reverse in this test), so a simulated order is placed behind every
+  earlier order at its price and fills only when the volume ahead (message-order queue) has traded
+  or cancelled. That is the conservative direction (fills no earlier than the real exchange would);
+  report results with and without a haircut for the 3-6% skipped-order effect, never assume better.
+  The direction claim is reasoning from how the test is defined, not separately measured. The effect cuts
+  both ways: a skipped order itself waits longer than its position suggests; our simulated orders are plain
+  limit orders, so that case should not apply to them (also unmeasured).
 - Port ideas, not code, from rag-cpp `simulator.hpp`. Its book is
   aggregated, not per-order.
 

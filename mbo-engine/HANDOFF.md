@@ -98,8 +98,9 @@ RAID. A backup copy is still to do.
 2. Back up `data/raw` before the 2026-12-18 re-download window closes.
 3. The owner should back up their SSH key and store the `quant` password.
 4. Optionally add the owner's IP to fail2ban's `ignoreip`.
-5. Queue position from MBO is not exact (3.6-7.4% of fills hit an order with an earlier unfilled
-   order ahead; PLAN.md Phase 2). Matters for Phase 6.
+5. Queue position from MBO is not exact: 3.0-6.2% of passive fills hit an order with an earlier
+   unfilled order ahead after all explained causes are removed (PLAN.md Phase 2). Phase 6 must place
+   orders behind everyone earlier at the price (conservative).
 6. RTH hours (08:30-15:00 CT) are a convention, unverified against CME.
 
 ## Engine (built 2026-11-18)
