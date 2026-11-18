@@ -287,6 +287,69 @@ checks pass on the server.
 - Exit criterion: a signal with a confidence interval above zero after
   costs on unseen days, or a documented null.
 
+#### Phase 5 ground rules (owner, 2026-11-18)
+1. Power analysis first (below). If the minimum detectable edge exceeds any realistic edge, stop and quote more history.
+2. Every test is pre-registered in this file BEFORE it runs: hypothesis, feature(s), horizon, entry/exit rule, cost model,
+   train/test split, pass threshold. One opening-range length per test.
+3. Walk-forward only. The final weeks are a sealed holdout, used once at the end.
+4. Every result is compared with random-time controls and reported with confidence intervals.
+5. Short horizons on the order-book features first. Passive-fill assumptions use the conservative queue model (behind every
+   earlier order at the price; Phase 2).
+6. Verified steps are committed to the branch after the usual secret/data scan. No spending without asking.
+
+#### Phase 5 power analysis (2026-11-18, `scripts/power_analysis.py`, `scripts/rth_grid.py`; uses no signal)
+**Data/splits.** 76 trade dates with RTH (2026-08-03..2026-11-16; 2026-11-17 has only its evening session). Sealed
+holdout = the last 15 trade dates (2026-10-27..2026-11-16). Development = the first 61 (2026-08-03..2026-10-26),
+expanding-window walk-forward: first 20 days train only, then 5-day test blocks, giving 41 test days (2026-08-31..10-26).
+**Method.** Mid path on the 100 ms RTH grid (valid buckets only; both ends in the same instrument). For horizon h and k
+trades/day (non-overlapping slots of h seconds, random slot, RANDOM side so the true edge is 0), resample N test days with
+replacement, average the signed mid change per trade, 1,500 repeats; SE = SD of those means. Test = "CI lower bound > 0",
+one-sided alpha 0.025, power 0.80, so MDE(net) = 2.80 x SE. Bonferroni for 8 primary tests: 3.58 x SE. Sensitivity: x1.3 SD
+for signal trades, which sit in more volatile moments than random times (an assumption, not measured).
+Gross edge needed = MDE(net) + round-trip cost.
+**Cost model (from rag-cpp OF22/OF23, ticks per lot):** market/stop 0.64 per side = 1.28 round trip (half the measured
+spread + $1.50 per side); limit 0.12 per side = 0.24 round trip, commission only (adverse selection of passive fills is NOT in
+this number; it comes from the Phase 6 queue model).
+
+Mid-change SD (random times, RTH): 1 s 1.13 ticks (51% of 1 s windows show no mid move), 5 s 2.45, 30 s 5.97, 60 s 8.39.
+
+MDE(net), ticks/trade, k = 200 trades/day (k = 50 is about 2.1x larger, k = 10 about 4.7x):
+
+| horizon | 41 WF test days (8,400 trades) | 15 holdout days (3,000 trades) | x1.3 SD, WF | Bonferroni m=8, WF |
+|---|---|---|---|---|
+| 1 s | 0.034 | 0.056 | 0.044 | 0.043 |
+| 5 s | 0.074 | 0.127 | 0.096 | 0.094 |
+| 30 s | 0.181 | 0.306 | 0.235 | 0.230 |
+| 60 s | 0.261 | 0.428 | 0.339 | 0.333 |
+
+(Run used 42 test days; 41 is the real split, a 1% difference.) The same table for k = 50 and k = 10 is in
+`/srv/quant/results/phase5_power.json` (not in git).
+**Realistic gross edge:** rag-cpp measured +0.1 to +0.3 ticks gross at 1 s for book signals (`ORDERFLOW.md`, `EXPERIMENTS.md`
+OF17-OF24), against about 0.55 ticks entry slippage. These are old Sierra numbers, so they are a prior, not a fact for this data.
+**Reading it.**
+- Market orders are cost-bound, not power-bound: a 1.28-tick round trip is 4x to 10x the realistic gross edge, and no sample size fixes that.
+- Passive entry (0.24 round trip) at 1 s is the only place power and plausible edge overlap: gross needed about 0.27 (WF: 0.034 + 0.24) or 0.30
+  (holdout: 0.056 + 0.24), against a prior of 0.1 to 0.3 before adverse selection. This is marginal, and the 15-day holdout can only
+  confirm an edge of about 0.06 net or more.
+- 30 s and 60 s are under-powered on this history: MDE 0.18 to 0.43 net on top of cost, above the prior.
+**More history needed** (MDE target 0.05 net, 80% power, k = 200/day, test days only, SE scales 1/sqrt(days)):
+1 s about 20 days (have 41); 5 s about 92; 30 s about 548; 60 s about 1,142. For a target of 0.10: 5, 23, 137, 286.
+**Quotes (free metadata calls, no purchase; `scripts/quote_history.py`), ES.v.0 immediately before our start:**
+
+| schema | 3 months (2026-05..07) | 6 months | 12 months |
+|---|---|---|---|
+| mbo | $87.04 (51.9 GB) | $185.65 | $334.03 |
+| mbp-1 | $78.86 | $167.17 | $299.22 |
+| mbp-10 | $125.27 | $268.48 | $481.88 |
+| trades | $39.56 | $82.40 | $152.60 |
+
+Credit left is about $9.72, so any of these needs a top-up by the owner. MBO is cheaper than mbp-10 and is the only one with queue
+data; 3 months adds about 63 days (about 140 total). Even 12 months (about 250 days) would not make 30 s or 60 s tests
+powerful at a 0.05 target, so longer horizons cannot be fixed by buying history alone.
+**Limits of this analysis:** random-side trades at random times, so SE ignores signal-conditional variance (x1.3 shown);
+days are resampled as exchangeable (no regime/trend model); the fill rate of passive orders (fewer than k trades/day) is not
+modelled and would raise MDE; no multiple-testing correction beyond the Bonferroni column.
+
 ### Phase 6: replay environment
 - C++ env on the real MBO book. Our order joins the back of the queue and
   fills only when the volume ahead of it trades or cancels.
