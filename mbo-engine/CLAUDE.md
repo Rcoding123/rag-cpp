@@ -30,8 +30,12 @@ folder targets the Linux server** (Ubuntu 24.04, gcc/clang, Python 3.12).
    IPs, `data/`, or `orders.json`.
 8. **Runtime copies of scripts live in `/srv/quant`.** Edit and test here,
    then copy over.
-9. **Heavy jobs go in `quant-batch.slice`.** The live cores (0-3) are
-   reserved.
-10. **Don't trust replay profits.** Follow the validation principles in
+9. **Heavy jobs go on the batch cores with the batch memory cap.** The live
+   cores (0-3) are reserved. Use `scripts/batch_run.sh <cmd>` (no sudo needed;
+   `quant-batch.slice` itself needs sudo).
+10. **`/srv/quant/data/raw` is read-only** (`chmod -R a-w`, owner request
+    2026-11-18). Lift only the directory (`chmod u+w`) to add data, re-lock
+    right after, and tell the owner.
+11. **Don't trust replay profits.** Follow the validation principles in
     PLAN.md: score on unseen later days, compare with random baselines, and
     report confidence intervals.

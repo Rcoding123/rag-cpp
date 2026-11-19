@@ -5,3 +5,4 @@ __pycache__/
 *.dbn
 *.dbn.zst
 orders.json
+build/
